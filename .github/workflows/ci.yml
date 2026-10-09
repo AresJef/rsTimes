@@ -1,0 +1,33 @@
+name: CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install test and build tools
+        run: python -m pip install --index-url https://pypi.org/simple -e ".[test]" build twine
+      - name: Test
+        run: python -m pytest
+      - name: Build sdist and wheel
+        run: python -m build
+      - name: Check distribution metadata
+        run: python -m twine check --strict dist/*
+      - name: Smoke test the installed wheel
+        run: |
+          python -m venv .wheel-test
+          .wheel-test/bin/python -m pip install --no-deps dist/*.whl
+          .wheel-test/bin/python -I -c 'from rstimes import from_unix_ms, to_unix_ms; assert to_unix_ms(from_unix_ms(-1)) == -1; assert from_unix_ms(0).isoformat() == "1970-01-01T00:00:00+00:00"'
