@@ -21,6 +21,13 @@ MANIFEST = Path(__file__).with_name("cases.json")
 SELF = Path(__file__).resolve()
 
 
+def short_protocol():
+    spec = importlib.util.spec_from_file_location("delta_paired", SELF.with_name("paired.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -118,8 +125,19 @@ def worker(package, groups, selected_ids, warmup_ms, qos_policy):
     contexts = {name: workloads(name, groups, selected_ids, qos, model, warmup_ms) for name in names}
     metadata = {name: context[2] for name, context in contexts.items()}
     print(json.dumps(metadata if package == "paired" else metadata[package]), flush=True)
+    short = None
+    host = None
     for line in sys.stdin:
         request = json.loads(line)
+        if request.get("op") in ("pair", "host"):
+            if package != "paired":
+                raise ValueError("Short pairs require one shared measuring thread")
+            if short is None:
+                short = short_protocol()
+                host = short.Host()
+            reply = host.info if request["op"] == "host" else short.measure_pair(contexts, request, host)
+            print(json.dumps(reply), flush=True)
+            continue
         count = request["count"]
         if not isinstance(count, int) or not 1 <= count <= 100_000_000:
             raise ValueError("Invalid benchmark invocation count")
@@ -185,6 +203,17 @@ class Process:
         if package is not None:
             request["package"] = package
         self.process.stdin.write(json.dumps(request) + "\n")
+        self.process.stdin.flush()
+        return self.read()
+
+    def pair(self, identifier, count, order, warmup_count):
+        self.process.stdin.write(json.dumps({"op": "pair", "id": identifier, "count": count,
+                                            "order": order, "warmup_count": warmup_count}) + "\n")
+        self.process.stdin.flush()
+        return self.read()
+
+    def short_info(self):
+        self.process.stdin.write(json.dumps({"op": "host"}) + "\n")
         self.process.stdin.flush()
         return self.read()
 
@@ -279,21 +308,25 @@ def acceptance(rows, summary, mode):
             "regressions": [r["id"] for r in rows if r["candidate_ns"] > r["reference_ns"]*1.10]}
 
 
-def save(result, output):
-    directory = Path(output) / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    directory.mkdir(parents=True, exist_ok=False)
-    (directory/"raw.json").write_text(json.dumps(result, ensure_ascii=False, indent=2)+"\n")
+def save(result, output, existing_directory=None):
+    directory = Path(existing_directory) if existing_directory else Path(output) / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    if existing_directory is None:
+        directory.mkdir(parents=True, exist_ok=False)
+        (directory/"raw.json").write_text(json.dumps(result, ensure_ascii=False, indent=2)+"\n")
     summary = ["# Delta 调用性能比较", "", "正式验收："+str(result["acceptance"]["formal_acceptance"]), "",
-               "快速结果仅供开发比较；正式结果按原门槛判断。", "",
+               "快速结果仅供开发比较；协议："+result.get("protocol", "legacy-long-v1"), "",
                "| 输入 | 原版ns | 上次候选ns | 当前候选ns | 当前速度比 | 保守速度比 | 最大波动 |",
                "| --- | --- | --- | --- | --- | --- | --- |"]
     csv = ["case,group,reference_ns,previous_candidate_ns,candidate_ns,speed_ratio,conservative_ratio,max_noise"]
     for row in result["measurements"]:
+        if "reference_ns" not in row:
+            summary.append(f"| {row['id']} | 不明确 | — | — | — | — | — |")
+            continue
         old = row.get("previous_candidate_ns")
         summary.append(f"| {row['id']} | {row['reference_ns']:.1f} | {f'{old:.1f}' if old else '—'} | {row['candidate_ns']:.1f} | {row['speed_ratio']:.3f} | {row['conservative_ratio']:.3f} | {row['max_noise']:.1%} |")
         csv.append(f"{row['id']},{row['group']},{row['reference_ns']},{old or ''},{row['candidate_ns']},{row['speed_ratio']},{row['conservative_ratio']},{row['max_noise']}")
     summary += ["", "组合结果：", "", "```json", json.dumps(result["aggregates"], indent=2), "```", "",
-                "缓存参考："+str(result["cached_reference"])+"；正式模式每次重新进行同次数交替采样。"]
+                "缓存参考："+str(result["cached_reference"])+"；正式模式现场采集同次数配对；短协议保留全部有效/拒绝尝试。"]
     (directory/"summary.md").write_text("\n".join(summary)+"\n")
     (directory/"summary.csv").write_text("\n".join(csv)+"\n")
     return directory
@@ -316,12 +349,25 @@ def main():
     parser.add_argument("--previous")
     parser.add_argument("--fresh-reference", action="store_true")
     parser.add_argument("--retry-noise", help="Prior formal raw.json; one retry of unstable rows with longer batches")
+    parser.add_argument("--protocol", choices=("legacy", "short"), default="legacy")
+    parser.add_argument("--short-ms", type=float, default=1, help="Shared-count short target, 1..10ms")
+    parser.add_argument("--pairs-per-block", type=int, default=20, help="Fixed valid micro-pairs per statistical block; 1..160")
+    parser.add_argument("--session-seconds", type=int, default=600)
+    parser.add_argument("--resume", help="Same short protocol raw.json; inherits accepted pairs and all attempts")
+    parser.add_argument("--precision-evidence", help="Validated short/long representative comparison receipt")
     args = parser.parse_args()
     warmup_ms = args.warmup_ms if args.warmup_ms is not None else (150 if args.paired_process else 0)
     if not 0 <= warmup_ms <= 1000:
         parser.error("--warmup-ms must be 0..1000")
     if args.worker:
         worker(args.worker, args.group, args.case, warmup_ms, args.measurement_qos)
+        return
+    if args.protocol == "short":
+        if args.previous or args.retry_noise or args.batch_ms is not None:
+            parser.error("Short protocol uses --resume; cannot mix legacy caches/retries")
+        if not 1 <= args.short_ms <= 10 or not 1 <= args.session_seconds <= 600 or not 1 <= args.pairs_per_block <= 160:
+            parser.error("Short target 1..10ms; cumulative session budget 1..600seconds")
+        short_protocol().run(args, sys.modules[__name__])
         return
     if args.batch_ms is not None and (args.mode != "formal" or not 100 <= args.batch_ms <= 5000):
         parser.error("--batch-ms requires formal mode and 100..5000ms")
