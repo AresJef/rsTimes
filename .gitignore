@@ -13,3 +13,5 @@ htmlcov/
 .env.*
 .local/
 /target/
+
+.delta-oracle/
