@@ -18,17 +18,18 @@ REPRESENTATIVES = {"relative:zero", "getters:single", "delta-arithmetic:positive
                    "numpy-datetime:ns:negative:add", "save:child:read"}
 
 
-def capture(candidate_env, output, width):
+def capture(candidate_env, output, width, selected=(), short_ms=1):
     """Alternate short/control in the same thread; never stitch unmatched times."""
     spec=importlib.util.spec_from_file_location("bench",ROOT/"benchmarks/delta/bench.py")
     bench=importlib.util.module_from_spec(spec);sys.modules["bench"]=bench;spec.loader.exec_module(bench)
-    oracle=bench.Process(ROOT/".local/delta/oracle","cytimes","all",sorted(REPRESENTATIVES),0,"interactive")
+    identifiers=sorted(selected or REPRESENTATIVES)
+    oracle=bench.Process(ROOT/".local/delta/oracle","cytimes","all",identifiers,0,"interactive")
     worker=None
     directory=ROOT/"benchmarks/delta/results"/datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     directory.mkdir(parents=True,exist_ok=False)
     started=time.monotonic();deadline=started+180
     try:
-        worker=bench.Process(candidate_env,"paired","all",sorted(REPRESENTATIVES),0,"interactive")
+        worker=bench.Process(candidate_env,"paired","all",identifiers,0,"interactive")
         ref,cand=worker.metadata["cytimes"],worker.metadata["rstimes"]
         old,new=dict(oracle.metadata["environment"]),dict(ref["environment"])
         for key in ("package_file","process_model"):
@@ -37,7 +38,7 @@ def capture(candidate_env, output, width):
             raise ValueError("Capture must match frozen reference and candidate outputs")
         host=worker.short_info()
         results=[]
-        for target in (1,5):
+        for target in (short_ms,5*short_ms):
             results.append({"protocol":paired.PROTOCOL,"mode":"formal","reference":ref,"candidate":cand,
                 "hardware":host,"helper_sha256":bench.digest(ROOT/"benchmarks/delta/paired.py"),
                 "sampling":{**paired.RULES,"target_ms":float(target),"required_pairs":12,"pairs_per_block":width,
@@ -48,7 +49,7 @@ def capture(candidate_env, output, width):
         for case in ref["cases"]:
             pilot=worker.pair(case["id"],2000,["reference","candidate"],2000)
             per_call=min(b["cpu_elapsed_ns"]/b["count"] for b in pilot["batches"].values())
-            count=max(1,math.ceil(1e6/per_call));warm=max(1,math.ceil(.25e6/per_call))
+            count=max(1,math.ceil(short_ms*1e6/per_call));warm=max(1,math.ceil(.25e6/per_call))
             for scale,result in zip((1,5),results):
                 result["states"][case["id"]]={"count":count*scale,"accepted":[],"attempts":[],"required":12,"pairs_per_block":width}
             index=attempts=0
@@ -85,7 +86,7 @@ def capture(candidate_env, output, width):
         if worker is not None:worker.close()
 
 
-def validate(short_path, control_path):
+def validate(short_path, control_path, selected=()):
     short, control = [json.loads(Path(p).read_text()) for p in (short_path, control_path)]
     # CLI durations are floats. Canonicalize older producer integer encodings;
     # this changes no measurement, selected sample or acceptance threshold.
@@ -97,8 +98,8 @@ def validate(short_path, control_path):
     for result in (short, control):
         if result["protocol"] != paired.PROTOCOL or result["mode"] != "formal":
             raise ValueError("Both probes must use the formal short protocol")
-        if {r["id"] for r in result["measurements"]} != REPRESENTATIVES:
-            raise ValueError("Use all seven fixed timing representatives")
+        if {r["id"] for r in result["measurements"]} != set(selected or REPRESENTATIVES):
+            raise ValueError("Use all declared fixed timing representatives")
         if result["helper_sha256"] != helper or result["candidate"]["runner_sha256"] != runner:
             raise ValueError("Probe does not match the current runner/helper")
         if result["sampling"]["required_pairs"] != 12:
@@ -119,7 +120,7 @@ def validate(short_path, control_path):
     micro = [p for state in short["states"].values() for p in state["accepted"]]
     width = short["sampling"]["pairs_per_block"]
     complete = all(r["status"] == "measured" for result in (short,control) for r in result["measurements"])
-    passed = complete and len(micro) == 7*12*width and all(p["valid"] for p in micro)
+    passed = complete and len(micro) == len(selected or REPRESENTATIVES)*12*width and all(p["valid"] for p in micro)
     passed = passed and all(c["relative_difference"] <= .03 and c["short_noise"] <= .05 for c in comparisons)
     return {"protocol":paired.PROTOCOL, "passed":passed, "target_ms":short["sampling"]["target_ms"],
             "pairs_per_block":width, "short_raw":str(Path(short_path).resolve()),
@@ -139,13 +140,16 @@ if __name__ == "__main__":
     parser.add_argument("--short"); parser.add_argument("--control")
     parser.add_argument("--capture",action="store_true");parser.add_argument("--pairs-per-block",type=int,default=40)
     parser.add_argument("--candidate-env",default=str(ROOT/".local/delta/final-env"))
+    parser.add_argument("--case",action="append",default=[]);parser.add_argument("--short-ms",type=float,default=1)
     parser.add_argument("--output",required=True)
     args=parser.parse_args()
     if args.capture:
         if args.short or args.control or args.pairs_per_block not in (20,40):parser.error("Capture requires fixed width20 or40")
-        args.short,args.control=capture(args.candidate_env,args.output,args.pairs_per_block)
+        if not 1<=args.short_ms<=5:parser.error("Precision short target must be1..5ms")
+        args.short,args.control=capture(args.candidate_env,args.output,args.pairs_per_block,args.case,args.short_ms)
     elif not args.short or not args.control:parser.error("Provide short/control or --capture")
-    result=validate(args.short,args.control)
+    result=validate(args.short,args.control,args.case)
+    result["validation_scope_ids"]=args.case or None
     output=Path(args.output)
     with output.open("x") as file:
         file.write(json.dumps(result,ensure_ascii=False,indent=2)+"\n")

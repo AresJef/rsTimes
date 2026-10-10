@@ -67,3 +67,15 @@ formal每项固定12个统计批次，各含120个有效短配对，共1440个�
 此有限验证固定七代表项、180秒预算；未通过则不启动正式验收。它不增加Delta输入或功能测试。
 
 最终精度控制固定40微配对/批次，正式统计量120微配对/批次；两者目的不同：前者证明1ms计时可靠，后者补足正式采样量并由P5/P6核验。精度绑定实际计时源码/规则/native/输入/硬件及短批次长度，正式数据续接仍严格绑定统计量和全部配置。120是在第三次正式前由既有数据仅诊断确认的固定选择，不把旧失败改判通过。
+
+## 本次两项条件调整及合成
+
+全量120轮只有 `delta-arithmetic:year:both:add`、`unary:negative-us:abs`不稳定，预先固定一次5ms整项重测，保留91有效项。两项5/25ms紧邻控制验证后，使用相同runner/helper/native/输入/环境/规则、12×120统计量采样；不改权重，不能选最好成绩。
+
+```sh
+.local/delta/build/bin/python tools/validate_delta_timing.py --capture --short-ms 5 --case delta-arithmetic:year:both:add --case unary:negative-us:abs --candidate-env .local/delta/final-env --output <全新两项精度receipt>
+.local/delta/build/bin/python benchmarks/delta/bench.py --protocol short --mode formal --group all --case delta-arithmetic:year:both:add --case unary:negative-us:abs --candidate-env .local/delta/final-env --short-ms 5 --pairs-per-block 120 --session-seconds 600 --measurement-qos interactive --precision-evidence <两项精度receipt>
+.local/delta/build/bin/python tools/compose_delta_performance.py --base <完整raw> --replacement <两项raw>
+```
+
+合成器要求替换全部原不稳定项、没有稳定项或遗漏；代码/环境/输出等不匹配则拒绝。只允许预定1→5ms调整，所有旧失败源文件及hash保留；新成绩更差仍替换并按失败报告。此命令是本次已声明的有限修正，不能无限循环。最终全量P1–P6通过的记录在 `20261010T143458883509Z`。
