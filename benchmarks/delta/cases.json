@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "purpose": "Group selection only; concrete input factories are in tests/delta/cases.py",
+  "groups": {
+    "B1": [
+      "relative:zero",
+      "relative:mixed",
+      "absolute:clamps"
+    ],
+    "B2": [
+      "getters:single",
+      "getters:all",
+      "bool:mixed"
+    ],
+    "B5": [
+      "date-call:cross-year:reuse",
+      "date-call:cross-year:construct",
+      "date-call:month-end:reuse",
+      "date-call:month-end:construct",
+      "date-call:us-before:reuse",
+      "date-call:us-before:construct",
+      "date-call:utc:reuse",
+      "date-call:utc:construct",
+      "date-call:ny-fold:reuse",
+      "date-call:ny-fold:construct",
+      "date-call:ny-unchanged:reuse",
+      "date-call:ny-unchanged:construct",
+      "date-combination:reuse",
+      "date-combination:construct"
+    ],
+    "B3": [
+      "delta-arithmetic:positive:add",
+      "delta-arithmetic:positive:sub",
+      "delta-arithmetic:negative:add",
+      "delta-arithmetic:negative:sub",
+      "delta-arithmetic:cancel:add",
+      "delta-arithmetic:cancel:sub",
+      "delta-arithmetic:year:both:add",
+      "delta-arithmetic:year:both:sub",
+      "unary:negative-month:neg",
+      "unary:negative-us:abs",
+      "unary:opposite-signs:abs"
+    ],
+    "B4": [
+      "timedelta:positive:relative:add",
+      "timedelta:positive:relative:radd",
+      "timedelta:positive:relative:sub",
+      "timedelta:positive:relative:rsub",
+      "timedelta:positive:absolute:add",
+      "timedelta:positive:absolute:radd",
+      "timedelta:positive:absolute:sub",
+      "timedelta:positive:absolute:rsub",
+      "timedelta:negative-us:relative:add",
+      "timedelta:negative-us:relative:radd",
+      "timedelta:negative-us:relative:sub",
+      "timedelta:negative-us:relative:rsub",
+      "timedelta:negative-us:absolute:add",
+      "timedelta:negative-us:absolute:radd",
+      "timedelta:negative-us:absolute:sub",
+      "timedelta:negative-us:absolute:rsub"
+    ],
+    "B6": [
+      "protocol:eq-equal",
+      "protocol:eq-different",
+      "protocol:hash-first",
+      "protocol:hash-cached",
+      "protocol:repr",
+      "protocol:str"
+    ],
+    "B7": [
+      "dateutil:from:integer:Delta",
+      "dateutil:from:fraction:Delta",
+      "dateutil:from:absolute:Delta",
+      "dateutil:from:weekday-n:Delta",
+      "dateutil:arithmetic:absolute:add",
+      "dateutil:arithmetic:fraction:rsub",
+      "dateutil:arithmetic:weekday-n:radd"
+    ],
+    "B8": [
+      "numpy-datetime:ns:negative:add",
+      "numpy-datetime:ns:negative:method-rsub",
+      "numpy-datetime:us:negative:add",
+      "numpy-datetime:us:negative:method-rsub",
+      "numpy-datetime:D:negative:add",
+      "numpy-datetime:D:negative:method-rsub",
+      "numpy-datetime:M:negative:add",
+      "numpy-datetime:M:negative:method-rsub",
+      "numpy-datetime:Y:negative:add",
+      "numpy-datetime:Y:negative:method-rsub",
+      "numpy-timedelta:ns:negative:add",
+      "numpy-timedelta:ns:negative:sub",
+      "numpy-timedelta:ns:negative:method-rsub",
+      "numpy-timedelta:us:negative:add",
+      "numpy-timedelta:us:negative:sub",
+      "numpy-timedelta:us:negative:method-rsub",
+      "numpy-timedelta:D:negative:add",
+      "numpy-timedelta:D:negative:sub",
+      "numpy-timedelta:D:negative:method-rsub",
+      "numpy-timedelta:M:negative:add",
+      "numpy-timedelta:M:negative:sub",
+      "numpy-timedelta:M:negative:method-rsub",
+      "numpy-timedelta:Y:negative:add",
+      "numpy-timedelta:Y:negative:sub",
+      "numpy-timedelta:Y:negative:method-rsub"
+    ],
+    "B9": [
+      "save:base:write",
+      "save:base:read",
+      "save:base:copy",
+      "save:base:deepcopy",
+      "save:child:write",
+      "save:child:read",
+      "save:child:copy",
+      "save:child:deepcopy"
+    ]
+  },
+  "group_weight": "equal",
+  "case_weight": "equal",
+  "locked_utc": "2026-10-10T07:12:00+00:00 (minute estimate)"
+}
