@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=77.0.3"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin==1.15.0"]
+build-backend = "maturin"
 
 [project]
 name = "rsTimes"
-version = "0.1.0"
+version = "0.1.0+delta.1"
 description = "Integer-based conversions between aware datetimes and Unix milliseconds"
 readme = "README.md"
 license = "MIT"
@@ -21,16 +21,11 @@ classifiers = [
 [project.optional-dependencies]
 test = ["pytest>=8"]
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-include-package-data = false
-
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["rstimes"]
-
-[tool.setuptools.package-data]
-rstimes = ["py.typed"]
+[tool.maturin]
+python-source = "src"
+module-name = "rstimes._native"
+bindings = "pyo3"
+features = ["extension-module"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,8 +1,9 @@
 """Exact conversions between aware datetimes and Unix milliseconds."""
 
 from datetime import datetime, timedelta, timezone
+from .delta import Delta
 
-__all__ = ["to_unix_ms", "from_unix_ms"]
+__all__ = ["Delta", "to_unix_ms", "from_unix_ms"]
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
