@@ -1,0 +1,201 @@
+{
+  "status": "passed",
+  "rust": [
+    {
+      "file": "rust/bulk.rs",
+      "functions": 12,
+      "documented": 12,
+      "module_documented": true
+    },
+    {
+      "file": "rust/calendar.rs",
+      "functions": 10,
+      "documented": 10,
+      "module_documented": true
+    },
+    {
+      "file": "rust/delta.rs",
+      "functions": 89,
+      "documented": 89,
+      "module_documented": true
+    },
+    {
+      "file": "rust/interop.rs",
+      "functions": 18,
+      "documented": 18,
+      "module_documented": true
+    },
+    {
+      "file": "rust/lib.rs",
+      "functions": 3,
+      "documented": 3,
+      "module_documented": true
+    },
+    {
+      "file": "rust/numpy_scalar.rs",
+      "functions": 14,
+      "documented": 14,
+      "module_documented": true
+    },
+    {
+      "file": "rust/protocol.rs",
+      "functions": 23,
+      "documented": 23,
+      "module_documented": true
+    },
+    {
+      "file": "rust/state.rs",
+      "functions": 15,
+      "documented": 15,
+      "module_documented": true
+    }
+  ],
+  "python": [
+    {
+      "file": "src/rstimes/__init__.py",
+      "items": 2,
+      "documented": 2,
+      "executable_ast_unchanged": true,
+      "new_validation_tool": false
+    },
+    {
+      "file": "src/rstimes/__init__.pyi",
+      "items": 2,
+      "documented": 2,
+      "executable_ast_unchanged": true,
+      "new_validation_tool": false
+    },
+    {
+      "file": "src/rstimes/delta.py",
+      "items": 0,
+      "documented": 0,
+      "executable_ast_unchanged": true,
+      "new_validation_tool": false
+    },
+    {
+      "file": "src/rstimes/delta.pyi",
+      "items": 44,
+      "documented": 44,
+      "executable_ast_unchanged": false,
+      "new_validation_tool": false
+    },
+    {
+      "file": "src/rstimes/errors.py",
+      "items": 4,
+      "documented": 4,
+      "executable_ast_unchanged": true,
+      "new_validation_tool": false
+    },
+    {
+      "file": "tools/check_documentation.py",
+      "items": 6,
+      "documented": 6,
+      "executable_ast_unchanged": null,
+      "new_validation_tool": true
+    },
+    {
+      "file": "tools/compose_delta_performance.py",
+      "items": 1,
+      "documented": 1,
+      "executable_ast_unchanged": true,
+      "new_validation_tool": false
+    },
+    {
+      "file": "tools/compose_optimization_performance.py",
+      "items": 2,
+      "documented": 2,
+      "executable_ast_unchanged": null,
+      "new_validation_tool": true
+    },
+    {
+      "file": "tools/delta_check.py",
+      "items": 9,
+      "documented": 9,
+      "executable_ast_unchanged": false,
+      "new_validation_tool": false
+    },
+    {
+      "file": "tools/optimization_selfcheck.py",
+      "items": 21,
+      "documented": 21,
+      "executable_ast_unchanged": null,
+      "new_validation_tool": true
+    },
+    {
+      "file": "tools/paired_selfcheck.py",
+      "items": 2,
+      "documented": 2,
+      "executable_ast_unchanged": true,
+      "new_validation_tool": false
+    },
+    {
+      "file": "tools/revision_check.py",
+      "items": 1,
+      "documented": 1,
+      "executable_ast_unchanged": null,
+      "new_validation_tool": true
+    },
+    {
+      "file": "tools/validate_delta_timing.py",
+      "items": 2,
+      "documented": 2,
+      "executable_ast_unchanged": true,
+      "new_validation_tool": false
+    },
+    {
+      "file": "tools/wheel_smoke.py",
+      "items": 0,
+      "documented": 0,
+      "executable_ast_unchanged": true,
+      "new_validation_tool": false
+    },
+    {
+      "file": "benchmarks/delta/bench.py",
+      "items": 26,
+      "documented": 26,
+      "executable_ast_unchanged": false,
+      "new_validation_tool": false
+    },
+    {
+      "file": "benchmarks/delta/optimization.py",
+      "items": 22,
+      "documented": 22,
+      "executable_ast_unchanged": null,
+      "new_validation_tool": true
+    },
+    {
+      "file": "benchmarks/delta/paired.py",
+      "items": 15,
+      "documented": 15,
+      "executable_ast_unchanged": false,
+      "new_validation_tool": false
+    },
+    {
+      "file": "tests/delta/cases.py",
+      "items": 12,
+      "documented": 12,
+      "executable_ast_unchanged": false,
+      "new_validation_tool": false
+    }
+  ],
+  "runtime": {
+    "package": "/Users/jef/ResilioSync/code/rsTimes/.local/delta/revision-20261012/final-env97/lib/python3.13/site-packages/rstimes/__init__.py",
+    "native": "/Users/jef/ResilioSync/code/rsTimes/.local/delta/revision-20261012/final-env97/lib/python3.13/site-packages/rstimes/_native.cpython-313-darwin.so",
+    "native_sha256": "bdadd54566d4ad41ceed5591d57a6fa789cee9d09eaff4d2e5a84345d326bb73",
+    "detailed_delta_members": 28,
+    "properties": 15,
+    "examples_attempted": 19,
+    "examples_failed": 0,
+    "generic_cpython_slots": {
+      "__new__": "Create and return a new object.  See help(type) for accurate signature.",
+      "__init__": "Initialize self.  See help(type(self)) for accurate signature.",
+      "__bool__": "True if self else False",
+      "__eq__": "Return self==value.",
+      "__ne__": "Return self!=value.",
+      "__hash__": "Return hash(self).",
+      "__repr__": "Return repr(self).",
+      "__neg__": "-self",
+      "__abs__": "abs(self)"
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "status": "adopted_and_closed_by_user",
+  "time": "2026-10-13T02:20:01.029395+00:00",
+  "candidate": 97,
+  "version": "0.1.0+delta.3",
+  "authorization": "Adopt retained optimizations, update acceptance, end this round; no further optimization or test runs",
+  "original_full_acceptance": "NOT_PASSED",
+  "original_acceptance_points": 73,
+  "extended_acceptance_points": 70,
+  "source_matches_installed_native": true,
+  "source_sha256": {
+    "rust/bulk.rs": "f22d1657c3091d1163446e36e692085992cc43fc56522e1150146605ab6b233f",
+    "rust/calendar.rs": "53e76286d86c435dfb6e6d93d3468466dfa5b125b80ca1427bcc69bae8dee9e3",
+    "rust/delta.rs": "23a31c01ed3f61eb76fa72e557d7f253221b1c1fc76692f85aa360d1fa169403",
+    "rust/interop.rs": "678d6ab41aad6ebda1c1519a11e3f6955ff5d199f200070607fe9010e38d81d2",
+    "rust/lib.rs": "b4142a2d4372c8449a4cf167a0285543ab96407f23b9889ac1cd7b1f812afd20",
+    "rust/numpy_scalar.rs": "6061641d8446c70d105b6dcaebf928d5f7000d4a711f08d1554ff4e080ee5f32",
+    "rust/protocol.rs": "176ed9384ffeeedaef0b7e713ea68a09eeafcda5924609b9f332627f21a594f4",
+    "rust/state.rs": "4a36b43919064a63799e30b2bdfc5d566b73b9e0df8d9af79bd63913be7895b8"
+  },
+  "native_sha256": "bdadd54566d4ad41ceed5591d57a6fa789cee9d09eaff4d2e5a84345d326bb73",
+  "wheel": "/Users/jef/ResilioSync/code/rsTimes/dist/delta-revision-0.1.0+delta.3/rebuilt-97/rstimes-0.1.0+delta.3-cp313-cp313-macosx_11_0_arm64.whl",
+  "wheel_sha256": "8dc3a914e90db8838abb5d2e109c69cba0f703686dab780001727a17567a223e",
+  "sdist": "/Users/jef/ResilioSync/code/rsTimes/dist/delta-revision-0.1.0+delta.3/source-97/rstimes-0.1.0+delta.3.tar.gz",
+  "sdist_sha256": "4b266ed74f408993dedd266deb82f0e5dcd1c655a396a771121b143d9a44e495",
+  "adopted_work": [
+    "immutable construction and same-type comparison",
+    "checked fractional and wider integer inputs",
+    "apply_many and exact to_timedelta",
+    "retained representation, Delta arithmetic, calendar, bulk mode, two-keyword constructor and builtin duration optimizations"
+  ],
+  "existing_evidence": {
+    "functional": "final-functional-97.json",
+    "contracts": "final-contracts-97.json",
+    "documentation": "documentation-97.json",
+    "installation": "N17-97.json",
+    "source_review": "final97-source-review.json",
+    "controls": "control-cycle-controls97.json",
+    "main": "formal-cycle-main97.json"
+  },
+  "main_scenes": 143,
+  "all_main_numeric_gates_pass": true,
+  "main_overall_pass": false,
+  "unresolved_noise_cases": [
+    "protocol:hash-cached",
+    "numpy-datetime:D:negative:method-rsub"
+  ],
+  "independent_cycle": "NOT_RUN_USER_STOP",
+  "full_raw_two_cycle_audit": "NOT_RUN_USER_STOP",
+  "demo_runtime_before": {
+    "environment": ".local/delta/revision-20261012/final-env",
+    "version": "0.1.0+delta.3",
+    "native_sha256": "01acb59a3009526e27f2359500b61755aba1f363f4a3d9a93d84b1597155581a"
+  },
+  "demo_runtime_selected": {
+    "environment": ".local/delta/revision-20261012/final-env97",
+    "version": "0.1.0+delta.3",
+    "native_sha256": "bdadd54566d4ad41ceed5591d57a6fa789cee9d09eaff4d2e5a84345d326bb73"
+  },
+  "demo_runtime_update": "CONFIGURED_ONLY_NOT_EXECUTED_USER_STOP",
+  "new_test_or_benchmark_runs": 0,
+  "new_native_builds": 0,
+  "publication": false,
+  "git_commit": "5119a7f3aa4de8c4e6d33b9f0c0caf60733d5ac8",
+  "budget": {
+    "original_minutes": 480,
+    "authorized_effective_minutes": 1878.3480113333335,
+    "effective_used_minutes": 1721.5083077166666,
+    "difference_from_original_minutes": 1241.5083077166666,
+    "effective_unused_minutes": 156.83970361666684,
+    "original_deadline_utc": "2026-10-13T01:00:00+00:00",
+    "waiting_07_minutes": 236.8568602,
+    "time_basis": "Existing effective clock less verified waiting07; subsequent question/discussion interval counted conservatively because precise idle boundaries were not reconstructed; closure authorized after original deadline"
+  },
+  "closure_started_utc": "2026-10-13T02:13:24+00:00",
+  "closure_minutes": 6.617156583333334,
+  "source_commit": "5119a7f3aa4de8c4e6d33b9f0c0caf60733d5ac8",
+  "branch": "codex/delta-native",
+  "source_commit_saved": true,
+  "closure_deliverables_complete": true
+}
