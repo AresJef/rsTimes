@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "rstimes"
-version = "0.1.0+delta.1"
+version = "0.1.0+delta.3"
 dependencies = [
  "pyo3",
 ]

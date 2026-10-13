@@ -112,6 +112,14 @@
       "save:child:read",
       "save:child:copy",
       "save:child:deepcopy"
+    ],
+    "B10": [
+      "pydt:month:add",
+      "pydt:month:sub",
+      "pydt:month:radd",
+      "pydt:absolute:add",
+      "pydt:fold:add",
+      "pydt:empty:add"
     ]
   },
   "group_weight": "equal",

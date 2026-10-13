@@ -1,11 +1,11 @@
 [package]
 name = "rstimes"
-version = "0.1.0+delta.1"
+version = "0.1.0+delta.3"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
 publish = false
-include = ["Cargo.toml", "Cargo.lock", "rust/**", "src/rstimes/**", "LICENSE", "NOTICE", "NOTICE-RUST-STDLIB.html", "pyproject.toml", "rust-toolchain.toml", "README.md"]
+include = ["Cargo.toml", "Cargo.lock", "rust/**", "src/rstimes/**", "LICENSE", "NOTICE", "NOTICE-RUST-STDLIB.html", "NOTICE-CPYTHON.txt", "pyproject.toml", "rust-toolchain.toml", "README.md"]
 
 [lib]
 name = "_native"

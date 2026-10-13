@@ -11,6 +11,9 @@ spec.loader.exec_module(paired)
 
 
 def fixture(cpu=1_000_000, candidate=1_000_000):
+    """Build one synthetic timing pair for validity-rule checks, not a Delta workload.
+
+    cpu controls reference CPU time; candidate controls the second elapsed/CPU time."""
     batch = {"count": 100, "elapsed_ns": 1_000_000, "cpu_elapsed_ns": cpu,
              "ns_per_call": 10_000, "boundary_ns": 500}
     second = {**batch, "elapsed_ns": candidate, "cpu_elapsed_ns": candidate,
@@ -26,6 +29,7 @@ INFO = {"wall_clock": {"resolution": 1e-9}, "thread_clock": {"resolution": 1e-9}
 
 
 class Validity(unittest.TestCase):
+    """Protect eligibility and gate decisions using synthetic timing records."""
     def test_coarse_ticks_missing_do_not_veto(self):
         p = fixture()
         self.assertEqual(paired.reasons(p, INFO), [])

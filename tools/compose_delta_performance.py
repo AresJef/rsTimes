@@ -16,6 +16,21 @@ paired=bench.short_protocol()
 
 
 def combine(base, replacement):
+    """Replace every declared unstable row once using strictly matching formal data.
+
+    Args:
+        base (dict): Complete one-millisecond formal result.
+        replacement (dict): Five-millisecond result containing all and only the
+            declared unstable cases.
+
+    Returns:
+        dict: A copied result with complete row replacements, recalculated gates,
+            source identities and the per-case duration matrix.
+
+    Raises:
+        ValueError: Inputs, outputs, versions, hardware, rules or selected cases differ.
+
+    A worse replacement is retained; this function never chooses the better run."""
     if base["protocol"]!=paired.PROTOCOL or replacement["protocol"]!=paired.PROTOCOL:
         raise ValueError("Cannot mix protocols")
     if base["mode"]!=replacement["mode"] or base["mode"]!="formal":

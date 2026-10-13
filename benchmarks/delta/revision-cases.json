@@ -1,0 +1,114 @@
+{
+  "groups": {
+    "T1": [
+      "template:construct",
+      "template:batch"
+    ],
+    "F1": [
+      "float:weeks",
+      "float:days",
+      "float:hours",
+      "float:minutes",
+      "float:seconds",
+      "float:milliseconds",
+      "float:microseconds",
+      "float:negative",
+      "float:mixed",
+      "float:round"
+    ],
+    "A1:1024": [
+      "bulk:date-month-end:1024",
+      "bulk:datetime-relative:1024",
+      "bulk:datetime-absolute:1024",
+      "bulk:datetime-aware:1024"
+    ],
+    "A1:10000": [
+      "bulk:date-month-end:10000",
+      "bulk:datetime-relative:10000",
+      "bulk:datetime-absolute:10000",
+      "bulk:datetime-aware:10000"
+    ],
+    "A2:1024": [
+      "bulk:delta-relative:1024",
+      "bulk:delta-absolute:1024"
+    ],
+    "A2:10000": [
+      "bulk:delta-relative:10000",
+      "bulk:delta-absolute:10000"
+    ],
+    "A3:1024": [
+      "bulk:timedelta-positive:1024",
+      "bulk:timedelta-negative:1024"
+    ],
+    "A3:10000": [
+      "bulk:timedelta-positive:10000",
+      "bulk:timedelta-negative:10000"
+    ],
+    "A4:1024": [
+      "bulk:pydt-month:1024",
+      "bulk:pydt-absolute:1024"
+    ],
+    "A4:10000": [
+      "bulk:pydt-month:10000",
+      "bulk:pydt-absolute:10000"
+    ],
+    "A5:1024": [
+      "bulk:dateutil-relative:1024",
+      "bulk:dateutil-absolute:1024"
+    ],
+    "A5:10000": [
+      "bulk:dateutil-relative:10000",
+      "bulk:dateutil-absolute:10000"
+    ],
+    "A6:1024": [
+      "bulk:numpy-datetime:1024",
+      "bulk:numpy-timedelta:1024"
+    ],
+    "A6:10000": [
+      "bulk:numpy-datetime:10000",
+      "bulk:numpy-timedelta:10000"
+    ],
+    "A7:1024": [
+      "bulk:mixed:1024"
+    ],
+    "A7:10000": [
+      "bulk:mixed:10000"
+    ],
+    "X1": [
+      "to-timedelta:positive",
+      "to-timedelta:negative",
+      "to-timedelta:month-leap",
+      "to-timedelta:month-normal",
+      "to-timedelta:absolute",
+      "to-timedelta:aware"
+    ]
+  },
+  "formal_suites": {
+    "float": [
+      "F1"
+    ],
+    "bulk": [
+      "A1:1024",
+      "A1:10000",
+      "A2:1024",
+      "A2:10000",
+      "A3:1024",
+      "A3:10000",
+      "A4:1024",
+      "A4:10000",
+      "A5:1024",
+      "A5:10000",
+      "A6:1024",
+      "A6:10000",
+      "A7:1024",
+      "A7:10000"
+    ],
+    "conversion": [
+      "X1"
+    ]
+  },
+  "legacy_excluded": [
+    "dateutil:from:weekday-n:Delta",
+    "dateutil:arithmetic:weekday-n:radd"
+  ]
+}

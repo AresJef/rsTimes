@@ -1,9 +1,24 @@
-//! Versioned state for this package, checked completely before field commit.
+//! Versioned serialization and copying for this package's Delta objects.
+//!
+//! The state marker is rstimes.delta and the format version is 1. External state
+//! is fully validated before native fields are committed; trusted native copies
+//! reuse that validated payload. Pickle can execute Python code and is supported
+//! only for trusted data. Old cyTimes pickle and Cython entry points are excluded.
+
 use crate::delta::Delta;
 use pyo3::exceptions::{PyAttributeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyInt, PyString, PyTuple};
+use pyo3::types::{PyBytes, PyDict, PyInt, PyString, PyTuple};
 
+/// Capture this package's five-item versioned pickle state.
+///
+/// # Returns
+/// (marker, version, fields, cached_hash, dictionary), where marker is
+/// rstimes.delta, version is 1, fields contains 15 integers, and dictionary is
+/// None or a shallow copy of a subclass dictionary.
+///
+/// # Errors
+/// Propagates allocation and subclass dictionary access errors.
 pub fn capture<'py>(slf: &Bound<'py, Delta>) -> PyResult<Bound<'py, PyAny>> {
     let py = slf.py();
     let value = slf.borrow();
@@ -24,6 +39,11 @@ pub fn capture<'py>(slf: &Bound<'py, Delta>) -> PyResult<Bound<'py, PyAny>> {
         .into_any())
 }
 
+/// Read an exact builtin int from external state without numeric callbacks.
+///
+/// # Errors
+/// Rejects bool, int subclasses and non-int values with TypeError, and
+/// unrepresentable signed 64-bit values with OverflowError.
 fn integer(value: &Bound<'_, PyAny>) -> PyResult<i64> {
     if !value.is_exact_instance_of::<PyInt>() {
         return Err(PyTypeError::new_err(
@@ -33,23 +53,14 @@ fn integer(value: &Bound<'_, PyAny>) -> PyResult<i64> {
     value.extract()
 }
 
-pub fn restore(slf: &Bound<'_, Delta>, state: &Bound<'_, PyAny>) -> PyResult<()> {
-    let py = slf.py();
-    if !state.is_exact_instance_of::<PyTuple>() {
-        return Err(PyTypeError::new_err("Delta state must be a tuple"));
-    }
-    let state = state.cast::<PyTuple>()?;
-    if state.len() != 5 {
-        return Err(PyValueError::new_err("Delta state must contain 5 items"));
-    }
-    let marker = state.get_item(0)?;
-    if !marker.is_exact_instance_of::<PyString>()
-        || marker.cast::<PyString>()?.to_str()? != "rstimes.delta"
-        || integer(&state.get_item(1)?)? != 1
-    {
-        return Err(PyValueError::new_err("Unsupported Delta state version"));
-    }
-    let data = state.get_item(2)?;
+/// Validate canonical serialized fields and their optional cached hash.
+///
+/// # Errors
+/// Rejects malformed containers, noncanonical ranges and forged hash caches.
+fn decode_fields(
+    data: &Bound<'_, PyAny>,
+    cache: &Bound<'_, PyAny>,
+) -> PyResult<([i64; 15], isize)> {
     if !data.is_exact_instance_of::<PyTuple>() {
         return Err(PyTypeError::new_err("Delta state fields must be a tuple"));
     }
@@ -61,9 +72,23 @@ pub fn restore(slf: &Bound<'_, Delta>, state: &Bound<'_, PyAny>) -> PyResult<()>
     for (index, value) in data.iter().enumerate() {
         fields[index] = integer(&value)?;
     }
-    let cache = integer(&state.get_item(3)?)? as isize;
-    let raw = fields == [0; 15] && cache == 0;
-    if i32::try_from(fields[0]).is_err() || !(0..12).contains(&fields[1]) {
+    let cache = isize::try_from(integer(cache)?).map_err(|_| {
+        pyo3::exceptions::PyOverflowError::new_err("Delta hash cache is out of range")
+    })?;
+    validate_fields(&fields)?;
+    if cache != -1 && cache != data.hash()? {
+        return Err(PyValueError::new_err(
+            "Delta state hash does not match its fields",
+        ));
+    }
+    Ok((fields, cache))
+}
+
+/// Check canonical native ranges independently of their external encoding.
+/// # Errors
+/// Rejects invalid relative/absolute fields before any native value is allocated.
+fn validate_fields(fields: &[i64; 15]) -> PyResult<()> {
+    if !(0..12).contains(&fields[1]) {
         return Err(PyValueError::new_err(
             "Delta state relative year/month is out of range",
         ));
@@ -81,76 +106,287 @@ pub fn restore(slf: &Bound<'_, Delta>, state: &Bound<'_, PyAny>) -> PyResult<()>
     {
         let value = fields[7 + offset];
         let minimum = if offset < 3 { 1 } else { 0 };
-        if !raw && value != -1 && !(minimum..=maximum).contains(&value) {
+        if value != -1 && !(minimum..=maximum).contains(&value) {
             return Err(PyValueError::new_err(
                 "Delta state absolute field is out of range",
             ));
         }
     }
-    if !raw && cache != -1 && cache != data.hash()? {
+    Ok(())
+}
+
+const PAYLOAD_MARKER: &[u8; 8] = b"rstDlt\0\x01";
+
+/// Encode exact native values as versioned little-endian bytes, without PyInts.
+fn encode<'py>(py: Python<'py>, fields: [i64; 15], cache: isize) -> Bound<'py, PyBytes> {
+    let mut bytes = [0_u8; 136];
+    bytes[..8].copy_from_slice(PAYLOAD_MARKER);
+    for (index, value) in fields.into_iter().chain([cache as i64]).enumerate() {
+        bytes[8 + index * 8..16 + index * 8].copy_from_slice(&value.to_le_bytes());
+    }
+    PyBytes::new(py, &bytes)
+}
+
+/// Decode the package's complete constructor payload before exposing an object.
+/// # Errors
+/// Rejects wrong version/length, noncanonical fields and forged cached hashes.
+fn decode_bytes(value: &Bound<'_, PyBytes>) -> PyResult<([i64; 15], isize)> {
+    let bytes = value.as_bytes();
+    if bytes.len() != 136 || bytes[..8] != *PAYLOAD_MARKER {
+        return Err(PyValueError::new_err(
+            "Unsupported Delta reconstruction payload",
+        ));
+    }
+    let mut fields = [0_i64; 15];
+    let mut cache = -1;
+    for (index, chunk) in bytes[8..].chunks_exact(8).enumerate() {
+        let number = i64::from_le_bytes(std::array::from_fn(|offset| chunk[offset]));
+        if index < 15 {
+            fields[index] = number;
+        } else {
+            cache = isize::try_from(number).map_err(|_| {
+                pyo3::exceptions::PyOverflowError::new_err("Delta hash cache is out of range")
+            })?;
+        }
+    }
+    validate_fields(&fields)?;
+    if cache != -1 && Delta::from_snapshot(fields, -1).__hash__(value.py())? != cache {
         return Err(PyValueError::new_err(
             "Delta state hash does not match its fields",
         ));
     }
-    let dictionary = state.get_item(4)?;
-    let has_dictionary = !slf.is_exact_instance_of::<Delta>()
-        && slf.as_any().hasattr(pyo3::intern!(py, "__dict__"))?;
-    if !dictionary.is_none() {
-        if !dictionary.is_exact_instance_of::<PyDict>() {
-            return Err(PyTypeError::new_err(
-                "Delta state dictionary must be dict or None",
-            ));
-        }
-        if !has_dictionary {
-            return Err(PyValueError::new_err(
-                "Base Delta cannot restore a dictionary",
-            ));
-        }
-        for key in dictionary.cast::<PyDict>()?.keys().iter() {
-            if !key.is_exact_instance_of::<PyString>() {
-                return Err(PyTypeError::new_err(
-                    "Delta state dictionary keys must be strings",
-                ));
-            }
-        }
-    }
-    if has_dictionary {
-        let replacement = if dictionary.is_none() {
-            PyDict::new(py)
-        } else {
-            dictionary.cast::<PyDict>()?.copy()?
-        };
-        slf.as_any()
-            .setattr(pyo3::intern!(py, "__dict__"), replacement)?;
-    }
-    // Everything has validated, and the possible Python setter has completed.
-    slf.borrow().restore_fields(fields, cache);
-    Ok(())
+    Ok((fields, cache))
 }
 
-pub fn reduce<'py>(slf: &Bound<'py, Delta>) -> PyResult<Bound<'py, PyAny>> {
+/// Recognize internal reconstruction forms while ordinary numeric inputs continue.
+/// # Errors
+/// Complete byte payloads receive the same strict range/hash validation as state.
+#[inline]
+pub(crate) fn construction_value(args: &Bound<'_, PyTuple>) -> PyResult<Option<Delta>> {
+    // The caller checked a one-item tuple; it owns the borrowed item throughout.
+    let value =
+        unsafe { Borrowed::from_ptr(args.py(), pyo3::ffi::PyTuple_GET_ITEM(args.as_ptr(), 0)) };
+    if let Ok(bytes) = value.cast::<PyBytes>() {
+        if bytes.as_bytes().starts_with(&PAYLOAD_MARKER[..7]) {
+            let (fields, cache) = decode_bytes(&bytes)?;
+            return Ok(Some(Delta::from_snapshot(fields, cache)));
+        }
+    }
+    Ok(None)
+}
+
+/// Validate the dictionary portion of trusted package state.
+///
+/// # Errors
+/// Requires an exact dictionary with string keys, or None.
+fn decode_dictionary<'py>(value: &Bound<'py, PyAny>) -> PyResult<Option<Bound<'py, PyDict>>> {
+    if value.is_none() {
+        return Ok(None);
+    }
+    if !value.is_exact_instance_of::<PyDict>() {
+        return Err(PyTypeError::new_err(
+            "Delta state dictionary must be dict or None",
+        ));
+    }
+    let dictionary = value.cast::<PyDict>()?;
+    for key in dictionary.keys().iter() {
+        if !key.is_exact_instance_of::<PyString>() {
+            return Err(PyTypeError::new_err(
+                "Delta state dictionary keys must be strings",
+            ));
+        }
+    }
+    Ok(Some(dictionary.clone()))
+}
+
+/// Restore subclass metadata without changing the already constructed value.
+///
+/// # Errors
+/// Rejects a dictionary on a base or slot-only object; setter errors propagate.
+fn apply_dictionary(
+    slf: &Bound<'_, Delta>,
+    dictionary: Option<&Bound<'_, PyDict>>,
+) -> PyResult<()> {
     let py = slf.py();
-    // The standard new-object helper lets pickle use NEWOBJ for protocols >=2
-    // and bypass __init__, including subclasses with required arguments.
-    let restore = NEWOBJ.get_or_try_init(py, || -> PyResult<_> {
-        Ok(py
-            .import("copyreg")?
-            .getattr(pyo3::intern!(py, "__newobj__"))?
-            .unbind())
-    })?;
-    let class = slf.as_any().getattr(pyo3::intern!(py, "__class__"))?;
-    Ok((restore.bind(py), (class,), capture(slf)?)
-        .into_pyobject(py)?
-        .into_any())
+    let has_dictionary = !slf.is_exact_instance_of::<Delta>()
+        && slf.as_any().hasattr(pyo3::intern!(py, "__dict__"))?;
+    if !has_dictionary {
+        if dictionary.is_some() {
+            return Err(PyValueError::new_err(
+                "This Delta object cannot restore a dictionary",
+            ));
+        }
+        return Ok(());
+    }
+    let replacement = match dictionary {
+        Some(dictionary) => dictionary.copy()?,
+        None => PyDict::new(py),
+    };
+    slf.as_any()
+        .setattr(pyo3::intern!(py, "__dict__"), replacement)
+}
+
+/// Restore only metadata or validate a snapshot matching the existing value.
+///
+/// Native fields are never rewritten, even if a subclass setter reenters Python.
+/// # Errors
+/// Rejects malformed state, unknown versions, forged caches or changed fields.
+/// Pickle validation does not make untrusted pickle safe to load.
+pub fn restore(slf: &Bound<'_, Delta>, state: &Bound<'_, PyAny>) -> PyResult<()> {
+    if state.is_none() || state.is_exact_instance_of::<PyDict>() {
+        return apply_dictionary(slf, decode_dictionary(state)?.as_ref());
+    }
+    if !state.is_exact_instance_of::<PyTuple>() {
+        return Err(PyTypeError::new_err("Delta state must be a tuple"));
+    }
+    let state = state.cast::<PyTuple>()?;
+    if state.len() != 5 {
+        return Err(PyValueError::new_err("Delta state must contain 5 items"));
+    }
+    let marker = state.get_item(0)?;
+    if !marker.is_exact_instance_of::<PyString>()
+        || marker.cast::<PyString>()?.to_str()? != "rstimes.delta"
+        || integer(&state.get_item(1)?)? != 1
+    {
+        return Err(PyValueError::new_err("Unsupported Delta state version"));
+    }
+    let (fields, _) = decode_fields(&state.get_item(2)?, &state.get_item(3)?)?;
+    let dictionary = decode_dictionary(&state.get_item(4)?)?;
+    if fields != slf.get().snapshot() {
+        return Err(PyValueError::new_err(
+            "Delta values are immutable; state cannot replace fields",
+        ));
+    }
+    apply_dictionary(slf, dictionary.as_ref())
 }
 
 use pyo3::sync::PyOnceLock;
-static NEW: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+use pyo3::types::PyType;
+static RECONSTRUCTOR: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 static NEWOBJ: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 
-/// Copy our already-validated native payload; serialized external state still
-/// follows every check in restore(). Deepcopy uses Python's memo before dict
-/// recursion, so cycles point to the newly allocated object.
+/// Allocate a complete native snapshot, bypassing user subclass constructors.
+///
+/// # Preconditions
+/// class is Delta or a real subtype, and fields/cache are already validated.
+/// # Errors
+/// Propagates allocation and inherited native constructor errors.
+fn allocate_snapshot<'py>(
+    py: Python<'py>,
+    class: &Bound<'py, PyType>,
+    fields: [i64; 15],
+    cache: isize,
+) -> PyResult<Bound<'py, PyAny>> {
+    allocate_value(py, class, Delta::from_snapshot(fields, cache))
+}
+
+/// Allocate an already complete native value without unpacking unchanged fields.
+/// # Preconditions
+/// class is Delta or its genuine subtype; value is fully validated and immutable.
+/// # Errors
+/// Propagates the same checked PyO3 allocation errors as ordinary construction.
+fn allocate_value<'py>(
+    py: Python<'py>,
+    class: &Bound<'py, PyType>,
+    value: Delta,
+) -> PyResult<Bound<'py, PyAny>> {
+    if class.is(py.get_type::<Delta>()) {
+        return Bound::new(py, value).map(Bound::into_any);
+    }
+    // SAFETY: Every caller proved class is Delta or a genuine subtype. This
+    // pinned PyO3 0.29.3 generated-new helper delegates to its own initializer
+    // and allocator, including subtype dict/weakref storage. A complete native
+    // value is supplied before exposure; no payload layout is reconstructed here.
+    let result = unsafe {
+        let pointer = pyo3::impl_::pymethods::tp_new_impl::<_, Delta>(
+            py,
+            pyo3::PyClassInitializer::from(value),
+            class.as_type_ptr(),
+        )?;
+        Bound::from_owned_ptr(py, pointer)
+    };
+    Ok(result)
+}
+
+/// Reconstruct a complete immutable Delta from this package's trusted pickle.
+///
+/// # Errors
+/// Rejects non-Delta classes, malformed fields and invalid hash caches.
+#[pyfunction]
+#[pyo3(signature = (class, data, cache=None))]
+pub fn _restore_delta<'py>(
+    class: &Bound<'py, PyType>,
+    data: &Bound<'py, PyAny>,
+    cache: Option<&Bound<'py, PyAny>>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let py = class.py();
+    if !class.is_subclass(&py.get_type::<Delta>())? {
+        return Err(PyTypeError::new_err(
+            "Delta reconstruction requires a Delta class",
+        ));
+    }
+    let (fields, cache) = if let Ok(bytes) = data.cast::<PyBytes>() {
+        if cache.is_some() {
+            return Err(PyTypeError::new_err("Byte payload includes its hash cache"));
+        }
+        decode_bytes(bytes)?
+    } else {
+        decode_fields(
+            data,
+            cache.ok_or_else(|| PyTypeError::new_err("Delta state requires its hash cache"))?,
+        )?
+    };
+    allocate_snapshot(py, class, fields, cache)
+}
+
+/// Return a complete-value reconstructor and separate subclass state for pickle.
+///
+/// Fields exist before pickle installs metadata, so self references and cycles
+/// cannot observe or modify an incomplete value. User constructors are bypassed.
+/// # Errors
+/// Propagates class/state lookup and allocation errors.
+pub fn reduce<'py>(slf: &Bound<'py, Delta>) -> PyResult<Bound<'py, PyAny>> {
+    let py = slf.py();
+    let constructor = RECONSTRUCTOR.get_or_try_init(py, || {
+        Ok::<_, PyErr>(
+            py.import("rstimes._native")?
+                .getattr("_restore_delta")?
+                .unbind(),
+        )
+    })?;
+    let payload = encode(py, slf.get().snapshot(), slf.get().cached_hash());
+    let dictionary = if slf.is_exact_instance_of::<Delta>() {
+        py.None().into_bound(py)
+    } else {
+        match slf.as_any().getattr(pyo3::intern!(py, "__dict__")) {
+            Ok(dictionary) => dictionary.cast::<PyDict>()?.copy()?.into_any(),
+            Err(error) if error.is_instance_of::<PyAttributeError>(py) => py.None().into_bound(py),
+            Err(error) => return Err(error),
+        }
+    };
+    if crate::protocol::uses_native_new(&slf.get_type()) {
+        let constructor = NEWOBJ.get_or_try_init(py, || {
+            Ok::<_, PyErr>(py.import("copyreg")?.getattr("__newobj__")?.unbind())
+        })?;
+        return Ok(
+            (constructor.bind(py), (slf.get_type(), payload), dictionary)
+                .into_pyobject(py)?
+                .into_any(),
+        );
+    }
+    Ok(
+        (constructor.bind(py), (slf.get_type(), payload), dictionary)
+            .into_pyobject(py)?
+            .into_any(),
+    )
+}
+
+/// Return a distinct shallow/deep copy with the same immutable values and subtype.
+///
+/// Deepcopy registers the new object before recursive metadata copying so shared
+/// references and cycles retain Python's normal copy behavior.
+/// # Errors
+/// Propagates allocation, dictionary setter and deepcopy callback errors.
 pub fn copy_object<'py>(
     slf: &Bound<'py, Delta>,
     memo: Option<&Bound<'py, PyDict>>,
@@ -163,12 +399,7 @@ pub fn copy_object<'py>(
         }
         return Ok(result);
     }
-    let fields = slf.get().snapshot();
-    let cache = slf.get().cached_hash();
-    let constructor = NEW.get_or_try_init(py, || -> PyResult<_> {
-        Ok(py.get_type::<Delta>().getattr("__new__")?.unbind())
-    })?;
-    let result = constructor.bind(py).call1((slf.get_type(),))?;
+    let result = allocate_value(py, &slf.get_type(), slf.get().copied())?;
     if let Some(memo) = memo {
         memo.set_item(slf.as_ptr() as usize, &result)?;
     }
@@ -187,6 +418,5 @@ pub fn copy_object<'py>(
         };
         result.setattr("__dict__", dictionary)?;
     }
-    result.cast::<Delta>()?.get().restore_fields(fields, cache);
     Ok(result)
 }

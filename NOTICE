@@ -861,3 +861,14 @@ not be used in advertising or otherwise to promote the sale, use or other
 dealings in these Data Files or Software without prior written
 authorization of the copyright holder.
 
+
+
+CPython integer and tuple hashing
+--------------------------------
+The allocation-free 64-bit integer-tuple hash in rust/delta.rs follows CPython
+v3.13.3 Objects/longobject.c and Objects/tupleobject.c, adapted to Rust for the
+fixed 15-integer Delta state. Copyright (c) 2001-2025 Python Software Foundation.
+The adaptation preserves the CPython hash values and sentinel handling; it does
+not change Delta's existing cross-type equality/hash limitations.
+Upstream source: https://github.com/python/cpython/tree/v3.13.3/Objects
+The complete upstream license is supplied in NOTICE-CPYTHON.txt.

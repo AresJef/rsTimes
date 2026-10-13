@@ -19,6 +19,11 @@ PARAMETERS = (
 
 
 class Case(NamedTuple):
+    """One deterministic operation with stable identity and requirement links.
+
+    run is a zero-argument workload callable. difference identifies an approved
+    migration policy; it never authorizes arbitrary result mismatches.
+    """
     id: str
     group: str
     requirements: tuple[str, ...]
@@ -27,6 +32,7 @@ class Case(NamedTuple):
 
 
 def type_name(value):
+    """Return a stable qualified type name with the approved package-name mapping."""
     cls = type(value)
     name = f"{cls.__module__}.{cls.__qualname__}"
     if name == "cytimes.delta.Delta":
@@ -59,11 +65,13 @@ def pack(value, Delta):
 
 
 def error_record(error):
+    """Serialize exception type, message and explicit cause without memory addresses."""
     return {"type": type_name(error), "message": str(error),
             "cause": None if error.__cause__ is None else error_record(error.__cause__)}
 
 
 def observe(case, Delta):
+    """Execute a case and record either its structured result or exception chain."""
     try:
         return {"case": case.id, "requirements": case.requirements, "difference": case.difference,
                 "result": pack(case.run(), Delta)}
@@ -73,6 +81,7 @@ def observe(case, Delta):
 
 
 def date_fixtures():
+    """Return fixed calendar, timezone and subtype inputs shared by parity and timing."""
     from zoneinfo import ZoneInfo
     calendar_inputs = [
         ("1900-not-leap", date(1900, 1, 31), dict(months=1)),
@@ -118,6 +127,11 @@ def date_fixtures():
 
 
 def cases(package):
+    """Build deterministic common cases for an installed package's Delta class.
+
+    Returns:
+        tuple: Delta type and ordered Case records with requirement IDs and any
+            approved difference policy. Callable closures execute the real operations."""
     Delta = import_module(package).Delta
     class Child(Delta):
         pass
@@ -155,7 +169,7 @@ def cases(package):
             value.__init__(days=None)
         except Exception as error:
             return {"value": value, "error": error_record(error)}
-        raise AssertionError("invalid input must fail")
+        return {"value": value, "error": None}
 
     def remove_days():
         value = Delta()
@@ -652,10 +666,716 @@ def benchmark_cases(package):
             Case("save:"+kind+":copy","B9",("H02",),lambda stored=stored:copy.copy(stored)),
             Case("save:"+kind+":deepcopy","B9",("H03",),lambda stored=stored:copy.deepcopy(stored)),
         ])
+    from cytimes import Pydt
+    from zoneinfo import ZoneInfo
+    pydt = Pydt(2024, 1, 31, 23, 30)
+    pydt_fold = Pydt(2024, 11, 3, 1, 30, tzinfo=ZoneInfo("America/New_York"), fold=1)
+    pydt_parsed = Pydt.parse("2024-06-15 15:45:00")
+    pydt_month = Delta(months=1)
+    pydt_sub = Delta(months=1, hours=2)
+    pydt_absolute = Delta(hour=9, minutes=30)
+    pydt_minute = Delta(minutes=1)
+    pydt_empty = Delta()
+    output.extend([
+        Case("pydt:month:add", "B10", ("K01", "K05"), lambda: pydt + pydt_month),
+        Case("pydt:month:sub", "B10", ("K01", "K05"), lambda: pydt - pydt_sub),
+        Case("pydt:month:radd", "B10", ("K01", "K05"), lambda: pydt_month + pydt),
+        Case("pydt:absolute:add", "B10", ("K01", "K05"), lambda: pydt_parsed + pydt_absolute),
+        Case("pydt:fold:add", "B10", ("K01", "K05"), lambda: pydt_fold + pydt_minute),
+        Case("pydt:empty:add", "B10", ("K01", "K05"), lambda: pydt + pydt_empty),
+    ])
     return Delta, output
 
-def candidate_cases(package):
-    """D2: validate this package's state contract without submitting it upstream."""
+def revision_contract_cases(package, selected):
+    """Check approved new behavior directly; these are not legacy parity cases."""
+    Delta = import_module(package).Delta
+    records = []
+    if "H01" in selected:
+        def keys():
+            class Child(Delta):
+                pass
+            values = [Delta(days=1), Delta(days=1), Child(days=1)]
+            assert all(value == values[0] and hash(value) == hash(values[0]) for value in values)
+            assert len(set(values)) == 1 and {values[0]: "value"}[values[2]] == "value"
+            assert Delta(days=2) != values[0]
+            assert Delta(hour=0) != Delta()
+            return True
+        def foreign():
+            from dateutil.relativedelta import relativedelta
+            import numpy as np
+            value = Delta(days=1)
+            others = [timedelta(days=1), relativedelta(days=1), np.timedelta64(1, "D"), None, 1, object()]
+            for other in others:
+                assert value.__eq__(other) is NotImplemented
+                assert value.__ne__(other) is NotImplemented
+            assert (value == timedelta(days=1)) is False
+            assert (timedelta(days=1) == value) is False
+            return True
+        records.extend([Case("revision:equal-keys", "H01", ("H01",), keys),
+                        Case("revision:foreign-comparison", "H01", ("H01",), foreign)])
+    if "H02" in selected:
+        def construction():
+            args = (1,2,3,4,5,6,7,8,9,10,2024,10,31,0,23,59,59,999,999999)
+            expected = (1,9,33,6,7,8,9010,2024,10,31,0,23,59,59,999999)
+            class Keyword(str):
+                pass
+            dynamic = {("~" + name)[1:]: value for name, value in zip(PARAMETERS, args)}
+            subclasses = {Keyword(name): value for name, value in zip(PARAMETERS, args)}
+            for value in (Delta(*args), Delta(**dict(zip(PARAMETERS, args))),
+                          Delta.__new__(Delta, *args), Delta(**dynamic), Delta(**subclasses)):
+                assert tuple(getattr(value, name) for name in FIELDS) == expected
+            raw = Delta.__new__(Delta)
+            assert not raw and raw == Delta()
+            for fn in (lambda: Delta(unknown=1), lambda: Delta(1, years=2), lambda: Delta(*range(20))):
+                try:
+                    fn()
+                except TypeError:
+                    pass
+                else:
+                    raise AssertionError("Invalid constructor arguments were accepted")
+            return True
+        def repeat_init():
+            value = Delta(days=1, hour=0)
+            fields = tuple(getattr(value, name) for name in FIELDS)
+            cache = hash(value)
+            mapping = {value: "stable"}
+            for kwargs in ({"days": 2}, {}, {"hour": 9}):
+                value.__init__(**kwargs)
+                assert tuple(getattr(value, name) for name in FIELDS) == fields
+                assert hash(value) == cache and mapping[value] == "stable"
+            assert (value + Delta(days=2)).days == 3 and value.days == 1
+            return True
+        def conversions():
+            existing = Delta(days=2)
+            mapping = {existing: "stable"}
+            class Number:
+                def __int__(self):
+                    existing.__init__(days=99)
+                    return 3
+            assert Delta(days=Number()).days == 3 and existing.days == 2
+            class Failure:
+                def __int__(self):
+                    existing.__init__(days=99)
+                    raise ValueError("conversion failure")
+            try:
+                Delta(days=Failure())
+            except ValueError as error:
+                assert str(error) == "conversion failure"
+            else:
+                raise AssertionError("Conversion error did not propagate")
+            assert mapping[existing] == "stable" and existing.days == 2
+            return True
+        def subtype_new():
+            class Child(Delta):
+                def __new__(cls, name, **kwargs):
+                    return Delta.__new__(cls, **kwargs)
+                def __init__(self, name, **kwargs):
+                    self.name = name
+            value = Child("child", days=3)
+            assert value.days == 3 and value.name == "child"
+            Delta.__init__(value, days=99)
+            assert value.days == 3
+            return True
+        def unary_dispatch():
+            """Protect subclass overrides when native unary slots are installed."""
+            class Inherited(Delta):
+                pass
+            value = Inherited(months=-1, microseconds=-1, hour=0)
+            before = tuple(getattr(value, name) for name in FIELDS)
+            for result, method in ((-value, Delta.__neg__), (abs(value), Delta.__abs__)):
+                assert type(result) is Delta and result == method(value)
+            class Override(Delta):
+                def __neg__(self):
+                    return "custom negative"
+                def __abs__(self):
+                    return "custom absolute"
+            custom = Override(days=-1)
+            assert -custom == "custom negative" and abs(custom) == "custom absolute"
+            assert type(Delta.__neg__(custom)) is Delta
+            assert type(Delta.__abs__(custom)) is Delta
+            assert tuple(getattr(value, name) for name in FIELDS) == before
+            for original, expected in ((Delta(months=-1, days=1), Delta(months=1, days=1)),
+                                       (Delta(microseconds=-1), Delta(microseconds=1)),
+                                       (Delta(days=-1, hour=0), Delta(days=1, hour=0))):
+                result = abs(original)
+                assert result == expected and bool(result) == bool(expected)
+                assert date(2024, 2, 15) + result == date(2024, 2, 15) + expected
+            return True
+        def descriptor_receiver():
+            """Reject foreign receivers before native arithmetic payload access."""
+            class Forged:
+                @property
+                def __class__(self):
+                    return Delta
+            for method in (Delta.__add__, Delta.__radd__, Delta.__sub__, Delta.__rsub__):
+                for receiver in (None, 1, Forged()):
+                    try:
+                        method(receiver, timedelta(days=1))
+                    except TypeError:
+                        pass
+                    else:
+                        raise AssertionError("A foreign method receiver was accepted")
+            return True
+        records.extend([Case("revision:constructor-new", "H02", ("H02",), construction),
+                        Case("revision:repeat-init", "H02", ("H02",), repeat_init),
+                        Case("revision:conversion-callback", "H02", ("H02",), conversions),
+                        Case("revision:subtype-new", "H02", ("H02",), subtype_new),
+                        Case("revision:unary-subclass-dispatch", "H02", ("H02", "H07"), unary_dispatch),
+                        Case("revision:descriptor-receiver", "H02", ("H02",), descriptor_receiver)])
+    if "H08" in selected:
+        def fractional_equivalence():
+            _, integers = revision_benchmark_cases(package, "revision-reference")
+            _, fractions = revision_benchmark_cases(package, "revision-candidate")
+            lookup = {c.id: c for c in integers if c.group == "F1"}
+            for case in fractions:
+                if case.group == "F1":
+                    expected, actual = lookup[case.id].run(), case.run()
+                    assert pack(actual, Delta) == pack(expected, Delta), case.id
+                    assert hash(actual) == hash(expected) and bool(actual) == bool(expected)
+            return True
+        def fractional_rounding():
+            inputs = [{"weeks": -.5}, {"days": -1.25}, {"hours": -.5},
+                      {"minutes": 1.25}, {"seconds": -.0000005},
+                      {"microseconds": -.5}, {"microseconds": -1.5},
+                      {"microseconds": 2.5}, {"microseconds": 1, "seconds": .0000005},
+                      {"microseconds": -1, "seconds": .0000005},
+                      {"microseconds": 999999, "seconds": .0000015},
+                      {"milliseconds": .0005, "microseconds": 1}]
+            for kwargs in inputs:
+                expected = timedelta(**kwargs)
+                assert Delta(**kwargs).to_timedelta() == expected, kwargs
+            assert Delta(days=2**53+1, hours=.5) == Delta(days=2**53+1, minutes=30)
+            assert Delta(microseconds=2**53+1, seconds=.0000005) == Delta(microseconds=2**53+2)
+            assert Delta(years=2.9, months=-1.7, hour=25.8, millisecond=2.9, microsecond=123456.9) == Delta(years=2, months=-1, hour=23, microsecond=2456)
+            class FloatChild(float): pass
+            assert Delta(hours=FloatChild(1.5)) == Delta(hours=1, minutes=30)
+            return True
+        def fractional_errors():
+            for name in ("weeks", "days", "hours", "minutes", "seconds", "milliseconds", "microseconds"):
+                for value, kind in [(float("nan"), ValueError), (float("inf"), OverflowError),
+                                    (-float("inf"), OverflowError), (1e100, OverflowError)]:
+                    try:
+                        Delta(**{name: value})
+                    except kind:
+                        pass
+                    else:
+                        raise AssertionError((name, value, "accepted invalid fractional input"))
+            return True
+        records.extend([Case("revision:fractional-equivalence", "H08", ("H08",), fractional_equivalence),
+                        Case("revision:fractional-rounding", "H08", ("H08",), fractional_rounding),
+                        Case("revision:fractional-errors", "H08", ("H08",), fractional_errors)])
+    if "H09" in selected:
+        def wide_input():
+            assert Delta(weeks=2**31) == Delta(days=7*2**31)
+            assert Delta(quarters=2**31) == Delta(years=2**29)
+            assert Delta(months=2**31) == Delta(years=(2**31)//12, months=(2**31)%12)
+            assert Delta(years=2**31, months=-12) == Delta(years=2**31-1)
+            assert Delta(weeks=float(2**31)+.5) == Delta(days=7*2**31+3, hours=12)
+            assert Delta(year=2**40, month=2**40, day=2**40, weekday=2**40, hour=2**40,
+                         minute=2**40, second=2**40, microsecond=2**40) == Delta(
+                         year=9999, month=12, day=31, weekday=6, hour=23, minute=59, second=59, microsecond=999999)
+            assert Delta(millisecond=2**40, microsecond=2**40).microsecond == 999000+(2**40)%1000
+            assert Delta(year=-2**40, hour=-2**40) == Delta()
+            from dateutil.relativedelta import relativedelta
+            assert Delta.from_relativedelta(relativedelta(hour=2**40)) == Delta(hour=23)
+            return True
+        def wide_input_overflow():
+            for kwargs in ({"days": 2**63}, {"year": 2**63}, {"weeks": 2**62},
+                           {"quarters": 2**62}, {"milliseconds": 2**63-1},
+                           {"days": 2**63-1, "hours": 24}):
+                try:
+                    Delta(**kwargs)
+                except OverflowError:
+                    pass
+                else:
+                    raise AssertionError((kwargs, "accepted a real 64-bit overflow"))
+            return True
+        records.extend([Case("revision:wide-input", "H09", ("H09",), wide_input),
+                        Case("revision:wide-input-overflow", "H09", ("H09",), wide_input_overflow)])
+    if "H09_STORAGE" in selected:
+        def wide_storage():
+            import copy, pickle
+            maximum, minimum = 2**63-1, -2**63
+            for year in (maximum, minimum, 2**53+1, -2**53-1):
+                value = Delta(years=year, months=11, microsecond=3)
+                assert value.years == year and value.months == 11 and value.microsecond == 3
+                assert hash(value) == hash(tuple(getattr(value, k) if getattr(value, k) is not None else -1 for k in FIELDS))
+                for result in (copy.copy(value), copy.deepcopy(value), pickle.loads(pickle.dumps(value))):
+                    assert result is not value and result == value and hash(result) == hash(value)
+            value = Delta(years=2**53+1, months=11, microsecond=3)
+            other = Delta(months=1, microsecond=4)
+            assert value + other == Delta(years=2**53+2, microsecond=4)
+            assert value - other == Delta(years=2**53+1, months=10, microsecond=3)
+            assert value.apply_many([other])[0] == other + value
+            assert -value == Delta(years=-2**53-1, months=-11, microsecond=3)
+            return True
+        def wide_calendar():
+            year = 2**31+1
+            previous = year-1
+            ordinal = previous*365 + previous//4 - previous//100 + previous//400 + 1
+            delta = Delta(years=2**31, days=1-ordinal)
+            for value in (date(1,1,1), datetime(1,1,1)):
+                assert value + delta == value
+                assert delta.apply_many([value])[0] == value
+            for call in (lambda: date(1,1,1) + Delta(years=2**63-1),
+                         lambda: date(1,1,1) - Delta(years=-2**63),
+                         lambda: -Delta(years=-2**63),
+                         lambda: Delta(years=2**63-1, months=11) + Delta(months=1)):
+                try:
+                    call()
+                except OverflowError:
+                    pass
+                else:
+                    raise AssertionError("Accepted real wide-year overflow")
+            return True
+        records.extend([Case("revision:wide-storage", "H09", ("H09",), wide_storage),
+                        Case("revision:wide-calendar", "H09", ("H09",), wide_calendar)])
+    if "H04" in selected:
+        import copy
+        import pickle
+        class RevisionChild(Delta):
+            def __new__(cls, name, **kwargs):
+                return Delta.__new__(cls, **kwargs)
+            def __init__(self, name, **kwargs):
+                self.name = name
+        RevisionChild.__qualname__ = "RevisionChild"
+        globals()["RevisionChild"] = RevisionChild
+        class RevisionSlots(Delta):
+            __slots__ = ()
+        RevisionSlots.__qualname__ = "RevisionSlots"
+        globals()["RevisionSlots"] = RevisionSlots
+        def saved_values():
+            values = [Delta(), Delta(days=-2, hour=0), RevisionChild("child", days=2), RevisionSlots(days=2)]
+            values[2].extra = [1, 2]
+            for value in values:
+                hash(value)
+                for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
+                    result = pickle.loads(pickle.dumps(value, protocol=protocol))
+                    assert result is not value and type(result) is type(value)
+                    assert result == value and hash(result) == hash(value)
+                    assert getattr(result, "__dict__", None) == getattr(value, "__dict__", None)
+                for deep in (False, True):
+                    result = copy.deepcopy(value) if deep else copy.copy(value)
+                    assert result is not value and type(result) is type(value) and result == value
+                    if hasattr(value, "extra"):
+                        assert (result.extra is value.extra) is (not deep)
+            return True
+        def saved_cycles():
+            value = RevisionChild("cycle", days=2)
+            value.self_reference = value
+            shared = [1, 2]
+            value.left = shared
+            value.right = shared
+            for result in (copy.deepcopy(value), pickle.loads(pickle.dumps(value))):
+                assert result.self_reference is result and result.left is result.right
+                assert result.left is not shared and result == value
+            result = copy.copy(value)
+            assert result.self_reference is value and result.left is shared
+            return True
+        def state_guards():
+            from rstimes._native import _restore_delta
+            value = Delta(days=1)
+            mapping = {value: "stable"}
+            state = value.__getstate__()
+            other = Delta(days=2).__getstate__()
+            bad_cache = hash(tuple(state[2])) ^ 8
+            malformed = [((state[0], state[1], state[2], bad_cache, state[4]), ValueError),
+                         (other, ValueError),
+                         ((state[0], 99, state[2], state[3], state[4]), ValueError),
+                         ((state[0], state[1], tuple([True] + list(state[2][1:])), -1, None), TypeError)]
+            for bad, error_type in malformed:
+                try:
+                    value.__setstate__(bad)
+                except error_type:
+                    pass
+                else:
+                    raise AssertionError("Invalid or changed state was accepted")
+                assert value.days == 1 and mapping[value] == "stable"
+            value.__setstate__(value.__getstate__())
+            assert value.days == 1
+            try:
+                _restore_delta(Delta, state[2], bad_cache)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("Reconstructor accepted a forged cache")
+            payload = value.__reduce__()[1][1]
+            assert type(payload) is bytes
+            bad_payloads = [payload[:40], payload[:7] + b"\x63" + payload[8:],
+                            payload[:16] + (12).to_bytes(8, "little", signed=True) + payload[24:],
+                            payload[:-8] + bad_cache.to_bytes(8, "little", signed=True)]
+            for bad in bad_payloads:
+                for restore in (lambda: _restore_delta(Delta, bad), lambda: Delta.__new__(Delta, bad)):
+                    try:
+                        restore()
+                    except ValueError:
+                        pass
+                    else:
+                        raise AssertionError("Malformed native state payload was accepted")
+            return True
+        records.extend([Case("revision:pickle-copy", "H04", ("H04",), saved_values),
+                        Case("revision:pickle-copy-cycles", "H04", ("H04",), saved_cycles),
+                        Case("revision:state-guards", "H04", ("H04",), state_guards)])
+    if "H05" in selected:
+        from dateutil.relativedelta import relativedelta, MO
+        def relative_rules():
+            unsupported = [relativedelta(weekday=MO(n)) for n in (None, -2, -1, 0, 1, 2)]
+            unsupported += [relativedelta(weekday=0)]
+            unsupported += [relativedelta(leapdays=n) for n in (-1, 1, .5)]
+            unsupported += [relativedelta(yearday=60), relativedelta(yearday=200)]
+            delta = Delta(days=1)
+            operations = [Delta.from_relativedelta, lambda rd: delta + rd, lambda rd: rd + delta,
+                          lambda rd: delta - rd, lambda rd: rd - delta]
+            for value in unsupported:
+                for operation in operations:
+                    try:
+                        operation(value)
+                    except ValueError as error:
+                        assert "cannot be represented" in str(error)
+                    else:
+                        raise AssertionError("Unsupported relative date rule was accepted")
+            value = Delta.from_relativedelta(relativedelta(days=1, leapdays=0, hour=25))
+            assert value.days == 1 and value.hour == 23
+            assert Delta.from_relativedelta(relativedelta(days=1.5)).hours == 12
+            return True
+        def relative_errors():
+            class Failure(relativedelta):
+                def normalized(self):
+                    raise RuntimeError("normalization failure")
+            for operation in (Delta.from_relativedelta, lambda rd: Delta() + rd):
+                try:
+                    operation(Failure())
+                except RuntimeError as error:
+                    assert str(error) == "normalization failure"
+                else:
+                    raise AssertionError("Normalization error did not propagate")
+            return True
+        records.extend([Case("revision:dateutil-rules", "H05", ("H05",), relative_rules),
+                        Case("revision:dateutil-errors", "H05", ("H05",), relative_errors)])
+    if "H11" in selected:
+        def fixed_duration():
+            for kwargs in ({}, {"days": 2, "hours": 3}, {"microseconds": -1},
+                           {"days": 999999999, "hours": 23, "microseconds": 1},
+                           {"days": -999999999}):
+                assert Delta(**kwargs).to_timedelta() == timedelta(**kwargs)
+            for value in (Delta(months=1), Delta(years=1), Delta(hour=0), Delta(weekday=0)):
+                try:
+                    value.to_timedelta()
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError("Calendar fields did not require a start")
+            for days in (-1000000000, 1000000000, 2**63-1):
+                try:
+                    Delta(days=days).to_timedelta()
+                except OverflowError:
+                    pass
+                else:
+                    raise AssertionError("timedelta range overflow was accepted")
+            return True
+        def anchored_duration():
+            from zoneinfo import ZoneInfo
+            from cytimes import Pydt
+            inputs = [(date(2024,1,31), Delta(months=1)), (date(2023,1,31), Delta(months=1)),
+                      (date(2024,1,15), Delta(hours=25)), (datetime(2024,1,15,12), Delta(hour=9)),
+                      (datetime(2024,3,10,1,30,tzinfo=ZoneInfo("America/New_York")), Delta(hours=1)),
+                      (datetime(2024,11,3,1,30,tzinfo=ZoneInfo("America/New_York"),fold=1), Delta(minutes=1)),
+                      (Pydt(2024,1,31,12), Delta(months=1))]
+            for start, delta in inputs:
+                expected = (start + delta) - start
+                actual = delta.to_timedelta(start)
+                assert actual == expected and type(actual) is type(expected)
+            # Protect the builtin span path's narrowing, carries and fallbacks.
+            from random import Random
+            from datetime import tzinfo
+            def outcome(call):
+                try:
+                    value = call()
+                    return ("value", type(value), value)
+                except Exception as error:
+                    return ("error", type(error), str(error))
+            anchors = [date.min, date.max, datetime.min, datetime.max,
+                       datetime(2024,11,3,1,30,tzinfo=ZoneInfo("America/New_York"),fold=1)]
+            amounts = [Delta(), Delta(days=-1), Delta(months=1, day=31), Delta(microseconds=-1),
+                       Delta(hours=1), Delta(years=2**31), Delta(days=2**63-1), Delta(years=-2**63)]
+            pairs = [(start, delta) for start in anchors for delta in amounts]
+            rng = Random(9601)
+            for _ in range(96):
+                year = rng.choice((1, 4, 1900, 2000, 2024, 9999))
+                month, day = rng.randint(1,12), rng.choice((1,28))
+                delta = Delta(years=rng.randint(-1,1), months=rng.randint(-18,18),
+                              days=rng.randint(-1000,1000), hours=rng.randint(-30,30),
+                              microseconds=rng.randint(-1000001,1000001),
+                              day=rng.choice((-1,28,31)), weekday=rng.choice((-1,0,6)))
+                pairs.extend([(date(year,month,day), delta),
+                              (datetime(year,month,day,23,59,59,rng.randint(0,999999)), delta)])
+            for start, delta in pairs:
+                assert outcome(lambda: delta.to_timedelta(start)) == outcome(lambda: (start + delta) - start)
+            class QuietZone(tzinfo):
+                def utcoffset(self, value):
+                    raise AssertionError("same-zone subtraction must not inspect offsets")
+            start = datetime(2024,1,1,23,59,tzinfo=QuietZone(),fold=1)
+            assert Delta(minutes=2).to_timedelta(start) == (start + Delta(minutes=2)) - start
+            class SpecialSpan(timedelta): pass
+            class DateChild(date):
+                def __sub__(self, other): return SpecialSpan(days=7)
+            start = DateChild(2024,1,1)
+            assert type(Delta(days=1).to_timedelta(start)) is SpecialSpan
+            class DeltaChild(Delta):
+                def __radd__(self, start): return start + timedelta(days=7)
+            assert DeltaChild(days=1).to_timedelta(date(2024,1,1)) == timedelta(days=7)
+            try:
+                Delta().to_timedelta("2024-01-01")
+            except TypeError:
+                pass
+            else:
+                raise AssertionError("Invalid start type was accepted")
+            return True
+        records.extend([Case("revision:fixed-timedelta", "H11", ("H11",), fixed_duration),
+                        Case("revision:anchored-timedelta", "H11", ("H11",), anchored_duration)])
+    if "H10" in selected:
+        def bulk_matrix():
+            _, left = revision_benchmark_cases(package, "revision-reference")
+            _, right = revision_benchmark_cases(package, "revision-candidate")
+            expected = {case.id: case for case in left if case.group.startswith("A")}
+            for case in right:
+                if not case.group.startswith("A"):
+                    continue
+                first, second = expected[case.id].run(), case.run()
+                assert len(first) == len(second)
+                for a, b in zip(first, second):
+                    assert pack(a, Delta) == pack(b, Delta), case.id
+            return True
+        def bulk_iteration():
+            delta = Delta(days=1)
+            assert delta.apply_many([]) == []
+            values = [date(2024,1,1), datetime(2024,1,1,12), Delta(hours=1), timedelta(hours=1)]
+            assert [pack(x, Delta) for x in delta.apply_many(iter(values))] == [pack(x + delta, Delta) for x in values]
+            consumed = []
+            def invalid():
+                for value in (values[0], None, values[1]):
+                    consumed.append(value)
+                    yield value
+            try:
+                delta.apply_many(invalid())
+            except TypeError:
+                pass
+            else:
+                raise AssertionError("Unsupported middle item was accepted")
+            assert len(consumed) == 2
+            def broken():
+                yield values[0]
+                raise RuntimeError("iteration failure")
+            try:
+                delta.apply_many(broken())
+            except RuntimeError as error:
+                assert str(error) == "iteration failure"
+            else:
+                raise AssertionError("Iterator error did not propagate")
+            original = date(2024,1,1)
+            assert Delta().apply_many([original])[0] is original
+            return True
+        def bulk_overrides():
+            class CustomDate(date):
+                def __add__(self, other):
+                    return ("date override", other.days)
+            class CustomDelta(Delta):
+                def __radd__(self, other):
+                    return "reflected override"
+            assert Delta(days=2).apply_many([CustomDate(2024,1,1)]) == [("date override", 2)]
+            assert CustomDelta(days=2).apply_many([date(2024,1,1)]) == ["reflected override"]
+            class CustomList(list):
+                def __iter__(self):
+                    return iter([date(2024,2,1)])
+            assert Delta(days=1).apply_many(CustomList([date(2024,1,1)])) == [date(2024,2,2)]
+            def changing_input():
+                values = []
+                class Mutator:
+                    def __add__(self, other):
+                        values.append(date(2024,1,1))
+                        return "first"
+                values.append(Mutator())
+                return values
+            delta = Delta(days=1)
+            assert delta.apply_many(changing_input()) == [value + delta for value in changing_input()]
+            from cytimes import Pydt
+            values = [Pydt(2024, 1, 31), Pydt(2024, 1, 15)]
+            original = Pydt.__dict__.get("__add__")
+            try:
+                Pydt.__add__ = lambda self, other: ("patched Pydt addition", self.day)
+                assert Delta(days=1).apply_many(values) == [value + Delta(days=1) for value in values]
+            finally:
+                if original is None:
+                    del Pydt.__add__
+                else:
+                    Pydt.__add__ = original
+            from dateutil.relativedelta import relativedelta
+            original_add, original_normalized = relativedelta.__add__, relativedelta.normalized
+            delta = Delta(days=1, hour=9)
+            values = [relativedelta(days=2), relativedelta(hour=0)]
+            expected = [value + delta for value in values]  # Initialize the exact-type cache.
+            try:
+                relativedelta.__add__ = lambda self, other: ("patched dateutil addition", self.days)
+                assert delta.apply_many(values) == [value + delta for value in values]
+                relativedelta.__add__ = lambda self, other: NotImplemented
+                assert delta.apply_many(values) == expected
+                def raises(self, other):
+                    raise RuntimeError("dateutil callback failure")
+                relativedelta.__add__ = raises
+                for call in (lambda: values[0] + delta, lambda: delta.apply_many(values)):
+                    try:
+                        call()
+                    except RuntimeError as error:
+                        assert str(error) == "dateutil callback failure"
+                    else:
+                        raise AssertionError("dateutil callback error was lost")
+                relativedelta.__add__ = original_add
+                for bulk in (False, True):
+                    mutable = list(values)
+                    def normalized(self):
+                        mutable.clear()
+                        return original_normalized(self)
+                    relativedelta.normalized = normalized
+                    result = delta.apply_many(mutable) if bulk else [value + delta for value in mutable]
+                    assert result == expected[:1]
+            finally:
+                relativedelta.__add__, relativedelta.normalized = original_add, original_normalized
+            return True
+        def bulk_native_boundaries():
+            # Protect packed absolute merges, explicit zero flags and real carries.
+            pairs = [(Delta(hours=23, microseconds=999999, hour=9), Delta(hours=1, microseconds=1, hour=0)),
+                     (Delta(years=-1, months=11, day=31), Delta(months=1, day=2)),
+                     (Delta(years=2**31-1), Delta(years=1)),
+                     (Delta(days=2**63-1), Delta(days=1)),
+                     (Delta(days=2**63-1, hours=23), Delta(hours=1)),
+                     (Delta(years=2**63-1, days=2**63-1, hours=23), Delta(years=1, hours=1)),
+                     (timedelta(microseconds=-1), Delta(microseconds=1)),
+                     (timedelta(days=1), Delta(hour=0, minute=0, second=0, microsecond=0))]
+            def result(call):
+                try:
+                    value = call()
+                    return ("ok", pack(value, Delta), bool(value), hash(value),
+                            date(2024, 1, 1) + value if abs(value.days) < 100 else None)
+                except Exception as error:
+                    return ("error", type(error).__name__, str(error))
+            for left, right in pairs:
+                assert result(lambda: left + right) == result(lambda: right.apply_many([left])[0])
+            def mutating():
+                values = [Delta()]
+                class Item:
+                    def __add__(self, other):
+                        values.clear()
+                        return "retained callback operand"
+                values.append(Item())
+                return values
+            assert Delta(days=1).apply_many(mutating()) == [v + Delta(days=1) for v in mutating()]
+            import gc
+            class Collector:
+                def __add__(self, other):
+                    gc.collect()
+                    for item in gc.get_objects():
+                        if type(item) is list and len(item) == 17:
+                            tuple(item)  # Reserved output slots must be valid objects.
+                    return "collected"
+            assert Delta(days=1).apply_many([Collector() for _ in range(17)]) == ["collected"] * 17
+            return True
+        records.extend([Case("revision:bulk-matrix", "H10", ("H10",), bulk_matrix),
+                        Case("revision:bulk-iteration", "H10", ("H10",), bulk_iteration),
+                        Case("revision:bulk-overrides", "H10", ("H10",), bulk_overrides),
+                        Case("revision:bulk-native-boundaries", "H10", ("H10",), bulk_native_boundaries)])
+    return Delta, records
+
+
+def revision_benchmark_cases(package, variant):
+    """Define both public-call sides of the revision contract in one input source.
+
+    Template calls exercise transport before new methods exist. They have their
+    own IDs and never count as evidence for the real float or bulk APIs.
+    """
+    Delta = import_module(package).Delta
+    reference = variant.endswith("reference")
+    if variant.startswith("template"):
+        values = [datetime(2024, 1, 31, 12, i) for i in range(32)]
+        delta = Delta(days=1)
+        def loop():
+            result = []
+            for value in values:
+                result.append(value + delta)
+            return result
+        return Delta, [Case("template:construct", "T1", ("N03",),
+                            lambda: Delta(days=1, hours=1) if reference else Delta(hours=25)),
+                       Case("template:batch", "T1", ("N03",),
+                            loop if reference else lambda: [value + delta for value in values])]
+    records = []
+    floats = [
+        ("weeks", {"weeks": 1.5}, {"days": 10, "hours": 12}),
+        ("days", {"days": .5}, {"hours": 12}),
+        ("hours", {"hours": 1.5}, {"hours": 1, "minutes": 30}),
+        ("minutes", {"minutes": 1.5}, {"minutes": 1, "seconds": 30}),
+        ("seconds", {"seconds": 1.5}, {"seconds": 1, "microseconds": 500000}),
+        ("milliseconds", {"milliseconds": 1.5}, {"microseconds": 1500}),
+        ("microseconds", {"microseconds": 1.5}, {"microseconds": 2}),
+        ("negative", {"hours": -1.5}, {"hours": -1, "minutes": -30}),
+        ("mixed", {"days": 1.5, "hours": -12}, {"days": 1}),
+        ("round", {"seconds": .0000005}, {"microseconds": 0}),
+    ]
+    for name, fractional, integer in floats:
+        kwargs = integer if reference else fractional
+        records.append(Case("float:" + name, "F1", ("H08", "P02"), lambda kwargs=kwargs: Delta(**kwargs)))
+    from zoneinfo import ZoneInfo
+    from dateutil.relativedelta import relativedelta
+    from cytimes import Pydt
+    import numpy as np
+    ny = ZoneInfo("America/New_York")
+    factories = [
+        ("date-month-end", "A1", lambda i: date(2024, 1, 31), {"months": 1}),
+        ("datetime-relative", "A1", lambda i: datetime(2024, 1, 15, 12, i % 60), {"days": 1, "hours": 2}),
+        ("datetime-absolute", "A1", lambda i: datetime(2024, 1, 15, 12, i % 60), {"hour": 9}),
+        ("datetime-aware", "A1", lambda i: datetime(2024, 11, 3, 1, i % 60, tzinfo=ny, fold=1), {"minutes": 1}),
+        ("delta-relative", "A2", lambda i: Delta(days=i % 31, hours=i % 24), {"days": 1, "hours": 2}),
+        ("delta-absolute", "A2", lambda i: Delta(days=i % 31, hour=13), {"hour": 9, "days": 1}),
+        ("timedelta-positive", "A3", lambda i: timedelta(days=i % 31, seconds=2), {"days": 1, "hours": 2}),
+        ("timedelta-negative", "A3", lambda i: timedelta(microseconds=-i-1), {"microseconds": -1}),
+        ("pydt-month", "A4", lambda i: Pydt(2024, 1, 31, 12, i % 60), {"months": 1}),
+        ("pydt-absolute", "A4", lambda i: Pydt(2024, 1, 15, 12, i % 60), {"hour": 9}),
+        ("dateutil-relative", "A5", lambda i: relativedelta(days=i % 31, hours=1), {"days": 1}),
+        ("dateutil-absolute", "A5", lambda i: relativedelta(day=31, hour=13), {"hour": 9}),
+        ("numpy-datetime", "A6", lambda i: np.datetime64("2024-01-15T12:00:00", "us"), {"days": 1}),
+        ("numpy-timedelta", "A6", lambda i: np.timedelta64(i+1, "us"), {"days": 1}),
+    ]
+    mixed = [lambda: date(2024, 1, 15), lambda: datetime(2024, 1, 15, 12),
+             lambda: Delta(hours=1), lambda: timedelta(hours=1), lambda: Pydt(2024, 1, 15, 12),
+             lambda: relativedelta(hours=1), lambda: np.datetime64("2024-01-15", "us"),
+             lambda: np.timedelta64(1, "h")]
+    factories.append(("mixed", "A7", lambda i: mixed[i % len(mixed)](), {"days": 1}))
+    for name, group, factory, kwargs in factories:
+        delta = Delta(**kwargs)
+        for size in (1024, 10000):
+            values = [factory(i) for i in range(size)]
+            run = (lambda values=values, delta=delta: [value + delta for value in values]) if reference else (
+                lambda values=values, delta=delta: delta.apply_many(values))
+            records.append(Case(f"bulk:{name}:{size}", group + ":" + str(size), ("H10", "P03", "P04"), run))
+    conversions = [
+        ("positive", {"days": 2, "hours": 3}, None),
+        ("negative", {"microseconds": -1}, None),
+        ("month-leap", {"months": 1}, date(2024, 1, 31)),
+        ("month-normal", {"months": 1}, date(2023, 1, 31)),
+        ("absolute", {"hour": 9}, datetime(2024, 1, 15, 12)),
+        ("aware", {"hours": 1}, datetime(2024, 3, 10, 1, 30, tzinfo=ny)),
+    ]
+    for name, kwargs, start in conversions:
+        delta = Delta(**kwargs)
+        def manual(delta=delta, start=start):
+            return ((start + delta) - start if start is not None else timedelta(
+                days=delta.days, hours=delta.hours, minutes=delta.minutes,
+                seconds=delta.seconds, microseconds=delta.microseconds))
+        run = manual if reference else lambda delta=delta, start=start: delta.to_timedelta(start)
+        records.append(Case("to-timedelta:" + name, "X1", ("H11",), run))
+    return Delta, records
+
+
+def candidate_cases(package, revision=False):
+    """Build this package's own state, copy, export and lifecycle contract cases."""
     if package != "rstimes": raise ValueError("New state format belongs only to rstimes")
     import copy
     import pickle
@@ -665,6 +1385,9 @@ def candidate_cases(package):
     ContractChild.__qualname__="ContractChild"
     globals()["ContractChild"]=ContractChild
     class ConstructorChild(Delta):
+        if revision:
+            def __new__(cls, required, **kwargs):
+                return Delta.__new__(cls, **kwargs)
         def __init__(self, required, **kwargs):
             super().__init__(**kwargs)
             self.required=required
@@ -677,7 +1400,11 @@ def candidate_cases(package):
         hash(original)
         state=original.__getstate__()
         assert state[0:2]==("rstimes.delta",1) and len(state)==5 and len(state[2])==15
-        restored=Delta.__new__(type(original))
+        if revision:
+            from rstimes._native import _restore_delta
+            restored = _restore_delta(type(original), state[2], state[3])
+        else:
+            restored=Delta.__new__(type(original))
         restored.__setstate__(state)
         assert tuple(getattr(restored,key) for key in FIELDS)==tuple(getattr(original,key) for key in FIELDS)
         assert restored.__getstate__()==state and hash(restored)==hash(original)
@@ -741,7 +1468,7 @@ def candidate_cases(package):
         if kind!="base":value.extra={"list":[1,2]}
         hash(value)
         encoded=pickle.dumps(value,protocol=protocol)
-        assert b"rstimes.delta" in encoded and b"cytimes" not in encoded
+        assert (b"rstDlt" in encoded if revision else b"rstimes.delta" in encoded) and b"cytimes" not in encoded
         result=pickle.loads(encoded)
         assert type(result) is type(value) and result is not value and result.__getstate__()==value.__getstate__()
         assert "cytimes" not in sys.modules, "Restoring own pickle imported cytimes"
@@ -790,8 +1517,10 @@ def candidate_cases(package):
         klass=next(node for node in tree.body if isinstance(node,ast.ClassDef) and node.name=="Delta")
         methods={node.name for node in klass.body if isinstance(node,ast.FunctionDef)}
         required=set(FIELDS)|{"__init__","from_relativedelta","__add__","__radd__","__sub__","__rsub__","__neg__","__abs__","__eq__","__bool__","__repr__","__hash__"}
+        if revision:
+            required |= {"__new__", "apply_many", "to_timedelta"}
         assert required<=methods
-        constructor=next(node for node in klass.body if isinstance(node,ast.FunctionDef) and node.name=="__init__")
+        constructor=next(node for node in klass.body if isinstance(node,ast.FunctionDef) and node.name==("__new__" if revision else "__init__"))
         assert tuple(arg.arg for arg in constructor.args.args[1:])==PARAMETERS
         assert all(hasattr(Delta,name) for name in required)
         assert set(loaded.__all__)=={"Delta","to_unix_ms","from_unix_ms"}
@@ -800,6 +1529,17 @@ def candidate_cases(package):
         value = Delta(days=1)
         assert bool(value)
         value.__init__()
+        if revision:
+            assert bool(value) and value.days == 1
+            for state in (Delta().__getstate__(), Delta.__new__(Delta).__getstate__()):
+                try:
+                    value.__setstate__(state)
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError("Immutable fields were overwritten")
+            assert bool(value) and value.days == 1
+            return True
         assert not bool(value)
         value.__init__(second=0)
         assert bool(value)
@@ -819,3 +1559,90 @@ def candidate_cases(package):
     records.append(Case("state:getter-receiver","state",("B01","H04"),descriptor_receiver))
     records.append(Case("exports:interface-and-stub","exports",("M01","H04"),exports))
     return Delta,records
+
+
+def revision_expectations():
+    """Give explicit approved outcomes for legacy inputs whose meaning changed.
+
+    Standard timedelta supplies fractional results; Python integer divmod gives
+    widened month/week results. These expectations never copy candidate output.
+    All other legacy rows retain the frozen reference comparison.
+    """
+    def scalar(value):
+        return {"type": type_name(value), "value": value}
+    def delta(**values):
+        return {"type": "rstimes.delta.Delta", "fields": {
+            name: values.get(name, 0 if index < 7 else None) for index, name in enumerate(FIELDS)}}
+    def sequence(*items):
+        return {"type": "builtins.tuple", "items": list(items)}
+    def mapping(**items):
+        return {"type": "builtins.dict", "items": items}
+    expected = {}
+    def result(identifier, rule, value):
+        expected[identifier] = {"rule": rule, "result": value}
+    def error(identifier, rule, kind):
+        expected[identifier] = {"rule": rule, "error_type": "builtins." + kind}
+
+    for identifier in ("allocation:raw", "properties:raw"):
+        result(identifier, "H02", delta())
+    result("allocation:raw-args", "H02", delta(years=2))
+    unchanged = mapping(value=delta(days=1), same_object=scalar(True), returned=scalar(None))
+    for identifier in ("allocation:reinit", "properties:reinit"):
+        result(identifier, "H02", unchanged)
+    result("properties:failure-state", "H02", mapping(value=delta(days=2, year=2024), error=scalar(None)))
+    for identifier in ("lifecycle:integer-reentry", "lifecycle:integer-reentry-error"):
+        result(identifier, "H02", delta(days=1))
+    result("lifecycle:dateutil-reentry", "H02", sequence(delta(days=3), delta(days=1)))
+    result("hash-text:reinitialize", "H02", sequence(scalar(False), scalar(False)))
+    result("hash-text:raw", "H02", sequence(scalar(hash((0,)*7 + (-1,)*8)), scalar("<'Delta' ()>")))
+    result("hash-text:cross-type-defect", "H01", sequence(scalar(False), scalar(False)))
+
+    labels = ("duration", "duration-absolute-zero", "duration-month", "rd-fraction", "rd-weekday-n",
+              "np-ns", "np-month", "none", "int", "date", "overflow-self", "overflow-other")
+    for label in labels:
+        methods = ("eq", "ne", "direct-eq", "direct-ne") + (() if label.startswith("overflow-") else ("reverse-eq",))
+        for method in methods:
+            value = ({"type": "builtins.NotImplementedType", "value": "NotImplemented"}
+                     if method.startswith("direct-") else scalar(method == "ne" and not label.startswith("rd-")))
+            result(f"compare:{label}:{method}", "H01", value)
+    for unit in ("Y", "M", "W", "D", "h", "m", "s", "ms", "us", "ns", "ps", "fs", "as"):
+        result("compare:numpy:" + unit, "H01", {"type": "builtins.NotImplementedType", "value": "NotImplemented"})
+
+    def widened(parameter, value):
+        if parameter == "years": return delta(years=value)
+        if parameter in ("months", "quarters"):
+            years, months = divmod(value * (3 if parameter == "quarters" else 1), 12)
+            return delta(years=years, months=months)
+        if parameter == "weeks": return delta(days=value*7)
+        maximum = {"year": 9999, "month": 12, "day": 31, "weekday": 6, "hour": 23,
+                   "minute": 59, "second": 59, "millisecond": 999, "microsecond": 999999}[parameter]
+        final = None if value < 0 else min(value, maximum)
+        if parameter == "millisecond":
+            return delta(microsecond=None if final is None else final*1000)
+        return delta(**{parameter: final})
+    for parameter in ("years", "quarters", "months", "weeks") + PARAMETERS[10:]:
+        for label, value in (("over", 2**31), ("under", -2**31-1)):
+            result(f"coercion:{parameter}:{label}", "H09", widened(parameter, value))
+    for label, parameter, value in (("years", "years", 2**31), ("quarters", "quarters", 2**31-1),
+                                  ("weeks", "weeks", 2**31-1), ("negative-quarters", "quarters", -2**31),
+                                  ("negative-weeks", "weeks", -2**31)):
+        result("relative:overflow:" + label, "H09", widened(parameter, value))
+    result("relative:overflow:negative-years", "H09", delta(years=-2**31-1, months=11))
+    result("delta-arithmetic:overflow:add-years", "H09", delta(years=2**31))
+    result("delta-arithmetic:overflow:sub-years", "H09", delta(years=-2**31-1))
+    for method in ("neg", "abs"):
+        result("unary:overflow:years:" + method, "H09", delta(years=2**31))
+    for parameter in PARAMETERS[3:10]:
+        duration = timedelta(**{parameter: -1.9})
+        result("coercion:" + parameter + ":float", "H08", delta(
+            days=duration.days, hours=duration.seconds//3600,
+            minutes=duration.seconds//60%60, seconds=duration.seconds%60,
+            microseconds=duration.microseconds))
+    error("coercion:days:nan", "H08", "ValueError")
+    error("coercion:days:inf", "H08", "OverflowError")
+    for label in ("weekday-n", "weekday-negative", "leapdays"):
+        for kind in ("Delta", "Child"):
+            error(f"dateutil:from:{label}:{kind}", "H05", "ValueError")
+        for method in ("add", "radd", "sub", "rsub", "method-add", "method-radd", "method-sub", "method-rsub"):
+            error(f"dateutil:arithmetic:{label}:{method}", "H05", "ValueError")
+    return expected

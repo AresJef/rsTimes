@@ -19,7 +19,22 @@ REPRESENTATIVES = {"relative:zero", "getters:single", "delta-arithmetic:positive
 
 
 def capture(candidate_env, output, width, selected=(), short_ms=1):
-    """Alternate short/control in the same thread; never stitch unmatched times."""
+    """Capture adjacent short/control pairs on the same measurement thread.
+
+    Args:
+        candidate_env (str | Path): Installed candidate environment.
+        output (str | Path): Receipt destination consumed by the caller.
+        width (int): Fixed eligible micro-pairs per statistical block.
+        selected (sequence[str]): Explicit cases, or the fixed representative set.
+        short_ms (float): Short target duration; controls use five times this value.
+
+    Returns:
+        tuple[Path, Path]: Fresh short/control raw records.
+
+    Raises:
+        ValueError: The oracle, shared reference or candidate outputs do not agree.
+
+    Whole four-measurement units must qualify. The capture is bounded to 180 seconds."""
     spec=importlib.util.spec_from_file_location("bench",ROOT/"benchmarks/delta/bench.py")
     bench=importlib.util.module_from_spec(spec);sys.modules["bench"]=bench;spec.loader.exec_module(bench)
     identifiers=sorted(selected or REPRESENTATIVES)
@@ -87,6 +102,18 @@ def capture(candidate_env, output, width, selected=(), short_ms=1):
 
 
 def validate(short_path, control_path, selected=()):
+    """Check paired precision evidence against current source and fixed rules.
+
+    Args:
+        short_path (str | Path): Short-duration capture.
+        control_path (str | Path): Adjacent longer-duration capture.
+        selected (sequence[str]): Expected cases, or the representative set.
+
+    Returns:
+        dict: Precision verdict, comparisons, bindings and sample counts.
+
+    Raises:
+        ValueError: Record identity, completeness or sampling configuration is invalid."""
     short, control = [json.loads(Path(p).read_text()) for p in (short_path, control_path)]
     # CLI durations are floats. Canonicalize older producer integer encodings;
     # this changes no measurement, selected sample or acceptance threshold.

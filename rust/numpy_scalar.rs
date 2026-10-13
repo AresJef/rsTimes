@@ -1,10 +1,93 @@
-//! The NumPy public datetime scalar layout is read only after a real type check.
+//! Read NumPy's checked public datetime scalar prefix and convert its units.
+//!
+//! Only actual datetime64/timedelta64 scalar types reach the layout cast. This
+//! module preserves the frozen multiplier, NaT and unsupported-unit behavior;
+//! it does not add an array interface or promise arbitrary NumPy ABI compatibility.
+
 use pyo3::exceptions::{PyOverflowError, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::{PyDateTime, PyDelta, PyType};
+use pyo3::types::{PyDateTime, PyType};
 
 static TYPES: PyOnceLock<(Py<PyType>, Py<PyType>)> = PyOnceLock::new();
+
+/// Interpreter-owned exact scalar identities, captured once for a native batch.
+pub(crate) struct ExactTypes {
+    date: *mut pyo3::ffi::PyTypeObject,
+    duration: *mut pyo3::ffi::PyTypeObject,
+}
+
+impl ExactTypes {
+    /// Reuse initialized identities without importing or touching Python values.
+    pub(crate) fn cached(py: Python<'_>) -> Option<Self> {
+        TYPES.get(py).map(|(date, duration)| Self {
+            date: date.bind(py).as_type_ptr(),
+            duration: duration.bind(py).as_type_ptr(),
+        })
+    }
+
+    /// Test exact native identity; subclass methods must retain Python dispatch.
+    pub(crate) fn matches(&self, value: &Bound<'_, PyAny>) -> bool {
+        // SAFETY: All identities are live under the attached interpreter.
+        let actual = unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) };
+        actual == self.date || actual == self.duration
+    }
+
+    /// Initialize only for a plausible NumPy first item; identity remains the gate.
+    /// # Errors
+    /// Propagates the same NumPy import/type errors as ordinary scalar conversion.
+    pub(crate) fn for_first(value: &Bound<'_, PyAny>) -> PyResult<Option<Self>> {
+        let py = value.py();
+        // SAFETY: A live ready Python type owns a null-terminated tp_name. This
+        // name is only an import hint; exact cached identity guards payload reads.
+        let name =
+            unsafe { std::ffi::CStr::from_ptr((*pyo3::ffi::Py_TYPE(value.as_ptr())).tp_name) };
+        if !matches!(name.to_bytes(), b"numpy.datetime64" | b"numpy.timedelta64") {
+            return Ok(None);
+        }
+        let (date, duration) = scalar_types(py)?;
+        let types = Self {
+            date: date.bind(py).as_type_ptr(),
+            duration: duration.bind(py).as_type_ptr(),
+        };
+        // SAFETY: All pointers remain live under the attached interpreter.
+        let actual = unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) };
+        Ok((actual == types.date || actual == types.duration).then_some(types))
+    }
+
+    /// Decode a proven exact scalar without repeated Python type/cache operations.
+    /// # Errors
+    /// Retains all unit conversion, overflow and unsupported-unit errors.
+    #[inline]
+    pub(crate) fn microseconds(&self, value: &Bound<'_, PyAny>) -> PyResult<Option<(i64, bool)>> {
+        // SAFETY: The live actual type is compared to interpreter-owned identities
+        // before reading the verified public scalar prefix. Subclasses fall back.
+        let actual = unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) };
+        if actual != self.date && actual != self.duration {
+            return Ok(None);
+        }
+        convert_scalar(value, actual == self.date).map(Some)
+    }
+}
+
+/// Cache the real NumPy scalar types without changing dependency versions.
+/// # Errors
+/// Preserves module and attribute errors from the existing scalar entrance.
+fn scalar_types(py: Python<'_>) -> PyResult<&(Py<PyType>, Py<PyType>)> {
+    TYPES.get_or_try_init(py, || -> PyResult<_> {
+        let module = py.import("numpy")?;
+        Ok((
+            module
+                .getattr("datetime64")?
+                .cast_into::<PyType>()?
+                .unbind(),
+            module
+                .getattr("timedelta64")?
+                .cast_into::<PyType>()?
+                .unbind(),
+        ))
+    })
+}
 #[repr(C)]
 struct Metadata {
     unit: std::ffi::c_int,
@@ -17,31 +100,57 @@ struct Scalar {
     metadata: Metadata,
 }
 
+/// Create the common OverflowError for checked NumPy scalar conversion.
 fn overflow() -> PyErr {
     PyOverflowError::new_err("integer overflow in NumPy scalar conversion")
 }
+/// Multiply NumPy ticks by a unit factor using checked i64 arithmetic.
+///
+/// # Errors
+/// Raises OverflowError when the product cannot be represented.
 fn mul(value: i64, factor: i64) -> PyResult<i64> {
     value.checked_mul(factor).ok_or_else(overflow)
 }
 
+/// Read a checked NumPy datetime64/timedelta64 scalar as microseconds.
+///
+/// # Arguments
+/// allow_datetime controls whether datetime64 participates in this dispatch.
+///
+/// # Returns
+/// Some((microseconds, is_datetime)) for a supported scalar; None for other types
+/// or a datetime scalar rejected by allow_datetime. Negative nanoseconds use
+/// floor division. Frozen unit-multiplier and NaT behavior are retained rather
+/// than replaced with NumPy array semantics.
+///
+/// # Errors
+/// Raises OverflowError on unrepresentable conversions and TypeError for the
+/// frozen unsupported-unit path. NumPy import/type-check errors propagate.
+///
+/// # Layout contract
+/// The actual scalar type is checked before reading the public C scalar prefix.
+/// The prefix is validated against the NumPy headers in the accepted environment.
 pub fn microseconds(
     value: &Bound<'_, PyAny>,
     allow_datetime: bool,
 ) -> PyResult<Option<(i64, bool)>> {
     let py = value.py();
-    let (date_type, duration_type) = TYPES.get_or_try_init(py, || -> PyResult<_> {
-        let module = py.import("numpy")?;
-        Ok((
-            module
-                .getattr("datetime64")?
-                .cast_into::<PyType>()?
-                .unbind(),
-            module
-                .getattr("timedelta64")?
-                .cast_into::<PyType>()?
-                .unbind(),
-        ))
-    })?;
+    if let Some(types) = ExactTypes::cached(py) {
+        // SAFETY: The attached interpreter owns the initialized scalar types.
+        // Exact identity permits the same checked decoder without two subclass
+        // checks. Missing caches and subclasses retain the original path below.
+        let actual = unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) };
+        if actual == types.date {
+            if !allow_datetime {
+                return Ok(None);
+            }
+            return convert_scalar(value, true).map(Some);
+        }
+        if actual == types.duration {
+            return convert_scalar(value, false).map(Some);
+        }
+    }
+    let (date_type, duration_type) = scalar_types(py)?;
     let actual = value.get_type();
     let datetime = if actual.is_subclass(date_type.bind(py))? {
         true
@@ -53,6 +162,16 @@ pub fn microseconds(
     if datetime && !allow_datetime {
         return Ok(None);
     }
+    convert_scalar(value, datetime).map(Some)
+}
+
+/// Read the verified scalar prefix after actual type identity/inheritance checks.
+/// # Preconditions
+/// The caller proved the actual object has the NumPy scalar layout.
+/// # Errors
+/// Preserves checked conversion and frozen unsupported-unit exceptions.
+#[inline]
+fn convert_scalar(value: &Bound<'_, PyAny>, datetime: bool) -> PyResult<(i64, bool)> {
     // NumPy arrayscalars.h defines the same PyObject + i64 + metadata prefix
     // for both scalar types. Actual PyType inheritance is checked above, so a
     // forged __class__ cannot reach this cast. `value` keeps the object alive.
@@ -118,15 +237,33 @@ pub fn microseconds(
         }
     };
     // Deliberately ignore metadata.multiplier, as the frozen Delta does.
-    Ok(Some((converted, datetime)))
+    Ok((converted, datetime))
 }
 
 // NumPy scalars always produce a builtin naive datetime. Work on its validated
 // parts directly, so the ordinary path allocates only the final result rather
 // than an intermediate datetime followed by a second datetime.
+/// Apply Delta to Unix microseconds and allocate only the final naive datetime.
+///
+/// # Errors
+/// Propagates conversion/calendar overflow and Python datetime range errors.
+/// The source date's range is checked before absolute Delta replacements.
 pub fn apply_datetime_us<'py>(
     py: Python<'py>,
     delta: &crate::delta::Delta,
+    value: i64,
+    sign: i64,
+) -> PyResult<Bound<'py, PyAny>> {
+    apply_datetime_fields_us(py, &delta.snapshot(), !delta.__bool__(), value, sign)
+}
+
+/// Apply a captured immutable field set to a verified NumPy instant.
+/// # Errors
+/// Preserves original input date checks, calendar overflow and allocation errors.
+pub(crate) fn apply_datetime_fields_us<'py>(
+    py: Python<'py>,
+    fields: &[i64; 15],
+    empty: bool,
     value: i64,
     sign: i64,
 ) -> PyResult<Bound<'py, PyAny>> {
@@ -136,8 +273,8 @@ pub fn apply_datetime_us<'py>(
         // applying any Delta replacement, including extreme NumPy dates.
         return datetime_from_us(py, value).map(Bound::into_any);
     }
-    let result = if delta.__bool__() {
-        crate::calendar::apply(&delta.snapshot(), parts, sign, true)
+    let result = if !empty {
+        crate::calendar::apply(fields, parts, sign, true)
             .map_err(PyOverflowError::new_err)?
             .0
     } else {
@@ -146,20 +283,26 @@ pub fn apply_datetime_us<'py>(
     let [year, month, day, hour, minute, second, microsecond] = result;
     let year = i32::try_from(year)
         .map_err(|_| PyOverflowError::new_err("integer overflow in Delta date arithmetic"))?;
-    PyDateTime::new(
+    native_datetime(
         py,
-        year,
-        month as u8,
-        day as u8,
-        hour as u8,
-        minute as u8,
-        second as u8,
-        microsecond as u32,
-        None,
+        [
+            i64::from(year),
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            microsecond,
+        ],
     )
     .map(Bound::into_any)
 }
 
+/// Split Unix microseconds into Gregorian date and normalized clock parts.
+///
+/// # Errors
+/// Converts ordinal decoding failures to OverflowError; final Python year bounds
+/// are left to the constructor.
 fn datetime_parts(value: i64) -> PyResult<[i64; 7]> {
     let days = value.div_euclid(86_400_000_000);
     let time = value.rem_euclid(86_400_000_000);
@@ -176,29 +319,63 @@ fn datetime_parts(value: i64) -> PyResult<[i64; 7]> {
     ])
 }
 
+/// Construct a builtin naive datetime from signed Unix microseconds.
+///
+/// # Errors
+/// Propagates ordinal overflow or Python's invalid-year/date constructor errors.
 pub fn datetime_from_us(py: Python<'_>, value: i64) -> PyResult<Bound<'_, PyDateTime>> {
     let [year, month, day, hour, minute, second, microsecond] = datetime_parts(value)?;
-    PyDateTime::new(
-        py,
-        year as i32,
+    native_datetime(py, [year, month, day, hour, minute, second, microsecond])
+}
+
+/// Construct the same builtin datetime through the initialized public C API.
+/// # Errors
+/// Retains Python's date bounds and allocation errors, with SDK initialization
+/// as the fallback when the datetime capsule has not yet been populated.
+#[inline(always)]
+fn native_datetime<'py>(py: Python<'py>, parts: [i64; 7]) -> PyResult<Bound<'py, PyDateTime>> {
+    let [year, month, day, hour, minute, second, microsecond] = parts;
+    let year = year as i32;
+    let (month, day, hour, minute, second) = (
         month as u8,
         day as u8,
         hour as u8,
         minute as u8,
         second as u8,
-        microsecond as u32,
-        None,
-    )
-}
-pub fn timedelta_from_us(py: Python<'_>, value: i64) -> PyResult<Bound<'_, PyDelta>> {
-    let days = value.div_euclid(86_400_000_000);
-    let rest = value.rem_euclid(86_400_000_000);
-    PyDelta::new(
+    );
+    let microsecond = microsecond as u32;
+    if let Some(api) = unsafe { pyo3::ffi::PyDateTimeAPI().as_ref() } {
+        // SAFETY: The SDK owns the initialized capsule and its ready type.
+        // The public constructor validates the same builtin bounds and returns
+        // an owned reference or NULL with an exception. This is the same naive,
+        // fold-zero value; no user constructor or timezone callback is skipped.
+        let pointer = unsafe {
+            (api.DateTime_FromDateAndTimeAndFold)(
+                year,
+                i32::from(month),
+                i32::from(day),
+                i32::from(hour),
+                i32::from(minute),
+                i32::from(second),
+                microsecond as i32,
+                pyo3::ffi::Py_None(),
+                0,
+                api.DateTimeType,
+            )
+        };
+        return unsafe { Bound::from_owned_ptr_or_err(py, pointer) }
+            .map(|value| unsafe { value.cast_into_unchecked::<PyDateTime>() });
+    }
+    PyDateTime::new(
         py,
-        days as i32,
-        (rest / 1_000_000) as i32,
-        (rest % 1_000_000) as i32,
-        false,
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second,
+        microsecond,
+        None,
     )
 }
 

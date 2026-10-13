@@ -1,12 +1,24 @@
-//! Gregorian calculations needed by Delta; ordinal 1 is 0001-01-01.
+//! Checked Gregorian calculations required by Delta.
+//!
+//! Ordinal 1 is 0001-01-01. Absolute replacements precede relative increments;
+//! weekday adjustment runs last. Internal years may exceed Python's date range,
+//! while integer widths and final Python constructor bounds are checked separately.
 
 const OVERFLOW: &str = "integer overflow in Delta date arithmetic";
 const MONTH_STARTS: [i64; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
 
+/// Return whether year is a leap year in the proleptic Gregorian calendar.
+///
+/// The same divisibility rules apply to temporary years outside Python's range.
 pub fn leap(year: i64) -> bool {
     year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 }
 
+/// Return the Gregorian month length for a year and a month in 1..=12.
+///
+/// # Preconditions
+/// Callers validate month before entering this internal helper; other values
+/// fall through to 31 and are not an alternate input validation interface.
 pub fn days_in_month(year: i64, month: i64) -> i64 {
     match month {
         2 => {
@@ -21,6 +33,14 @@ pub fn days_in_month(year: i64, month: i64) -> i64 {
     }
 }
 
+/// Convert year, month and day to a day number where 0001-01-01 is 1.
+///
+/// Day is clamped to 1..=days_in_month(year, month), preserving Delta's
+/// month-end behavior before relative days are added.
+///
+/// # Preconditions
+/// Month must be in 1..=12 and year must fit the checked calendar path's i32
+/// range. These invariants keep indexing and year arithmetic within bounds.
 pub fn ordinal(year: i64, month: i64, day: i64) -> i64 {
     let previous = year - 1;
     previous * 365 + previous.div_euclid(4) - previous.div_euclid(100)
@@ -34,6 +54,37 @@ pub fn ordinal(year: i64, month: i64, day: i64) -> i64 {
         }
 }
 
+/// Compute an ordinal for wide temporary years using checked arithmetic.
+/// # Preconditions
+/// Month is1..12; day uses the same clamping as the bounded fast path.
+/// # Errors
+/// Rejects unrepresentable calendar intermediates before adding relative days.
+fn checked_ordinal(year: i64, month: i64, day: i64) -> Result<i64, &'static str> {
+    let previous = year.checked_sub(1).ok_or(OVERFLOW)?;
+    let before = previous
+        .checked_mul(365)
+        .ok_or(OVERFLOW)?
+        .checked_add(previous.div_euclid(4))
+        .ok_or(OVERFLOW)?
+        .checked_sub(previous.div_euclid(100))
+        .ok_or(OVERFLOW)?
+        .checked_add(previous.div_euclid(400))
+        .ok_or(OVERFLOW)?;
+    before
+        .checked_add(MONTH_STARTS[(month - 1) as usize])
+        .ok_or(OVERFLOW)?
+        .checked_add(i64::from(month > 2 && leap(year)))
+        .ok_or(OVERFLOW)?
+        .checked_add(day.max(1).min(days_in_month(year, month)))
+        .ok_or(OVERFLOW)
+}
+
+/// Decode a Gregorian day number into [year, month, day].
+///
+/// # Errors
+/// Returns the calendar overflow error if subtracting one from value overflows.
+/// The returned year may be outside Python's 1..=9999 range; Python constructors
+/// validate that final range.
 pub fn from_ordinal(value: i64) -> Result<[i64; 3], &'static str> {
     let n = value.checked_sub(1).ok_or(OVERFLOW)?;
     let cycles = n.div_euclid(146_097);
@@ -60,21 +111,46 @@ pub fn from_ordinal(value: i64) -> Result<[i64; 3], &'static str> {
     Ok([year, month, rest - month_start + 1])
 }
 
+/// Add calendar values with checked i64 arithmetic.
+///
+/// # Errors
+/// Returns the calendar overflow error when the sum is not representable.
 fn add(left: i64, right: i64) -> Result<i64, &'static str> {
     left.checked_add(right).ok_or(OVERFLOW)
 }
 
+/// Apply an operation sign to a relative calendar value.
+///
+/// # Errors
+/// Rejects multiplication overflow, including negation of i64::MIN.
 fn signed(value: i64, sign: i64) -> Result<i64, &'static str> {
     value.checked_mul(sign).ok_or(OVERFLOW)
 }
 
+/// Add temporary calendar years using checked signed64 arithmetic.
+///
+/// # Errors
+/// Rejects real signed64 addition overflow.
 fn year_add(left: i64, right: i64) -> Result<i64, &'static str> {
-    let value = add(left, right)?;
-    i32::try_from(value).map(i64::from).map_err(|_| OVERFLOW)
+    add(left, right)
 }
 
-/// Replace absolute fields, add relative fields, then adjust weekday.
-/// Temporary years may be outside Python's range; constructors check the result.
+/// Apply absolute replacements, relative increments, then weekday adjustment.
+///
+/// # Arguments
+/// - fields: The 15 normalized Delta fields in snapshot order.
+/// - input: [year, month, day, hour, minute, second, microsecond].
+/// - sign: 1 for addition or -1 for subtraction.
+/// - datetime: Whether clock fields belong to the input datetime or affect a date
+///   only through their contribution to whole days.
+///
+/// # Returns
+/// The resulting seven date/time parts and whether those parts are unchanged.
+/// Temporary years may exceed Python's range; the caller's constructor checks it.
+///
+/// # Errors
+/// Rejects an invalid sign, checked arithmetic overflow, or a year outside the
+/// reference's intermediate i32 width.
 #[inline(always)]
 pub fn apply(
     fields: &[i64; 15],
@@ -93,6 +169,14 @@ pub fn apply(
 
 // Four fixed operation forms allow Rust to remove unused date/time branches
 // and multiplication by +1; negative-day overflow remains checked.
+/// Evaluate one fixed sign/date form without repeating dispatch decisions.
+///
+/// # Preconditions
+/// SIGN is 1 or -1, input is a valid builtin date/datetime's parts, and fields
+/// satisfy Delta's normalized ranges. The caller selects the matching form.
+///
+/// # Errors
+/// Returns the calendar overflow error for unrepresentable days or years.
 #[inline(always)]
 fn apply_inner<const SIGN: i64, const DATETIME: bool>(
     fields: &[i64; 15],
@@ -107,10 +191,10 @@ fn apply_inner<const SIGN: i64, const DATETIME: bool>(
         }
     };
     // Caller supplies normalized Delta fields and a built-in date's parts.
-    // Relative years have i32 width; relative months are -11..=11. Their
-    // multiplication/addition cannot overflow i64. Keep the original i32
-    // year limit check, and checked arithmetic for the unbounded i64 days.
-    let mut year = year_add(replace(7, input[0], true), fields[0] * SIGN)?;
+    // Years and days can occupy the whole signed64 range. Checked sign and
+    // addition happen before calendars or constructor callbacks. Months remain
+    // canonical0..11 and cross at most one year.
+    let mut year = year_add(replace(7, input[0], true), signed(fields[0], SIGN)?)?;
     let mut month = replace(8, input[1], true) + fields[1] * SIGN;
     // Absolute month is1..12 and normalized relative month is0..11.
     // Either sign can therefore cross at most one year; division is unnecessary.
@@ -137,14 +221,23 @@ fn apply_inner<const SIGN: i64, const DATETIME: bool>(
     }
     if DATETIME {
         for (child, parent, base) in [(3, 2, 1_000_000), (2, 1, 60), (1, 0, 60)] {
-            if !(0..base).contains(&time[child]) {
-                time[parent] += time[child].div_euclid(base);
-                time[child] = time[child].rem_euclid(base);
+            // Valid input and canonical Delta components need at most one
+            // carry or borrow, including the preceding smaller-unit carry.
+            // Preserve negative floor normalization without integer division.
+            if time[child] >= base {
+                time[child] -= base;
+                time[parent] += 1;
+            } else if time[child] < 0 {
+                time[child] += base;
+                time[parent] -= 1;
             }
         }
-        if !(0..24).contains(&time[0]) {
-            relative_days = add(relative_days, i64::from(time[0].div_euclid(24)))?;
-            time[0] = time[0].rem_euclid(24);
+        if time[0] >= 24 {
+            relative_days = add(relative_days, 1)?;
+            time[0] -= 24;
+        } else if time[0] < 0 {
+            relative_days = add(relative_days, -1)?;
+            time[0] += 24;
         }
     } else {
         let mut us = i64::from(time[3]);
@@ -157,7 +250,7 @@ fn apply_inner<const SIGN: i64, const DATETIME: bool>(
         time = [0; 4];
     }
     // A small day shift needs at most one month boundary. Clamp the source
-    // day first, as ordinal() does, and retain the original checked year width.
+    // day first, as ordinal() does, and use checked signed64 year carries.
     // The 27-day bound is below every month's length, including February.
     if relative_days != 0 && (-27..=27).contains(&relative_days) && fields[10] < 0 {
         day = day.min(days_in_month(year, month)) + relative_days;
@@ -182,7 +275,11 @@ fn apply_inner<const SIGN: i64, const DATETIME: bool>(
             }
         }
     } else if relative_days != 0 || fields[10] >= 0 {
-        let old = ordinal(year, month, day);
+        let old = if i32::try_from(year).is_ok() {
+            ordinal(year, month, day)
+        } else {
+            checked_ordinal(year, month, day)?
+        };
         let mut new = add(old, relative_days)?;
         if fields[10] >= 0 {
             let weekday = add(new, 6)?.rem_euclid(7);
@@ -190,7 +287,6 @@ fn apply_inner<const SIGN: i64, const DATETIME: bool>(
         }
         if new != old {
             [year, month, day] = from_ordinal(new)?;
-            i32::try_from(year).map_err(|_| OVERFLOW)?;
         }
     }
     let mut result = [
@@ -263,9 +359,9 @@ mod tests {
             }
         }
         fields[2] = 1;
-        assert!(apply(&fields, [i64::from(i32::MAX), 12, 31, 0, 0, 0, 0], 1, false).is_err());
+        assert!(apply(&fields, [i64::MAX, 12, 31, 0, 0, 0, 0], 1, false).is_err());
         fields[2] = -1;
-        assert!(apply(&fields, [i64::from(i32::MIN), 1, 1, 0, 0, 0, 0], 1, false).is_err());
+        assert!(apply(&fields, [i64::MIN, 1, 1, 0, 0, 0, 0], 1, false).is_err());
         // Absolute day31 first clamps to February's last valid day.
         fields[2] = 1;
         fields[9] = 31;

@@ -1,4 +1,10 @@
-"""Exact conversions between aware datetimes and Unix milliseconds."""
+"""Calendar deltas and exact conversions to and from Unix milliseconds.
+
+``Delta`` is implemented by the Rust extension and exported here and from
+``rstimes.delta`` as the same class. The two timestamp helpers use integer
+arithmetic, require explicit UTC offsets, and never consult local timezone
+settings. See each object's docstring for accepted inputs and errors.
+"""
 
 from datetime import datetime, timedelta, timezone
 from .delta import Delta
@@ -15,9 +21,23 @@ def to_unix_ms(value: datetime) -> int:
     one microsecond before the epoch returns -1, not 0. All arithmetic is
     integer-based; the host's local timezone is never used.
 
+    Args:
+        value (datetime): A timezone-aware datetime, including datetime subclasses.
+
+    Returns:
+        int: Milliseconds since 1970-01-01T00:00:00Z, rounded toward negative
+        infinity when the input has a fractional millisecond.
+
     Raises:
         TypeError: If value is not a datetime.
         ValueError: If value is naive or outside the supported UTC range.
+
+    Examples:
+        >>> to_unix_ms(datetime(1970, 1, 1, tzinfo=timezone.utc))
+        0
+        >>> to_unix_ms(datetime(1969, 12, 31, 23, 59, 59, 999999,
+        ...                     tzinfo=timezone.utc))
+        -1
     """
     if not isinstance(value, datetime):
         raise TypeError("value must be a datetime")
@@ -36,9 +56,21 @@ def from_unix_ms(value: int) -> datetime:
     Negative values represent instants before 1970-01-01T00:00:00Z.
     The accepted range is -62135596800000 through 253402300799999, inclusive.
 
+    Args:
+        value (int): Unix milliseconds; bool is explicitly rejected.
+
+    Returns:
+        datetime: An aware builtin datetime whose timezone is UTC.
+
     Raises:
         TypeError: If value is not an int, or is a bool.
         ValueError: If value is outside Python's datetime range (years 1–9999).
+
+    Examples:
+        >>> from_unix_ms(0).isoformat()
+        '1970-01-01T00:00:00+00:00'
+        >>> to_unix_ms(from_unix_ms(-1))
+        -1
     """
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError("value must be an int, not bool or another type")

@@ -25,6 +25,10 @@ RULES = {"minimum_ns": 200_000, "cpu_gap": .10, "boundary_fraction": .01,
 class Host:
     """Read-only Mach counters, SDK constants; heavy identity reads happen once."""
     def __init__(self):
+        """Bind readonly Mach counters and capture hardware and clock identity once.
+
+        Raises:
+            ValueError: The host is not the accepted macOS arm64 platform."""
         if sys.platform != "darwin" or platform.machine() != "arm64":
             raise ValueError("Short first-release acceptance requires macOS arm64")
         self.lib = ctypes.CDLL(None)
@@ -57,6 +61,12 @@ class Host:
         self.refresh_at = 0
 
     def stats(self, flavor, size, wide=False):
+        """Read a Mach counter array for the specified SDK flavor and word count.
+
+        wide selects host_statistics64. No system scheduling or process state is changed.
+
+        Raises:
+            RuntimeError: Mach fails or returns an incomplete counter prefix."""
         buf = (ctypes.c_uint * size)()
         count = ctypes.c_uint(size)
         fn = self.lib.host_statistics64 if wide else self.lib.host_statistics
@@ -66,6 +76,10 @@ class Host:
         return list(buf)[:count.value]
 
     def snapshot(self):
+        """Read CPU ticks and lightweight scheduling diagnostics with cached memory/load.
+
+        Returns:
+            dict: Snapshot boundaries, ticks, memory/load values and refresh timestamp."""
         start = time.perf_counter_ns()
         if start >= self.refresh_at:
             vm = self.stats(4, 256, True)  # SDK HOST_VM_INFO64; prefix is four uint32.
@@ -80,6 +94,17 @@ class Host:
 
 
 def sample(fn, count, warmup):
+    """Time count calls after warmup, retaining wall, thread CPU and boundary times.
+
+    Args:
+        fn (Callable): The complete public workload invocation.
+        count (int): Positive timed invocation count shared by both implementations.
+        warmup (int): Untimed calls performed immediately before the batch.
+
+    Returns:
+        dict: Total times, per-call average, counts and timing boundaries.
+
+    Workload exceptions propagate; no guessed overhead is subtracted."""
     start = time.perf_counter_ns()
     for _ in range(warmup):
         fn()
@@ -100,6 +125,14 @@ def sample(fn, count, warmup):
 
 
 def reasons(pair, info):
+    """Return every predefined validity rejection reason for a complete pair.
+
+    Args:
+        pair (dict): Both batches and before/after snapshots.
+        info (dict): Hardware and calibrated clock information.
+
+    The host_cpu diagnostic is attached to pair. Coarse host ticks gate only when
+    sufficient; eligible slow samples are not rejected merely for being slow."""
     failed = []
     resolution = max(info[clock]["resolution"]*1e9 for clock in ("wall_clock", "thread_clock"))
     for name, batch in pair["batches"].items():
@@ -138,6 +171,18 @@ def reasons(pair, info):
 
 
 def measure_pair(contexts, request, host):
+    """Measure both engines consecutively with one count and balanced supplied order.
+
+    Args:
+        contexts (dict): Loaded case modules and workloads for each package.
+        request (dict): Case ID, shared count, order and warmup count.
+        host (Host): Readonly host counter reader.
+
+    Returns:
+        dict: Complete pair, validity verdict and all rejection reasons.
+
+    Raises:
+        ValueError: Counts or engine order violate the paired contract."""
     count, warmup = request["count"], request["warmup_count"]
     if type(count) is not int or not 1 <= count <= 100_000_000:
         raise ValueError("Invalid shared invocation count")
@@ -163,7 +208,45 @@ def measure_pair(contexts, request, host):
     return pair
 
 
+def measure_sample(context, request, host):
+    """Measure one installed engine locally for an isolated multi-engine group.
+
+    Reuse the historical batch boundaries and quality rules. Preserve signed
+    CPU/wall differences; a negative difference beyond the observed read-boundary
+    allowance is a clock error, not a scheduling rejection. The allowance is an
+    operational boundary estimate and is not advertised as a confidence bound.
+    """
+    count, warmup = request["count"], request["warmup_count"]
+    if type(count) is not int or not 1 <= count <= 100_000_000:
+        raise ValueError("Invalid isolated invocation count")
+    if type(warmup) is not int or not 0 <= warmup <= 100_000_000:
+        raise ValueError("Invalid isolated warmup count")
+    shared, cases, _ = context
+    sys.modules["delta_cases"] = shared
+    before = host.snapshot()
+    start = time.perf_counter_ns()
+    batch = sample(cases[request["id"]].run, count, warmup)
+    end = time.perf_counter_ns()
+    after = host.snapshot()
+    record = {"count": count, "start_ns": start, "end_ns": end,
+              "before": before, "after": after, "batches": {"engine": batch},
+              "pid": os.getpid()}
+    record["reasons"] = reasons(record, host.info)
+    batch["signed_cpu_gap_ns"] = batch["elapsed_ns"] - batch["cpu_elapsed_ns"]
+    allowance = batch["boundary_ns"] + host.info["clock_read_p99_ns"]
+    allowance += max(host.info[key]["resolution"] * 1e9 for key in ("wall_clock", "thread_clock"))
+    batch["negative_gap_allowance_ns"] = allowance
+    if batch["signed_cpu_gap_ns"] < -allowance:
+        raise ValueError("Thread/wall clock difference exceeds measured read boundaries")
+    record["valid"] = not record["reasons"]
+    return record
+
+
 def blocks(state):
+    """Aggregate fixed consecutive groups of accepted micro-pairs from state.
+
+    Each block sums elapsed times and counts; eligible slow samples remain in it.
+    A trailing incomplete block is left for later sampling, never promoted."""
     width = state.get("pairs_per_block", 1)
     accepted = state["accepted"]
     groups = []
@@ -181,6 +264,10 @@ def blocks(state):
 
 
 def row(case, state):
+    """Summarize one case's complete blocks, including median, worst ratio and noise.
+
+    Returns:
+        dict: Measured or inconclusive status, raw blocks and numeric diagnostics."""
     pairs = blocks(state)
     if not pairs:
         return {**case, "count": state.get("count"), "status": "inconclusive",
@@ -198,6 +285,17 @@ def row(case, state):
 
 
 def evaluate(rows, summary, expected, mode, precision):
+    """Evaluate P1-P6 using complete coverage, precision and fixed numeric thresholds.
+
+    Args:
+        rows (list[dict]): Per-case summaries.
+        summary (dict): Fixed-weight core and third-party aggregates.
+        expected (sequence[str]): Required case IDs.
+        mode (str): quick or formal; quick cannot pass formal acceptance.
+        precision (bool): Whether matching precision evidence has passed.
+
+    Returns:
+        dict: Gate verdicts plus incomplete, unstable and regression IDs."""
     complete = {r["id"] for r in rows} == set(expected) and all(r["status"] == "measured" for r in rows)
     core, third = summary.get("core"), summary.get("thirdparty")
     formal = mode == "formal"
@@ -218,11 +316,13 @@ def evaluate(rows, summary, expected, mode, precision):
 
 
 def fingerprint(result):
+    """Hash workload, environment and rules used to validate bounded continuation."""
     keys = ("protocol", "reference", "candidate", "hardware", "sampling", "helper_sha256")
     return hashlib.sha256(json.dumps({k:result[k] for k in keys}, sort_keys=True).encode()).hexdigest()
 
 
 def precision_binding(result):
+    """Return source/environment bindings required by the precision receipt."""
     hardware = dict(result["hardware"])
     hardware.pop("clock_read_p99_ns", None)
     value = {"hardware": hardware, "helper_sha256": result["helper_sha256"],
@@ -233,6 +333,10 @@ def precision_binding(result):
 
 
 def checkpoint(result, states, cases, bench, directory, started, inherited):
+    """Save current counts, attempts and gate results using an atomic file replace.
+
+    started and inherited preserve cumulative time across continuation. Earlier
+    attempts and valid slow samples stay in the raw record."""
     rows = [row(case, states[case["id"]]) for case in cases]
     measured = [r for r in rows if r.get("reference_ns")]
     summary = bench.aggregates(measured) if measured else {"groups": {}, "core": None, "thirdparty": None}
@@ -252,6 +356,16 @@ def checkpoint(result, states, cases, bench, directory, started, inherited):
 
 
 def run(args, bench):
+    """Execute the bounded short-pair CLI protocol and preserve resumable evidence.
+
+    Args:
+        args (argparse.Namespace): Frozen case, sampling, budget and receipt options.
+        bench (module): Shared workload, worker and report helpers.
+
+    Raises:
+        ValueError: Outputs, receipt or continuation identity do not match.
+
+    Workers are closed in finally; retries inherit elapsed time and attempt limits."""
     started = time.monotonic()
     required = 12 if args.mode == "formal" else 6
     directory = Path(args.output)/datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
