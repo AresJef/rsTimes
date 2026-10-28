@@ -121,13 +121,16 @@ def test_midnight_factories_also_share_strict_creation(factory):
 
 
 def test_arbitrary_zoneinfo_file_key_does_not_bypass_regional_validation():
-    from pathlib import Path
-    from zoneinfo import TZPATH
-    path=next((Path(root)/'America/New_York' for root in TZPATH if (Path(root)/'America/New_York').is_file()),None)
-    if path is None:pytest.skip('system tzdata file unavailable')
-    with path.open('rb') as stream:zone=ZoneInfo.from_file(stream,key='UTC')
+    from importlib.resources import files
+    # The declared test dependency supplies the same real TZif resource on
+    # Windows, macOS and Linux; no system-file availability skip is needed.
+    with files('tzdata').joinpath('zoneinfo','America','New_York').open('rb') as stream:
+        zone=ZoneInfo.from_file(stream,key='UTC')
     with pytest.raises(ValueError,match='does not exist'):
         Pydt(2024,3,10,2,30,tzinfo=zone)
+    from rstimes import Pddt
+    with pytest.raises(ValueError,match='does not exist'):
+        Pddt(['2024-03-10 02:30'],tz=zone)
 
 
 def test_valid_custom_calendar_target_does_not_read_unused_source_offset():
