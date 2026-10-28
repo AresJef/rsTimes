@@ -1,10 +1,10 @@
 {
-  "environment": ".local/rstimes-beta-release-20261028/oracle-env",
-  "version": "0.2.0b1",
-  "release_manifest": ".local/rstimes-beta-release-20261028/public-release/release-manifest.json",
+  "environment": ".local/dateutil-optional-platforms-16h-20261028/oracle-env",
+  "version": "0.2.0b2",
+  "release_manifest": ".local/dateutil-optional-platforms-16h-20261028/public-release/release-manifest.json",
   "status": "Release demonstration; requires the verified published wheel and its manifest",
   "selection": "published_release",
   "environments": {
-    "pddt": ".local/rstimes-beta-release-20261028/published-pd3"
+    "pddt": ".local/dateutil-optional-platforms-16h-20261028/published-pd3"
   }
 }

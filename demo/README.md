@@ -5,11 +5,11 @@
 从项目根目录准备下列环境。这里使用 CPython3.13，以取得冻结官方版本的现成 wheel；不限制 rsTimes 本身已经验证的 CPython3.12—3.15 支持。
 
 ```sh
-python3.13 -m venv .local/rstimes-beta-release-20261028/oracle-env
-.local/rstimes-beta-release-20261028/oracle-env/bin/python -m pip install -r requirements-oracle.txt "rsTimes==0.2.0b1"
-python3.13 -m venv .local/rstimes-beta-release-20261028/published-pd3
-.local/rstimes-beta-release-20261028/published-pd3/bin/python -m pip install -r requirements-test.txt "rsTimes==0.2.0b1"
-gh release download v0.2.0b1 --repo AresJef/rsTimes --pattern release-manifest.json --dir .local/rstimes-beta-release-20261028/public-release
+python3.13 -m venv .local/dateutil-optional-platforms-16h-20261028/oracle-env
+.local/dateutil-optional-platforms-16h-20261028/oracle-env/bin/python -m pip install -r requirements-oracle.txt "rsTimes==0.2.0b2"
+python3.13 -m venv .local/dateutil-optional-platforms-16h-20261028/published-pd3
+.local/dateutil-optional-platforms-16h-20261028/published-pd3/bin/python -m pip install -r requirements-test.txt "rsTimes==0.2.0b2"
+gh release download v0.2.0b2 --repo AresJef/rsTimes --pattern release-manifest.json --dir .local/dateutil-optional-platforms-16h-20261028/public-release
 ```
 
 Windows 的解释器位于环境的 `Scripts/python.exe`，相应替换上面的 `bin/python`。也可以自行选择目录，再修改 `demo/runtime.json` 的默认 `environment` 与 `environments.pddt`；它们必须分别指向这两套环境。`release_manifest` 指向本次实际 GitHub Release 的清单。

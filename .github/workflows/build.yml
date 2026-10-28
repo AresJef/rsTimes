@@ -151,6 +151,95 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  sdist:
+    name: Independent sdist / ${{ matrix.platform.id }} / ${{ matrix.python.minor }}
+    if: inputs.profile == 'full'
+    needs: [matrix, native]
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: { minor: "3.13", version: "3.13.17" }
+            platform:
+              id: macos-arm64
+              runner: macos-15
+              arch: arm64
+              target: aarch64-apple-darwin
+              container: "off"
+              manylinux: "off"
+          - python: { minor: "3.15", version: "3.15.2" }
+            platform:
+              id: linux-musl-arm64
+              runner: ubuntu-24.04-arm
+              arch: arm64
+              target: aarch64-unknown-linux-musl
+              container: quay.io/pypa/musllinux_1_2_aarch64@sha256:1db347533f8a7ea39aa20b0203f4e4af00630cdb621216a2b43771523c9983c5
+              manylinux: musllinux_1_2
+    env:
+      TZ: UTC
+      PYTHONUTF8: "1"
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        id: python
+        with:
+          python-version: ${{ matrix.python.version }}
+          architecture: ${{ matrix.platform.arch }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: wheel-${{ github.run_id }}-${{ github.run_attempt }}-macos-arm64-3.13
+          path: source-artifact/
+      - name: Extract original sdist with a fresh target
+        run: |
+          python - <<'PYCODE'
+          from pathlib import Path
+          import tarfile
+          source, = Path("source-artifact").glob("*.tar.gz")
+          with tarfile.open(source) as archive:
+              archive.extractall("sdist-extracted", filter="data")
+          project, = Path("sdist-extracted").iterdir()
+          project.rename(".sdist-project")
+          assert not Path(".sdist-project/target").exists() and not Path("target").exists()
+          assert not list(Path(".sdist-project").rglob("*.so"))
+          assert not list(Path(".sdist-project").rglob("*.pyd"))
+          Path("evidence").mkdir()
+          Path("evidence/sdist-fresh-target.txt").write_text(str(source) + "\nNo native or target existed before build.\n")
+          PYCODE
+      - name: Build independent wheel from the source distribution
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b
+        with:
+          command: build
+          working-directory: .sdist-project
+          maturin-version: v1.15.0
+          rust-toolchain: "1.99.0"
+          target: ${{ matrix.platform.target }}
+          manylinux: ${{ matrix.platform.manylinux }}
+          container: ${{ matrix.platform.container }}
+          args: --release --locked --out ../sdist-rebuilt --interpreter "${{ runner.os == 'Linux' && format('python{0}', matrix.python.minor) || steps.python.outputs.python-path }}"
+      - name: Verify independent desktop wheel
+        if: runner.os != 'Linux'
+        run: python -I -B tools/verify_wheel.py --directory sdist-rebuilt --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode sdist
+      - name: Verify independent musl wheel
+        if: runner.os == 'Linux'
+        run: |
+          abi_tag="cp${{ matrix.python.minor }}"
+          abi_tag="${abi_tag//./}"
+          docker run --rm --volume "$PWD:/project" --workdir /project \
+            --env TZ=UTC --env PYTHONUTF8=1 "${{ matrix.platform.container }}" \
+            "/opt/python/${abi_tag}-${abi_tag}/bin/python" -I -B tools/verify_wheel.py \
+            --directory sdist-rebuilt --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode sdist
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: evidence-${{ github.run_id }}-${{ github.run_attempt }}-sdist-${{ matrix.platform.id }}
+          path: evidence/
+          retention-days: 7
+
   oracle:
     if: inputs.profile == 'full'
     name: Frozen-upstream comparisons / ${{ matrix.python }} / NumPy ${{ matrix.numpy }}
@@ -213,7 +302,7 @@ jobs:
   bundle:
     if: inputs.profile == 'full'
     name: Verify complete32-wheel and sdist bundle
-    needs: [native, rust, oracle]
+    needs: [native, rust, oracle, sdist]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:

@@ -93,6 +93,11 @@ can express them; the resulting value then follows Delta's own date rules. Any w
 `ValueError`; their date rules cannot be represented by Delta. The same checks
 apply to arithmetic involving relativedelta. `leapdays=0` is accepted.
 
+The dateutil adapter is optional. Install `rsTimes[dateutil]` before starting
+Python to use `from_relativedelta()` or relativedelta arithmetic. Without it,
+the explicit factory raises `ImportError` with an installation hint; ordinary
+Delta construction and standard-library arithmetic remain available.
+
 ## Copying and saving
 
 Use `copy.copy`, `copy.deepcopy` and `pickle` normally. Copies are separate
@@ -104,9 +109,9 @@ before its additional attributes. Only load pickle from trusted sources.
 
 Integers and checked arithmetic use the signed 64-bit range. Absolute settings
 are limited as described below; relative months and clock parts are normalized.
-A date result must fit Python's supported date range. This delivery is checked on macOS arm64 with ordinary CPython 3.13 and the
-Pydt/Pddt compatibility contracts also checked on CPython 3.11. See the acceptance
-report for the exact pandas and NumPy versions and the checks performed.
+A date result must fit Python's supported date range. The beta supports ordinary 64-bit CPython 3.12–3.15 on the native platforms listed
+in README. Older CPython 3.11 results are historical evidence, not current release
+support. The release report records exact dependency versions and tested wheels.
 
 Run `python demo/delta.py` from the project root. Each `xxx_demo` function can be
 run independently, including `datetime_demo`, `pydt_demo`, `apply_many_demo`,

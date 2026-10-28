@@ -45,7 +45,7 @@ def main():
     assert repository == "AresJef/rsTimes"
     bundle = Path("bundle")
     manifest = json.loads((bundle / "release-manifest.json").read_text(encoding='utf-8'))
-    assert len(manifest["wheels"]) == 16 and len(manifest["sdists"]) == 1
+    assert len(manifest["wheels"]) == 32 and len(manifest["sdists"]) == 1
     assert manifest["source_commit"] == os.environ["GITHUB_SHA"]
     version = manifest["version"]
     tag = "v" + version
@@ -57,7 +57,7 @@ def main():
     expected = {row["filename"]: row["sha256"] for row in manifest["wheels"] + manifest["sdists"]}
     for name, path in files.items():
         assert hashlib.sha256(path.read_bytes()).hexdigest() == expected[name], name
-    for name in ("release-manifest.json", "SHA256SUMS"):
+    for name in ("release-manifest.json", "SHA256SUMS", "performance-receipt.json"):
         files[name] = bundle / name
         expected[name] = hashlib.sha256(files[name].read_bytes()).hexdigest()
     ref = api(f"repos/{repository}/git/ref/tags/{tag}")["object"]

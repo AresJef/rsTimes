@@ -18,6 +18,7 @@ import sysconfig
 import time
 import tomllib
 import venv
+import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,6 +41,10 @@ def main():
     wheels = list(args.directory.resolve().glob("*.whl"))
     assert len(wheels) == 1, wheels
     wheel = wheels[0]
+    with zipfile.ZipFile(wheel) as archive:
+        native, = [name for name in archive.namelist() if name.startswith("rstimes/_native")
+                   and name.endswith((".so", ".pyd"))]
+        native_sha256 = hashlib.sha256(archive.read(native)).hexdigest()
     assert struct.calcsize("P") == 8 and sys.implementation.name == "cpython"
     assert f"{sys.version_info.major}.{sys.version_info.minor}" == args.python_minor
     assert not sysconfig.get_config_var("Py_GIL_DISABLED")
@@ -57,6 +62,7 @@ def main():
         "libc": platform.libc_ver(),
         "ldd": None if ldd is None else ldd.stdout + ldd.stderr,
         "wheel": wheel.name, "wheel_sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
+        "native_sha256": native_sha256,
         "version": package_version, "commands": [], "status": "RUNNING",
     }
 
@@ -102,6 +108,8 @@ def main():
     def smoke(py, label, *flags):
         run(label + "-smoke", [py, "-I", "-B", ROOT / "tools/wheel_smoke.py",
                               "--expect-version", package_version, *flags])
+        installed = json.loads((output / (label + "-smoke.log")).read_text())
+        assert installed["native_sha256"] == native_sha256, (label, installed)
 
     def regress(py, label, core=False, public=False):
         if public:

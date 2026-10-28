@@ -1,28 +1,45 @@
 # rsTimes
 
-**rsTimes 0.2.0b1** 是使用 Rust 内核的 Python 日期时间库，提供日历增量、可配置解析、标准 `datetime` 子类和 pandas 日期索引子类。
+**rsTimes 0.2.0b2** is a Python date and time library with a shared Rust core.
+It provides calendar deltas, configurable parsing, a real `datetime.datetime`
+subclass and a real `pandas.DatetimeIndex` subclass.
 
-- **`Delta`**：相对日历增量、绝对字段设置、日期运算和批量应用。
-- **`parse_str` / `parse` / `parse_to_epoch`**：共享 Rust 解析内核，分别输出日期对象或指定单位的纪元整数。
-- **`Configs`**：配置解析词表、顺序规则、固定偏移和地区时区。
-- **`Pydt`**：真正继承 `datetime.datetime`，提供日历、边界、时区和格式操作。
-- **`Pddt`**：真正继承 `pandas.DatetimeIndex`，支持纳秒、明确单位、整列运算和 pandas 索引协议。
+- **`Delta`**: relative calendar changes, absolute fields, scalar and bulk arithmetic.
+- **`parse_str`, `parse`, `parse_to_epoch`**: shared parsing rules returning a date object or an epoch integer in a chosen unit.
+- **`Configs`**: parsing vocabularies, ordering, fixed offsets and explicitly configured regional time zones.
+- **`Pydt`**: calendar, boundary, time zone and formatting methods on a standard datetime subclass.
+- **`Pddt`**: nanoseconds, explicit units, column operations and pandas index interoperability.
 
-PyPI 分发名为 `rsTimes`，Python 导入名为 `rstimes`。PLDT 尚未实现；Polars 可选依赖用于读取受支持的 Series 输入。
+The distribution name is `rsTimes`; import `rstimes`. PLDT has not been implemented.
+The optional Polars integration reads supported Series inputs.
 
-## 安装
+## Installation and dependencies
 
-这是 beta 发行，请明确选择版本：
+This is a beta release. Select the version explicitly:
 
 ```sh
-python -m pip install "rsTimes==0.2.0b1"
-# 需要 Pddt 时安装 pandas；需要 Polars Series 输入时增加 polars：
-python -m pip install "rsTimes[pandas,polars]==0.2.0b1"
+python -m pip install "rsTimes==0.2.0b2"
+python -m pip install "rsTimes[dateutil,pandas,polars]==0.2.0b2"
 ```
 
-基础依赖为 NumPy、python-dateutil；Windows 另外安装 tzdata，以提供标准 ZoneInfo 的 IANA 时区数据。pandas 和 Polars 为可选依赖。运行库不依赖 Babel、cytimes 或 Cython。
+| Dependency | Required version | Purpose |
+|---|---|---|
+| NumPy | >=2.5.3 | Required native scalar/array support |
+| tzdata | >=2026.5, Windows only | Required IANA data for standard `ZoneInfo` |
+| python-dateutil | >=2.9, optional `dateutil` extra | Import parserinfo and relativedelta rules; actual relativedelta interoperability |
+| pandas | >=2.3.3 on CPython 3.12–3.14 except Windows ARM64; >=3.0.6 on CPython 3.15 or Windows ARM64 | Optional `pandas` extra, required for `Pddt` |
+| Polars | >=2.0.0 | Optional `polars` extra, supported Series inputs |
 
-## 使用
+Core `Delta`, `Configs`, parsing and `Pydt` work without dateutil, pandas or Polars.
+Without python-dateutil, `Configs.from_parserinfo()` and
+`Delta.from_relativedelta()` raise `ImportError` with an installation hint;
+ordinary parsing does not fall back to dateutil. Install integrations before
+starting Python. Adding a dependency to an already running interpreter requires
+a restart. Broken installed dependencies propagate their actual import errors.
+Installing pandas also installs its own dependencies, which can include dateutil.
+The runtime does not require Babel, cytimes or Cython.
+
+## Usage
 
 ```python
 from datetime import datetime
@@ -39,7 +56,8 @@ cfg.add_month("custommonth", 2)
 assert parse_str("29 custommonth 2024", cfg=cfg) == datetime(2024, 2, 29)
 ```
 
-Pddt 使用集合输入，构造时通过 `unit` 选择单位，已有对象通过 `as_unit()` 显式转换：
+`Pddt` accepts collections. Choose a unit during construction and use
+`as_unit()` explicitly to convert an existing object:
 
 ```python
 from rstimes import Delta, Pddt, parse_to_epoch
@@ -49,68 +67,110 @@ y = x + Delta(months=1)
 assert y[0].isoformat() == "2024-02-29T12:30:00.123456789"
 assert y.isna().tolist() == [False, True]
 
-# Pddt 的裸数字表示所选单位的刻度；parse_to_epoch 的数字输入表示秒。
+# Bare Pddt numbers are ticks in the chosen unit; parser numbers are seconds.
 assert Pddt([1], unit="ms").asi8.tolist() == [1]
 assert parse_to_epoch(1, unit="ms") == 1000
 ```
 
-默认解析顺序为 `yearfirst=True, dayfirst=False`，可由 Configs 或显式参数调整。`strict=False`；`isoformat=True` 表示优先尝试 ISO，仍可回退通用解析。默认 `ignoretz=True`，需要保留文本时区时明确传 `False`。Parser 负责解释字段，目标日期类决定可表示范围和地区时间存在性。
+The default ordering is `yearfirst=True, dayfirst=False`, overridable by Configs
+and explicit options. `strict=False`; `isoformat=True` tries ISO first and may
+fall back to general parsing. The default `ignoretz=True` discards textual time
+zones; pass `False` to retain them. Parser interprets fields; the chosen result
+class controls capacity and the existence of regional local times.
 
-Pydt 保持微秒精度及年份1—9999；Pddt 支持 `s/ms/us/ns` 和相应容量内的零年、负年及宽年份。已有 Pddt 日期运算保持当前单位，精度或容量不足时明确报错，需用户调用 `as_unit()`；不会自动换单位或把失败变成 NaT。可选数字修改参数的 `None` 表示保留，零为真实数值。
+`Pydt` retains microsecond precision and years1–9999. `Pddt` supports `s/ms/us/ns`
+and zero, negative and wide years within the selected unit's capacity. Operations
+on an existing `Pddt` preserve its unit: insufficient precision or capacity raises
+an error and requires explicit `as_unit()`. It never silently changes unit or
+turns an ordinary failure into NaT. `None` preserves optional fields; zero is a
+real numeric value.
 
-原有 `to_unix_ms` / `from_unix_ms` 继续提供带时区日期与 Unix 毫秒的转换。前者将不足一毫秒部分向负无穷取整；后者返回 UTC-aware datetime。类型错误为 TypeError、naive 输入为 ValueError、容量超限为 OverflowError。
+`to_unix_ms` and `from_unix_ms` convert aware dates and Unix milliseconds.
+The former floors submillisecond values; the latter returns a UTC-aware datetime.
+Type errors are `TypeError`, naive inputs are `ValueError`, and capacity failures
+are `OverflowError`.
 
-## 发行矩阵与测试
+## Native support and verification
 
-同一套源码构建普通带GIL的 CPython 3.12—3.15：
+One source tree supports ordinary GIL-enabled CPython 3.12,3.13,3.14 and3.15:
 
-| 平台 | CPU | 构建/测试 runner | wheel |
+| Platform | CPU | Wheel baseline | Native verification runner |
 |---|---|---|---|
-| macOS | arm64 | macos-15 | 每个 Python 版本1个 |
-| macOS | x86_64 | macos-15-intel | 每个 Python 版本1个 |
-| Windows | x86_64 | windows-2025 | 每个 Python 版本1个 |
-| Linux | x86_64 | ubuntu-24.04，固定 manylinux_2_28 构建容器 | 每个 Python 版本1个 |
+| macOS | ARM64 | macOS11.0+ | macos-15 |
+| macOS | x86_64 | macOS11.0+ | macos-15-intel |
+| Windows | x86_64 | win_amd64 | windows-2025 |
+| Windows | ARM64 | win_arm64 | windows-11-arm |
+| Linux glibc | x86_64 | manylinux_2_28 | ubuntu-24.04, matching pinned container |
+| Linux glibc | ARM64 | manylinux_2_28 | ubuntu-24.04-arm, matching pinned container |
+| Linux musl | x86_64 | musllinux_1_2 | ubuntu-24.04, matching pinned container |
+| Linux musl | ARM64 | musllinux_1_2 | ubuntu-24.04-arm, matching pinned container |
 
-总计16个wheel和1个sdist。macOS wheel 的部署目标为11.0；Linux wheel 为 manylinux_2_28。表中列的是实际验收 runner，不代表已在每个历史操作系统版本物理测试。此次不包含 PyPy、free-threaded CPython、musl 或 Windows/Linux ARM。
+The release contains32 wheels and one complete sdist. Linux installation tests
+run inside the matching libc, not only on the host. 32-bit, PyPy and free-threaded
+CPython are unsupported. Runner testing does not claim physical testing on every
+historical OS release permitted by a wheel tag.
 
-产品测试固定 pandas3.0.6、NumPy2.5.3、Polars2.0.0。冻结官方 cyTimes3.1.0 声明 pandas<3，放在独立 pandas2.3.3 环境运行原对照测试；它不进入用户运行依赖。完整保留的字符串样本另有4,588项独立冻结预期，可在所有四个Python版本检查。普通云runner不用于发布正式性能倍率。
+Every position verifies real isolated core-only, core+Polars and pandas3
+installations. Applicable pandas2 positions use the same wheel. Additional
+latest-version representatives are recorded separately. The fixed main versions
+are NumPy 2.5.3, pandas 3.0.6 and Polars 2.0.0; pandas2 compatibility uses2.3.3.
+The frozen cytimes3.1.0 oracle runs separately with pandas2.3.3 and NumPy2.5.3.
+It is a test-only dependency. The 4,588 independent frozen string expectations
+remain protected. Shared cloud runners do not establish strict performance ratios.
 
-## 本地开发
+## Development
 
-需要 Rust；仓库的 `rust-toolchain.toml` 固定本次验证工具链。以下命令在已激活的虚拟环境执行：
+The repository pins Rust in `rust-toolchain.toml`. Inside an activated environment:
 
 ```sh
 python -m pip install --upgrade pip==26.2.2
 python -m pip install -r requirements-dev.txt
 maturin build --release --locked --interpreter python --out dist
 python -m pip install --no-deps dist/*.whl
-python -I -B tools/wheel_smoke.py --expect-version 0.2.0b1 --with-pandas --with-polars
+python -I -B tools/wheel_smoke.py --expect-version 0.2.0b2 --with-dateutil --with-pandas --with-polars
 python -I -B tools/run_release_tests.py --junitxml evidence/tests.xml
 python -I -B tools/check_public_docs.py
 python -I -B tools/check_typing.py
 ```
 
-Windows PowerShell 可用 `Get-ChildItem dist\*.whl | ForEach-Object { python -m pip install --no-deps $_.FullName }` 安装生成的wheel。源码目录导入不能替代真实wheel安装验证。切换源码后请使用独立输出目录，避免混入旧版发行文件。
+Use separate output directories after source changes. Source-tree imports do not
+replace installed-wheel verification. On PowerShell, install wheels with
+`Get-ChildItem dist\*.whl | ForEach-Object { python -m pip install --no-deps $_.FullName }`.
 
-## 对照 demo
+## Demonstrations
 
-四个 `demo/*.py` 是交互示范，不是运行库依赖或正式性能验收。Delta、Parser、Pydt 使用 `requirements-oracle.txt` 的 pandas2 兼容环境比较冻结 cyTimes；Pddt 使用 `requirements-test.txt` 的 pandas3 环境比较 pandas3。两边均安装已发布的 `rsTimes==0.2.0b1`，通过 `demo/runtime.json` 分别选择环境并读取本次 GitHub Release 的 `release-manifest.json`。启动器核对版本、加载位置和 native SHA256，不会静默使用旧包或临时编译。详细准备方式见 [demo指南](demo/README.md)；不要把官方 cyTimes 强装进 pandas3 环境。
+The four `demo/*.py` scripts are interactive demonstrations. Delta, Parser and
+Pydt use the separate `requirements-oracle.txt` environment to compare cytimes;
+Pddt uses `requirements-test.txt` to compare pandas3. Both install the published
+wheel. `demo/runtime.json` selects environments and the GitHub Release manifest;
+the launcher checks version, installed location and native SHA256. It never
+silently loads another wheel or compiles a temporary replacement. See the
+[demo guide](demo/README.md). Do not force cytimes into the pandas3 environment.
 
-## 自动发行
+## Automated publication
 
-- `ci.yml` 在普通分支提交、PR和手动运行时构建并测试，均无发布权限。
-- `publish.yml` **只由 `v*` tag push触发**，检查 Python版本、Rust同义版本、源码提交和 `docs/releases/<tag>.md`。
-- 全部构建和测试通过后，创建 GitHub Release，再以 PyPI Trusted Publishing/OIDC 上传同一批已测文件。发布job不重新编译。
-- 发布完成后，16个组合从PyPI下载指定版本，比对原SHA256，在干净环境安装并验证核心功能。
-- GitHub owner/repository为 `AresJef/rsTimes`，PyPI Publisher绑定 `publish.yml` 和 `pypi` environment，不使用长期PyPI token。
+- Branch/PR/manual CI builds and tests, without publication permissions.
+- Only a pushed annotated `v*` tag triggers `publish.yml`. The tag binds the exact
+  source commit, successful complete CI run/attempt, manifest SHA256 and local
+  performance completion receipt.
+- Publication downloads that original tested32-wheel/sdist bundle. It does not
+  rebuild files. All gates must pass before GitHub Release, followed by PyPI
+  Trusted Publishing/OIDC. No long-lived PyPI token is used.
+- All32 positions download the published version from PyPI, check the original
+  SHA256, install it in clean provider environments and exercise functionality.
+- The publisher identity is `AresJef/rsTimes`, `publish.yml`, environment `pypi`.
 
-发行部分失败时保留tag及原产物。PyPI步骤失败可在核对既有文件后重跑失败job，使用原成功构建的bundle；GitHub文件仅补齐缺项，不覆盖已有资产。构建矩阵失败时修复原因后运行完整验证，避免把不同尝试的残缺矩阵混为一次通过。不要移动已发布tag或覆盖已发行文件。
+After a partial publication, retain the tag and original files. Verify remote
+hashes before resuming missing uploads. Never move a published tag, overwrite
+assets, mix incomplete CI attempts or rebuild substitutes for an existing version.
 
-## 文档与许可
+## Documentation and license
 
-- [Delta API](https://github.com/AresJef/rsTimes/blob/main/docs/DeltaAPI.md)、[Delta使用说明](https://github.com/AresJef/rsTimes/blob/main/docs/Delta使用说明.md)
-- [Parser使用说明](https://github.com/AresJef/rsTimes/blob/main/docs/Parser使用说明.md)、[对象解析](https://github.com/AresJef/rsTimes/blob/main/docs/Parser对象解析使用说明.md)
-- [Pydt使用说明](https://github.com/AresJef/rsTimes/blob/main/docs/Pydt使用说明.md)、[Pddt与纪元解析](https://github.com/AresJef/rsTimes/blob/main/docs/Pddt与parse_epoch使用说明.md)
-- [错误处理](https://github.com/AresJef/rsTimes/blob/main/docs/错误处理使用说明.md)、[本次发行说明](https://github.com/AresJef/rsTimes/blob/main/docs/releases/v0.2.0b1.md)
+- [Delta API](docs/DeltaAPI.md), [Delta guide](docs/Delta使用说明.md)
+- [Parser guide](docs/Parser使用说明.md), [object parsing](docs/Parser对象解析使用说明.md)
+- [Pydt guide](docs/Pydt使用说明.md), [Pddt and epoch parsing](docs/Pddt与parse_epoch使用说明.md)
+- [Errors](docs/错误处理使用说明.md), [release notes](docs/releases/v0.2.0b2.md)
 
-公开类型声明和 `py.typed` 随wheel分发，编辑器可显示参数、返回类型、docstring和示例。本项目采用 [MIT](LICENSE)；第三方许可说明包含在源码包和wheel中。
+Wheels include public stubs and `py.typed`, with annotations, docstrings and
+examples. rsTimes uses the [MIT license](LICENSE); distributions include the
+required third-party notices.

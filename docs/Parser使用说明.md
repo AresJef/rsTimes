@@ -115,3 +115,12 @@ assert parse_to_epoch(np.datetime64(123, "ns"), unit="ns") == 123
 普通parse及Pydt的浮点秒保留既有微秒换算规则；数值default也保自己的既定角色。这和直接纳秒整数出口不同，不承诺浮点数能准确表示任意纳秒。
 
 错误会说明公开入口、失败字段或可靠行位置，类型不符用TypeError，非法值用ValueError或已有明确领域错误，真实溢出用OverflowError。用户构造器、字段和时区回调的原异常不被通用包装吞掉。
+
+## Optional dateutil integration in 0.2.0b2
+
+Normal Configs creation and Rust parsing do not require python-dateutil.
+`Configs.from_parserinfo()` requires the optional `rsTimes[dateutil]` extra;
+without it the call raises `ImportError` identifying the public entry and
+installation command. Install it before starting Python, or restart after
+installation. The existing table, `None`, subclass and source-error contracts
+remain unchanged. This does not introduce a dateutil parsing fallback.

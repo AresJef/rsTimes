@@ -1,6 +1,6 @@
 # Delta 使用说明
 
-`Delta`保存相对增量和可选的绝对字段。本发行版本为`0.2.0b1`，范围见[发行说明](releases/v0.2.0b1.md)。安装及四个对照demo的环境准备见README；demo/runtime.json选择并验证已发行的wheel。
+`Delta`保存相对增量和可选的绝对字段。本发行版本为`0.2.0b2`，范围见[发行说明](releases/v0.2.0b2.md)。安装及四个对照demo的环境准备见README；demo/runtime.json选择并验证已发行的wheel。
 
 ```python
 from datetime import date, datetime, timedelta
@@ -93,7 +93,7 @@ NumPy dtype 的倍数会计入日期或时长，例如 `datetime64(1, "10D")` �
 
 `apply_many(values)` 的每项结果与普通 `value + delta` 保持一致，包括返回类型与错误。NumPy 某些日期单位会返回 `date`，另一些单位可能不支持普通相加；批量入口同样遵守这些结果。
 
-带槽位的子类恢复属性时，按恢复开始时的条目处理。用户 setter 后来改动输入字典，不会使正在执行的恢复崩溃，也不会改变 Delta 的不可变字段和哈希。详见[本次发行说明](releases/v0.2.0b1.md)。
+带槽位的子类恢复属性时，按恢复开始时的条目处理。用户 setter 后来改动输入字典，不会使正在执行的恢复崩溃，也不会改变 Delta 的不可变字段和哈希。详见[本次发行说明](releases/v0.2.0b2.md)。
 
 
 ## Pandas values and subclass operations
@@ -118,12 +118,12 @@ assert (Delta() + span).days == 1_000_000_000
 If a Delta subclass defines `__eq__` and inherits `__ne__`, inequality follows the opposite of that equality result. An explicit subclass `__ne__` remains authoritative. Direct calls preserve `NotImplemented`, and user comparison exceptions propagate. Copies preserve instance attributes, slots and reference cycles. Exceptions raised by your copy hooks or setters are propagated.
 
 
-For the beta's public scope and distributions, see [the release notes](releases/v0.2.0b1.md).
+For the beta's public scope and distributions, see [the release notes](releases/v0.2.0b2.md).
 
 
 ## Current reconstruction rules
 
-See [the release notes](releases/v0.2.0b1.md) for scope. Standard pandas Timestamp anchors in `to_timedelta(start)` use elapsed instants and retain nanoseconds until one final nearest-microsecond rounding (ties to even); ordinary datetime anchors retain Python wall-clock subtraction for the same timezone object. Long spans may exceed pandas Timedelta storage if standard timedelta can hold them. Custom arithmetic remains in control.
+See [the release notes](releases/v0.2.0b2.md) for scope. Standard pandas Timestamp anchors in `to_timedelta(start)` use elapsed instants and retain nanoseconds until one final nearest-microsecond rounding (ties to even); ordinary datetime anchors retain Python wall-clock subtraction for the same timezone object. Long spans may exceed pandas Timedelta storage if standard timedelta can hold them. Custom arithmetic remains in control.
 
 NumPy may convert a scalar before a reflected expression dispatches. Consequently, `value + delta` can pass a different Python type from `delta.__radd__(value)`; direct method probes and expression results should not be confused.
 
@@ -133,3 +133,12 @@ NumPy may convert a scalar before a reflected expression dispatches. Consequentl
 ## Errors
 
 See [Handling errors](错误处理使用说明.md) for the three domain error classes, standard Python exceptions, callback propagation, and batch positions.
+
+## Optional dateutil integration in 0.2.0b2
+
+Install `rsTimes[dateutil]` to import or operate on actual relativedelta values.
+`Delta.from_relativedelta()` reports `ImportError` with an installation hint when
+python-dateutil is absent. Ordinary Delta, timedelta and date arithmetic do not
+require it. Source fields, subclasses, callbacks and original exceptions retain
+their established rules; `normalized()` is not called. Restart Python after
+installing an integration into a running environment.
