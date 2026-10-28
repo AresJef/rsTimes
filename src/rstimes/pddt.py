@@ -617,6 +617,13 @@ def _restore_pddt_copy(cls,array,name,freq):
     if not isinstance(array,pd.arrays.DatetimeArray):
         raise _own_error(TypeError("must be a DatetimeArray"),"state.data",array)
     # Base construction deliberately bypasses business __new__/__init__ during restore.
+    if _ARRAY_HAS_FREQ:
+        # Retain the original direct restore on pandas2/3.0. The array already
+        # has the correct dtype/tz; no conversion or extra wrapper is needed.
+        try:
+            return pd.DatetimeIndex.__new__(cls,array,name=name,freq=freq,copy=False)
+        except Exception as error:
+            raise _external_error(error)
     return _wrap(cls,array,name=name,freq=freq)
 
 
