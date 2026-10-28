@@ -18,6 +18,7 @@ _SCALES = {"D": 86400_000_000_000, "h": 3600_000_000_000,
            "ms": 1_000_000, "us": 1000, "ns": 1}
 
 _INVALID_METADATA=(ValueError,)
+_ARRAY_HAS_FREQ = pd is not None and hasattr(pd.arrays.DatetimeArray, "freq")
 if pd is not None:
     # pandas2 already owns these actual optional backend exception types.
     # Do not import or require pytz in a pandas3 environment.
@@ -220,16 +221,21 @@ def attach_frequency(array, metadata):
     custom callback rules are not executed again just to recover metadata.
     """
     if metadata is None or type(metadata) not in _METADATA:
-        return
+        return None
     if array.tz is not None and type(array.tz) not in (timezone,ZoneInfo):
         # Do not run arbitrary timezone callbacks again just for optional freq.
-        return
+        return None
     try:
-        array.freq = metadata
+        if _ARRAY_HAS_FREQ:
+            array.freq = metadata
+            return array.freq
+        # pandas3.1 moved this metadata to the Index. Use its public validator;
+        # the temporary standard Index is needed only for a proposed frequency.
+        return pd.DatetimeIndex(array, freq=metadata, copy=False).freq
     except _INVALID_METADATA:
         # This path is limited to exact mature built-in frequency classes;
         # arbitrary subclass callback failures are never swallowed here.
-        return
+        return None
     except Exception as error:
         raise _external_error(error)
 

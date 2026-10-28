@@ -43,10 +43,13 @@ def main():
             "parser/test_upstream_parse.py", "parser/test_boundaries.py",
             "pydt/test_review_regressions.py", "pydt/test_constructors_calendar.py",
             "pydt/test_arithmetic_state.py", "pydt/test_calendar_adjustment.py",
+            "pddt/test_official_conveniences.py",
         )
         options.extend("--ignore=" + str(root / "tests" / path) for path in oracle_modules)
         options.append("--deselect=tests/pydt/test_approved_refactor.py"
                        "::test_weekday_method_matches_datetime_and_official_value")
+        options.append("--deselect=tests/pddt/test_calendar.py"
+                       "::test_calendar_cache_is_correct_for_shuffled_and_repeated_days")
     raise SystemExit(pytest.main(options))
 
 

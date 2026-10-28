@@ -10,6 +10,7 @@ from ._native import (_bool_option, _pddt_result_type, _pddt_rescale, _pddt_prep
                       _pddt_parts, _pddt_combine, _pddt_strptime, _pddt_component, _pddt_transform, _pddt_operand, _pddt_binary, _pddt_period, _pddt_fsp, _pddt_round, _pddt_snap, _pddt_query, _pddt_diff, _pddt_export, _pddt_objects, _pddt_range, _pddt_range_endpoints, _pddt_range_external)
 from ._formatting import prepare_format as _prepare_format
 from ._range import frequency as _range_frequency, attach_frequency as _range_attach_frequency, rounding_step as _rounding_step, mature_units as _range_mature_units
+from ._range import _ARRAY_HAS_FREQ
 from .parser import Configs
 from .delta import Delta
 from .pydt import Pydt
@@ -126,7 +127,14 @@ def _date_array(values, zone):
 def _wrap(cls, values, *, zone=None, name=None, freq=None):
     """Build only the final pandas container from verified ticks and metadata."""
     try:
-        return pd.DatetimeIndex.__new__(cls, _date_array(values, zone),
+        array = _date_array(values, zone)
+        if not _ARRAY_HAS_FREQ and freq is not None:
+            # pandas3.1 validates on the Index and invokes its tz_localize.
+            # Validate using the standard Index, then inherit that metadata so
+            # validation cannot call Pddt's intentionally fixed-unit operation.
+            prepared = pd.DatetimeIndex(array, freq=freq, copy=False)
+            return pd.DatetimeIndex.__new__(cls, prepared, name=name, copy=False)
+        return pd.DatetimeIndex.__new__(cls, array,
             name=name, freq=freq, copy=False)
     except Exception as error:
         raise _external_error(error)
@@ -398,8 +406,8 @@ def _transformed(self, kind, specifications, entry, policy=None, target=None, re
     if not changed:
         return self
     array = _date_array(np.frombuffer(packed, dtype=f"datetime64[{selected}]"), zone)
-    _range_attach_frequency(array, self.freq)
-    return _finish(type(self), array, name=self.name, freq=array.freq)
+    validated_freq = _range_attach_frequency(array, self.freq)
+    return _finish(type(self), array, name=self.name, freq=validated_freq)
 
 
 def _fields(self, values, entry, strict=False, tzinfo=_UNSET, ambiguous="raise", nonexistent="raise"):
@@ -481,8 +489,8 @@ def _binary(self, other, subtract=False, reflected=False):
     if not changed:
         return self
     array = _date_array(np.frombuffer(packed, dtype=f"datetime64[{unit}]"), self.tz)
-    _range_attach_frequency(array, self.freq)
-    return _finish(type(self), array, name=self.name, freq=array.freq)
+    validated_freq = _range_attach_frequency(array, self.freq)
+    return _finish(type(self), array, name=self.name, freq=validated_freq)
 
 
 def _period(self, unit, mode, query, entry):
@@ -495,8 +503,8 @@ def _period(self, unit, mode, query, entry):
     if not changed:
         return self
     array = _date_array(np.frombuffer(packed,dtype=f"datetime64[{self.unit}]"), self.tz)
-    _range_attach_frequency(array,self.freq)
-    return _finish(type(self),array,name=self.name,freq=array.freq)
+    validated_freq=_range_attach_frequency(array,self.freq)
+    return _finish(type(self),array,name=self.name,freq=validated_freq)
 
 
 def _rounded(self, freq, mode, entry):
@@ -505,8 +513,8 @@ def _rounded(self, freq, mode, entry):
     if not changed:
         return self
     array=_date_array(np.frombuffer(packed,dtype=f"datetime64[{self.unit}]"),self.tz)
-    _range_attach_frequency(array,self.freq)
-    return _finish(type(self),array,name=self.name,freq=array.freq)
+    validated_freq=_range_attach_frequency(array,self.freq)
+    return _finish(type(self),array,name=self.name,freq=validated_freq)
 
 
 def _calendar_query(self, code, entry, target=_UNSET, parameter=None, names=0):
@@ -609,10 +617,7 @@ def _restore_pddt_copy(cls,array,name,freq):
     if not isinstance(array,pd.arrays.DatetimeArray):
         raise _own_error(TypeError("must be a DatetimeArray"),"state.data",array)
     # Base construction deliberately bypasses business __new__/__init__ during restore.
-    try:
-        return pd.DatetimeIndex.__new__(cls,array,name=name,freq=freq,copy=False)
-    except Exception as error:
-        raise _external_error(error)
+    return _wrap(cls,array,name=name,freq=freq)
 
 
 def _restore_pddt(cls,marker,version,data,unit,tz,name,freq):
@@ -1796,8 +1801,8 @@ class Pddt(pd.DatetimeIndex):
             if left or right:
                 values = values[left:len(values)-right]
             array = _date_array(values, zone)
-            _range_attach_frequency(array, metadata)
-            return _finish(cls, array, name=name, freq=array.freq)
+            validated_freq = _range_attach_frequency(array, metadata)
+            return _finish(cls, array, name=name, freq=validated_freq)
         except Exception as error:
             _raise_argument_context(error, "Pddt.date_range", "arguments", None)
 
@@ -2682,8 +2687,8 @@ class Pddt(pd.DatetimeIndex):
             if not changed:
                 return self
             array=_date_array(np.frombuffer(packed,dtype=f"datetime64[{self.unit}]"),self.tz)
-            _range_attach_frequency(array,self.freq)
-            return _finish(type(self),array,name=self.name,freq=array.freq)
+            validated_freq=_range_attach_frequency(array,self.freq)
+            return _finish(type(self),array,name=self.name,freq=validated_freq)
         except Exception as error:
             _raise_argument_context(error,"Pddt.fsp","precision",precision)
 
@@ -2783,8 +2788,8 @@ class Pddt(pd.DatetimeIndex):
             if not changed:
                 return self
             array=_date_array(np.frombuffer(packed,dtype=f"datetime64[{self.unit}]"),self.tz)
-            _range_attach_frequency(array,self.freq)
-            return _finish(type(self),array,name=self.name,freq=array.freq)
+            validated_freq=_range_attach_frequency(array,self.freq)
+            return _finish(type(self),array,name=self.name,freq=validated_freq)
         except Exception as error:
             _raise_argument_context(error,"Pddt.snap","unit",unit)
 
