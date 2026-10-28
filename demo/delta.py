@@ -1,0 +1,922 @@
+"""Explore representative Delta operations with the original and Rust versions.
+
+Run from the project root with a Python 3.10 or newer interpreter:
+    python demo/delta.py
+
+The launcher follows runtime.json to the latest delivered local Rust version,
+switches to its isolated Python environment, and verifies the installed binary.
+The Parser demo uses the same selection and verification.
+Refresh that file whenever a new Rust version is delivered. Source edits require
+a rebuilt and installed wheel before they can appear in this demo.
+
+The project reference is cytimes 3.1.0. Each xxx_demo function accepts iterations
+(positive calls per batch) and repeats (a positive even number of paired batches),
+prints both results and timings, and returns its number of compared cases.
+Invalid counts raise ValueError; unexplained result differences raise
+AssertionError. all_demo runs every section. To explore one section, replace
+all_demo() at the bottom with, for example, pydt_demo().
+
+Sections:
+    constructor_demo, properties_demo, reinitialization_demo
+    datetime_demo, date_demo, pydt_demo
+    delta_demo, timedelta_demo, relativedelta_demo, numpy_demo
+    unary_demo, comparison_demo, representation_demo
+    pickle_demo, copy_demo, errors_demo
+    wide_integer_demo, to_timedelta_demo, apply_many_demo, nanosecond_demo
+
+Only business operations are timed; result inspection and printing happen
+outside the loop. These interactive measurements are not formal performance
+acceptance: they do not filter CPU interference or reuse benchmark evidence.
+"""
+
+import json
+import os
+import sys
+from hashlib import sha256
+from pathlib import Path
+from importlib.metadata import version
+
+
+def _use_latest_rust() -> None:
+    """Select and verify the project's current demo environment before imports.
+
+    Direct execution restarts under the configured interpreter in isolated mode,
+    keeping package selection independent of the caller's working directory and
+    PYTHONPATH. Importing this module requires that same environment and never
+    replaces the caller's process. A stale version or binary raises RuntimeError
+    rather than displaying results from an older installation.
+    """
+    root = Path(__file__).resolve().parents[1]
+    runtime = json.loads((root / "demo" / "runtime.json").read_text(encoding="utf-8"))
+    environment = (root / runtime["environment"]).resolve()
+    python = (
+        environment / "Scripts" / "python.exe"
+        if os.name == "nt"
+        else environment / "bin" / "python"
+    )
+    if not python.is_file():
+        raise RuntimeError(f"Demo environment is missing: {python}. Refresh demo/runtime.json.")
+
+    different_environment = Path(sys.prefix).resolve() != environment
+    if __name__ == "__main__" and (different_environment or not sys.flags.isolated):
+        os.execv(str(python), [str(python), "-I", str(Path(__file__).resolve()), *sys.argv[1:]])
+    if different_environment:
+        raise RuntimeError(f"Import this demo using {python}, or execute demo/delta.py directly.")
+
+    # Check after selecting CPython 3.13, so the launcher's Python need not have tomllib.
+    from tomllib import load
+
+    with (root / "pyproject.toml").open("rb") as source:
+        project_version = load(source)["project"]["version"]
+    installed_version = version("rstimes")
+    if runtime["version"] != project_version or installed_version != runtime["version"]:
+        raise RuntimeError(
+            f"Demo version mismatch: project={project_version}, configured={runtime['version']}, "
+            f"installed={installed_version}. Install the new wheel and refresh demo/runtime.json."
+        )
+
+    import rstimes._native as native
+
+    manifest = json.loads((root / runtime["release_manifest"]).read_text(encoding="utf-8"))
+    if manifest["version"] != installed_version:
+        raise RuntimeError("Demo release manifest version does not match the installed package.")
+    expected_hashes = {wheel["native_sha256"] for wheel in manifest["wheels"]}
+    binary = Path(native.__file__).resolve()
+    if (
+        not binary.is_relative_to(environment)
+        or sha256(binary.read_bytes()).hexdigest() not in expected_hashes
+    ):
+        raise RuntimeError("Demo Rust binary mismatch. Install the wheel recorded in the release manifest.")
+
+
+_use_latest_rust()
+
+import copy
+import pickle
+from collections.abc import Callable
+from datetime import date, datetime, timedelta, timezone
+from pprint import pformat
+from statistics import median
+from time import perf_counter_ns
+from typing import NamedTuple
+from zoneinfo import ZoneInfo
+
+import numpy as np
+from cytimes import Pydt
+from cytimes.delta import Delta as DeltaO
+from dateutil.relativedelta import MO, relativedelta
+from rstimes.delta import Delta as DeltaR
+
+FIELDS = (
+    "years", "months", "days", "hours", "minutes", "seconds", "microseconds",
+    "year", "month", "day", "weekday", "hour", "minute", "second", "microsecond",
+)
+DEFAULT_ITERATIONS = 2_000
+DEFAULT_REPEATS = 6
+
+
+class MeetingTime(datetime):
+    """A minimal datetime subtype used to demonstrate result-type preservation."""
+
+
+class MeetingDate(date):
+    """A date subtype used to demonstrate result-type preservation."""
+
+
+class OriginalDeltaChild(DeltaO):
+    """Original Delta subtype with metadata for pickle and copy examples."""
+
+
+class RustDeltaChild(DeltaR):
+    """Rust Delta subtype with metadata for pickle and copy examples."""
+
+
+class _Case(NamedTuple):
+    """One editable expression pair and optional source date for identity checks."""
+
+    label: str
+    expression: str
+    original: Callable[[], object]
+    rust: Callable[[], object]
+    source: date | None = None
+    difference: str | None = None
+    rust_expected: Callable[[], object] | None = None
+
+
+def _time_batch(operation: Callable[[], object], iterations: int) -> int:
+    """Return wall-clock nanoseconds for a fixed number of complete calls.
+
+    Loop and result-release costs are included; printing and warmup are not.
+    Exceptions from the operation propagate without being hidden.
+    """
+    start = perf_counter_ns()
+    for _ in range(iterations):
+        operation()
+    return perf_counter_ns() - start
+
+
+def _snapshot(value: object, source: date | None = None) -> object:
+    """Compare semantic results, retaining subtypes and all 15 Delta fields.
+
+    Known original/Rust Delta types use matching logical names. Pickle bytes
+    generated by this demo are compared through their restored objects, because
+    package names and state formats intentionally differ. No external pickle is
+    accepted here. Date identity, timezone identity and fold are also checked.
+    """
+    delta_types = {
+        DeltaO: "Delta", DeltaR: "Delta",
+        OriginalDeltaChild: "DeltaChild", RustDeltaChild: "DeltaChild",
+    }
+    if isinstance(value, (DeltaO, DeltaR)):
+        return (
+            delta_types.get(type(value), type(value)),
+            tuple(getattr(value, field) for field in FIELDS),
+            _snapshot(getattr(value, "__dict__", None)),
+        )
+    if isinstance(value, datetime):
+        return (
+            type(value), value.isoformat(), value.fold, str(value.tzinfo),
+            value is source if source is not None else None,
+            value.tzinfo is source.tzinfo if isinstance(source, datetime) else None,
+        )
+    if isinstance(value, date):
+        return type(value), value.isoformat(), value is source if source is not None else None
+    if isinstance(value, bytes):
+        return "trusted pickle", _snapshot(pickle.loads(value))
+    if isinstance(value, dict):
+        return {key: _snapshot(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value), tuple(_snapshot(item) for item in value)
+    return type(value), value
+
+
+def _describe(value: object, source: date | None = None) -> str:
+    """Render results without hiding subtype, field or serialization details."""
+    if isinstance(value, (DeltaO, DeltaR)):
+        fields = {field: getattr(value, field) for field in FIELDS}
+        extra = getattr(value, "__dict__", None)
+        return f"{value!r} | type={type(value).__name__} | fields={fields} | metadata={extra}"
+    if isinstance(value, datetime):
+        details = f"{value.isoformat()} | type={type(value).__name__} | fold={value.fold} | tzinfo={value.tzinfo}"
+        if isinstance(source, datetime):
+            details += f" | same_tzinfo={value.tzinfo is source.tzinfo} | same_object={value is source}"
+        return details
+    if isinstance(value, date):
+        return f"{value.isoformat()} | type={type(value).__name__} | same_object={value is source}"
+    if isinstance(value, bytes):
+        return f"{len(value)} pickle bytes | restored={pickle.loads(value)!r}"
+    if isinstance(value, Exception):
+        return f"{type(value).__name__}: {value}"
+    return pformat(value, width=110, sort_dicts=False)
+
+
+def _validate_counts(iterations: int, repeats: int) -> None:
+    """Reject invalid batch controls before running or formatting any cases."""
+    if type(iterations) is not int or iterations <= 0:
+        raise ValueError("iterations must be a positive integer")
+    if type(repeats) is not int or repeats <= 0 or repeats % 2:
+        raise ValueError("repeats must be a positive even integer")
+
+
+def _run_demo(name: str, cases: list[_Case], iterations: int, repeats: int) -> int:
+    """Check, print and time paired complete calls; return the compared case count.
+
+    AB/BA order is balanced. Timings include allocation and result release;
+    normalization for result comparison never runs inside the measured loop.
+    Invalid counts and unapproved differences stop the demo immediately.
+    """
+    _validate_counts(iterations, repeats)
+    print(f"\n===== {name} | cytimes {version('cytimes')} / rstimes {version('rstimes')} =====")
+    approved_count = 0
+    for index, case in enumerate(cases, 1):
+        original, rust = case.original(), case.rust()
+        same = _snapshot(original, case.source) == _snapshot(rust, case.source)
+        print(f"\n[{index:02d}] {case.label}\n  表达式: {case.expression}")
+        print(f"  DeltaO: {_describe(original, case.source)}")
+        print(f"  DeltaR: {_describe(rust, case.source)}")
+        print(f"  结果一致: {same}")
+        # D1 is checked directly; other approved changes carry explicit results.
+        approved = (
+            case.difference == "D1"
+            and isinstance(original, DeltaO)
+            and original.days == -(2**63)
+            and isinstance(rust, OverflowError)
+        )
+        if case.rust_expected is not None:
+            expected = case.rust_expected()
+            if _snapshot(rust, case.source) != _snapshot(expected, case.source):
+                raise AssertionError(f"Approved behavior failed: {name}/{case.label}")
+            approved = True
+            print(f"  批准变化 {case.difference}；Rust 预期已独立核对。")
+        if approved:
+            approved_count += 1
+            if case.difference == "D1":
+                print("  批准差异 D1：原版发生整数回绕；Rust 明确抛出 OverflowError。")
+        if not same and not approved:
+            raise AssertionError(f"Delta results differ: {name}/{case.label}")
+
+        for operation in (case.original, case.rust):
+            for _ in range(min(iterations, 100)):
+                operation()
+        elapsed = {"DeltaO": [], "DeltaR": []}
+        ratios = []
+        for repeat in range(repeats):
+            order = ("DeltaO", "DeltaR") if repeat % 2 == 0 else ("DeltaR", "DeltaO")
+            for label in order:
+                operation = case.original if label == "DeltaO" else case.rust
+                elapsed[label].append(_time_batch(operation, iterations))
+            ratios.append(elapsed["DeltaO"][-1] / elapsed["DeltaR"][-1])
+        for label in ("DeltaO", "DeltaR"):
+            batch = median(elapsed[label])
+            print(f"  {label}: 批次中位 {batch / 1_000_000:.3f} ms"
+                  f"，批量平均 {batch / iterations / 1_000:.3f} µs/次"
+                  f"，全部批次共 {sum(elapsed[label]) / 1_000_000:.3f} ms")
+        if approved:
+            print("  本项两版执行结果不同，耗时分别展示，不计算提速倍率。")
+        else:
+            print(f"  原版/Rust 耗时倍率: 配对中位 {median(ratios):.3f}x"
+                  f"，范围 {min(ratios):.3f}–{max(ratios):.3f}x（大于 1 表示 Rust 更快）")
+    outcome = "结果全部一致" if not approved_count else f"全部符合约定，含 {approved_count} 项批准差异"
+    print(f"\n{name} 完成：{len(cases)} 个场景，{outcome}。")
+    return len(cases)
+
+
+def datetime_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Print representative datetime results and paired batch timings.
+
+    Args:
+        iterations: Positive calls per timed batch, shared by both implementations.
+        repeats: Positive even batch count; AB/BA order is balanced.
+
+    Returns:
+        The number of compared scenes; results and timings are printed.
+
+    Raises:
+        ValueError: Counts are invalid or repeats is not even.
+        AssertionError: A demonstrated result differs between implementations.
+
+    Most cases construct Delta outside the timed loop and measure its reuse.
+    The final case includes construction in every timed invocation. Inputs are
+    fixed rather than based on the current date, so examples remain reproducible.
+    """
+    ny = ZoneInfo("America/New_York")
+    month_end = datetime(2024, 1, 31, 23, 45, 30, 123456)
+    # Edit these inputs/parameters to explore the same operation in both engines.
+    # direction describes the Python expression, not an internal method name.
+    scenarios = [
+        ("相对年月日与时间组合", month_end,
+         dict(years=1, months=2, days=3, hours=4, minutes=5), "dt + delta"),
+        ("月底加一个月，夹取到闰年二月末", month_end,
+         dict(months=1), "dt + delta"),
+        ("闰日加一年", datetime(2024, 2, 29, 12),
+         dict(years=1), "dt + delta"),
+        ("减去增量并跨越年界", datetime(2024, 1, 1, 0, 0, 1),
+         dict(days=1, seconds=2), "dt - delta"),
+        ("负一微秒，跨到前一天", datetime(2024, 3, 1),
+         dict(microseconds=-1), "dt + delta"),
+        ("先替换月份与小时，再加一天", month_end,
+         dict(month=2, hour=9, days=1), "dt + delta"),
+        ("绝对小时与相对分钟组合", datetime(2024, 6, 15, 15, 45),
+         dict(hour=9, minutes=30), "dt + delta"),
+        ("调整到本周星期一", datetime(2024, 3, 3, 12),
+         dict(weekday=0), "dt + delta"),
+        ("Delta 放在左侧进行加法", month_end,
+         dict(months=1, hours=2), "delta + dt"),
+        ("固定 UTC+8 时区保留", datetime(2024, 1, 31, 23,
+         tzinfo=timezone(timedelta(hours=8))), dict(months=1, hours=2), "dt + delta"),
+        ("夏令时开始，保留当地墙钟时间", datetime(2024, 3, 9, 12, tzinfo=ny),
+         dict(days=1), "dt + delta"),
+        ("夏令时重复时段，保留 fold=1", datetime(2024, 11, 3, 1, 30,
+         tzinfo=ny, fold=1), dict(minutes=1), "dt + delta"),
+        ("保留 datetime 子类", MeetingTime(2024, 1, 31, 12),
+         dict(months=1), "dt + delta"),
+        ("空增量返回原 datetime 对象", month_end,
+         {}, "dt + delta"),
+        ("每次构造 Delta 后加一个月", month_end,
+         dict(months=1), "dt + Delta(**params)"),
+    ]
+
+    cases = []
+    for label, original, params, direction in scenarios:
+        delta_o, delta_r = DeltaO(**params), DeltaR(**params)
+        if direction == "dt - delta":
+            operations = {
+                "DeltaO": lambda dt=original, d=delta_o: dt - d,
+                "DeltaR": lambda dt=original, d=delta_r: dt - d,
+            }
+        elif direction == "delta + dt":
+            operations = {
+                "DeltaO": lambda dt=original, d=delta_o: d + dt,
+                "DeltaR": lambda dt=original, d=delta_r: d + dt,
+            }
+        elif direction == "dt + Delta(**params)":
+            operations = {
+                "DeltaO": lambda dt=original, p=params: dt + DeltaO(**p),
+                "DeltaR": lambda dt=original, p=params: dt + DeltaR(**p),
+            }
+        else:
+            operations = {
+                "DeltaO": lambda dt=original, d=delta_o: dt + d,
+                "DeltaR": lambda dt=original, d=delta_r: dt + d,
+            }
+
+        expression = f"{original!r}; Delta(**{params!r}); {direction}"
+        cases.append(_Case(label, expression, operations["DeltaO"], operations["DeltaR"], original))
+    return _run_demo("datetime_demo", cases, iterations, repeats)
+
+
+def date_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Demonstrate date arithmetic, month ends, weekdays and date subtypes.
+
+    No-change identity is checked against the shared input date. Timing controls
+    and return value follow the module-level demo contract.
+    """
+    end = date(2024, 1, 31)
+    child = MeetingDate(2024, 1, 31)
+    month_o, month_r = DeltaO(months=1), DeltaR(months=1)
+    weekday_o, weekday_r = DeltaO(weekday=0), DeltaR(weekday=0)
+    absolute_o = DeltaO(month=2, day=31, days=1)
+    absolute_r = DeltaR(month=2, day=31, days=1)
+    empty_o, empty_r = DeltaO(), DeltaR()
+    cases = [
+        _Case("月底加一个月", "date(2024, 1, 31) + Delta(months=1)", lambda: end + month_o, lambda: end + month_r, end),
+        _Case("Delta 在左侧", "Delta(months=1) + date(2024, 1, 31)", lambda: month_o + end, lambda: month_r + end, end),
+        _Case("日期减去一个月", "date(2024, 1, 31) - Delta(months=1)", lambda: end - month_o, lambda: end - month_r, end),
+        _Case("绝对替换后再加一天", "date + Delta(month=2, day=31, days=1)", lambda: end + absolute_o, lambda: end + absolute_r, end),
+        _Case("调整星期", "date + Delta(weekday=0)", lambda: end + weekday_o, lambda: end + weekday_r, end),
+        _Case("保留 date 子类", "MeetingDate + Delta(months=1)", lambda: child + month_o, lambda: child + month_r, child),
+        _Case("空增量保留对象身份", "date + Delta()", lambda: end + empty_o, lambda: end + empty_r, end),
+    ]
+    return _run_demo("date_demo", cases, iterations, repeats)
+
+
+def pydt_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Apply both Delta engines to the original cyTimes Pydt class.
+
+    Demonstrate addition in both directions, subtraction, parsed input, absolute
+    fields, timezone/fold and empty-delta identity. This does not replace Pydt
+    with a Rust implementation. Timing controls follow the module contract.
+    """
+    end = Pydt(2024, 1, 31, 23, 30)
+    parsed = Pydt.parse("2024-06-15 15:45:00")
+    fold = Pydt(2024, 11, 3, 1, 30, tzinfo=ZoneInfo("America/New_York"), fold=1)
+    month_o, month_r = DeltaO(months=1), DeltaR(months=1)
+    sub_o, sub_r = DeltaO(months=1, hours=2), DeltaR(months=1, hours=2)
+    absolute_o, absolute_r = DeltaO(hour=9, minutes=30), DeltaR(hour=9, minutes=30)
+    minute_o, minute_r = DeltaO(minutes=1), DeltaR(minutes=1)
+    empty_o, empty_r = DeltaO(), DeltaR()
+    cases = [
+        _Case("Pydt 月底加法", "Pydt(2024, 1, 31, 23, 30) + Delta(months=1)", lambda: end + month_o, lambda: end + month_r, end),
+        _Case("Pydt 减法", "pydt - Delta(months=1, hours=2)", lambda: end - sub_o, lambda: end - sub_r, end),
+        _Case("Delta 在 Pydt 左侧", "Delta(months=1) + pydt", lambda: month_o + end, lambda: month_r + end, end),
+        _Case("解析后的 Pydt 使用绝对字段", "Pydt.parse('2024-06-15 15:45:00') + Delta(hour=9, minutes=30)", lambda: parsed + absolute_o, lambda: parsed + absolute_r, parsed),
+        _Case("Pydt 时区与 fold", "pydt_with_fold_1 + Delta(minutes=1)", lambda: fold + minute_o, lambda: fold + minute_r, fold),
+        _Case("Pydt 空增量对象身份", "pydt + Delta()", lambda: end + empty_o, lambda: end + empty_r, end),
+    ]
+    return _run_demo("pydt_demo", cases, iterations, repeats)
+
+
+def delta_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Combine Delta objects, including cancellation and absolute precedence.
+
+    Both forward subtraction and addition are shown. Arithmetic on subclasses
+    returns the same logical type in both implementations.
+    """
+    a_o, a_r = DeltaO(months=1, days=2, hour=9), DeltaR(months=1, days=2, hour=9)
+    b_o, b_r = DeltaO(months=-1, days=-2, hour=0), DeltaR(months=-1, days=-2, hour=0)
+    year_o, year_r = DeltaO(year=2024), DeltaR(year=2024)
+    other_o, other_r = DeltaO(year=2025), DeltaR(year=2025)
+    child_o, child_r = OriginalDeltaChild(days=1), RustDeltaChild(days=1)
+    cases = [
+        _Case("相对字段相互抵消，绝对小时取右侧", "Delta(months=1, days=2, hour=9) + Delta(months=-1, days=-2, hour=0)", lambda: a_o + b_o, lambda: a_r + b_r),
+        _Case("Delta 减法", "left_delta - right_delta", lambda: a_o - b_o, lambda: a_r - b_r),
+        _Case("交换左右操作数", "right_delta + left_delta", lambda: b_o + a_o, lambda: b_r + a_r),
+        _Case("两个绝对年份相加", "Delta(year=2024) + Delta(year=2025)", lambda: year_o + other_o, lambda: year_r + other_r),
+        _Case("两个绝对年份相减", "Delta(year=2024) - Delta(year=2025)", lambda: year_o - other_o, lambda: year_r - other_r),
+        _Case("Delta 子类参与运算的返回类型", "DeltaChild(days=1) + delta", lambda: child_o + a_o, lambda: child_r + a_r),
+    ]
+    return _run_demo("delta_demo", cases, iterations, repeats)
+
+
+def timedelta_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Show all four Delta/timedelta directions for positive and negative inputs.
+
+    Each Delta has relative and absolute fields. Negative one microsecond shows
+    the same floor-based carry rules as the constructor.
+    """
+    d_o = DeltaO(months=-1, days=1, year=2024, hour=0)
+    d_r = DeltaR(months=-1, days=1, year=2024, hour=0)
+    cases = []
+    for label, duration in (("正数", timedelta(days=2, hours=3, microseconds=4)), ("负一微秒", timedelta(microseconds=-1))):
+        cases.extend([
+            _Case(f"{label}：Delta + timedelta", f"delta + {duration!r}", lambda td=duration: d_o + td, lambda td=duration: d_r + td),
+            _Case(f"{label}：timedelta + Delta", f"{duration!r} + delta", lambda td=duration: td + d_o, lambda td=duration: td + d_r),
+            _Case(f"{label}：Delta - timedelta", f"delta - {duration!r}", lambda td=duration: d_o - td, lambda td=duration: d_r - td),
+            _Case(f"{label}：timedelta - Delta", f"{duration!r} - delta", lambda td=duration: td - d_o, lambda td=duration: td - d_r),
+        ])
+    return _run_demo("timedelta_demo", cases, iterations, repeats)
+
+
+def relativedelta_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Convert relativedelta inputs and exercise all four arithmetic directions.
+
+    Supported raw fields are converted without calling normalized(). Rust
+    explicitly rejects weekday and nonzero leapdays rules; the result follows
+    Delta arithmetic, including its date and fold behavior.
+    """
+    inputs = [
+        ("整数相对字段", relativedelta(months=-13, days=2, hours=-25)),
+        ("小数单位归一化", relativedelta(days=-1.5, hours=2.25, seconds=1.25)),
+        ("绝对字段", relativedelta(year=2024, month=2, day=31, hour=0)),
+    ]
+    cases = [
+        _Case(label, f"Delta.from_relativedelta({rd!r})", lambda rd=rd: DeltaO.from_relativedelta(rd), lambda rd=rd: DeltaR.from_relativedelta(rd))
+        for label, rd in inputs
+    ]
+    for label, invalid in (("不支持星期规则", relativedelta(weekday=MO(2))),
+                           ("不支持额外闰日规则", relativedelta(years=1, leapdays=1))):
+        cases.append(_Case(label, f"Delta.from_relativedelta({invalid!r})",
+            lambda invalid=invalid: DeltaO.from_relativedelta(invalid),
+            lambda invalid=invalid: _expect_error(lambda: DeltaR.from_relativedelta(invalid), ValueError),
+            difference="H05", rust_expected=lambda: "ValueError"))
+    rd = relativedelta(days=1.5, hour=9)
+    d_o, d_r = DeltaO(months=-1, days=1, hour=2), DeltaR(months=-1, days=1, hour=2)
+    cases.extend([
+        _Case("通过子类调用工厂仍返回基础 Delta", "DeltaChild.from_relativedelta(rd)", lambda: OriginalDeltaChild.from_relativedelta(rd), lambda: RustDeltaChild.from_relativedelta(rd)),
+        _Case("Delta + relativedelta", f"delta + {rd!r}", lambda: d_o + rd, lambda: d_r + rd),
+        _Case("relativedelta + Delta", f"{rd!r} + delta", lambda: rd + d_o, lambda: rd + d_r),
+        _Case("Delta - relativedelta", f"delta - {rd!r}", lambda: d_o - rd, lambda: d_r - rd),
+        _Case("relativedelta - Delta", f"{rd!r} - delta", lambda: rd - d_o, lambda: rd - d_r),
+    ])
+    start = datetime(2024, 1, 1)
+    precise = relativedelta(hours=1.1, microseconds=-1.5)
+    cases.append(_Case(
+        "小数时长只在最终微秒舍入", "start + Delta.from_relativedelta(rd)",
+        lambda: start + DeltaO.from_relativedelta(precise),
+        lambda: start + DeltaR.from_relativedelta(precise),
+        difference="RAW_DURATION_ROUNDING",
+        rust_expected=lambda: datetime(2024, 1, 1, 1, 5, 59, 999999),
+    ))
+    class RawSource(relativedelta):
+        def normalized(self):
+            return relativedelta(days=9)
+    raw = RawSource(days=1.5)
+    cases.append(_Case(
+        "导入原字段，不执行自定义normalized", "Delta.from_relativedelta(RawSource(days=1.5))",
+        lambda: DeltaO.from_relativedelta(raw), lambda: DeltaR.from_relativedelta(raw),
+        difference="RAW_SOURCE_FIELDS", rust_expected=lambda: DeltaR(days=1, hours=12),
+    ))
+    return _run_demo("relativedelta_demo", cases, iterations, repeats)
+
+
+def numpy_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Demonstrate NumPy scalar calendar and duration conversions.
+
+    Explicit reflected calls show Delta's scalar conversion without NumPy's
+    own operator dispatch. Ordinary microsecond-resolution expressions are also
+    shown. Arrays are outside the supported Delta scalar interface.
+    """
+    d_o, d_r = DeltaO(months=1, days=1), DeltaR(months=1, days=1)
+    stamp = np.datetime64("2024-01-31T12:30:00", "us")
+    cases = [
+        _Case("NumPy 日期加 Delta", "np.datetime64('2024-01-31T12:30:00', 'us') + delta", lambda: stamp + d_o, lambda: stamp + d_r),
+        _Case("Delta 加 NumPy 日期", "delta + numpy_datetime", lambda: d_o + stamp, lambda: d_r + stamp),
+        _Case("NumPy 日期减 Delta", "numpy_datetime - delta", lambda: stamp - d_o, lambda: stamp - d_r),
+    ]
+    for unit, value in (("ns", -1), ("M", 648), ("Y", 54)):
+        scalar = np.datetime64(value, unit)
+        cases.extend([
+            _Case(f"{unit} 日期标量的原生加法", f"delta.__add__({scalar!r})", lambda s=scalar: d_o.__add__(s), lambda s=scalar: d_r.__add__(s)),
+            _Case(f"{unit} 日期标量的原生反向减法", f"delta.__rsub__({scalar!r})", lambda s=scalar: d_o.__rsub__(s), lambda s=scalar: d_r.__rsub__(s)),
+        ])
+    for label, duration in (("两天", np.timedelta64(2, "D")), ("负一纳秒", np.timedelta64(-1, "ns")), ("一个月", np.timedelta64(1, "M"))):
+        cases.extend([
+            _Case(f"{label}增量加法", f"delta.__add__({duration!r})", lambda td=duration: d_o.__add__(td), lambda td=duration: d_r.__add__(td)),
+            _Case(f"{label}增量减法", f"delta.__sub__({duration!r})", lambda td=duration: d_o.__sub__(td), lambda td=duration: d_r.__sub__(td)),
+            _Case(f"{label}增量反向加法", f"delta.__radd__({duration!r})", lambda td=duration: d_o.__radd__(td), lambda td=duration: d_r.__radd__(td)),
+            _Case(f"{label}增量反向减法", f"delta.__rsub__({duration!r})", lambda td=duration: d_o.__rsub__(td), lambda td=duration: d_r.__rsub__(td)),
+        ])
+    return _run_demo("numpy_demo", cases, iterations, repeats)
+
+
+def constructor_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Exercise all 19 constructor parameters and their normalization rules.
+
+    Cases include floor carries, clamped absolute values, positional weeks/days
+    order and supported integer conversions. Controls follow the module contract.
+    """
+    relative = dict(years=1, quarters=2, months=7, weeks=2, days=3, hours=25,
+                    minutes=61, seconds=61, milliseconds=1500, microseconds=-1)
+    absolute = dict(year=12000, month=15, day=40, weekday=6, hour=23, minute=59,
+                    second=59, millisecond=999, microsecond=2005)
+    positional = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 2024, 2, 29, 0, 9, 30, 15, 123, 456)
+    cases = [
+        _Case("空构造", "Delta()", lambda: DeltaO(), lambda: DeltaR()),
+        _Case("所有相对单位与进位", f"Delta(**{relative!r})", lambda: DeltaO(**relative), lambda: DeltaR(**relative)),
+        _Case("所有绝对字段与边界夹取", f"Delta(**{absolute!r})", lambda: DeltaO(**absolute), lambda: DeltaR(**absolute)),
+        _Case("省略绝对字段使用 None", "DeltaO(hour=-1) / DeltaR(hour=None)", lambda: DeltaO(hour=-1), lambda: DeltaR(hour=None)),
+        _Case("绝对时钟上限明确拒绝", "Delta(hour=25)", lambda: DeltaO(hour=25), lambda: _expect_error(lambda: DeltaR(hour=25), ValueError), difference="N01/T08", rust_expected=lambda: "ValueError"),
+        _Case("绝对字段不截小数", "Delta(hour=9.8)", lambda: DeltaO(hour=9.8), lambda: _expect_error(lambda: DeltaR(hour=9.8), TypeError), difference="T08", rust_expected=lambda: "TypeError"),
+        _Case("负一微秒归一化", "Delta(microseconds=-1)", lambda: DeltaO(microseconds=-1), lambda: DeltaR(microseconds=-1)),
+        _Case("19个位置参数，weeks 在 days 前", f"Delta(*{positional!r})", lambda: DeltaO(*positional), lambda: DeltaR(*positional)),
+        _Case("整数转换与保留小数", "Delta(days=np.int64(2), hours=-1.9)", lambda: DeltaO(days=np.int64(2), hours=-1.9), lambda: DeltaR(days=np.int64(2), hours=-1.9), difference="H08", rust_expected=lambda: DeltaR(days=1, hours=22, minutes=6)),
+    ]
+    return _run_demo("constructor_demo", cases, iterations, repeats)
+
+
+def properties_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Read all 15 properties and show empty, absolute-zero and cancelled truth.
+
+    Read-only assignment is demonstrated in errors_demo. Absolute zero remains
+    a set field and makes a Delta truthy.
+    """
+    params = dict(months=-1, microseconds=-1, year=2024, weekday=0, hour=0)
+    d_o, d_r = DeltaO(**params), DeltaR(**params)
+    empty_o, empty_r = DeltaO(), DeltaR()
+    zero_o, zero_r = DeltaO(hour=0), DeltaR(hour=0)
+    cancel_o, cancel_r = DeltaO(days=1, hours=-24), DeltaR(days=1, hours=-24)
+    cases = [
+        _Case("读取全部15个属性", "{name: getattr(delta, name) for name in FIELDS}", lambda: {f: getattr(d_o, f) for f in FIELDS}, lambda: {f: getattr(d_r, f) for f in FIELDS}),
+        _Case("未设置的绝对字段", "empty_delta.year, empty_delta.hour, empty_delta.microsecond", lambda: (empty_o.year, empty_o.hour, empty_o.microsecond), lambda: (empty_r.year, empty_r.hour, empty_r.microsecond)),
+        _Case("空增量真假判断", "bool(Delta())", lambda: bool(empty_o), lambda: bool(empty_r)),
+        _Case("绝对零值仍然有效", "bool(Delta(hour=0))", lambda: bool(zero_o), lambda: bool(zero_r)),
+        _Case("相对单位抵消后为假", "bool(Delta(days=1, hours=-24))", lambda: bool(cancel_o), lambda: bool(cancel_r)),
+    ]
+    return _run_demo("properties_demo", cases, iterations, repeats)
+
+
+def _reinitialize(cls: type) -> object:
+    """Create a Delta, reinitialize it and return the final object."""
+    delta = cls(days=5, year=2024)
+    delta.__init__(months=-1, hour=0)
+    return delta
+
+
+def _failed_reinitialize(cls: type) -> object:
+    """Return the retained state after an unknown constructor keyword fails."""
+    delta = cls(days=5, year=2024)
+    try:
+        delta.__init__(unknown=1)
+    except TypeError:
+        return {"delta": delta, "error": "TypeError"}
+    return {"delta": delta, "error": None}
+
+
+def reinitialization_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Show direct new, immutable reinitialization and argument-error differences.
+
+    Rust __new__ creates a complete value; repeated __init__ leaves it unchanged.
+    Timings include the complete displayed sequence.
+    """
+    cases = [
+        _Case("直接分配的原始状态", "Delta.__new__(Delta)", lambda: DeltaO.__new__(DeltaO), lambda: DeltaR.__new__(DeltaR), difference="H02", rust_expected=lambda: DeltaR()),
+        _Case("重新初始化替换旧字段", "Delta(days=5, year=2024); delta.__init__(months=-1, hour=0)", lambda: _reinitialize(DeltaO), lambda: _reinitialize(DeltaR), difference="H02", rust_expected=lambda: DeltaR(days=5, year=2024)),
+        _Case("错误参数不覆盖旧状态", "delta.__init__(unknown=1); catch TypeError; inspect delta", lambda: _failed_reinitialize(DeltaO), lambda: _failed_reinitialize(DeltaR), difference="H02", rust_expected=lambda: {"delta": DeltaR(days=5, year=2024), "error": None}),
+    ]
+    return _run_demo("reinitialization_demo", cases, iterations, repeats)
+
+
+def unary_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Negate and take absolute values of grouped relative fields.
+
+    Opposite signs between month and day groups are intentional; absolute
+    replacements such as year and hour are retained by these operations.
+    """
+    cases = []
+    for label, params in [
+        ("负月份", dict(months=-1)),
+        ("负一微秒", dict(microseconds=-1)),
+        ("年月组与日时间组符号相反", dict(months=-1, days=1)),
+        ("包含绝对字段", dict(months=-1, microseconds=-1, year=2024, hour=0)),
+    ]:
+        d_o, d_r = DeltaO(**params), DeltaR(**params)
+        cases.extend([
+            _Case(f"{label}：取负", f"-Delta(**{params!r})", lambda d=d_o: -d, lambda d=d_r: -d),
+            _Case(f"{label}：绝对值", f"abs(Delta(**{params!r}))", lambda d=d_o: abs(d), lambda d=d_r: abs(d)),
+        ])
+    return _run_demo("unary_demo", cases, iterations, repeats)
+
+
+def comparison_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Compare Delta and supported foreign increments, including hash limits.
+
+    The original compares across kinds. Rust compares Delta values and returns
+    NotImplemented for other kinds; same-kind dictionary keys remain stable.
+    """
+    d_o, d_r = DeltaO(days=1), DeltaR(days=1)
+    same_o, same_r = DeltaO(hours=24), DeltaR(hours=24)
+    other_o, other_r = DeltaO(days=2), DeltaR(days=2)
+    td, rd, scalar = timedelta(days=1), relativedelta(days=1), np.timedelta64(1, "D")
+    cases = [
+        _Case("归一化后相等", "Delta(days=1) == Delta(hours=24)", lambda: d_o == same_o, lambda: d_r == same_r),
+        _Case("Delta 不相等", "Delta(days=1) != Delta(days=2)", lambda: d_o != other_o, lambda: d_r != other_r),
+        _Case("与 timedelta 正反向比较", "delta == timedelta(days=1), timedelta(days=1) == delta", lambda: (d_o == td, td == d_o), lambda: (d_r == td, td == d_r), difference="H01", rust_expected=lambda: (False, False)),
+        _Case("与 relativedelta 正反向比较", "delta == relativedelta(days=1), relativedelta(days=1) == delta", lambda: (d_o == rd, rd == d_o), lambda: (d_r == rd, rd == d_r), difference="H01", rust_expected=lambda: (False, False)),
+        _Case("与 NumPy 增量比较", "delta == np.timedelta64(1, 'D')", lambda: d_o == scalar, lambda: d_r == scalar, difference="H01", rust_expected=lambda: False),
+        _Case("相同 Delta 的哈希", "hash(delta), hash(same_delta), len({delta, same_delta})", lambda: (hash(d_o), hash(same_o), len({d_o, same_o})), lambda: (hash(d_r), hash(same_r), len({d_r, same_r}))),
+        _Case("跨类型相等和哈希限制", "delta == td, hash(delta) == hash(td)", lambda: (d_o == td, hash(d_o) == hash(td)), lambda: (d_r == td, hash(d_r) == hash(td)), difference="H01", rust_expected=lambda: (False, False)),
+    ]
+    return _run_demo("comparison_demo", cases, iterations, repeats)
+
+
+def representation_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Show repr, str and first/cached hashing for complete Python calls.
+
+    The first-hash example includes fresh construction on every invocation;
+    the cached-hash example reuses an existing object.
+    """
+    params = dict(months=-1, days=2, weekday=0, hour=0)
+    d_o, d_r = DeltaO(**params), DeltaR(**params)
+    hash(d_o)
+    hash(d_r)
+    cases = [
+        _Case("完整文本表示", f"repr(Delta(**{params!r}))", lambda: repr(d_o), lambda: repr(d_r)),
+        _Case("字符串表示", "str(delta)", lambda: str(d_o), lambda: str(d_r)),
+        _Case("空增量文本", "repr(Delta())", lambda: repr(DeltaO()), lambda: repr(DeltaR())),
+        _Case("构造后首次计算哈希", f"hash(Delta(**{params!r}))", lambda: hash(DeltaO(**params)), lambda: hash(DeltaR(**params))),
+        _Case("读取已缓存哈希", "hash(existing_delta)", lambda: hash(d_o), lambda: hash(d_r)),
+    ]
+    return _run_demo("representation_demo", cases, iterations, repeats)
+
+
+def pickle_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Save and restore each package's own trusted objects and subclass metadata.
+
+    Pickle formats are deliberately not byte-compatible. Their decoded values,
+    logical subtypes and attributes are compared, while actual byte sizes are
+    printed. Native state/restore/reduce methods are also demonstrated separately.
+    """
+    params = dict(months=-1, days=2, year=2024, weekday=0, hour=0)
+    d_o, d_r = DeltaO(**params), DeltaR(**params)
+    child_o, child_r = OriginalDeltaChild(**params), RustDeltaChild(**params)
+    child_o.extra = {"labels": ["meeting", "month-end"]}
+    child_r.extra = {"labels": ["meeting", "month-end"]}
+    cases = []
+    for protocol in (0, 5):
+        encoded_o, encoded_r = pickle.dumps(d_o, protocol), pickle.dumps(d_r, protocol)
+        cases.extend([
+            _Case(f"protocol {protocol} 保存", f"pickle.dumps(delta, protocol={protocol})", lambda p=protocol: pickle.dumps(d_o, p), lambda p=protocol: pickle.dumps(d_r, p)),
+            _Case(f"protocol {protocol} 读取", "pickle.loads(bytes_created_by_the_same_package)", lambda data=encoded_o: pickle.loads(data), lambda data=encoded_r: pickle.loads(data)),
+        ])
+    child_bytes_o, child_bytes_r = pickle.dumps(child_o, 5), pickle.dumps(child_r, 5)
+    cases.extend([
+        _Case("保存子类及附加属性", "pickle.dumps(delta_child, protocol=5)", lambda: pickle.dumps(child_o, 5), lambda: pickle.dumps(child_r, 5)),
+        _Case("恢复子类及附加属性", "pickle.loads(child_bytes)", lambda: pickle.loads(child_bytes_o), lambda: pickle.loads(child_bytes_r)),
+    ])
+    count = _run_demo("pickle_demo", cases, iterations, repeats)
+    state = d_r.__getstate__()
+    restored = DeltaR(**params)
+    restored.__setstate__(state)
+    assert _snapshot(restored) == _snapshot(d_r)
+    assert d_r.__reduce__() == d_r.__reduce_ex__(5)
+    print(f"  Rust 本包状态：__getstate__() = {state!r}")
+    print("  Rust __setstate__ 验证同值状态；__reduce__ 与 __reduce_ex__(5) 一致。")
+    print("  pickle 仅使用本演示生成的可信数据；不演示跨包读取旧 pickle。")
+    return count
+
+
+def copy_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Compare shallow/deep copies and preserve Delta subtype and metadata.
+
+    Every result is distinct from its source. Shallow copies share nested
+    metadata; deep copies get independent metadata with the same values.
+    """
+    d_o, d_r = DeltaO(months=1, day=31), DeltaR(months=1, day=31)
+    child_o, child_r = OriginalDeltaChild(days=1), RustDeltaChild(days=1)
+    child_o.extra = {"labels": ["meeting"]}
+    child_r.extra = {"labels": ["meeting"]}
+    cases = [
+        _Case("普通 Delta 浅复制", "copy.copy(delta)", lambda: copy.copy(d_o), lambda: copy.copy(d_r)),
+        _Case("普通 Delta 深复制", "copy.deepcopy(delta)", lambda: copy.deepcopy(d_o), lambda: copy.deepcopy(d_r)),
+        _Case("子类浅复制", "copy.copy(delta_child)", lambda: copy.copy(child_o), lambda: copy.copy(child_r)),
+        _Case("子类深复制", "copy.deepcopy(delta_child)", lambda: copy.deepcopy(child_o), lambda: copy.deepcopy(child_r)),
+    ]
+    count = _run_demo("copy_demo", cases, iterations, repeats)
+    for label, source in (("DeltaO", child_o), ("DeltaR", child_r)):
+        shallow, deep = copy.copy(source), copy.deepcopy(source)
+        assert shallow is not source and deep is not source
+        assert shallow.extra is source.extra and deep.extra is not source.extra
+        assert deep.extra["labels"] is not source.extra["labels"]
+        print(f"  {label}：复制对象独立，浅复制共享嵌套属性，深复制的列表独立。")
+    return count
+
+
+def _expect_error(operation: Callable[[], object], expected: type[Exception]) -> str:
+    """Return an expected exception name; unexpected errors propagate."""
+    try:
+        operation()
+    except expected as error:
+        return type(error).__name__
+    raise AssertionError(f"Expected {expected.__name__} was not raised")
+
+
+def _overflow_outcome(cls: type) -> object:
+    """Capture the single approved intermediate-overflow example for display."""
+    try:
+        return cls(days=2**63 - 1, hours=24)
+    except OverflowError as error:
+        return error
+
+
+def errors_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Show invalid arguments, read-only fields, dispatch and calendar bounds.
+
+    Expected failures are timed including their Python exception handling. The
+    Frozen original NaT behavior is shown alongside Rust's explicit ValueError.
+    D1 also shows a final day overflow that wraps in the original and raises
+    OverflowError in Rust. Approved differences have explicit expected results.
+    """
+    d_o, d_r = DeltaO(days=1), DeltaR(days=1)
+    array = np.array([1, 2])
+    cases = [
+        _Case("未知构造参数", "Delta(unknown=1)", lambda: _expect_error(lambda: DeltaO(unknown=1), TypeError), lambda: _expect_error(lambda: DeltaR(unknown=1), TypeError)),
+        _Case("重复构造参数", "Delta(1, years=2)", lambda: _expect_error(lambda: DeltaO(1, years=2), TypeError), lambda: _expect_error(lambda: DeltaR(1, years=2), TypeError)),
+        _Case("非法 relativedelta 转换", "Delta.from_relativedelta(None)",
+              lambda: _expect_error(lambda: DeltaO.from_relativedelta(None), TypeError),
+              lambda: _expect_error(lambda: DeltaR.from_relativedelta(None), TypeError),
+              difference="E04", rust_expected=lambda: "TypeError"),
+        _Case("属性只读", "delta.days = 2", lambda: _expect_error(lambda: setattr(d_o, "days", 2), AttributeError), lambda: _expect_error(lambda: setattr(d_r, "days", 2), AttributeError)),
+        _Case("不支持排序", "delta < other_delta", lambda: _expect_error(lambda: d_o < DeltaO(days=2), TypeError), lambda: _expect_error(lambda: d_r < DeltaR(days=2), TypeError)),
+        _Case("日期超出范围", "date(9999, 12, 31) + Delta(days=1)", lambda: _expect_error(lambda: date(9999, 12, 31) + d_o, ValueError), lambda: _expect_error(lambda: date(9999, 12, 31) + d_r, ValueError)),
+        _Case("不支持的普通加法", "delta + object()", lambda: _expect_error(lambda: d_o + object(), TypeError), lambda: _expect_error(lambda: d_r + object(), TypeError)),
+        _Case("原生方法返回 NotImplemented", "delta.__add__(object())", lambda: d_o.__add__(object()), lambda: d_r.__add__(object())),
+        _Case("反向 Delta 加减不接收 Delta", "delta.__radd__(other_delta), delta.__rsub__(other_delta)", lambda: (d_o.__radd__(DeltaO()), d_o.__rsub__(DeltaO())), lambda: (d_r.__radd__(DeltaR()), d_r.__rsub__(DeltaR()))),
+        _Case("NumPy 数组不是标量入口", "delta.__add__(np.array([1, 2]))", lambda: d_o.__add__(array), lambda: d_r.__add__(array)),
+        _Case("NumPy 缺失日期明确拒绝", "Delta(days=1) + np.datetime64('NaT', 'D')",
+              lambda: d_o + np.datetime64("NaT", "D"),
+              lambda: _expect_error(lambda: d_r + np.datetime64("NaT", "D"), ValueError),
+              difference="D12", rust_expected=lambda: "ValueError"),
+        _Case("NumPy 缺失时长明确拒绝", "Delta(days=1) + np.timedelta64('NaT', 'D')",
+              lambda: d_o + np.timedelta64("NaT", "D"),
+              lambda: _expect_error(lambda: d_r + np.timedelta64("NaT", "D"), ValueError),
+              difference="D12", rust_expected=lambda: "ValueError"),
+        _Case("极端中间整数溢出", "Delta(days=2**63 - 1, hours=24)", lambda: _overflow_outcome(DeltaO), lambda: _overflow_outcome(DeltaR), difference="D1"),
+    ]
+    return _run_demo("errors_demo", cases, iterations, repeats)
+
+
+def wide_integer_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Show accepted wide integers and unchanged absolute-setting limits."""
+    cases = [
+        _Case("宽 weeks 输入", "Delta(weeks=2**31)",
+              lambda: _expect_error(lambda: DeltaO(weeks=2**31), OverflowError),
+              lambda: DeltaR(weeks=2**31), difference="H09", rust_expected=lambda: DeltaR(days=7*2**31)),
+        _Case("宽相对年份", "Delta(years=2**40, months=1)",
+              lambda: _expect_error(lambda: DeltaO(years=2**40, months=1), OverflowError),
+              lambda: DeltaR(years=2**40, months=1), difference="H09", rust_expected=lambda: DeltaR(years=2**40, months=1)),
+        _Case("宽绝对年份仍夹取", "Delta(year=2**40)",
+              lambda: _expect_error(lambda: DeltaO(year=2**40), OverflowError),
+              lambda: DeltaR(year=2**40), difference="H09", rust_expected=lambda: DeltaR(year=9999)),
+        _Case("极大毫秒可正常归一化", "Delta(milliseconds=2**63-1)",
+              lambda: DeltaO(milliseconds=2**63-1),
+              lambda: DeltaR(milliseconds=2**63-1), difference="D04",
+              rust_expected=lambda: DeltaR(days=106751991167, hours=7, minutes=12,
+                                            seconds=55, microseconds=807000)),
+    ]
+    return _run_demo("wide_integer_demo", cases, iterations, repeats)
+
+
+def to_timedelta_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Compare exact conversion with expressions built from the original Delta."""
+    cases = []
+    for label, kwargs, start in (("固定正时长", {"days": 2, "hours": 3}, None),
+                                ("负微秒", {"microseconds": -1}, None),
+                                ("日历月需要起点", {"months": 1}, date(2024, 1, 31)),
+                                ("绝对小时需要起点", {"hour": 9}, datetime(2024, 1, 15, 12))):
+        original, rust = DeltaO(**kwargs), DeltaR(**kwargs)
+        def manual(original=original, start=start):
+            return ((start + original) - start if start is not None else timedelta(
+                days=original.days, hours=original.hours, minutes=original.minutes,
+                seconds=original.seconds, microseconds=original.microseconds))
+        cases.append(_Case(label, f"original equivalent expression / delta.to_timedelta({start!r})",
+                           manual, lambda rust=rust, start=start: rust.to_timedelta(start)))
+    return _run_demo("to_timedelta_demo", cases, iterations, repeats)
+
+
+def apply_many_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Compare complete ordered batches with the original list comprehension."""
+    left_o = [DeltaO(days=i, hour=9) for i in range(4)]
+    left_r = [DeltaR(days=i, hour=9) for i in range(4)]
+    original, rust = DeltaO(days=1), DeltaR(days=1)
+    values = [date(2024, 1, 31), datetime(2024, 1, 31, 12), timedelta(hours=2),
+              relativedelta(hours=3), Pydt(2024, 1, 31), np.timedelta64(1, "s")]
+    cases = [
+        _Case("混合类型完整列表", "[value + delta for value in values] / delta.apply_many(values)",
+              lambda: [value + original for value in values], lambda: rust.apply_many(values)),
+        _Case("Delta 批量绝对字段", "[value + delta for value in delta_values] / delta.apply_many(delta_values)",
+              lambda: [value + original for value in left_o], lambda: rust.apply_many(left_r)),
+        _Case("生成器按原顺序消费", "[value + delta for value in iter(values)] / delta.apply_many(iter(values))",
+              lambda: [value + original for value in iter(values)], lambda: rust.apply_many(iter(values))),
+        _Case("空批量", "[] / delta.apply_many([])", lambda: [], lambda: rust.apply_many([])),
+    ]
+    return _run_demo("apply_many_demo", cases, iterations, repeats)
+
+
+def nanosecond_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Show retained Timestamp nanoseconds and one final rounding to microseconds.
+
+    Relative changes preserve the fractional tail. Absolute microsecond or
+    millisecond settings replace it. Conversion returns a standard timedelta;
+    the intermediate Timestamp difference is not truncated first.
+    """
+    import pandas as pd
+
+    start = pd.Timestamp("2024-01-01 00:00:00.000000123")
+    cases = [
+        _Case("相对微秒保留纳秒尾数", "start + Delta(microseconds=1)",
+              lambda: start + DeltaO(microseconds=1),
+              lambda: start + DeltaR(microseconds=1), difference="D07",
+              rust_expected=lambda: pd.Timestamp("2024-01-01 00:00:00.000001123")),
+        _Case("绝对微秒清零纳秒尾数", "start + Delta(microsecond=0)",
+              lambda: start + DeltaO(microsecond=0),
+              lambda: start + DeltaR(microsecond=0), difference="D07",
+              rust_expected=lambda: pd.Timestamp("2024-01-01 00:00:00")),
+        _Case("真实差值一次舍入为标准时长", "(start + DeltaO(microseconds=1)) - start / DeltaR(microseconds=1).to_timedelta(start)",
+              lambda: (start + DeltaO(microseconds=1)) - start,
+              lambda: DeltaR(microseconds=1).to_timedelta(start), difference="D06/D07",
+              rust_expected=lambda: timedelta(microseconds=1)),
+    ]
+    return _run_demo("nanosecond_demo", cases, iterations, repeats)
+
+
+def all_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPEATS) -> int:
+    """Run all 20 functional demo sections and return their compared case count.
+
+    Args:
+        iterations: Positive calls per timed batch; default 2,000.
+        repeats: Positive even batches per implementation; default six.
+
+    Returns:
+        Total paired case count, including the explicitly approved D1 example.
+
+    Raises:
+        ValueError: Batch controls are invalid.
+        AssertionError: A result or demonstrated contract differs unexpectedly.
+
+    Replace the call at the bottom with an individual xxx_demo() to explore only
+    that section. Timing values are interactive observations, not acceptance.
+    """
+    demos = (
+        constructor_demo, properties_demo, reinitialization_demo,
+        datetime_demo, date_demo, pydt_demo,
+        delta_demo, timedelta_demo, relativedelta_demo, numpy_demo,
+        unary_demo, comparison_demo, representation_demo,
+        pickle_demo, copy_demo, errors_demo,
+        wide_integer_demo, to_timedelta_demo, apply_many_demo, nanosecond_demo,
+    )
+    _validate_counts(iterations, repeats)
+    print(f"DeltaO: {DeltaO.__module__}.{DeltaO.__name__} / cytimes {version('cytimes')}")
+    print(f"DeltaR: {DeltaR.__module__}.{DeltaR.__name__} / rstimes {version('rstimes')}")
+    runtime = json.loads((Path(__file__).resolve().parent / "runtime.json").read_text(encoding="utf-8"))
+    if runtime.get("validation") == "functional_pass_performance_incomplete":
+        label = "本轮本地最终版" if runtime.get("selection") == "adopted_round_final" else "本地候选"
+        print(f"当前为{label}：功能验收通过，完整性能验收尚未通过。")
+    print(f"每批 {iterations:,} 次，每种实现 {repeats} 批，交替执行顺序。")
+    print("以下是演示计时；CPU 波动可能影响结果，不作为正式性能验收。")
+    total = sum(demo(iterations, repeats) for demo in demos)
+    print(f"\n全部完成：{len(demos)} 个功能 demo，{total} 个对比场景；未知差异 0，批准变化均按明确 Rust 预期核对。")
+    return total
+
+
+if __name__ == "__main__":
+    all_demo()

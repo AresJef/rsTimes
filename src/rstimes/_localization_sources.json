@@ -1,0 +1,45 @@
+{
+  "cldr_version": "46.0.0",
+  "weekday_order": [
+    "mon",
+    "tue",
+    "wed",
+    "thu",
+    "fri",
+    "sat",
+    "sun"
+  ],
+  "full_locales": 725,
+  "default_content_locales": 341,
+  "lookup_identifiers": 8100,
+  "distinct_name_groups": 317,
+  "source_manifest": [
+    {
+      "url": "https://registry.npmjs.org/cldr-dates-full/-/cldr-dates-full-46.0.0.tgz",
+      "file": "cldr-dates-full-46.0.0.tgz",
+      "size": 5130628,
+      "sha256": "f2177c0db4c1d74c7fda25bbacb4434952e980eb1d16e6c75a130616878c77de",
+      "npm_integrity": "sha512-bQ9DV4x1kJrv9n0UEOru5f3WrnOsxM4p2sDKVk/ORKwqWnCZa/126h74IO1KBfhoY3atKaxVmdeBOVN99J0J9w=="
+    },
+    {
+      "url": "https://registry.npmjs.org/cldr-core/-/cldr-core-46.0.0.tgz",
+      "file": "cldr-core-46.0.0.tgz",
+      "size": 184685,
+      "sha256": "c8187b1b9770331bfbc56c16b172ce1172895c0a37daa90ab354576f83593137",
+      "npm_integrity": "sha512-2RkpQFhbrxPGeoF1KB8HyNjNcJa9xgkkiQcL1up0nm+dFHI8kSNDMkZxzwIkrLkhxneoZQeqqX3G+ZggeuUVPw=="
+    },
+    {
+      "url": "https://raw.githubusercontent.com/unicode-org/cldr/release-46/common/main/root.xml",
+      "file": "root.xml",
+      "size": 268135,
+      "sha256": "aa71adab2e9cbed1a57c08c7c48ba9fa246ca436498687c3ba5a87e17b743415"
+    },
+    {
+      "url": "https://www.unicode.org/Public/cldr/46/core.zip",
+      "file": "core.zip",
+      "size": 34181233,
+      "sha256": "fbce9c2275862ad26668fb34783fe6c339f3d92ddfeb5a10a1775fb58181a15d"
+    }
+  ],
+  "generated_sha256": "c21494ecdbe871dfe10170248337c6c8c22fb154a408ad3ff3a34f4f15a6bd92"
+}

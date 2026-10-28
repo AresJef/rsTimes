@@ -1,0 +1,7 @@
+{
+  "environment": ".local/rstimes-beta-release-20261028/oracle-env",
+  "version": "0.2.0b1",
+  "release_manifest": ".local/rstimes-beta-release-20261028/public-release/release-manifest.json",
+  "status": "Release demonstration; requires the verified published wheel and its manifest",
+  "selection": "published_release"
+}

@@ -1,36 +1,48 @@
 [build-system]
-requires = ["setuptools>=77.0.3"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin==1.15.0"]
+build-backend = "maturin"
 
 [project]
 name = "rsTimes"
-version = "0.1.0"
-description = "Integer-based conversions between aware datetimes and Unix milliseconds"
+version = "0.2.0b1"
+description = "Rust-powered calendar deltas, configurable parsing, and scalar and pandas datetimes"
 readme = "README.md"
 license = "MIT"
-license-files = ["LICENSE"]
-requires-python = ">=3.10"
-dependencies = []
+license-files = ["LICENSE", "NOTICE", "NOTICE-RUST-STDLIB.html", "NOTICE-CPYTHON.txt", "NOTICE-UNICODE.txt", "NOTICE-IANA-TIME-ZONE.txt"]
+requires-python = ">=3.12"
+dependencies = ["python-dateutil>=2.9", "numpy>=1.26.4", "tzdata>=2026.5; sys_platform == 'win32'"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Typing :: Typed",
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Programming Language :: Rust",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
 ]
-# Authors and repository URLs await the maintainer's decision.
+
+[project.urls]
+Repository = "https://github.com/AresJef/rsTimes"
+Issues = "https://github.com/AresJef/rsTimes/issues"
+Documentation = "https://github.com/AresJef/rsTimes#readme"
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
+pandas = ["pandas>=2.0"]
+polars = ["polars>=1.0"]
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-include-package-data = false
-
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["rstimes"]
-
-[tool.setuptools.package-data]
-rstimes = ["py.typed"]
+[tool.maturin]
+python-source = "src"
+module-name = "rstimes._native"
+bindings = "pyo3"
+features = ["extension-module"]
+# Source metadata files must not pull same-named files from local/reference trees.
+exclude = [".local/**", "reference/**", "target/**", "benchmarks/**", "tasks/**", "docs/**", "tests/**", "tools/**", "**/__pycache__/**", ".pytest_cache/**", ".git/**", "build/**", "dist/**", ".delta-oracle/**", ".wheel-test/**", ".venv/**", "htmlcov/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,28 @@
+[package]
+name = "rstimes"
+version = "0.2.0-beta.1"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+publish = false
+include = ["Cargo.toml", "Cargo.lock", "build.rs", "rust/**", "src/rstimes/**", "LICENSE", "NOTICE", "NOTICE-RUST-STDLIB.html", "NOTICE-CPYTHON.txt", "NOTICE-UNICODE.txt", "NOTICE-IANA-TIME-ZONE.txt", "pyproject.toml", "rust-toolchain.toml", "README.md"]
+readme = "README.md"
+
+[lib]
+name = "_native"
+crate-type = ["cdylib", "rlib"]
+path = "rust/lib.rs"
+
+[dependencies]
+iana-time-zone = "=0.1.65"
+pyo3 = { version = "=0.29.3" }
+
+[build-dependencies]
+pyo3-build-config = { version = "=0.29.3", features = ["resolve-config"] }
+
+[features]
+extension-module = ["pyo3/extension-module"]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

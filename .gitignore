@@ -11,3 +11,10 @@ htmlcov/
 .DS_Store
 .env
 .env.*
+.local/
+/target/
+
+.delta-oracle/
+/evidence/
+/sdist-wheels/
+/sdist-source/

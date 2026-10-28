@@ -1,118 +1,116 @@
 # rsTimes
 
-`rsTimes` 0.1.0 是一个纯 Python 日期时间小工具，提供带时区 `datetime`
-与 Unix 毫秒时间戳的双向转换。没有运行时依赖，要求 Python 3.10 或更新版本。
-当前版本没有 Rust 内核，不承诺性能优势或与其他日期时间库兼容。
+**rsTimes 0.2.0b1** 是使用 Rust 内核的 Python 日期时间库，提供日历增量、可配置解析、标准 `datetime` 子类和 pandas 日期索引子类。
 
-PyPI 分发名是 `rsTimes`，Python 导入名是 `rstimes`。
+- **`Delta`**：相对日历增量、绝对字段设置、日期运算和批量应用。
+- **`parse_str` / `parse` / `parse_to_epoch`**：共享 Rust 解析内核，分别输出日期对象或指定单位的纪元整数。
+- **`Configs`**：配置解析词表、顺序规则、固定偏移和地区时区。
+- **`Pydt`**：真正继承 `datetime.datetime`，提供日历、边界、时区和格式操作。
+- **`Pddt`**：真正继承 `pandas.DatetimeIndex`，支持纳秒、明确单位、整列运算和 pandas 索引协议。
+
+PyPI 分发名为 `rsTimes`，Python 导入名为 `rstimes`。PLDT 尚未实现；Polars 可选依赖用于读取受支持的 Series 输入。
+
+## 安装
+
+这是 beta 发行，请明确选择版本：
+
+```sh
+python -m pip install "rsTimes==0.2.0b1"
+# 需要 Pddt 时安装 pandas；需要 Polars Series 输入时增加 polars：
+python -m pip install "rsTimes[pandas,polars]==0.2.0b1"
+```
+
+基础依赖为 NumPy、python-dateutil；Windows 另外安装 tzdata，以提供标准 ZoneInfo 的 IANA 时区数据。pandas 和 Polars 为可选依赖。运行库不依赖 Babel、cytimes 或 Cython。
 
 ## 使用
 
-首次成功发布到 PyPI 后可安装：
+```python
+from datetime import datetime
+from rstimes import Configs, Delta, Pydt, parse, parse_str, parse_to_epoch
 
-```sh
-python -m pip install rsTimes
+assert datetime(2024, 1, 31) + Delta(months=1) == datetime(2024, 2, 29)
+assert Pydt(2024, 1, 31).add(months=1) == datetime(2024, 2, 29)
+assert parse(datetime(2024, 5, 7)) == datetime(2024, 5, 7)
+assert parse_str("2024-01-02T12:34+08:00", ignoretz=False).isoformat() == "2024-01-02T12:34:00+08:00"
+assert parse_to_epoch(1e-9, unit="ns") == 1
+
+cfg = Configs()
+cfg.add_month("custommonth", 2)
+assert parse_str("29 custommonth 2024", cfg=cfg) == datetime(2024, 2, 29)
 ```
+
+Pddt 使用集合输入，构造时通过 `unit` 选择单位，已有对象通过 `as_unit()` 显式转换：
 
 ```python
-from datetime import datetime, timedelta, timezone
-from rstimes import from_unix_ms, to_unix_ms
+from rstimes import Delta, Pddt, parse_to_epoch
 
-local_epoch = datetime(1970, 1, 1, 8, tzinfo=timezone(timedelta(hours=8)))
-assert to_unix_ms(local_epoch) == 0
-assert from_unix_ms(0) == datetime(1970, 1, 1, tzinfo=timezone.utc)
+x = Pddt(["2024-01-31T12:30:00.123456789", None], unit="ns", name="events")
+y = x + Delta(months=1)
+assert y[0].isoformat() == "2024-02-29T12:30:00.123456789"
+assert y.isna().tolist() == [False, True]
 
-before_epoch = datetime(1969, 12, 31, 23, 59, 59, 999999, tzinfo=timezone.utc)
-assert to_unix_ms(before_epoch) == -1
-assert from_unix_ms(-1).isoformat() == "1969-12-31T23:59:59.999000+00:00"
+# Pddt 的裸数字表示所选单位的刻度；parse_to_epoch 的数字输入表示秒。
+assert Pddt([1], unit="ms").asi8.tolist() == [1]
+assert parse_to_epoch(1, unit="ms") == 1000
 ```
 
-## 转换规则
+默认解析顺序为 `yearfirst=True, dayfirst=False`，可由 Configs 或显式参数调整。`strict=False`；`isoformat=True` 表示优先尝试 ISO，仍可回退通用解析。默认 `ignoretz=True`，需要保留文本时区时明确传 `False`。Parser 负责解释字段，目标日期类决定可表示范围和地区时间存在性。
 
-- `to_unix_ms(value: datetime) -> int`：输入必须带有效 UTC 偏移，
-  转换到 UTC 后用整数计算。微秒余数**向负无穷方向取整**：
-  纪元后 999 微秒得到 `0`，纪元前 1 微秒得到 `-1`。
-- `from_unix_ms(value: int) -> datetime`：只接受整数，拒绝 `bool`、
-  浮点数、字符串等类型；返回 `timezone.utc` 的带时区时间。
-- 毫秒范围为 `-62135596800000` 到 `253402300799999`，含两端，
-  对应 UTC 年份 1–9999。超出范围或时区转换越界抛出 `ValueError`；
-  naive datetime 也抛出 `ValueError`，非法输入类型抛出 `TypeError`。
-- 不使用本机时区、不经过浮点时间戳。毫秒整数可以精确往返；
-  datetime 的不足 1 毫秒部分在转换时会丢失。
+Pydt 保持微秒精度及年份1—9999；Pddt 支持 `s/ms/us/ns` 和相应容量内的零年、负年及宽年份。已有 Pddt 日期运算保持当前单位，精度或容量不足时明确报错，需用户调用 `as_unit()`；不会自动换单位或把失败变成 NaT。可选数字修改参数的 `None` 表示保留，零为真实数值。
 
-## 本地开发与构建
+原有 `to_unix_ms` / `from_unix_ms` 继续提供带时区日期与 Unix 毫秒的转换。前者将不足一毫秒部分向负无穷取整；后者返回 UTC-aware datetime。类型错误为 TypeError、naive 输入为 ValueError、容量超限为 OverflowError。
 
-以下命令适用于 macOS/Linux；Windows 可用 `.venv\Scripts\python`。
+## 发行矩阵与测试
+
+同一套源码构建普通带GIL的 CPython 3.12—3.15：
+
+| 平台 | CPU | 构建/测试 runner | wheel |
+|---|---|---|---|
+| macOS | arm64 | macos-15 | 每个 Python 版本1个 |
+| macOS | x86_64 | macos-15-intel | 每个 Python 版本1个 |
+| Windows | x86_64 | windows-2025 | 每个 Python 版本1个 |
+| Linux | x86_64 | ubuntu-24.04，固定 manylinux_2_28 构建容器 | 每个 Python 版本1个 |
+
+总计16个wheel和1个sdist。macOS wheel 的部署目标为11.0；Linux wheel 为 manylinux_2_28。表中列的是实际验收 runner，不代表已在每个历史操作系统版本物理测试。此次不包含 PyPy、free-threaded CPython、musl 或 Windows/Linux ARM。
+
+产品测试固定 pandas3.0.6、NumPy2.5.3、Polars2.0.0。冻结官方 cyTimes3.1.0 声明 pandas<3，放在独立 pandas2.3.3 环境运行原对照测试；它不进入用户运行依赖。完整保留的字符串样本另有4,588项独立冻结预期，可在所有四个Python版本检查。普通云runner不用于发布正式性能倍率。
+
+## 本地开发
+
+需要 Rust；仓库的 `rust-toolchain.toml` 固定本次验证工具链。以下命令在已激活的虚拟环境执行：
 
 ```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install --index-url https://pypi.org/simple -e ".[test]" build twine
-.venv/bin/python -m pytest
-.venv/bin/python -m build
-.venv/bin/python -m twine check --strict dist/*
-
-.venv/bin/python -m venv .wheel-test
-.wheel-test/bin/python -m pip install --no-deps dist/*.whl
-.wheel-test/bin/python -I -c 'from rstimes import from_unix_ms, to_unix_ms; assert to_unix_ms(from_unix_ms(-1)) == -1'
+python -m pip install --upgrade pip==26.2.2
+python -m pip install -r requirements-dev.txt
+maturin build --release --locked --interpreter python --out dist
+python -m pip install --no-deps dist/*.whl
+python -I -B tools/wheel_smoke.py --expect-version 0.2.0b1 --with-pandas --with-polars
+python -I -B tools/run_release_tests.py --junitxml evidence/tests.xml
+python -I -B tools/check_public_docs.py
+python -I -B tools/check_typing.py
 ```
 
-重新构建前清理旧的 `dist/` 内容，避免混入以前的发布文件。
-CI 配置会在 GitHub 的 Ubuntu runner 上使用 Python 3.10 和 3.13 测试、构建、
-检查元数据，并从 wheel 安装验证导入；这些配置不代表已在所有平台完成测试。
+Windows PowerShell 可用 `Get-ChildItem dist\*.whl | ForEach-Object { python -m pip install --no-deps $_.FullName }` 安装生成的wheel。源码目录导入不能替代真实wheel安装验证。切换源码后请使用独立输出目录，避免混入旧版发行文件。
 
-## 发布前需要填写的信息
+## 对照 demo
 
-维护者需要自行填写真实信息：
+四个 `demo/*.py` 用独立环境比较冻结官方版本，不是运行库依赖或正式性能验收。先创建 `demo/runtime.json` 指定的环境，在其中安装 `requirements-oracle.txt` 和已发布的 `rsTimes==0.2.0b1`，并从本次 GitHub Release 下载 `release-manifest.json` 到该文件指定的位置。启动器核对版本、加载位置和清单中的 native SHA256，不会静默使用旧包或临时编译。随后可从任意目录执行四个 demo；不要把官方 cyTimes 强装进 pandas3 环境。
 
-| 项目 | 当前状态 |
-| --- | --- |
-| GitHub owner | 待填写本人账号或组织名 |
-| GitHub repository | 待填写实际仓库名 |
-| 许可证 | [MIT](LICENSE)，Copyright (c) 2026 Jiefu Chen |
-| 作者与项目 URL | 尚未填写；按实际情况补充，不使用虚构身份或链接 |
+## 自动发行
 
-本项目采用 [MIT 许可证](LICENSE)，许可证文本随源码与分发包一同提供。
+- `ci.yml` 在普通分支提交、PR和手动运行时构建并测试，均无发布权限。
+- `publish.yml` **只由 `v*` tag push触发**，检查 Python版本、Rust同义版本、源码提交和 `docs/releases/<tag>.md`。
+- 全部构建和测试通过后，创建 GitHub Release，再以 PyPI Trusted Publishing/OIDC 上传同一批已测文件。发布job不重新编译。
+- 发布完成后，16个组合从PyPI下载指定版本，比对原SHA256，在干净环境安装并验证核心功能。
+- GitHub owner/repository为 `AresJef/rsTimes`，PyPI Publisher绑定 `publish.yml` 和 `pypi` environment，不使用长期PyPI token。
 
-PyPI 将没有功能或空包的占名项目视为无效项目。本版本提供实际的时间转换功能，
-README 和包描述应保持与实际功能一致。
+发行部分失败时保留tag及原产物。PyPI步骤失败可在核对既有文件后重跑失败job，使用原成功构建的bundle；GitHub文件仅补齐缺项，不覆盖已有资产。构建矩阵失败时修复原因后运行完整验证，避免把不同尝试的残缺矩阵混为一次通过。不要移动已发布tag或覆盖已发行文件。
 
-## GitHub → PyPI Trusted Publisher
+## 文档与许可
 
-本地配置已经准备好，以下持久授权和发布操作由维护者完成：
+- [Delta API](https://github.com/AresJef/rsTimes/blob/main/docs/DeltaAPI.md)、[Delta使用说明](https://github.com/AresJef/rsTimes/blob/main/docs/Delta使用说明.md)
+- [Parser使用说明](https://github.com/AresJef/rsTimes/blob/main/docs/Parser使用说明.md)、[对象解析](https://github.com/AresJef/rsTimes/blob/main/docs/Parser对象解析使用说明.md)
+- [Pydt使用说明](https://github.com/AresJef/rsTimes/blob/main/docs/Pydt使用说明.md)、[Pddt与纪元解析](https://github.com/AresJef/rsTimes/blob/main/docs/Pddt与parse_epoch使用说明.md)
+- [错误处理](https://github.com/AresJef/rsTimes/blob/main/docs/错误处理使用说明.md)、[本次发行说明](https://github.com/AresJef/rsTimes/blob/main/docs/releases/v0.2.0b1.md)
 
-1. 补齐需要的真实元数据；自行把这些文件提交并推送到自己的 GitHub
-   仓库。CI 成功后再准备正式 release。
-2. 在该 GitHub 仓库的 Settings → Environments 中创建名为 `pypi` 的 environment。
-   如有需要，为它配置审批人和允许发布的 tag 规则。
-3. 若 PyPI 尚无该项目，在自己的 PyPI 账号 Publishing 页面添加 **Pending Publisher**，
-   选择 GitHub，准确填写下表。已有项目则在该项目的 Publishing 页面添加 publisher。
-
-   | PyPI 字段 | 必须填写的值 |
-   | --- | --- |
-   | PyPI Project Name（pending 时） | `rsTimes` |
-   | Owner | 实际 GitHub owner，须与仓库所属账号或组织一致 |
-   | Repository name | 实际 GitHub 仓库名 |
-   | Workflow name | `publish.yml`（文件名，不是 workflow 显示名称） |
-   | Environment name | `pypi` |
-
-   Pending Publisher 在首次成功上传前不会创建项目或预留包名；名称也可能已被占用
-   或被 PyPI 保留。首次成功发布后 pending publisher 转为正式 publisher。
-4. 当前 `pyproject.toml` 的版本为 `0.1.0`。在包含上述文件的 commit 上创建 tag
-   `v0.1.0`，再发布对应的 GitHub Release。仅推送 tag 或保存 release 草稿不会触发上传。
-5. `.github/workflows/publish.yml` 只响应 `release: published`，检查 tag 与包版本
-   精确匹配（必须是 `v` 加版本号），随后测试、构建、检查 sdist/wheel 并验证 wheel。
-   只有这些步骤全部成功才会进入发布 job。
-6. 发布 job 使用 `environment: pypi`，仅该 job 有 `id-token: write`。
-   它只下载本次运行的构建产物，使用 PyPA 官方 action 的 OIDC 身份发布，
-   不需要设置 `PYPI_TOKEN` 或用户名/密码 secret。
-
-PyPI 发布是公开且持久的；首次发布前检查 wheel/sdist 内容与真实元数据。
-新版本请先修改 `pyproject.toml`，重新验证，再创建匹配的新 tag/release。
-已经用过的版本和分发文件不能直接覆盖。
-
-官方说明：
-
-- [Python 项目打包](https://packaging.python.org/en/latest/tutorials/packaging-projects/)
-- [创建 Pending Trusted Publisher](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)
-- [通过 Trusted Publisher 发布](https://docs.pypi.org/trusted-publishers/using-a-publisher/)
-- [PyPI 名称政策](https://docs.pypi.org/project-management/name-retention/#invalid-projects)
+公开类型声明和 `py.typed` 随wheel分发，编辑器可显示参数、返回类型、docstring和示例。本项目采用 [MIT](LICENSE)；第三方许可说明包含在源码包和wheel中。

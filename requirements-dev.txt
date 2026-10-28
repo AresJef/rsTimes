@@ -1,0 +1,9 @@
+# Release verification uses the same dependency versions on every platform.
+-r requirements-test.txt
+maturin==1.15.0
+twine==7.0.0
+mypy==2.3.1
+pandas-stubs==2.3.3.260113
+types-python-dateutil==2.9.0.20261021
+typing-extensions==4.16.0
+PyYAML==6.0.3

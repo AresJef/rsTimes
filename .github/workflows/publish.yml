@@ -1,75 +1,167 @@
-name: Publish to PyPI
+name: Publish verified native distributions
 
+# Tag push is the sole publication trigger. Ordinary CI only builds and tests.
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v*"]
 
 permissions:
   contents: read
 
 concurrency:
-  group: pypi-${{ github.event.release.tag_name }}
+  group: publish-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          ref: ${{ github.event.release.tag_name }}
-          persist-credentials: false
-      - uses: actions/setup-python@v7.0.0
-        with:
-          python-version: "3.13"
-      - name: Check release tag matches package version
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: |
-          python - <<'PY'
-          import os
-          import tomllib
-          from pathlib import Path
-          version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
-          expected = f"v{version}"
-          if os.environ["RELEASE_TAG"] != expected:
-              raise SystemExit(f"Release tag must be {expected}")
-          PY
-      - name: Install test and build tools
-        run: python -m pip install --index-url https://pypi.org/simple -e ".[test]" build twine
-      - name: Test
-        run: python -m pytest
-      - name: Build sdist and wheel
-        run: python -m build
-      - name: Check distribution metadata
-        run: python -m twine check --strict dist/*
-      - name: Smoke test the installed wheel
-        run: |
-          python -m venv .wheel-test
-          .wheel-test/bin/python -m pip install --no-deps dist/*.whl
-          .wheel-test/bin/python -I -c 'from rstimes import from_unix_ms, to_unix_ms; assert to_unix_ms(from_unix_ms(-1)) == -1; assert from_unix_ms(0).isoformat() == "1970-01-01T00:00:00+00:00"'
-      - name: Upload only this run's distributions
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: distributions-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            dist/*.whl
-            dist/*.tar.gz
-          if-no-files-found: error
-          retention-days: 7
+  verify:
+    uses: ./.github/workflows/build.yml
 
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
+  github-release:
+    name: Publish verified files to GitHub
+    needs: verify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      bundle-name: ${{ needs.verify.outputs.bundle-name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: ${{ needs.verify.outputs.bundle-name }}
+          path: bundle/
+      - name: Create or verify this exact GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 tools/github_release.py
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: github-release-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 3
+
+  pypi:
+    name: Publish the same verified files with OIDC
+    needs: github-release
+    runs-on: ubuntu-24.04
     environment: pypi
     permissions:
       contents: read
       id-token: write
     steps:
-      - name: Download this run's distributions
-        uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: distributions-${{ github.run_id }}-${{ github.run_attempt }}
-          path: dist/
-      - name: Publish using Trusted Publishing
-        uses: pypa/gh-action-pypi-publish@release/v1
+          name: ${{ needs.github-release.outputs.bundle-name }}
+          path: bundle/
+      - name: Verify downloaded and any existing PyPI files
+        run: |
+          cd bundle
+          sha256sum --check SHA256SUMS
+          python3 - <<'PYCODE'
+          import json, urllib.error, urllib.request
+          from pathlib import Path
+          manifest = json.loads(Path('release-manifest.json').read_text())
+          expected = {row['filename']: row['sha256'] for row in manifest['wheels'] + manifest['sdists']}
+          try:
+              with urllib.request.urlopen('https://pypi.org/pypi/rsTimes/' + manifest['version'] + '/json') as response:
+                  current = json.load(response)
+          except urllib.error.HTTPError as error:
+              if error.code != 404:
+                  raise
+          else:
+              for row in current['urls']:
+                  assert row['filename'] in expected and row['digests']['sha256'] == expected[row['filename']], row['filename']
+          PYCODE
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1 resolved commit
+        with:
+          packages-dir: bundle/dist/
+          attestations: true
+          skip-existing: true
+
+
+  pypi-install:
+    name: PyPI install / ${{ matrix.platform.id }} / ${{ matrix.python }}
+    needs: [verify, pypi]
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12.10", "3.13.17", "3.14.10", "3.15.2"]
+        platform:
+          - { id: macos-arm64, runner: macos-15, arch: arm64 }
+          - { id: macos-x86_64, runner: macos-15-intel, arch: x64 }
+          - { id: windows-x86_64, runner: windows-2025, arch: x64 }
+          - { id: linux-x86_64, runner: ubuntu-24.04, arch: x64 }
+    defaults:
+      run:
+        shell: bash
+    env:
+      TZ: UTC
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: ${{ matrix.platform.arch }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: ${{ needs.verify.outputs.metadata-name }}
+          path: evidence/
+      - name: Select a fresh PyPI installation environment
+        run: |
+          python - <<'PYCODE'
+          import json, os, venv
+          from pathlib import Path
+          manifest = json.loads(Path('evidence/release-manifest.json').read_text())
+          assert manifest['source_commit'] == os.environ['GITHUB_SHA']
+          assert 'v' + manifest['version'] == os.environ['GITHUB_REF_NAME']
+          venv.EnvBuilder(with_pip=True).create('.wheel-test')
+          bindir = Path('.wheel-test') / ('Scripts' if os.name == 'nt' else 'bin')
+          with open(os.environ['GITHUB_PATH'], 'a') as output:
+              output.write(str(bindir.resolve()) + '\n')
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write('PACKAGE_VERSION=' + manifest['version'] + '\n')
+          PYCODE
+      - name: Download the exact public version and prove its identity
+        run: |
+          python -m pip install --index-url https://pypi.org/simple --upgrade pip==26.2.2
+          python - <<'PYCODE'
+          import hashlib, json, subprocess, sys, time
+          from pathlib import Path
+          manifest = json.loads(Path('evidence/release-manifest.json').read_text())
+          command = [sys.executable, '-m', 'pip', 'download', '--index-url', 'https://pypi.org/simple',
+                     '--only-binary=:all:', '--no-deps', '--dest', 'pypi-wheel', 'rsTimes==' + manifest['version']]
+          for attempt in range(3):
+              result = subprocess.run(command, check=False)
+              if result.returncode == 0:
+                  break
+              if attempt == 2:
+                  raise SystemExit(result.returncode)
+              time.sleep(10)
+          wheel, = Path('pypi-wheel').glob('*.whl')
+          expected, = [row for row in manifest['wheels'] if row['filename'] == wheel.name]
+          digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
+          assert digest == expected['sha256'], wheel.name
+          Path('evidence/pypi-download.json').write_text(json.dumps({'filename': wheel.name, 'sha256': digest}, indent=2) + '\n')
+          PYCODE
+      - name: Install from PyPI download and exercise public functionality
+        run: |
+          python -m pip install --index-url https://pypi.org/simple -r requirements-test.txt pypi-wheel/*.whl
+          python -I -B tools/wheel_smoke.py --expect-version "$PACKAGE_VERSION" --with-pandas --with-polars > evidence/pypi-installed.json
+          python -I -B -m pytest -q tests/test_release_pandas_tail.py tests/test_astra_relative_live_rules.py tests/pddt/test_installation.py tests/parser/test_from_parserinfo.py --junitxml evidence/pypi-tests.xml
+          python -m pip check
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pypi-install-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.platform.id }}-${{ matrix.python }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 3

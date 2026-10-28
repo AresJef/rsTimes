@@ -78,7 +78,7 @@ def test_from_unix_ms_rejects_non_integer_and_bool(value):
 
 @pytest.mark.parametrize("value", [MIN_MS - 1, MAX_MS + 1, -(10**100), 10**100])
 def test_from_unix_ms_rejects_out_of_range_integer(value):
-    with pytest.raises(ValueError, match="range"):
+    with pytest.raises(OverflowError, match="range|too large"):
         from_unix_ms(value)
 
 
@@ -87,5 +87,5 @@ def test_from_unix_ms_rejects_out_of_range_integer(value):
     datetime.max.replace(tzinfo=timezone(timedelta(hours=-1))),
 ])
 def test_to_unix_ms_rejects_out_of_range_utc_conversion(value):
-    with pytest.raises(ValueError, match="range"):
+    with pytest.raises(OverflowError, match="range|too large"):
         to_unix_ms(value)

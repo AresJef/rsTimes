@@ -1,0 +1,8 @@
+# Keep published source bytes identical across the Windows/macOS/Linux matrix.
+* text=auto eol=lf
+*.pkl binary
+*.whl binary
+*.gz binary
+*.zip binary
+*.png binary
+*.jpg binary
