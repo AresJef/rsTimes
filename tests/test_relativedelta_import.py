@@ -13,7 +13,7 @@ import pytest
 from rstimes import Delta, Pydt
 
 
-DATA = json.loads((Path(__file__).parent / "data/relativedelta-normalization-20261022.json").read_text())
+DATA = json.loads((Path(__file__).parent / "data/relativedelta-normalization-20261022.json").read_text(encoding='utf-8'))
 FIXED = ("weeks", "days", "hours", "minutes", "seconds", "milliseconds", "microseconds")
 FACTORS = (604800000000, 86400000000, 3600000000, 60000000, 1000000, 1000, 1)
 RELATIVE = ("years", "months", "days", "hours", "minutes", "seconds", "microseconds")

@@ -50,7 +50,7 @@ def test_regional_timeline_uses_utc_oracle(monkeypatch, zone, now, value, query)
 
 
 SAVED_FAILURES = json.loads((Path(__file__).parent /
-    "data/current-time-regressions.json").read_text())["cases"]
+    "data/current-time-regressions.json").read_text(encoding='utf-8'))["cases"]
 
 
 @pytest.mark.parametrize("case", SAVED_FAILURES, ids=lambda c: c["zone"] + ":" + c["now"] + ":" + c["value"])

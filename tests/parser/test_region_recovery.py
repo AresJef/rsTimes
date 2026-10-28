@@ -10,7 +10,7 @@ import pytest
 from rstimes import Configs, Pddt, Pydt, parse, parse_str, parse_to_epoch
 
 ROOT=next(parent for parent in Path(__file__).resolve().parents if (parent/"Cargo.toml").is_file())
-INPUTS=json.loads((Path(__file__).with_name('data')/'region_inputs.json').read_text())['rows']
+INPUTS=json.loads((Path(__file__).with_name('data')/'region_inputs.json').read_text(encoding='utf-8'))['rows']
 
 @pytest.mark.parametrize('row',INPUTS,ids=lambda x:x['id'])
 @pytest.mark.parametrize('fn',[parse_str,parse])

@@ -170,7 +170,7 @@ def test_snap_all_554_approved_names_have_independent_calendar_expectations():
     from pathlib import Path
     from datetime import datetime,timedelta
     import re
-    text=(Path(__file__).resolve().parents[1]/'data/snap_names.md').read_text().split('## 附录A',1)[1]
+    text=(Path(__file__).resolve().parents[1]/'data/snap_names.md').read_text(encoding='utf-8').split('## 附录A',1)[1]
     source=Pddt(["2024-06-15 12:00"],unit="us")
     reference=datetime(2024,6,15,12)
     weekdays={'星期一':0,'星期二':1,'星期三':2,'星期四':3,'星期五':4,'星期六':5,'星期日':6}

@@ -34,6 +34,13 @@ assert Path(native.__file__).suffix in (".so", ".pyd") and native.release_build(
 if args.expect_version:
     assert version("rsTimes") == args.expect_version
 package = Path(rstimes.__file__).parent
+payload_sha256 = {}
+source_package = Path(__file__).resolve().parents[1] / "src/rstimes"
+for source in source_package.iterdir():
+    if source.is_file() and source.suffix not in (".so", ".pyd", ".pyc"):
+        installed = package / source.name
+        assert installed.read_bytes() == source.read_bytes(), source.name
+        payload_sha256[source.name] = hashlib.sha256(installed.read_bytes()).hexdigest()
 for filename in ("__init__.pyi", "delta.pyi", "errors.pyi", "parser.pyi", "pydt.pyi", "pddt.pyi", "py.typed", "_localization_sources.json"):
     assert (package / filename).is_file(), filename
 installed_files = [str(path) for path in distribution("rsTimes").files]
@@ -113,5 +120,6 @@ print(json.dumps({"status": "passed", "package": rstimes.__file__,
                   "native": native.__file__, "release": True,
                   "version": version("rsTimes"),
                   "native_sha256": hashlib.sha256(Path(native.__file__).read_bytes()).hexdigest(),
+                  "python_payload_sha256": payload_sha256,
                   "pandas_checked": args.with_pandas, "polars_checked": args.with_polars,
                   "python": platform.python_version(), "machine": platform.machine()}))

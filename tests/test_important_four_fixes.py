@@ -148,7 +148,7 @@ def test_available_timezone_property_is_real_and_returns_an_independent_set(cls)
 
 @pytest.mark.parametrize("flag, value", [("yearfirst", False), ("dayfirst", True)])
 def test_configs_stub_agrees_with_readonly_runtime_flags(flag, value):
-    node = next(n for n in ast.parse(Path(parser_module.__file__).with_suffix(".pyi").read_text()).body
+    node = next(n for n in ast.parse(Path(parser_module.__file__).with_suffix(".pyi").read_text(encoding='utf-8')).body
                 if isinstance(n, ast.ClassDef) and n.name == "Configs")
     setters = [n for n in node.body if isinstance(n, ast.FunctionDef) and n.name == flag
                and any(ast.unparse(d) == flag + ".setter" for d in n.decorator_list)]

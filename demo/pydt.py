@@ -14,7 +14,7 @@ def _launch_selected_environment():
     """Use the shared demo selection before importing either implementation."""
     here = Path(__file__).resolve()
     root = here.parents[1]
-    selected = json.loads((here.parent / "runtime.json").read_text())
+    selected = json.loads((here.parent / "runtime.json").read_text(encoding='utf-8'))
     environment = (root / selected["environment"]).resolve()
     python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     if __name__ == "__main__" and (Path(sys.prefix).resolve() != environment or not sys.flags.isolated):

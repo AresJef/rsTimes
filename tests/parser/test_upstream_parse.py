@@ -16,7 +16,7 @@ from rstimes.parser import Configs, parse_str as parse
 from approved_behavior import expected_parse, outcomes_equal
 
 HERE = Path(__file__).resolve().parent
-DATA = json.loads((HERE / "data" / "upstream_datetimes.json").read_text())
+DATA = json.loads((HERE / "data" / "upstream_datetimes.json").read_text(encoding='utf-8'))
 SPEC = importlib.util.spec_from_file_location("_upstream_parser_values", HERE / "cases.py")
 cases = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(cases)

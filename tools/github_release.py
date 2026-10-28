@@ -44,14 +44,14 @@ def main():
     repository = os.environ["GITHUB_REPOSITORY"]
     assert repository == "AresJef/rsTimes"
     bundle = Path("bundle")
-    manifest = json.loads((bundle / "release-manifest.json").read_text())
+    manifest = json.loads((bundle / "release-manifest.json").read_text(encoding='utf-8'))
     assert len(manifest["wheels"]) == 16 and len(manifest["sdists"]) == 1
     assert manifest["source_commit"] == os.environ["GITHUB_SHA"]
     version = manifest["version"]
     tag = "v" + version
     assert os.environ["GITHUB_REF_NAME"] == tag
     notes_file = Path("docs/releases") / (tag + ".md")
-    notes = notes_file.read_text()
+    notes = notes_file.read_text(encoding='utf-8')
     files = {row["filename"]: bundle / "dist" / row["filename"]
              for row in manifest["wheels"] + manifest["sdists"]}
     expected = {row["filename"]: row["sha256"] for row in manifest["wheels"] + manifest["sdists"]}

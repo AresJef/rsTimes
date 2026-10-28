@@ -13,7 +13,7 @@ from rstimes import Configs, parse_str
 from cases import configured, outcome
 from outcomes import error_category
 
-DATA = json.loads((Path(__file__).with_name("data") / "frozen_parse_contract.json").read_text())
+DATA = json.loads((Path(__file__).with_name("data") / "frozen_parse_contract.json").read_text(encoding='utf-8'))
 CONFIG = configured(Configs)
 
 

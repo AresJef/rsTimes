@@ -9,7 +9,7 @@ import pandas as pd
 
 _PATH=Path(__file__).with_name('data')/'fixed-pandas3-ranges.json'
 _RECORD=os.environ.get('RSTIMES_RECORD_FIXED_PANDAS3')
-_DATA={} if _RECORD else json.loads(_PATH.read_text())['cases']
+_DATA={} if _RECORD else json.loads(_PATH.read_text(encoding='utf-8'))['cases']
 
 
 def _encode(value):

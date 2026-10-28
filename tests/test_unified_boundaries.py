@@ -118,7 +118,7 @@ def test_snap_regional_effective_starts_and_missing_day_skip():
 
 def test_snap_all_554_stored_names_use_the_frozen_vocabulary():
     # This fixture is the user-approved input list, independent of runtime Configs.
-    text=(Path(__file__).with_name('data')/'snap_names.md').read_text().split('## 附录A', 1)[1]
+    text=(Path(__file__).with_name('data')/'snap_names.md').read_text(encoding='utf-8').split('## 附录A', 1)[1]
     value=Pydt(2024,6,15,12)
     sections=[row.strip('|').split('|', 1) for row in text.splitlines() if row.startswith('|')]
     weekdays={'星期一':0,'星期二':1,'星期三':2,'星期四':3,'星期五':4,'星期六':5,'星期日':6}

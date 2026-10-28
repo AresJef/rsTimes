@@ -179,6 +179,7 @@ def test_numeric_formats_never_query_lc_time(monkeypatch):
 @pytest.mark.parametrize("fmt",["%c","%x","%X"])
 def test_system_composite_uses_real_templates_and_its_own_word_data(fmt):
     import locale
+    import time
     from rstimes import Pydt
     value=datetime(2024,5,7,13,14,15)
     text=value.strftime(fmt)
@@ -192,6 +193,7 @@ def test_system_composite_uses_real_templates_and_its_own_word_data(fmt):
 
 def test_locale_change_does_not_reuse_stale_composite_templates():
     import locale
+    import time
     from rstimes import Pydt
     original=locale.setlocale(locale.LC_TIME)
     checked=[]
@@ -202,11 +204,11 @@ def test_locale_change_does_not_reuse_stale_composite_templates():
             from datetime import timezone
             value=datetime(2024,5,7,13,14,15,tzinfo=timezone.utc)
             for fmt in ("%c","%x","%X"):
-                text=value.strftime(fmt)
+                text=time.strftime(fmt,time.gmtime(value.timestamp()))
                 expected=datetime.strptime(text,fmt)
                 # Some system %c templates include %Z. Our explicit rule
                 # retains recognized UTC, whereas datetime.strptime drops it.
-                if "UTC" in text:
+                if "UTC" in text or "GMT" in text:
                     expected=expected.replace(tzinfo=timezone.utc)
                 assert Pydt.strptime(text,fmt)==expected
                 assert Pddt.strptime(text,fmt,size=1)[0].to_pydatetime()==expected

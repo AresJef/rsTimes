@@ -1530,7 +1530,7 @@ def candidate_cases(package, revision=False):
         assert loaded.Delta is submodule.Delta and Delta.__module__=="rstimes.delta"
         package_root=Path(loaded.__file__).parent
         assert (package_root/"py.typed").is_file()
-        tree=ast.parse((package_root/"delta.pyi").read_text())
+        tree=ast.parse((package_root/"delta.pyi").read_text(encoding='utf-8'))
         klass=next(node for node in tree.body if isinstance(node,ast.ClassDef) and node.name=="Delta")
         methods={node.name for node in klass.body if isinstance(node,ast.FunctionDef)}
         required=set(FIELDS)|{"__init__","from_relativedelta","__add__","__radd__","__sub__","__rsub__","__neg__","__abs__","__eq__","__bool__","__repr__","__hash__"}

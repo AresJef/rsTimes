@@ -22,7 +22,7 @@ def main():
     from rstimes.parser import Configs, parse_str as parse
     from rstimes import _native
     import importlib.metadata
-    upstream = json.loads((HERE / "data" / "upstream_datetimes.json").read_text())
+    upstream = json.loads((HERE / "data" / "upstream_datetimes.json").read_text(encoding='utf-8'))
     rows = []
     def record(ident, legacy, expected, actual, **extra):
         changed = expected != legacy

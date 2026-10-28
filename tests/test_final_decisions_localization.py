@@ -11,7 +11,7 @@ from rstimes import Pydt
 
 
 def test_all_preexisting_locale_names_match_frozen_supported_values():
-    reference = json.loads((Path(__file__).parent / "data/localization-baseline-final07.json").read_text())
+    reference = json.loads((Path(__file__).parent / "data/localization-baseline-final07.json").read_text(encoding='utf-8'))
     months = [Pydt(2024, month, 1) for month in range(1, 13)]
     weekdays = [Pydt(2024, 1, day) for day in range(1, 8)]
     for locale, expected in reference.items():

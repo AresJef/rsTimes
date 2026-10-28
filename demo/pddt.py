@@ -12,7 +12,7 @@ import sys
 def _launch_selected_environment():
     """Select the shared demo environment before importing rsTimes."""
     here=Path(__file__).resolve()
-    selected=json.loads((here.parent/'runtime.json').read_text())
+    selected=json.loads((here.parent/'runtime.json').read_text(encoding='utf-8'))
     environment=(here.parents[1]/selected['environment']).resolve()
     python=environment/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
     if __name__=='__main__' and (Path(sys.prefix).resolve()!=environment or not sys.flags.isolated):

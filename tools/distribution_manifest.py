@@ -56,8 +56,8 @@ def check_wheel(path, expected_version):
         assert Version(metadata["Version"]) == expected_version
         assert metadata["Requires-Python"] == ">=3.12"
         description = metadata_bytes.replace(b"\r\n", b"\n").split(b"\n\n", 1)[1].decode("utf-8")
-        assert description.strip() == (ROOT / "README.md").read_text().strip()
-        project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+        assert description.strip() == (ROOT / "README.md").read_text(encoding='utf-8').strip()
+        project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding='utf-8'))["project"]
         expected_requirements = {str(Requirement(item)) for item in project["dependencies"]}
         for extra, requirements in project.get("optional-dependencies", {}).items():
             expected_requirements.update(str(Requirement(item + '; extra == "' + extra + '"'))
@@ -115,9 +115,9 @@ def main():
     parser.add_argument("--sdists", type=int, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding='utf-8'))["project"]
     version = Version(project["version"])
-    cargo = tomllib.loads((ROOT / "Cargo.toml").read_text())["package"]
+    cargo = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding='utf-8'))["package"]
     assert version.local is None and Version(cargo["version"]) == version
     wheels = sorted(args.directory.glob("*.whl"))
     sdists = sorted(args.directory.glob("*.tar.gz"))
@@ -137,7 +137,7 @@ def main():
     result = {"version": str(version), "cargo_version": cargo["version"],
               "is_prerelease": version.is_prerelease,
               "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
-              "rust_toolchain": tomllib.loads((ROOT / "rust-toolchain.toml").read_text())["toolchain"],
+              "rust_toolchain": tomllib.loads((ROOT / "rust-toolchain.toml").read_text(encoding='utf-8'))["toolchain"],
               "sources_sha256": {path.relative_to(ROOT).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
                                  for path in sources},
               "wheels": wheel_rows, "sdists": [check_sdist(path, sources) for path in sdists]}

@@ -36,7 +36,7 @@ def test_cr05_owned_pydt_protocol_has_runtime_user_documentation(method):
 
 
 def test_cr05_object_guide_no_longer_promises_boolean_seconds():
-    guide = (Path(__file__).resolve().parents[1] / "docs/Parser对象解析使用说明.md").read_text()
+    guide = (Path(__file__).resolve().parents[1] / "docs/Parser对象解析使用说明.md").read_text(encoding='utf-8')
     assert "bool沿官方规则作为0或1秒" not in guide
     with pytest.raises(TypeError):
         parse(True)

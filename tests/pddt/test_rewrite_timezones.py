@@ -96,7 +96,7 @@ def test_bad_nonexistent_policy_rejected_even_for_empty_data(bad,error):
 
 def test_rust_infer_matches_frozen_pandas3_order_cases():
     fixture=Path(__file__).with_name("data")/"pandas3-infer-meaning.json"
-    for case in json.loads(fixture.read_text()):
+    for case in json.loads(fixture.read_text(encoding='utf-8')):
         if "error" in case:
             with pytest.raises(ValueError):
                 Pddt(case["values"],tz="America/New_York",ambiguous="infer")
