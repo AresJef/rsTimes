@@ -1,10 +1,27 @@
 """P07: one system clock, fixed numeric input units and exact output capacity."""
 from datetime import datetime, timedelta, timezone
 import time
+import sys
 import numpy as np
 import pandas as pd
 import pytest
 from rstimes import Pddt
+
+if sys.platform == "win32":
+    import ctypes
+    from ctypes import wintypes
+    _precise_clock = ctypes.WinDLL("kernel32").GetSystemTimePreciseAsFileTime
+    _precise_clock.argtypes = [ctypes.POINTER(wintypes.FILETIME)]
+    _precise_clock.restype = None
+
+    def system_time_ns():
+        """Use Rust's precise OS clock; Python3.12 time_ns is coarser on Windows."""
+        stamp = wintypes.FILETIME()
+        _precise_clock(ctypes.byref(stamp))
+        ticks = (stamp.dwHighDateTime << 32) | stamp.dwLowDateTime
+        return (ticks - 116444736000000000) * 100
+else:
+    system_time_ns = time.time_ns
 
 
 @pytest.mark.parametrize("factory", [Pddt.now,Pddt.today,Pddt.utcnow])
@@ -20,9 +37,9 @@ def test_clock_units_repeat_one_value_and_empty_calls_do_not_discover_local(fact
 
 @pytest.mark.parametrize("unit", ["s","ms","us","ns"])
 def test_utc_clock_is_bounded_by_integer_system_reads_and_preserves_unit(unit):
-    before=time.time_ns()
+    before=system_time_ns()
     result=Pddt.utcnow(8,unit=unit)
-    after=time.time_ns()
+    after=system_time_ns()
     scale={"s":10**9,"ms":10**6,"us":1000,"ns":1}[unit]
     assert result.unit==unit and result.tzinfo is timezone.utc
     assert len(set(result.asi8.tolist()))==1
@@ -35,9 +52,9 @@ def test_now_and_today_keep_local_clock_and_prepare_zone_once(monkeypatch):
     def local():calls.append(1);return timezone(timedelta(hours=8))
     monkeypatch.setattr(module,"_local_timezone",local)
     for factory in (Pddt.now,Pddt.today):
-        before=time.time_ns()+8*3600*10**9
+        before=system_time_ns()+8*3600*10**9
         result=factory(4,unit="ns")
-        after=time.time_ns()+8*3600*10**9
+        after=system_time_ns()+8*3600*10**9
         assert result.tzinfo is None and len(set(result.asi8))==1
         assert before<=result.asi8[0]<=after
     assert calls==[1,1]

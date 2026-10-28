@@ -1,6 +1,6 @@
 # parse_str 与 parse 使用说明
 
-当前版本、所选产物和性能保护见[当前采用与验收](Pydt过去未来查询修复验收-20261024.md)。四个demo继续共用demo/runtime.json；运行python demo/parser.py会自动切换到已采用环境。
+本发行版本为`0.2.0b1`，范围见[发行说明](releases/v0.2.0b1.md)。四个demo共用demo/runtime.json；按README准备独立环境和发行清单后，运行python demo/parser.py会校验版本及native身份。
 
 
 `parse_str()` 专门处理字符串，`parse()` 同时处理字符串、datetime、date、int/float秒数和NumPy datetime64。

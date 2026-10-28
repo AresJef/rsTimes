@@ -1,6 +1,6 @@
 # Delta 当前行为与使用说明
 
-完整参数与示例见 [Delta API guide](DeltaAPI.md)，错误规则见[错误处理使用说明](错误处理使用说明.md)。当前产物及本轮实测以[本轮验收报告](Delta-Parser-Pydt十项与错误处理重构验收-20261023.md)为准。
+完整参数与示例见 [Delta API guide](DeltaAPI.md)，错误规则见[错误处理使用说明](错误处理使用说明.md)。发行范围及产物身份见[0.2.0b1发行说明](releases/v0.2.0b1.md)。
 
 ## 使用规则
 
@@ -35,4 +35,4 @@ assert date(2024, 1, 31) + Delta(months=1) == date(2024, 2, 29)
 assert parse(np.datetime64(1, "10D")).date() == date(1970, 1, 11)
 ```
 
-旧版逐项对比表属于当时的固定版本，已[原样归档](../tasks/archive/v-and-errors-refactor-20261022/legacy-guides/Delta行为说明.md)，不将其中的旧输出和测试数量当成当前版本结果。冻结官方cyTimes 3.1.0参考不变。
+旧版逐项对比表属于当时的固定版本，其历史输出和测试数量不作为本发行的验收结果。冻结官方cyTimes 3.1.0参考不变。
