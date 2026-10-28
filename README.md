@@ -96,7 +96,7 @@ One source tree supports ordinary GIL-enabled CPython 3.12,3.13,3.14 and3.15:
 
 | Platform | CPU | Wheel baseline | Native verification runner |
 |---|---|---|---|
-| macOS | ARM64 | macOS11.0+ | macos-15 |
+| macOS | ARM64 | macOS11.0+ | macos-14 |
 | macOS | x86_64 | macOS11.0+ | macos-15-intel |
 | Windows | x86_64 | win_amd64 | windows-2025 |
 | Windows | ARM64 | win_arm64 | windows-11-arm |
