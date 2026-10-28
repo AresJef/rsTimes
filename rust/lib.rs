@@ -7,9 +7,14 @@
 //!
 //! Calendar behavior follows this package's approved contracts, derived from
 //! the frozen cyTimes 3.1.0 reference with explicit safety and behavior changes. The
-//! accepted native ABI targets ordinary CPython 3.13 on macOS arm64.
+//! release matrix targets ordinary, GIL-enabled 64-bit CPython 3.12 through 3.15.
 
 #![deny(missing_docs)]
+
+#[cfg(not(target_pointer_width = "64"))]
+compile_error!(
+    "rsTimes requires a 64-bit Python interpreter and target; 32-bit builds are unsupported."
+);
 
 use pyo3::prelude::*;
 mod bulk;

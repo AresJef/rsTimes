@@ -168,6 +168,9 @@ tuple[Any, ...]
         
         Raises
         ------
+        ImportError
+            python-dateutil is not installed. Install rsTimes[dateutil] and
+            restart Python before importing a parserinfo instance.
         TypeError
             The source is not a parserinfo instance or a non-None vocabulary table
             has an unsupported outer container. The message identifies the table.

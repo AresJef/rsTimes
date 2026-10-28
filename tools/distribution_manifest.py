@@ -6,6 +6,7 @@ jobs consume its SHA256 manifest and the same wheel/sdist files, without rebuild
 import argparse
 from email.parser import BytesParser
 import hashlib
+import itertools
 import json
 from pathlib import Path, PurePosixPath
 import subprocess
@@ -15,11 +16,79 @@ import zipfile
 
 from packaging.utils import canonicalize_name, parse_wheel_filename
 from packaging.requirements import Requirement
+from packaging.markers import Marker, default_environment
 from packaging.version import Version
 
 ROOT = Path(__file__).resolve().parents[1]
 LICENSES = ("LICENSE", "NOTICE", "NOTICE-RUST-STDLIB.html", "NOTICE-CPYTHON.txt",
             "NOTICE-UNICODE.txt", "NOTICE-IANA-TIME-ZONE.txt")
+PLATFORM_IDS = {
+    "macos-arm64", "macos-x86_64", "windows-x86_64", "windows-arm64",
+    "linux-x86_64", "linux-musl-x86_64", "linux-arm64", "linux-musl-arm64",
+}
+
+
+def release_matrix(profile="full"):
+    """Read the single approved32-position definition, or four new pilot positions."""
+    config = json.loads((ROOT / ".github/native-matrix.json").read_text())
+    assert [row["minor"] for row in config["pythons"]] == ["3.12", "3.13", "3.14", "3.15"]
+    assert len(config["platforms"]) == 8
+    assert {row["id"] for row in config["platforms"]} == PLATFORM_IDS
+    assert profile in ("full", "pilot"), profile
+    return {"include": [
+        {"python": py, "platform": platform}
+        for py, platform in itertools.product(config["pythons"], config["platforms"])
+        if profile == "full" or (py["minor"] == "3.13" and platform["new"])
+    ]}
+
+
+def declared_requirements(project):
+    """Add extra markers without corrupting dependencies with existing conditions."""
+    requirements = [Requirement(item) for item in project["dependencies"]]
+    for extra, values in project.get("optional-dependencies", {}).items():
+        for value in values:
+            requirement = Requirement(value)
+            marker = f'extra == "{extra}"'
+            if requirement.marker is not None:
+                marker = f"({requirement.marker}) and {marker}"
+            requirement.marker = Marker(marker)
+            requirements.append(requirement)
+    return requirements
+
+
+def validate_requirements(project, metadata):
+    """Compare actual dependency meaning across every supported install environment.
+
+    Maturin normalizes Boolean markers into disjunctive normal form and may use
+    python_full_version. Text equality would reject equivalent wheel metadata.
+    Dependency identities and every approved platform/Python/extra truth table
+    must agree; an omitted or unexpectedly unconditional dependency fails.
+    """
+    expected = declared_requirements(project)
+    actual = [Requirement(item) for item in metadata.get_all("Requires-Dist", [])]
+
+    def key(item):
+        return canonicalize_name(item.name), frozenset(item.extras), str(item.specifier), item.url
+
+    assert {key(item) for item in actual} == {key(item) for item in expected}
+    extras = set(project.get("optional-dependencies", {}))
+    assert set(metadata.get_all("Provides-Extra", [])) == extras
+    for row, extra in itertools.product(release_matrix()["include"], ["", *sorted(extras), "unknown"]):
+        position = row["platform"]
+        system = position["id"].split("-", 1)[0]
+        environment = default_environment()
+        environment.update(
+            python_version=row["python"]["minor"],
+            python_full_version=row["python"]["version"],
+            sys_platform={"macos": "darwin", "windows": "win32", "linux": "linux"}[system],
+            platform_system={"macos": "Darwin", "windows": "Windows", "linux": "Linux"}[system],
+            platform_machine=("ARM64" if system == "windows" else "arm64") if position["arch"] == "arm64"
+                             else ("AMD64" if system == "windows" else "x86_64"),
+            extra=extra,
+        )
+        selected = lambda values: {key(item) for item in values
+                                   if item.marker is None or item.marker.evaluate(environment)}
+        assert selected(actual) == selected(expected), (row, extra, actual, expected)
 
 
 def production_files():
@@ -39,6 +108,7 @@ def archive_paths(names):
         parts = PurePosixPath(name).parts
         assert not name.startswith("/") and ".." not in parts, name
         assert not forbidden.intersection(parts), name
+        assert not any(part.startswith(".wheel-test") for part in parts), name
         assert not any(part == ".env" or part.startswith(".env.") for part in parts), name
 
 
@@ -58,11 +128,7 @@ def check_wheel(path, expected_version):
         description = metadata_bytes.replace(b"\r\n", b"\n").split(b"\n\n", 1)[1].decode("utf-8")
         assert description.strip() == (ROOT / "README.md").read_text(encoding='utf-8').strip()
         project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding='utf-8'))["project"]
-        expected_requirements = {str(Requirement(item)) for item in project["dependencies"]}
-        for extra, requirements in project.get("optional-dependencies", {}).items():
-            expected_requirements.update(str(Requirement(item + '; extra == "' + extra + '"'))
-                                         for item in requirements)
-        assert {str(Requirement(item)) for item in metadata.get_all("Requires-Dist", [])} == expected_requirements
+        validate_requirements(project, metadata)
         for source in (ROOT / "src/rstimes").iterdir():
             if source.is_file() and source.suffix not in (".so", ".pyd", ".pyc"):
                 assert archive.read("rstimes/" + source.name) == source.read_bytes(), source.name
@@ -96,25 +162,45 @@ def matrix_key(tag):
     """Reduce a supported native wheel tag to its single approved matrix position."""
     interpreter, abi, platform = tag.split("-", 2)
     assert interpreter in {"cp312", "cp313", "cp314", "cp315"} and abi == interpreter, tag
-    if platform.startswith("macosx_"):
-        assert platform.endswith(("_arm64", "_x86_64")), tag
-        system = "macos-arm64" if platform.endswith("_arm64") else "macos-x86_64"
-    elif platform == "win_amd64":
-        system = "windows-x86_64"
-    else:
-        assert platform == "manylinux_2_28_x86_64", tag
-        system = "linux-x86_64"
-    return interpreter, system
+    platforms = [row["platform"] for row in release_matrix()["include"]
+                 if row["python"]["minor"] == "3.13"]
+    for row in platforms:
+        if row.get("wheel_platform") == platform:
+            return interpreter, row["id"]
+        if row.get("wheel_prefix") and platform.startswith(row["wheel_prefix"]) and platform.endswith(row["wheel_suffix"]):
+            return interpreter, row["id"]
+    raise AssertionError("Unsupported wheel tag: " + tag)
+
+
+def validate_matrix(wheel_rows, complete=False):
+    """Reject unsupported/duplicate wheels and any incomplete release collection."""
+    actual = []
+    for wheel in wheel_rows:
+        keys = {matrix_key(tag) for tag in wheel["tags"]}
+        key, = keys
+        actual.append(key)
+    assert len(actual) == len(set(actual)), "Duplicate native matrix position"
+    if complete or len(actual) != 1:
+        expected = {("cp" + row["python"]["minor"].replace(".", ""), row["platform"]["id"])
+                    for row in release_matrix()["include"]}
+        assert len(actual) == 32 and set(actual) == expected, (actual, expected)
 
 
 def main():
-    """Validate one job's artifacts or the complete16-wheel release bundle."""
+    """Validate a job's files, the complete32-wheel bundle, or emit its CI matrix."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--directory", type=Path, required=True)
-    parser.add_argument("--wheels", type=int, required=True)
-    parser.add_argument("--sdists", type=int, required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--print-matrix", choices=("full", "pilot"))
+    parser.add_argument("--directory", type=Path)
+    parser.add_argument("--wheels", type=int)
+    parser.add_argument("--sdists", type=int)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--complete", action="store_true")
     args = parser.parse_args()
+    if args.print_matrix:
+        print(json.dumps(release_matrix(args.print_matrix), separators=(",", ":")))
+        return
+    if any(value is None for value in (args.directory, args.wheels, args.sdists, args.output)):
+        parser.error("--directory, --wheels, --sdists and --output are required for archive verification")
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding='utf-8'))["project"]
     version = Version(project["version"])
     cargo = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding='utf-8'))["package"]
@@ -125,15 +211,7 @@ def main():
     assert set(args.directory.iterdir()) == set(wheels + sdists), "Unexpected file in upload directory"
     sources = production_files()
     wheel_rows = [check_wheel(path, version) for path in wheels]
-    if args.wheels == 16:
-        actual = []
-        for wheel in wheel_rows:
-            keys = {matrix_key(tag) for tag in wheel["tags"]}
-            key, = keys
-            actual.append(key)
-        expected = {(py, system) for py in ("cp312", "cp313", "cp314", "cp315")
-                    for system in ("macos-arm64", "macos-x86_64", "windows-x86_64", "linux-x86_64")}
-        assert len(set(actual)) == 16 and set(actual) == expected, actual
+    validate_matrix(wheel_rows, args.complete)
     result = {"version": str(version), "cargo_version": cargo["version"],
               "is_prerelease": version.is_prerelease,
               "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),

@@ -2707,6 +2707,8 @@ impl Delta {
     ///
     /// Raises
     /// ------
+    /// ImportError
+    ///     Optional python-dateutil is missing; install rsTimes[dateutil] and restart Python.
     /// TypeError
     ///     rd is not a relativedelta instance.
     /// ValueError

@@ -4,13 +4,13 @@ build-backend = "maturin"
 
 [project]
 name = "rsTimes"
-version = "0.2.0b1"
+version = "0.2.0b2"
 description = "Rust-powered calendar deltas, configurable parsing, and scalar and pandas datetimes"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE", "NOTICE-RUST-STDLIB.html", "NOTICE-CPYTHON.txt", "NOTICE-UNICODE.txt", "NOTICE-IANA-TIME-ZONE.txt"]
 requires-python = ">=3.12"
-dependencies = ["python-dateutil>=2.9", "numpy>=1.26.4", "tzdata>=2026.5; sys_platform == 'win32'"]
+dependencies = ["numpy>=2.5.3", "tzdata>=2026.5; sys_platform == 'win32'"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
@@ -33,8 +33,12 @@ Documentation = "https://github.com/AresJef/rsTimes#readme"
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
-pandas = ["pandas>=2.0"]
-polars = ["polars>=1.0"]
+dateutil = ["python-dateutil>=2.9"]
+pandas = [
+    "pandas>=2.3.3; python_version < '3.15' and (sys_platform != 'win32' or platform_machine != 'ARM64')",
+    "pandas>=3.0.6; python_version >= '3.15' or (sys_platform == 'win32' and platform_machine == 'ARM64')",
+]
+polars = ["polars>=2.0.0"]
 
 [tool.maturin]
 python-source = "src"
@@ -42,7 +46,7 @@ module-name = "rstimes._native"
 bindings = "pyo3"
 features = ["extension-module"]
 # Source metadata files must not pull same-named files from local/reference trees.
-exclude = [".local/**", "reference/**", "target/**", "benchmarks/**", "tasks/**", "docs/**", "tests/**", "tools/**", "**/__pycache__/**", ".pytest_cache/**", ".git/**", "build/**", "dist/**", ".delta-oracle/**", ".wheel-test/**", ".venv/**", "htmlcov/**"]
+exclude = [".local/**", "reference/**", "target/**", "benchmarks/**", "tasks/**", "docs/**", "tests/**", "tools/**", "**/__pycache__/**", ".pytest_cache/**", ".git/**", "build/**", "dist/**", ".delta-oracle/**", ".wheel-test*/**", ".venv/**", "htmlcov/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

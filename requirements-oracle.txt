@@ -1,7 +1,7 @@
 # The frozen upstream implementation is a test oracle, never a runtime dependency.
 cytimes==3.1.0
 Babel==2.17.0
-numpy==2.3.3
+numpy==2.5.3
 pandas==2.3.3
 polars==2.0.0
 pytest==9.2.0

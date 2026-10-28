@@ -2,6 +2,10 @@ name: Verify native distributions
 
 on:
   workflow_call:
+    inputs:
+      profile:
+        type: string
+        default: full
     outputs:
       bundle-name:
         value: ${{ jobs.bundle.outputs.name }}
@@ -16,6 +20,31 @@ defaults:
     shell: bash
 
 jobs:
+  matrix:
+    name: Select approved native matrix
+    runs-on: ubuntu-24.04
+    outputs:
+      native: ${{ steps.matrix.outputs.native }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13.17"
+      - id: matrix
+        env:
+          VERIFICATION_PROFILE: ${{ inputs.profile }}
+        run: |
+          python -m pip install --index-url https://pypi.org/simple packaging==26.3
+          python - <<'PYCODE'
+          import json, os
+          from tools.distribution_manifest import release_matrix
+          matrix = release_matrix(os.environ["VERIFICATION_PROFILE"])
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("native=" + json.dumps(matrix, separators=(",", ":")) + "\n")
+          PYCODE
+
   rust:
     name: Rust quality
     runs-on: ubuntu-24.04
@@ -38,26 +67,12 @@ jobs:
 
   native:
     name: CPython ${{ matrix.python.minor }} / ${{ matrix.platform.id }}
+    needs: matrix
     runs-on: ${{ matrix.platform.runner }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
-      matrix:
-        python:
-          - { minor: "3.12", version: "3.12.10" }
-          - { minor: "3.13", version: "3.13.17" }
-          - { minor: "3.14", version: "3.14.10" }
-          - { minor: "3.15", version: "3.15.2" }
-        platform:
-          - { id: macos-arm64, runner: macos-15, arch: arm64, target: aarch64-apple-darwin, container: "off", manylinux: "off" }
-          - { id: macos-x86_64, runner: macos-15-intel, arch: x64, target: x86_64-apple-darwin, container: "off", manylinux: "off" }
-          - { id: windows-x86_64, runner: windows-2025, arch: x64, target: x86_64-pc-windows-msvc, container: "off", manylinux: "off" }
-          - id: linux-x86_64
-            runner: ubuntu-24.04
-            arch: x64
-            target: x86_64-unknown-linux-gnu
-            container: quay.io/pypa/manylinux_2_28_x86_64@sha256:e0adf18521ad35192df733a6c62d35df7801957d24e0470238aacecfab2188a3
-            manylinux: "2_28"
+      matrix: ${{ fromJSON(needs.matrix.outputs.native) }}
     env:
       MACOSX_DEPLOYMENT_TARGET: "11.0"
       TZ: UTC
@@ -106,67 +121,18 @@ jobs:
         run: maturin sdist --out dist
       - name: Check archive metadata
         run: python -m twine check --strict dist/*
-      - name: Select a clean wheel installation environment
+      - name: Verify installed wheel on native desktop
+        if: runner.os != 'Linux'
+        run: python -I -B tools/verify_wheel.py --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode "${{ inputs.profile }}"
+      - name: Verify installed wheel in the matching Linux libc
+        if: runner.os == 'Linux'
         run: |
-          python - <<'PYCODE'
-          import os, venv
-          from pathlib import Path
-          venv.EnvBuilder(with_pip=True).create('.wheel-test')
-          bindir = Path('.wheel-test') / ('Scripts' if os.name == 'nt' else 'bin')
-          with open(os.environ['GITHUB_PATH'], 'a') as output:
-              output.write(str(bindir.resolve()) + '\n')
-          PYCODE
-      - name: Verify base install without pandas or Polars
-        run: |
-          python -m pip install --index-url https://pypi.org/simple --upgrade pip==26.2.2
-          python -m pip install --index-url https://pypi.org/simple --only-binary=:all: -c requirements-test.txt dist/*.whl
-          python -I -B tools/wheel_smoke.py --expect-version "$PACKAGE_VERSION" > evidence/base-install.json
-          python -m pip check
-      - name: Test installed wheel and integration contracts
-        run: |
-          python -m pip install --index-url https://pypi.org/simple -r requirements-test.txt
-          python -I -B tools/wheel_smoke.py --expect-version "$PACKAGE_VERSION" --with-pandas --with-polars > evidence/installed.json
-          python -I -B tools/run_release_tests.py --junitxml evidence/product-tests.xml
-          python -m pip check
-          python -m pip freeze > evidence/dependencies.txt
-      - name: Check installed public documentation and typing
-        if: matrix.platform.id == 'macos-arm64' && matrix.python.minor == '3.13'
-        run: |
-          python -m pip install --index-url https://pypi.org/simple -r requirements-dev.txt
-          python -I -B tools/check_public_docs.py
-          python -I -B tools/check_typing.py
-      - name: Independently rebuild and install from sdist
-        if: matrix.platform.id == 'macos-arm64' && matrix.python.minor == '3.13'
-        run: |
-          python - <<'PYCODE'
-          import os, subprocess, sys, tarfile
-          from pathlib import Path
-          source = next(Path('dist').glob('*.tar.gz'))
-          with tarfile.open(source) as archive:
-              archive.extractall('sdist-source', filter='data')
-          project, = Path('sdist-source').iterdir()
-          output = Path('sdist-wheels').resolve()
-          env = dict(os.environ, CARGO_TARGET_DIR=str(Path(os.environ['RUNNER_TEMP']) / 'rstimes-sdist-target'))
-          subprocess.run([sys.executable, '-m', 'pip', 'wheel', '--no-deps', '--no-build-isolation', '--wheel-dir', str(output), str(project.resolve())], env=env, check=True)
-          wheel, = output.glob('*.whl')
-          subprocess.run([sys.executable, '-m', 'pip', 'install', '--no-deps', '--force-reinstall', str(wheel)], check=True)
-          PYCODE
-          python -I -B tools/wheel_smoke.py --expect-version "$PACKAGE_VERSION" --with-pandas --with-polars > evidence/sdist-installed.json
-          python -I -B tools/run_release_tests.py --junitxml evidence/sdist-tests.xml
-          python -m pip check
-      - name: Exercise Pddt demo with the actual wheel and pandas3
-        if: matrix.platform.id == 'macos-arm64' && matrix.python.minor == '3.13'
-        run: |
-          python -m pip install --no-index --no-deps --force-reinstall dist/*.whl
-          python tools/distribution_manifest.py --directory dist --wheels 1 --sdists 1 --output evidence/demo-distributions.json
-          python - <<'PYCODE'
-          import json
-          from pathlib import Path
-          version = json.loads(Path('evidence/demo-distributions.json').read_text())['version']
-          Path('demo/runtime.json').write_text(json.dumps({'environment': '.wheel-test', 'version': version,
-              'release_manifest': 'evidence/demo-distributions.json', 'selection': 'ci_installed_wheel'}))
-          PYCODE
-          python -I -B demo/pddt.py > evidence/pddt-demo.log
+          abi_tag="cp${{ matrix.python.minor }}"
+          abi_tag="${abi_tag//./}"
+          docker run --rm --volume "$PWD:/project" --workdir /project \
+            --env TZ=UTC --env PYTHONUTF8=1 "${{ matrix.platform.container }}" \
+            "/opt/python/${abi_tag}-${abi_tag}/bin/python" -I -B tools/verify_wheel.py \
+            --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode "${{ inputs.profile }}"
       - name: Bind tested files to source
         run: python tools/distribution_manifest.py --directory dist --wheels 1 --sdists ${{ matrix.platform.id == 'macos-arm64' && matrix.python.minor == '3.13' && '1' || '0' }} --output evidence/distributions.json
       - name: Save only verified distributions
@@ -175,7 +141,7 @@ jobs:
           name: wheel-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.platform.id }}-${{ matrix.python.minor }}
           path: dist/*
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
       - name: Save verification evidence including failures
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -183,9 +149,10 @@ jobs:
           name: evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.platform.id }}-${{ matrix.python.minor }}
           path: evidence/
           if-no-files-found: warn
-          retention-days: 3
+          retention-days: 7
 
   oracle:
+    if: inputs.profile == 'full'
     name: Frozen-upstream comparisons / ${{ matrix.python }} / NumPy ${{ matrix.numpy }}
     needs: native
     runs-on: ubuntu-24.04
@@ -194,8 +161,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { python: "3.13.17", minor: "3.13", numpy: "2.3.3", requirements: "requirements-oracle.txt" }
-          - { python: "3.12.10", minor: "3.12", numpy: "1.26.4", requirements: "requirements-oracle-numpy1.txt" }
+          - { python: "3.13.17", minor: "3.13", numpy: "2.5.3", requirements: "requirements-oracle.txt" }
+          - { python: "3.12.10", minor: "3.12", numpy: "2.5.3", requirements: "requirements-oracle.txt" }
     env:
       TZ: UTC
     steps:
@@ -218,7 +185,7 @@ jobs:
           python -m pip install --index-url https://pypi.org/simple --upgrade pip==26.2.2
           python -m pip install --index-url https://pypi.org/simple -r ${{ matrix.requirements }} dist/*.whl
           mkdir -p evidence
-          python -I -B tools/wheel_smoke.py --with-pandas --with-polars > evidence/oracle-installed.json
+          python -I -B tools/wheel_smoke.py --with-dateutil --with-pandas --with-polars > evidence/oracle-installed.json
           python -I -B tools/run_release_tests.py --with-oracle --junitxml evidence/oracle-tests.xml
           python -m pip check
           python -m pip freeze > evidence/dependencies.txt
@@ -241,10 +208,11 @@ jobs:
         with:
           name: evidence-${{ github.run_id }}-${{ github.run_attempt }}-oracle-${{ matrix.minor }}
           path: evidence/
-          retention-days: 3
+          retention-days: 7
 
   bundle:
-    name: Verify complete16-wheel and sdist bundle
+    if: inputs.profile == 'full'
+    name: Verify complete32-wheel and sdist bundle
     needs: [native, rust, oracle]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -267,13 +235,13 @@ jobs:
         run: |
           python -m pip install --index-url https://pypi.org/simple packaging==26.3 twine==7.0.0
           python -m twine check --strict bundle/dist/*
-          python tools/distribution_manifest.py --directory bundle/dist --wheels 16 --sdists 1 --output bundle/release-manifest.json
+          python tools/distribution_manifest.py --directory bundle/dist --wheels 32 --sdists 1 --complete --output bundle/release-manifest.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-distributions-${{ github.run_id }}-${{ github.run_attempt }}
           path: bundle/
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-metadata-${{ github.run_id }}-${{ github.run_attempt }}
@@ -281,7 +249,7 @@ jobs:
             bundle/release-manifest.json
             bundle/SHA256SUMS
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
       - id: bundle
         run: |
           echo "name=release-distributions-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"

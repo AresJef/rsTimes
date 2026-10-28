@@ -16,10 +16,22 @@ def main():
     """Select the explicit test lane and run its complete applicable suite."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--with-oracle", action="store_true")
+    parser.add_argument("--core", action="store_true")
     parser.add_argument("--junitxml", required=True)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     sys.path.insert(0, str(root / "tests/parser"))
+    if args.core and args.with_oracle:
+        parser.error("--core cannot be combined with --with-oracle")
+    if args.core:
+        paths = [
+            "test_optional_dateutil.py", "test_release_matrix.py",
+            "parser/test_frozen_parse.py", "parser/test_entrypoints.py",
+            "parser/test_behavior_revision.py", "parser/test_object_parse.py",
+        ]
+        options = ["-q", *(str(root / "tests" / path) for path in paths),
+                   "--junitxml", args.junitxml]
+        raise SystemExit(pytest.main(options))
     options = ["-q", str(root / "tests"), "--junitxml", args.junitxml]
     if args.with_oracle:
         assert importlib.metadata.version("cytimes") == "3.1.0"

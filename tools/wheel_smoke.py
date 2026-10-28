@@ -16,6 +16,9 @@ parser.add_argument("--require-macos-arm64-313", action="store_true")
 parser.add_argument("--expect-version")
 parser.add_argument("--with-pandas", action="store_true")
 parser.add_argument("--with-polars", action="store_true")
+dateutil = parser.add_mutually_exclusive_group()
+dateutil.add_argument("--with-dateutil", action="store_true")
+dateutil.add_argument("--without-dateutil", action="store_true")
 args = parser.parse_args()
 if args.require_macos_arm64_313:
     assert sys.platform == "darwin" and platform.machine() == "arm64"
@@ -23,7 +26,6 @@ if args.require_macos_arm64_313:
     assert not sysconfig.get_config_var("Py_GIL_DISABLED")
 
 import numpy as np
-from dateutil.relativedelta import relativedelta
 import rstimes
 from rstimes import Configs, Delta, Pydt, parse, parse_str, parse_to_epoch, from_unix_ms, to_unix_ms
 import rstimes._native as native
@@ -50,7 +52,20 @@ assert date(2024, 1, 31) + Delta(months=1) == date(2024, 2, 29)
 negative = Delta(microseconds=-1)
 assert (negative.days, negative.hours, negative.minutes, negative.seconds,
         negative.microseconds) == (-1, 23, 59, 59, 999999)
-assert Delta.from_relativedelta(relativedelta(months=1)) == Delta(months=1)
+if args.with_dateutil:
+    from dateutil.relativedelta import relativedelta
+    from dateutil.parser import parserinfo
+    assert Delta.from_relativedelta(relativedelta(months=1)) == Delta(months=1)
+    assert Configs.from_parserinfo(parserinfo(dayfirst=True)).dayfirst is True
+if args.without_dateutil:
+    from importlib.metadata import PackageNotFoundError
+    try:
+        version("python-dateutil")
+    except PackageNotFoundError:
+        pass
+    else:
+        raise AssertionError("Minimal verification environment contains dateutil")
+    assert "dateutil" not in sys.modules
 assert np.datetime64(-1, "us") + Delta(microseconds=1) == datetime(1970, 1, 1)
 assert pickle.loads(pickle.dumps(negative, protocol=5)) == negative
 assert copy.deepcopy(negative) == negative
@@ -112,14 +127,17 @@ if args.with_pandas:
     assert Pddt(["2024-11-03 01:30"], tz="America/New_York", ambiguous=False)[0].fold == 1
 if args.with_polars:
     import polars as pl
-    from rstimes import Pddt
     column = pl.Series("events", [1, None], dtype=pl.Int64).cast(pl.Datetime("ns"))
-    result = Pddt(column)
-    assert result.unit == "ns" and result.asi8[0] == 1 and result.isna().tolist() == [False, True]
+    assert parse_to_epoch(column.head(1), unit="ns") == 1
+    if args.with_pandas:
+        result = Pddt(column)
+        assert result.unit == "ns" and result.asi8[0] == 1 and result.isna().tolist() == [False, True]
 print(json.dumps({"status": "passed", "package": rstimes.__file__,
                   "native": native.__file__, "release": True,
                   "version": version("rsTimes"),
                   "native_sha256": hashlib.sha256(Path(native.__file__).read_bytes()).hexdigest(),
                   "python_payload_sha256": payload_sha256,
                   "pandas_checked": args.with_pandas, "polars_checked": args.with_polars,
+                  "dateutil_checked": args.with_dateutil,
+                  "dateutil_absent_checked": args.without_dateutil,
                   "python": platform.python_version(), "machine": platform.machine()}))

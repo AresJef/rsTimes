@@ -1026,22 +1026,69 @@ fn construct_subclass<'py, const VECTOR: bool>(
 
 use pyo3::sync::PyOnceLock;
 use pyo3::types::PyType;
-static RELATIVEDELTA: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
-/// Check dateutil.relativedelta membership using an interpreter-aware type cache.
+static RELATIVEDELTA: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+static DATEUTIL_AVAILABLE: PyOnceLock<bool> = PyOnceLock::new();
+
+/// Cache only genuine top-level absence; installed-provider failures propagate.
+fn dateutil_available(py: Python<'_>) -> PyResult<bool> {
+    Ok(*crate::python_cache::get_or_prepare(
+        &DATEUTIL_AVAILABLE,
+        py,
+        || match py.import("dateutil") {
+            Ok(_) => Ok(true),
+            Err(error) => {
+                if error.is_instance_of::<pyo3::exceptions::PyModuleNotFoundError>(py)
+                    && error.value(py).getattr("name")?.eq("dateutil")?
+                {
+                    Ok(false)
+                } else {
+                    Err(error)
+                }
+            }
+        },
+    )?)
+}
+
+/// Supply the Configs boundary with its real optional source class.
+///
+/// This does not prepare relativedelta's type early: its existing first-use
+/// lookup and finite reentrant preparation remain observable protocols.
+/// # Errors
+/// Propagates errors from an installed but unusable dateutil provider.
+pub(crate) fn parserinfo_type(py: Python<'_>) -> PyResult<Option<Py<PyType>>> {
+    if !dateutil_available(py)? {
+        return Ok(None);
+    }
+    Ok(Some(
+        py.import("dateutil.parser._parser")?
+            .getattr("parserinfo")?
+            .cast_into::<PyType>()?
+            .unbind(),
+    ))
+}
+
+/// Check actual relativedelta ancestry, or return false when dateutil is absent.
 ///
 /// # Errors
-/// Propagates import, attribute access and Python instance-check errors.
+/// Propagates errors from an installed but unusable dateutil provider.
 pub fn is_relativedelta(value: &Bound<'_, PyAny>) -> PyResult<bool> {
     let py = value.py();
-    let class = crate::python_cache::get_or_prepare(&RELATIVEDELTA, py, || -> PyResult<_> {
-        Ok(py
-            .import("dateutil.relativedelta")?
-            .getattr("relativedelta")
-            .map_err(crate::error_context::external)?
-            .cast_into::<PyType>()?
-            .unbind())
-    })?;
+    let class = if let Some(class) = RELATIVEDELTA.get(py) {
+        class
+    } else {
+        if !dateutil_available(py)? {
+            return Ok(false);
+        }
+        crate::python_cache::get_or_prepare(&RELATIVEDELTA, py, || -> PyResult<_> {
+            Ok(py
+                .import("dateutil.relativedelta")?
+                .getattr("relativedelta")
+                .map_err(crate::error_context::external)?
+                .cast_into::<PyType>()?
+                .unbind())
+        })?
+    };
     // SAFETY: both actual types remain live; no __class__ or metaclass hook runs.
     Ok(unsafe {
         ffi::PyType_IsSubtype(ffi::Py_TYPE(value.as_ptr()), class.bind(py).as_type_ptr()) != 0
@@ -1066,10 +1113,10 @@ pub(crate) fn exact_relative_fields(
     value: &Bound<'_, PyAny>,
 ) -> PyResult<Option<crate::delta::RelativeFields>> {
     let py = value.py();
-    if let Some(class) = RELATIVEDELTA.get(py) {
+    if let Some(class) = exact_relative_type(py) {
         // SAFETY: Both type identities are live and owned while attached.
         // Only an actual exact type can qualify; no foreign payload is cast.
-        if unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) } == class.bind(py).as_type_ptr() {
+        if unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) } == class {
             return read_relative_fields(value).map(Some);
         }
     }
@@ -1120,6 +1167,15 @@ pub(crate) fn relativedelta_fields(
     value: &Bound<'_, PyAny>,
 ) -> PyResult<crate::delta::RelativeFields> {
     if !is_relativedelta(value)? {
+        if !dateutil_available(value.py())? {
+            let error = pyo3::exceptions::PyImportError::new_err(
+                "dateutil integration requires python-dateutil; install rstimes[dateutil]",
+            );
+            // ImportError otherwise displays its cached msg instead of the
+            // args completed by our existing public-entry error boundary.
+            error.value(value.py()).setattr("msg", value.py().None())?;
+            return Err(crate::error_context::own(error));
+        }
         return Err(crate::error_context::type_error(
             "rd must be a dateutil.relativedelta instance",
         ));

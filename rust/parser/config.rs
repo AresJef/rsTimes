@@ -1556,6 +1556,7 @@ pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     let globals = PyDict::new(module.py());
     globals.set_item("Configs", module.py().get_type::<Configs>())?;
     globals.set_item("_bool_option", module.getattr("_bool_option")?)?;
+    globals.set_item("parserinfo", crate::interop::parserinfo_type(module.py())?)?;
     globals.set_item("__name__", "rstimes.parser")?;
     let code = std::ffi::CString::new(BOUNDARY)
         .map_err(|e| crate::error_context::runtime(e.to_string()))?;
@@ -1563,8 +1564,7 @@ pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_restore_configs, module)?)?;
     Ok(())
 }
-const BOUNDARY: &str = r####"from dateutil.parser._parser import parserinfo
-from rstimes import errors
+const BOUNDARY: &str = r####"from rstimes import errors
 class _Boundary:
     def __init__(self, yearfirst=True, dayfirst=False):
         'Create configuration with default token rules.\n\nParameters\n----------\nyearfirst : bool, default True\n    Interpret the first value of an ambiguous calendar triple as year.\ndayfirst : bool, default False\n    Interpret the first non-year value as day. Together with yearfirst,\n    this selects Y/D/M; otherwise it selects D/M/Y.\n\nFlags accept only Python bool or NumPy boolean scalars. Calling __init__ again replaces the flags\nand resets all token rules. Word tokens are normalized to lowercase\nand recognized in lowercase, uppercase, and titlecase. Jump words may overlap\nany word table; other word-table conflicts are rejected. Register regional\nZoneInfo names with add_tzone; these use exact matching and are loaded once.\nFixed-offset aliases use tzoffset.\n\nToken properties return independent containers. copy.copy, copy.deepcopy and\npickle round trips create independent configurations. Editing rules or flags\nin either configuration does not change the other. Configs cannot be subclassed; use\nits add/del/set methods to customize rules. Saved state is independent. Replacements use an entry snapshot before numeric callbacks and commit only after validation; case-expanded conflicts are rejected.'
@@ -1575,8 +1575,15 @@ class _Boundary:
             errors._raise_argument_context(error, "Configs", "arguments", None)
     @classmethod
     def from_parserinfo(cls, info):
-        'Copy vocabulary and calendar-order flags from dateutil parserinfo.\n\nParameters\n----------\ninfo : dateutil.parser.parserinfo\n    An instance or real subclass supplying the vocabulary and ordering flags.\n    Custom parsing methods and internal parserinfo caches are not copied.\n\nReturns\n-------\nConfigs\n    An independent configuration using the imported rules.\n\nRaises\n------\nTypeError\n    The source is not a parserinfo instance or a non-None vocabulary table\n    has an unsupported outer container, or an ordering flag is not a Python\n    bool or NumPy boolean scalar. Integers such as 0 and 1, text and other\n    truth-value objects are not accepted. The message identifies the field.\nConfigError\n    A token, mapped value or cross-table combination is invalid.\nOverflowError\n    A numeric configuration value exceeds the supported integer range.\n\nNotes\n-----\nJUMP, PERTAIN and UTCZONE accept list, tuple or set; TZOFFSET accepts dict.\nMONTHS, WEEKDAYS, HMS and AMPM accept list or tuple. Real subclasses of these\ncontainers are accepted. None leaves that table empty; it does not restore\nits default vocabulary. Other outer types, including generators and empty\ncontainers of the wrong type, raise TypeError before iteration.\n\nEach source table is read once in its established order. A string row is one\ncomplete alias. Existing alias collections, value ranges, case variants and\nconflict checks apply. The imported configuration does not depend on later\nchanges to the source. TZOFFSET values are UTC offsets in seconds.\n\nExamples\n--------\n>>> from dateutil.parser import parserinfo\n>>> from rstimes import Configs\n>>> cfg = Configs.from_parserinfo(parserinfo(dayfirst=True))\n>>> cfg.dayfirst\nTrue\n'
+        'Copy vocabulary and calendar-order flags from dateutil parserinfo.\n\nRequires optional python-dateutil; install rsTimes[dateutil] and restart Python.\n\nParameters\n----------\ninfo : dateutil.parser.parserinfo\n    An instance or real subclass supplying the vocabulary and ordering flags.\n    Custom parsing methods and internal parserinfo caches are not copied.\n\nReturns\n-------\nConfigs\n    An independent configuration using the imported rules.\n\nRaises\n------\nTypeError\n    The source is not a parserinfo instance or a non-None vocabulary table\n    has an unsupported outer container, or an ordering flag is not a Python\n    bool or NumPy boolean scalar. Integers such as 0 and 1, text and other\n    truth-value objects are not accepted. The message identifies the field.\nConfigError\n    A token, mapped value or cross-table combination is invalid.\nOverflowError\n    A numeric configuration value exceeds the supported integer range.\n\nNotes\n-----\nJUMP, PERTAIN and UTCZONE accept list, tuple or set; TZOFFSET accepts dict.\nMONTHS, WEEKDAYS, HMS and AMPM accept list or tuple. Real subclasses of these\ncontainers are accepted. None leaves that table empty; it does not restore\nits default vocabulary. Other outer types, including generators and empty\ncontainers of the wrong type, raise TypeError before iteration.\n\nEach source table is read once in its established order. A string row is one\ncomplete alias. Existing alias collections, value ranges, case variants and\nconflict checks apply. The imported configuration does not depend on later\nchanges to the source. TZOFFSET values are UTC offsets in seconds.\n\nExamples\n--------\n>>> from dateutil.parser import parserinfo\n>>> from rstimes import Configs\n>>> cfg = Configs.from_parserinfo(parserinfo(dayfirst=True))\n>>> cfg.dayfirst\nTrue\n'
         try:
+            if parserinfo is None:
+                error = ImportError(
+                    "dateutil integration requires python-dateutil; install rstimes[dateutil]"
+                )
+                # The normal failure boundary completes args with public context.
+                error.msg = None
+                raise errors._own_error(error, "info", info)
             if not issubclass(type(info), parserinfo):
                 raise errors._own_error(TypeError("must be a dateutil.parser.parserinfo instance"), "info", info)
             def source(name, flag=False):

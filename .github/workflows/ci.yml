@@ -5,6 +5,12 @@ on:
     branches: ["**"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      profile:
+        type: choice
+        options: [full, pilot]
+        default: full
+        description: Native verification scope; pilot cannot produce a release bundle.
 
 permissions:
   contents: read
@@ -16,3 +22,5 @@ concurrency:
 jobs:
   verify:
     uses: ./.github/workflows/build.yml
+    with:
+      profile: ${{ inputs.profile || 'full' }}

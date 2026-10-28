@@ -217,7 +217,7 @@ dependencies = [
 
 [[package]]
 name = "rstimes"
-version = "0.2.0-beta.1"
+version = "0.2.0-beta.2"
 dependencies = [
  "iana-time-zone",
  "pyo3",

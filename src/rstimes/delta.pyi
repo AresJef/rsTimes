@@ -286,6 +286,9 @@ Source date zero means no absolute replacement; clock zero remains an explicit s
 
 Reads the source fields directly, including real subclass attributes, without calling normalized(). Fractional fixed durations use the same microsecond rounding as Delta construction. The returned Delta follows Delta's date, fold and arithmetic rules; conversion does not promise that every operation can replace the source object unchanged.
 
+This adapter requires the optional python-dateutil package. Install
+rsTimes[dateutil] and restart Python after adding the dependency.
+
 Parameters
 ----------
 rd : relativedelta
@@ -299,6 +302,8 @@ Delta
 
 Raises
 ------
+ImportError
+    python-dateutil is not installed; install rsTimes[dateutil].
 TypeError
     An argument has an unsupported type.
 ValueError
