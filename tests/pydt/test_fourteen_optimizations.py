@@ -32,13 +32,13 @@ def test_numpy_factory_retains_the_parsers_keyword_constructor_shape():
 def test_local_timezone_resolves_at_first_use_and_then_stays_cached():
     import subprocess
     import sys
-    code = """import os, time
-os.environ['TZ'] = 'UTC'; time.tzset()
+    code = """import os
+os.environ['TZ'] = 'UTC'
 import rstimes
-os.environ['TZ'] = 'America/New_York'; time.tzset()
+os.environ['TZ'] = 'America/New_York'
 from rstimes.pydt import _local_timezone
 assert str(_local_timezone()) == 'America/New_York'
-os.environ['TZ'] = 'UTC'; time.tzset()
+os.environ['TZ'] = 'UTC'
 assert str(_local_timezone()) == 'America/New_York'
 """
     subprocess.run([sys.executable, '-P', '-c', code], check=True)

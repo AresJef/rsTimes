@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // function. Generate its exact public str.isalpha rule at build time;
         // parsing still uses only native integer lookups at runtime.
         let interpreter = pyo3_build_config::get();
-        let python = interpreter.executable.as_deref().unwrap_or("python");
+        let python = interpreter.executable().unwrap_or("python");
         let script = r#"
 ranges = []
 start = None
