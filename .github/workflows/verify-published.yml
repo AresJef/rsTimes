@@ -1,0 +1,122 @@
+name: Verify an existing published release
+
+# Read-only recovery/revalidation. This workflow never builds or publishes.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing annotated release tag to verify
+        required: true
+        default: v0.2.0b2
+        type: string
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  select:
+    name: Verify original public release identity
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.identity.outputs.matrix }}
+      source: ${{ steps.identity.outputs.source }}
+      metadata-name: public-verification-metadata-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13.17"
+      - run: python -m pip install --index-url https://pypi.org/simple packaging==26.3
+      - name: Read the certified existing files and native matrix
+        id: identity
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern release-manifest.json --pattern SHA256SUMS \
+            --pattern performance-receipt.json --dir bundle
+          python - <<'PYCODE'
+          import hashlib,json,os,subprocess,sys
+          from pathlib import Path
+          from urllib.parse import quote
+          sys.path.insert(0, 'tools')
+          from distribution_manifest import release_matrix,validate_matrix
+          from github_release import api
+          from release_candidate import validate_performance
+          repo=os.environ['GITHUB_REPOSITORY']
+          assert repo=='AresJef/rsTimes'
+          tag=os.environ['RELEASE_TAG']
+          manifest_path=Path('bundle/release-manifest.json')
+          manifest=json.loads(manifest_path.read_text())
+          assert tag=='v'+manifest['version']
+          ref=api(f"repos/{repo}/git/ref/tags/{quote(tag,safe='')}")['object']
+          assert ref['type']=='tag'
+          annotated=api(f"repos/{repo}/git/tags/{ref['sha']}")
+          certificate=json.loads(annotated['message'])
+          assert certificate['schema']=='rstimes-verified-release-v1'
+          source=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          assert annotated['object']['sha']==certificate['source_commit']==manifest['source_commit']==source
+          assert hashlib.sha256(manifest_path.read_bytes()).hexdigest()==certificate['manifest_sha256']
+          validate_matrix(manifest['wheels'],complete=True)
+          validate_performance(json.loads(Path('bundle/performance-receipt.json').read_text()),certificate,manifest)
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              output.write('matrix='+json.dumps(release_matrix(),separators=(',',':'))+'\n')
+              output.write('source='+source+'\n')
+          PYCODE
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: public-verification-metadata-${{ github.run_id }}-${{ github.run_attempt }}
+          path: bundle/
+          if-no-files-found: error
+          retention-days: 7
+
+  public-install:
+    name: PyPI install / ${{ matrix.platform.id }} / ${{ matrix.python.minor }}
+    needs: select
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
+    env:
+      TZ: UTC
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.select.outputs.source }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ matrix.python.version }}
+          architecture: ${{ matrix.platform.arch }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: ${{ needs.select.outputs.metadata-name }}
+          path: bundle/
+      - name: Download and verify public wheel on native desktop
+        if: runner.os != 'Linux'
+        run: python -I -B tools/download_public.py --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}"
+      - name: Download and verify public wheel in matching Linux libc
+        if: runner.os == 'Linux'
+        run: |
+          abi_tag="cp${{ matrix.python.minor }}"
+          abi_tag="${abi_tag//./}"
+          docker run --rm --volume "$PWD:/project" --workdir /project \
+            --env TZ=UTC --env PYTHONUTF8=1 \
+            --env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory \
+            --env GIT_CONFIG_VALUE_0=/project "${{ matrix.platform.container }}" \
+            "/opt/python/${abi_tag}-${abi_tag}/bin/python" -I -B tools/download_public.py \
+            --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}"
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: public-verification-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.platform.id }}-${{ matrix.python.minor }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 7

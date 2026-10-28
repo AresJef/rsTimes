@@ -157,7 +157,9 @@ jobs:
           abi_tag="cp${{ matrix.python.minor }}"
           abi_tag="${abi_tag//./}"
           docker run --rm --volume "$PWD:/project" --workdir /project \
-            --env TZ=UTC --env PYTHONUTF8=1 "${{ matrix.platform.container }}" \
+            --env TZ=UTC --env PYTHONUTF8=1 \
+            --env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory \
+            --env GIT_CONFIG_VALUE_0=/project "${{ matrix.platform.container }}" \
             "/opt/python/${abi_tag}-${abi_tag}/bin/python" -I -B tools/download_public.py \
             --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}"
       - if: always()
