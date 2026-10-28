@@ -173,10 +173,16 @@ jobs:
           retention-days: 3
 
   oracle:
-    name: Complete frozen-upstream comparisons / pandas2.3
+    name: Frozen-upstream comparisons / ${{ matrix.python }} / NumPy ${{ matrix.numpy }}
     needs: native
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { python: "3.13.17", minor: "3.13", numpy: "2.3.3", requirements: "requirements-oracle.txt" }
+          - { python: "3.12.10", minor: "3.12", numpy: "1.26.4", requirements: "requirements-oracle-numpy1.txt" }
     env:
       TZ: UTC
     steps:
@@ -185,10 +191,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.13.17"
+          python-version: ${{ matrix.python }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: wheel-${{ github.run_id }}-${{ github.run_attempt }}-linux-x86_64-3.13
+          name: wheel-${{ github.run_id }}-${{ github.run_attempt }}-linux-x86_64-${{ matrix.minor }}
           path: dist/
       - name: Select a compatible oracle environment
         run: |
@@ -197,15 +203,16 @@ jobs:
       - name: Exercise complete original regression suite
         run: |
           python -m pip install --index-url https://pypi.org/simple --upgrade pip==26.2.2
-          python -m pip install --index-url https://pypi.org/simple -r requirements-oracle.txt dist/*.whl
+          python -m pip install --index-url https://pypi.org/simple -r ${{ matrix.requirements }} dist/*.whl
           mkdir -p evidence
           python -I -B tools/wheel_smoke.py --with-pandas --with-polars > evidence/oracle-installed.json
           python -I -B tools/run_release_tests.py --with-oracle --junitxml evidence/oracle-tests.xml
           python -m pip check
+          python -m pip freeze > evidence/dependencies.txt
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: evidence-${{ github.run_id }}-${{ github.run_attempt }}-oracle
+          name: evidence-${{ github.run_id }}-${{ github.run_attempt }}-oracle-${{ matrix.minor }}
           path: evidence/
           retention-days: 3
 
