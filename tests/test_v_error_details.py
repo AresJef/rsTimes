@@ -27,7 +27,11 @@ calls = []
 def fail(error):
     calls.append(error)
     raise marker
-errors._own_error = fail
+# Optional imports may already prepare the helper cache on some Python builds.
+# Change the callable itself, so the injected real failure reaches that cache.
+errors.calls = calls
+errors.marker = marker
+errors._own_error.__code__ = fail.__code__
 maximum = 2**63 - 1
 # A narrow intermediate overflow that normalizes back into range is not an
 # error and must not enter the Python error helper at all.

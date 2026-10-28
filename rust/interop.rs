@@ -76,6 +76,7 @@ struct TimestampProperties {
     add: Py<PyAny>,
     subtract: Py<PyAny>,
     reflected_subtract: Py<PyAny>,
+    replace_needs_tail: bool,
 }
 static TIMESTAMP_PROPERTIES: PyOnceLock<TimestampProperties> = PyOnceLock::new();
 static DURATION_PROPERTY: PyOnceLock<BaseProperty> = PyOnceLock::new();
@@ -91,6 +92,7 @@ pub(crate) fn _configure_optional(
     duration: &Bound<'_, PyAny>,
     nat: &Bound<'_, PyAny>,
     series: &Bound<'_, PyAny>,
+    timestamp_replace_needs_tail: bool,
 ) -> PyResult<()> {
     let candidates = [timestamp, duration, nat].map(|value| {
         if value.is_none() {
@@ -122,6 +124,7 @@ pub(crate) fn _configure_optional(
                 .getattr("__rsub__")
                 .map_err(crate::error_context::external)?
                 .unbind(),
+            replace_needs_tail: timestamp_replace_needs_tail,
         };
         let _ = TIMESTAMP_PROPERTIES.set(py, properties);
     }
@@ -812,10 +815,12 @@ fn finish_datetime_subclass<'py, const VECTOR: bool>(
         return replace_timestamp(
             other,
             [result[0], month, day, hour, minute, second, microsecond],
-            if nanos != 0 {
-                // pandas2.replace otherwise consults an overridden nanosecond
-                // property. Pass the already-read true tail explicitly; omit
-                // zero because pandas3 can narrow a wide coarse date to ns.
+            if nanos != 0
+                && (replace_fraction || timestamp_properties(other.py())?.replace_needs_tail)
+            {
+                // pandas2.replace consults an overridden nanosecond property.
+                // pandas3 already preserves it; retain that faster path. Omit
+                // zero because an explicit zero can narrow a wide date to ns.
                 Some(if replace_fraction { 0 } else { nanos })
             } else {
                 None

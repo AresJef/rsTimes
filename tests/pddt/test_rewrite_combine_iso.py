@@ -16,7 +16,11 @@ from rstimes import Pddt
     "2024-01-02T12:30Z","2024-01-02T12:30+08",
 ])
 def test_dedicated_iso_covers_standard_datetime_examples(text):
-    expected=datetime.fromisoformat(text)
+    # Python3.14 stopped accepting these two historical datetime forms.
+    # Keep this library's adopted3.13 interpretation independent of that drift.
+    fractional = {"2024-01-02T12:30.5": datetime(2024,1,2,12,30,0,500000),
+                  "2024-01-02T12.5": datetime(2024,1,2,12,0,0,500000)}
+    expected=fractional[text] if text in fractional else datetime.fromisoformat(text)
     result=Pddt.fromisoformat(text,size=2)
     actual=result[0]
     assert (actual.year,actual.month,actual.day,actual.hour,actual.minute,actual.second,actual.microsecond)==(

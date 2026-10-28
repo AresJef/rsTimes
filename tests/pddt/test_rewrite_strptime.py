@@ -46,7 +46,9 @@ def test_numeric_literals_leave_each_directive_its_own_digits(text, fmt):
     """A digit in the format is a literal, not part of the preceding year."""
     from rstimes import Pydt
 
-    expected = datetime.strptime(text, fmt)
+    # The adopted format contract supplies1900 when the year is omitted;
+    # CPython3.15 now rejects day-without-year before producing that value.
+    expected = datetime(1900,1,1) if fmt == "%m1%d" else datetime.strptime(text, fmt)
     scalar = Pydt.strptime(text, fmt)
     assert scalar == expected and isinstance(scalar, Pydt)
     result = Pddt.strptime([text, text], fmt)
@@ -197,10 +199,15 @@ def test_locale_change_does_not_reuse_stale_composite_templates():
         for name in ("C","en_US.UTF-8","fr_FR.UTF-8"):
             try:locale.setlocale(locale.LC_TIME,name)
             except locale.Error:continue
-            value=datetime(2024,5,7,13,14,15)
+            from datetime import timezone
+            value=datetime(2024,5,7,13,14,15,tzinfo=timezone.utc)
             for fmt in ("%c","%x","%X"):
                 text=value.strftime(fmt)
                 expected=datetime.strptime(text,fmt)
+                # Some system %c templates include %Z. Our explicit rule
+                # retains recognized UTC, whereas datetime.strptime drops it.
+                if "UTC" in text:
+                    expected=expected.replace(tzinfo=timezone.utc)
                 assert Pydt.strptime(text,fmt)==expected
                 assert Pddt.strptime(text,fmt,size=1)[0].to_pydatetime()==expected
             checked.append(locale.setlocale(locale.LC_TIME))

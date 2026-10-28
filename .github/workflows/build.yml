@@ -73,6 +73,7 @@ jobs:
           architecture: ${{ matrix.platform.arch }}
       - name: Prepare fixed build tools and release identity
         run: |
+          rustup set profile minimal
           python -m pip install --index-url https://pypi.org/simple --upgrade pip==26.2.2
           python -m pip install --index-url https://pypi.org/simple maturin==1.15.0 twine==7.0.0 packaging==26.3
           python - <<'PYCODE'

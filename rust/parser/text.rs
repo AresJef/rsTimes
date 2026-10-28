@@ -191,12 +191,30 @@ pub(super) fn space(ch: u32) -> bool {
 pub(super) fn ascii_letter(ch: u32) -> bool {
     (65..=90).contains(&ch) || (97..=122).contains(&ch)
 }
+#[cfg(not(windows))]
 unsafe extern "C" {
     fn _PyUnicode_IsAlpha(ch: u32) -> std::ffi::c_int;
 }
+#[cfg(windows)]
+mod python_unicode {
+    include!(concat!(env!("OUT_DIR"), "/python_unicode_letters.rs"));
+}
+#[cfg(windows)]
+#[inline]
+fn non_ascii_alpha(ch: u32) -> bool {
+    let ranges = python_unicode::LETTERS;
+    let index = ranges.partition_point(|&(first, _)| first <= ch);
+    index != 0 && ch <= ranges[index - 1].1
+}
+#[cfg(not(windows))]
+#[inline]
+fn non_ascii_alpha(ch: u32) -> bool {
+    // SAFETY: CPython's exported classifier accepts every Unicode code point.
+    unsafe { _PyUnicode_IsAlpha(ch) != 0 }
+}
 #[inline]
 pub(super) fn alpha(ch: u32) -> bool {
-    ascii_letter(ch) || (ch > 127 && unsafe { _PyUnicode_IsAlpha(ch) != 0 })
+    ascii_letter(ch) || (ch > 127 && non_ascii_alpha(ch))
 }
 
 /// Native normalized code points and token boundaries. A scan allocates the
