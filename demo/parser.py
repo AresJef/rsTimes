@@ -6,25 +6,13 @@ the string and object entrypoints, their results, and configuration changes.
 The examples are interactive demonstrations, not formal performance measurements.
 """
 from pathlib import Path
-import json
-import os
 import sys
 
 
-def _launch_selected_environment():
-    here = Path(__file__).resolve()
-    root = here.parents[1]
-    selected = json.loads((here.parent / 'runtime.json').read_text(encoding='utf-8'))
-    environment = (root / selected['environment']).resolve()
-    python = environment / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
-    if __name__ == '__main__' and (Path(sys.prefix).resolve() != environment or not sys.flags.isolated):
-        os.execv(str(python), [str(python), '-I', str(here), *sys.argv[1:]])
-    sys.path.insert(0, str(here.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _runtime import use_demo_runtime
 
-
-_launch_selected_environment()
-# The existing launcher verifies package version, native path and SHA-256.
-import delta as _delta_demo
+use_demo_runtime(__file__, direct=__name__ == "__main__")
 from datetime import date, datetime, timezone
 from importlib.metadata import version
 import copy

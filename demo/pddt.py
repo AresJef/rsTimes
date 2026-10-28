@@ -4,24 +4,13 @@ Run ``python demo/pddt.py`` from any directory. Timings are batch averages for
 interactive comparison; the acceptance report contains formal measurements.
 """
 from pathlib import Path
-import json
-import os
 import sys
 
 
-def _launch_selected_environment():
-    """Select the shared demo environment before importing rsTimes."""
-    here=Path(__file__).resolve()
-    selected=json.loads((here.parent/'runtime.json').read_text(encoding='utf-8'))
-    environment=(here.parents[1]/selected['environment']).resolve()
-    python=environment/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
-    if __name__=='__main__' and (Path(sys.prefix).resolve()!=environment or not sys.flags.isolated):
-        os.execv(str(python),[str(python),'-I',str(here),*sys.argv[1:]])
-    sys.path.insert(0,str(here.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _runtime import use_demo_runtime
 
-
-_launch_selected_environment()
-import delta as _delta_demo  # Reuse the common version and native identity check.
+use_demo_runtime(__file__, direct=__name__ == "__main__")
 from datetime import date,datetime,timedelta,timezone
 from statistics import median
 from importlib.metadata import version

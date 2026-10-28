@@ -5,25 +5,13 @@ demos, this uses runtime.json to select and verify the adopted local wheel.
 Timings are informal observations, not formal performance acceptance.
 """
 from pathlib import Path
-import json
-import os
 import sys
 
 
-def _launch_selected_environment():
-    """Use the shared demo selection before importing either implementation."""
-    here = Path(__file__).resolve()
-    root = here.parents[1]
-    selected = json.loads((here.parent / "runtime.json").read_text(encoding='utf-8'))
-    environment = (root / selected["environment"]).resolve()
-    python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-    if __name__ == "__main__" and (Path(sys.prefix).resolve() != environment or not sys.flags.isolated):
-        os.execv(str(python), [str(python), "-I", str(here), *sys.argv[1:]])
-    sys.path.insert(0, str(here.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _runtime import use_demo_runtime
 
-
-_launch_selected_environment()
-import delta as _delta_demo  # Reuse the existing version/native identity check.
+use_demo_runtime(__file__, direct=__name__ == "__main__")
 from datetime import datetime, date, timedelta, timezone
 from importlib.metadata import version
 from statistics import median

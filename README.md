@@ -94,7 +94,7 @@ Windows PowerShell 可用 `Get-ChildItem dist\*.whl | ForEach-Object { python -m
 
 ## 对照 demo
 
-四个 `demo/*.py` 用独立环境比较冻结官方版本，不是运行库依赖或正式性能验收。先创建 `demo/runtime.json` 指定的环境，在其中安装 `requirements-oracle.txt` 和已发布的 `rsTimes==0.2.0b1`，并从本次 GitHub Release 下载 `release-manifest.json` 到该文件指定的位置。启动器核对版本、加载位置和清单中的 native SHA256，不会静默使用旧包或临时编译。随后可从任意目录执行四个 demo；不要把官方 cyTimes 强装进 pandas3 环境。
+四个 `demo/*.py` 是交互示范，不是运行库依赖或正式性能验收。Delta、Parser、Pydt 使用 `requirements-oracle.txt` 的 pandas2 兼容环境比较冻结 cyTimes；Pddt 使用 `requirements-test.txt` 的 pandas3 环境比较 pandas3。两边均安装已发布的 `rsTimes==0.2.0b1`，通过 `demo/runtime.json` 分别选择环境并读取本次 GitHub Release 的 `release-manifest.json`。启动器核对版本、加载位置和 native SHA256，不会静默使用旧包或临时编译。详细准备方式见 [demo指南](demo/README.md)；不要把官方 cyTimes 强装进 pandas3 环境。
 
 ## 自动发行
 

@@ -30,66 +30,15 @@ acceptance: they do not filter CPU interference or reuse benchmark evidence.
 """
 
 import json
-import os
 import sys
-from hashlib import sha256
 from pathlib import Path
 from importlib.metadata import version
 
 
-def _use_latest_rust() -> None:
-    """Select and verify the project's current demo environment before imports.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _runtime import use_demo_runtime
 
-    Direct execution restarts under the configured interpreter in isolated mode,
-    keeping package selection independent of the caller's working directory and
-    PYTHONPATH. Importing this module requires that same environment and never
-    replaces the caller's process. A stale version or binary raises RuntimeError
-    rather than displaying results from an older installation.
-    """
-    root = Path(__file__).resolve().parents[1]
-    runtime = json.loads((root / "demo" / "runtime.json").read_text(encoding="utf-8"))
-    environment = (root / runtime["environment"]).resolve()
-    python = (
-        environment / "Scripts" / "python.exe"
-        if os.name == "nt"
-        else environment / "bin" / "python"
-    )
-    if not python.is_file():
-        raise RuntimeError(f"Demo environment is missing: {python}. Refresh demo/runtime.json.")
-
-    different_environment = Path(sys.prefix).resolve() != environment
-    if __name__ == "__main__" and (different_environment or not sys.flags.isolated):
-        os.execv(str(python), [str(python), "-I", str(Path(__file__).resolve()), *sys.argv[1:]])
-    if different_environment:
-        raise RuntimeError(f"Import this demo using {python}, or execute demo/delta.py directly.")
-
-    # Check after selecting CPython 3.13, so the launcher's Python need not have tomllib.
-    from tomllib import load
-
-    with (root / "pyproject.toml").open("rb") as source:
-        project_version = load(source)["project"]["version"]
-    installed_version = version("rstimes")
-    if runtime["version"] != project_version or installed_version != runtime["version"]:
-        raise RuntimeError(
-            f"Demo version mismatch: project={project_version}, configured={runtime['version']}, "
-            f"installed={installed_version}. Install the new wheel and refresh demo/runtime.json."
-        )
-
-    import rstimes._native as native
-
-    manifest = json.loads((root / runtime["release_manifest"]).read_text(encoding="utf-8"))
-    if manifest["version"] != installed_version:
-        raise RuntimeError("Demo release manifest version does not match the installed package.")
-    expected_hashes = {wheel["native_sha256"] for wheel in manifest["wheels"]}
-    binary = Path(native.__file__).resolve()
-    if (
-        not binary.is_relative_to(environment)
-        or sha256(binary.read_bytes()).hexdigest() not in expected_hashes
-    ):
-        raise RuntimeError("Demo Rust binary mismatch. Install the wheel recorded in the release manifest.")
-
-
-_use_latest_rust()
+use_demo_runtime(__file__, direct=__name__ == "__main__")
 
 import copy
 import pickle

@@ -3,5 +3,8 @@
   "version": "0.2.0b1",
   "release_manifest": ".local/rstimes-beta-release-20261028/public-release/release-manifest.json",
   "status": "Release demonstration; requires the verified published wheel and its manifest",
-  "selection": "published_release"
+  "selection": "published_release",
+  "environments": {
+    "pddt": ".local/rstimes-beta-release-20261028/published-pd3"
+  }
 }

@@ -138,14 +138,14 @@ jobs:
           from pathlib import Path
           manifest = json.loads(Path('evidence/release-manifest.json').read_text())
           command = [sys.executable, '-m', 'pip', 'download', '--index-url', 'https://pypi.org/simple',
-                     '--only-binary=:all:', '--no-deps', '--dest', 'pypi-wheel', 'rsTimes==' + manifest['version']]
-          for attempt in range(3):
+                     '--no-cache-dir', '--only-binary=:all:', '--no-deps', '--dest', 'pypi-wheel', 'rsTimes==' + manifest['version']]
+          for attempt in range(5):
               result = subprocess.run(command, check=False)
               if result.returncode == 0:
                   break
-              if attempt == 2:
+              if attempt == 4:
                   raise SystemExit(result.returncode)
-              time.sleep(10)
+              time.sleep(30)
           wheel, = Path('pypi-wheel').glob('*.whl')
           expected, = [row for row in manifest['wheels'] if row['filename'] == wheel.name]
           digest = hashlib.sha256(wheel.read_bytes()).hexdigest()

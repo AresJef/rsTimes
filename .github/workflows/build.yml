@@ -154,6 +154,19 @@ jobs:
           python -I -B tools/wheel_smoke.py --expect-version "$PACKAGE_VERSION" --with-pandas --with-polars > evidence/sdist-installed.json
           python -I -B tools/run_release_tests.py --junitxml evidence/sdist-tests.xml
           python -m pip check
+      - name: Exercise Pddt demo with the actual wheel and pandas3
+        if: matrix.platform.id == 'macos-arm64' && matrix.python.minor == '3.13'
+        run: |
+          python -m pip install --no-index --no-deps --force-reinstall dist/*.whl
+          python tools/distribution_manifest.py --directory dist --wheels 1 --sdists 1 --output evidence/demo-distributions.json
+          python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          version = json.loads(Path('evidence/demo-distributions.json').read_text())['version']
+          Path('demo/runtime.json').write_text(json.dumps({'environment': '.wheel-test', 'version': version,
+              'release_manifest': 'evidence/demo-distributions.json', 'selection': 'ci_installed_wheel'}))
+          PYCODE
+          python -I -B demo/pddt.py > evidence/pddt-demo.log
       - name: Bind tested files to source
         run: python tools/distribution_manifest.py --directory dist --wheels 1 --sdists ${{ matrix.platform.id == 'macos-arm64' && matrix.python.minor == '3.13' && '1' || '0' }} --output evidence/distributions.json
       - name: Save only verified distributions
@@ -209,6 +222,20 @@ jobs:
           python -I -B tools/run_release_tests.py --with-oracle --junitxml evidence/oracle-tests.xml
           python -m pip check
           python -m pip freeze > evidence/dependencies.txt
+      - name: Exercise original-comparison demos in the compatible environment
+        if: matrix.minor == '3.13'
+        run: |
+          python tools/distribution_manifest.py --directory dist --wheels 1 --sdists 0 --output evidence/demo-distributions.json
+          python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          version = json.loads(Path('evidence/demo-distributions.json').read_text())['version']
+          Path('demo/runtime.json').write_text(json.dumps({'environment': '.wheel-test', 'version': version,
+              'release_manifest': 'evidence/demo-distributions.json', 'selection': 'ci_installed_wheel'}))
+          PYCODE
+          python -I -B demo/delta.py > evidence/delta-demo.log
+          python -I -B demo/parser.py > evidence/parser-demo.log
+          python -I -B demo/pydt.py > evidence/pydt-demo.log
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
