@@ -1,6 +1,7 @@
 """Independent duration expectations and the approved raw-field import rules."""
 
 from datetime import date, datetime, timedelta
+from fractions import Fraction
 import json
 import math
 from pathlib import Path
@@ -21,28 +22,38 @@ STARTS = (datetime(2024, 1, 31, 13, 14, 15, 123456), datetime(2023, 2, 28),
           datetime(2024, 2, 29), datetime(2024, 3, 31), datetime(2025, 12, 31), datetime(2000, 2, 29))
 
 
-def micros(value):
-    """Read a fixed duration using integer arithmetic, without total_seconds()."""
+def nanos(value):
+    """Read the exact fixed duration; GN04 now retains ns at the Delta exit."""
     if isinstance(value, timedelta):
-        return (value.days * 86400 + value.seconds) * 1000000 + value.microseconds
-    return (((value.days * 24 + value.hours) * 60 + value.minutes) * 60 + value.seconds) * 1000000 + value.microseconds
+        return ((value.days * 86400 + value.seconds) * 1000000 + value.microseconds)*1000
+    return ((((value.days * 24 + value.hours) * 60 + value.minutes) * 60 + value.seconds) * 1000000 + value.microseconds)*1000 + value.nanoseconds
+
+
+def expected_ns(options):
+    """Independent exact binary Fraction sum, rounded once at the approved ns exit.
+
+    These keep the existing input vectors and test IDs. The former standard-us
+    expectation is replaced solely because GN04 explicitly changes Delta's exit.
+    """
+    return round(sum(Fraction(options.get(field,0))*factor*1000
+                     for field,factor in zip(FIXED,FACTORS)))
 
 
 @pytest.mark.parametrize("options", DATA["fractional_inputs"])
 def test_delta_fractional_duration_matches_independent_standard(options):
-    expected = micros(timedelta(**options))
-    assert micros(Delta(**options)) == expected
-    assert micros(Delta(**dict(reversed(options.items())))) == expected
+    expected = expected_ns(options)
+    assert nanos(Delta(**options)) == expected
+    assert nanos(Delta(**dict(reversed(options.items())))) == expected
     positional = (0, 0, 0, 0, *(options[k] for k in ("days", "hours", "minutes", "seconds")), 0, options["microseconds"])
-    assert micros(Delta(*positional)) == expected
+    assert nanos(Delta(*positional)) == expected
 
 
 @pytest.mark.parametrize("options", DATA["fractional_inputs"])
 def test_import_fractional_duration_uses_actual_source_fields(options):
     source = relativedelta(**options)
     fixed = {name: getattr(source, name) for name in RELATIVE[2:]}
-    expected = micros(timedelta(**fixed))
-    assert micros(Delta.from_relativedelta(source)) == expected
+    expected = expected_ns(fixed)
+    assert nanos(Delta.from_relativedelta(source)) == expected
 
 
 def test_all_seven_units_share_the_standard_small_tail_order():
@@ -50,14 +61,14 @@ def test_all_seven_units_share_the_standard_small_tail_order():
     choices = (-1.5, -1.1, -0.3, -0.5, -1e-7, 0.0, 1e-7, 0.1, 0.5, 1.1, 1.5, 1 / 3)
     for _ in range(700):
         options = {unit: rng.choice(choices) for unit in FIXED}
-        expected = micros(timedelta(**options))
-        assert micros(Delta(**options)) == expected
-        assert micros(Delta(**dict(reversed(options.items())))) == expected
+        expected = expected_ns(options)
+        assert nanos(Delta(**options)) == expected
+        assert nanos(Delta(**dict(reversed(options.items())))) == expected
 
 
 def test_fractional_cancellation_on_both_sides_of_rounding_boundaries():
     # Choose inputs near half a microsecond after large fractional units cancel.
-    # Expected answers still come only from the independent standard timedelta.
+    # Expected answers come from an exact independent sum at the new ns exit.
     for sign in (-1, 1):
         for week in (0.1, 0.3, 0.99999999999999):
             options = dict(weeks=sign * week, days=-sign * 0.3,
@@ -68,33 +79,34 @@ def test_fractional_cancellation_on_both_sides_of_rounding_boundaries():
                          if (value := options.get(unit, 0)))
             for distance in (-1 / 512, -1 / 1024, -1 / 2048, 0, 1 / 2048, 1 / 1024, 1 / 512):
                 options["microseconds"] = 0.5 - (scaled - math.floor(scaled)) + distance
-                assert micros(Delta(**options)) == micros(timedelta(**options))
+                assert nanos(Delta(**options)) == expected_ns(options)
 
 
 @pytest.mark.parametrize("integer", [2**53 + 1, -(2**53 + 1), 2**63 - 1, -(2**63)])
 @pytest.mark.parametrize("seconds", [-0.0000005, 0.0000005])
 def test_large_microsecond_integer_and_fraction_use_full_parity(integer, seconds):
-    expected = micros(timedelta(microseconds=integer, seconds=seconds))
-    assert micros(Delta(microseconds=integer, seconds=seconds)) == expected
+    expected = expected_ns(dict(microseconds=integer,seconds=seconds))
+    assert nanos(Delta(microseconds=integer, seconds=seconds)) == expected
 
 
 def test_source_import_does_not_add_storage_or_change_immutable_values():
     value = Delta(days=1)
     before = hash(value)
+    before_size = value.__sizeof__()
     source = relativedelta(days=1.5)
-    assert Delta.__basicsize__ == 64
     assert value + source == Delta(days=2, hours=12)
     assert value.days == 1 and hash(value) == before
+    assert value.__sizeof__() == before_size and not hasattr(value,"__dict__")
 
 
 @pytest.mark.parametrize("field,factor", zip(FIXED, FACTORS))
 @pytest.mark.parametrize("number", [-1.5, -0.5, -0.0, 0.5, 1.5, 2.5])
 def test_each_fixed_float_unit_and_mixed_absolute_constructor(field, factor, number):
     options = {field: number}
-    expected = micros(timedelta(**options))
-    assert micros(Delta(**options)) == expected
+    expected = expected_ns(options)
+    assert nanos(Delta(**options)) == expected
     mixed = Delta(month=2, **options)
-    assert mixed.month == 2 and micros(mixed) == expected
+    assert mixed.month == 2 and nanos(mixed) == expected
 
 
 @pytest.mark.parametrize("field,factor", zip(FIXED, FACTORS))
@@ -105,16 +117,19 @@ def test_large_integer_units_remain_exact(field, factor, number):
         with pytest.raises(OverflowError):
             Delta(**{field: number})
     else:
-        assert micros(Delta(**{field: number})) == expected
+        assert nanos(Delta(**{field: number})) == expected*1000
 
 
 @pytest.mark.parametrize("integer", [2**53, 2**53 + 1, 2**63 - 1, -(2**63)])
 @pytest.mark.parametrize("fraction", [-0.5, 0.5])
 def test_large_integer_plus_half_microsecond_keeps_integer_parity(integer, fraction):
-    # A day is an even number of microseconds, so its exact integer contribution
-    # does not change half-to-even parity in the small fractional component.
-    value = Delta(days=integer, microseconds=fraction)
-    assert micros(value) == integer * 86400000000
+    # Half a us is now an exact500ns. The canonical day limit still applies.
+    expected=integer*86_400_000_000_000+round(Fraction(fraction)*1000)
+    if not -(2**63) <= expected//86_400_000_000_000 < 2**63:
+        with pytest.raises(OverflowError):
+            Delta(days=integer,microseconds=fraction)
+    else:
+        assert nanos(Delta(days=integer,microseconds=fraction)) == expected
 
 
 @pytest.mark.parametrize("options,accepted", zip(DATA["calendar_inputs"], DATA["calendar_accept"]))

@@ -1,9 +1,13 @@
 //! Function-based date/time parsing and the Python compatibility boundary.
+mod completion;
 pub(crate) mod config;
+mod core;
 pub(crate) mod fields;
 pub(crate) mod formatted;
 pub(crate) mod iso_factory;
+pub(crate) mod native;
 pub(crate) mod objects;
+pub(crate) mod prepared;
 mod resolve;
 mod scan;
 mod text;
@@ -57,23 +61,45 @@ fn native_error(error: ParseError) -> PyErr {
         }
         ParseError::Overflow(message) => crate::error_context::overflow(message),
         ParseError::Assertion(message) => crate::error_context::runtime(message),
+        ParseError::UnknownRegion(key) => Python::attach(|py| {
+            // SAFETY: these are exact Python code points, including isolated
+            // surrogates. The temporary slice stays live while Python copies it.
+            let word = unsafe {
+                Bound::from_owned_ptr_or_err(
+                    py,
+                    ffi::PyUnicode_FromKindAndData(
+                        ffi::PyUnicode_4BYTE_KIND as i32,
+                        key.as_ptr().cast(),
+                        key.len() as isize,
+                    ),
+                )
+            };
+            match word.and_then(|word| crate::error_context::preview(&word)) {
+                Ok(key) => crate::error_context::domain(
+                    py,
+                    "ParseError",
+                    format!(
+                        "time zone {key} is not registered; register the IANA name with cfg.add_tzone() and pass cfg to this call"
+                    ),
+                ),
+                Err(error) => error,
+            }
+        }),
+        ParseError::ConflictingRegions(key, previous) => Python::attach(|py| {
+            let message = (|| -> PyResult<String> {
+                Ok(format!(
+                    "conflicting time zones: {} and {}",
+                    crate::error_context::text_preview(py, &key)?,
+                    crate::error_context::text_preview(py, &previous)?
+                ))
+            })();
+            match message {
+                Ok(message) => crate::error_context::domain(py, "ParseError", message),
+                Err(error) => error,
+            }
+        }),
     }
 }
-#[cold]
-#[inline(never)]
-fn failed(py: Python<'_>, message: Bound<'_, PyAny>, cause: Option<PyErr>) -> PyErr {
-    // The native parser has already chosen its own error category. A target
-    // constructor/callback is external and must not become a parsing failure.
-    if let Some(error) = cause {
-        return error;
-    }
-    let detail = match message.extract::<String>() {
-        Ok(detail) => detail,
-        Err(error) => return error,
-    };
-    crate::error_context::domain(py, "ParseError", detail)
-}
-
 /// Complete error context at the actual public parser entry.
 #[cold]
 #[inline(never)]
@@ -99,84 +125,10 @@ fn is_date_default(value: &Bound<'_, PyAny>) -> bool {
     }
 }
 
-/// Complete shared native fields before allocating any Python result.
+/// Complete shared native fields; Python exceptions are created only here.
 #[inline]
 pub(crate) fn complete<P: Policy>(f: &Fields<P>, default: Option<[i32; 3]>) -> PyResult<[i32; 7]> {
-    let yy = if f.is_year_set() {
-        f.year
-    } else if let Some(v) = default {
-        v[0]
-    } else {
-        return Err(native_error(ParseError::Value(
-            "year is missing; provide a complete default date".into(),
-        )));
-    };
-    let mm = if f.is_month_set() {
-        f.month
-    } else if let Some(v) = default {
-        v[1]
-    } else {
-        return Err(native_error(ParseError::Value(
-            "month is missing; provide a complete default date".into(),
-        )));
-    };
-    let dd = if f.is_day_set() {
-        f.day
-    } else if let Some(v) = default {
-        v[2]
-    } else {
-        return Err(native_error(ParseError::Value(
-            "day is missing; provide a complete default date".into(),
-        )));
-    };
-    let dd = if dd > 28 {
-        let last = crate::calendar::days_in_month(i64::from(yy), i64::from(mm)) as i32;
-        if f.strict() && f.is_day_set() && dd > last {
-            return Err(native_error(ParseError::Value(format!(
-                "day={dd} is invalid for {yy:04}-{mm:02}; expected 1 through {last}, inclusive"
-            ))));
-        }
-        dd.min(last)
-    } else {
-        dd
-    };
-    let (mut yy, mut mm, mut dd) = (yy, mm, dd);
-    if f.is_weekday_set() {
-        // Native calendar indexing requires a real month. Match the reference
-        // calendar helper's clamp before the Python constructor validates.
-        let ordinal =
-            crate::calendar::ordinal(i64::from(yy), i64::from(mm.clamp(1, 12)), i64::from(dd));
-        let weekday = (ordinal - 1).rem_euclid(7) as i32;
-        if weekday != f.weekday {
-            if f.strict() && f.is_year_set() && f.is_month_set() && f.is_day_set() {
-                return Err(native_error(ParseError::Value(format!(
-                    "conflicting weekday: {yy:04}-{mm:02}-{dd:02} has weekday {weekday}, not {}",
-                    f.weekday
-                ))));
-            }
-            let adjustment = f.weekday.checked_sub(weekday).ok_or_else(|| {
-                crate::error_context::overflow(
-                    "weekday adjustment exceeds the supported integer range",
-                )
-            })?;
-            let date = crate::calendar::from_ordinal(ordinal + i64::from(adjustment))
-                .map_err(crate::error_context::overflow)?;
-            yy = i32::try_from(date[0]).map_err(|_| {
-                crate::error_context::overflow("weekday adjustment exceeds the native year range")
-            })?;
-            mm = date[1] as i32;
-            dd = date[2] as i32;
-        }
-    }
-    let h = if f.is_hour_set() { f.hour } else { 0 };
-    let m = if f.is_minute_set() { f.minute } else { 0 };
-    let s = if f.is_second_set() { f.second } else { 0 };
-    let us = if f.is_microsecond_set() {
-        f.microsecond
-    } else {
-        0
-    };
-    Ok([yy, mm, dd, h, m, s, us])
+    completion::complete(f, default).map_err(native_error)
 }
 
 fn build<'py, P: Policy>(
@@ -738,7 +690,7 @@ pub(crate) fn read_fields_prepared<'py, P: Policy>(
 #[inline(always)]
 #[allow(clippy::too_many_arguments)]
 fn scan_prepared<'py, P: Policy>(
-    py: Python<'py>,
+    _py: Python<'py>,
     input: &Bound<'py, PyString>,
     default_date: Option<[i32; 3]>,
     yearfirst: Option<bool>,
@@ -754,93 +706,34 @@ fn scan_prepared<'py, P: Policy>(
         None => None,
     };
     let mut view = TextView::new(input)?;
-    let mut fields = Fields::<P>::new();
-    let mut region = None;
-    let result = match scan::prefix(&view, &mut fields, ignoretz, isoformat) {
-        Err(error) => Err(native_error(error)),
-        Ok((start, _)) if start == view.len() => Ok(()),
-        Ok(_) if P::ISO_ONLY => Err(native_error(ParseError::Value(
-            "expected a complete ISO date/time string".to_owned(),
-        ))),
-        Ok((start, _)) => {
-            let configured = configuration.is_some_and(|cfg| cfg.borrow().has_zones());
-            let mut tokens = if configured {
-                None
-            } else {
-                Some(text::tokenize(&view, start))
-            };
-            if configured || tokens.as_ref().is_some_and(|t| t.region_candidate) {
-                region = zones::suffix(py, &mut view, configuration, ignoretz, fields.strict())
-                    .map_err(|error| {
-                        failed(
-                            py,
-                            PyString::new(py, "Cannot resolve registered time zone.").into_any(),
-                            Some(error),
-                        )
-                    })?;
-                tokens = Some(text::tokenize(&view, start));
-            }
-            let tokens =
-                tokens.ok_or_else(|| crate::error_context::runtime("missing parser token view"))?;
-            if let Some(configuration) = configuration {
-                let native_config = configuration.borrow();
-                let mut lookup = native_config.native_view();
-                scan::process_tokens(
-                    &tokens,
-                    &mut fields,
-                    &mut lookup,
-                    ignoretz || region.is_some(),
-                    default_date.map(|date| date[0]),
-                )
-                .map_err(native_error)
-            } else {
-                let mut lookup = config::DefaultView;
-                scan::process_tokens(
-                    &tokens,
-                    &mut fields,
-                    &mut lookup,
-                    ignoretz || region.is_some(),
-                    default_date.map(|date| date[0]),
-                )
-                .map_err(native_error)
-            }
-        }
-    };
-    result?;
-    // Defaults are immutable Rust rules, so the ordinary path needs no Python
-    // Configs borrow. Read explicit settings at their original expression:
-    // Resolve explicit flags before reading the effective ordering preferences.
-    // Configs is sealed and these two flags are native booleans. Take their
-    // shared snapshot once after scanning, without repeating a Python borrow.
-    let (configured_year, configured_day) = if yearfirst.is_none() || dayfirst.is_none() {
-        configuration.map_or((true, false), |c| c.borrow().flags())
+    let parsed = if let Some(configuration) = configuration {
+        let native_config = configuration.borrow();
+        let mut rules = native_config.native_view();
+        core::read::<P, _, _>(
+            &mut view,
+            &mut rules,
+            default_date,
+            yearfirst,
+            dayfirst,
+            ignoretz,
+            isoformat,
+        )
     } else {
-        (true, false)
-    };
-    let year = yearfirst.unwrap_or(configured_year);
-    let day = dayfirst.unwrap_or(configured_day);
-    let reference_year = if fields.idx >= 0 && !fields.century_specified && !fields.strict() {
-        default_date.map(|date| date[0])
-    } else {
-        None
-    };
-    let resolved = if fields.resolved {
-        true
-    } else {
-        resolve::resolve(&mut fields, year, day, reference_year).map_err(|error| {
-            failed(
-                py,
-                PyString::new(py, "Cannot resolve calendar fields.").into_any(),
-                Some(native_error(error)),
-            )
-        })?
-    };
-    if !resolved {
-        return Ok(None);
+        let mut rules = config::DefaultView;
+        core::read::<P, _, _>(
+            &mut view,
+            &mut rules,
+            default_date,
+            yearfirst,
+            dayfirst,
+            ignoretz,
+            isoformat,
+        )
     }
-    Ok(Some(ParsedFields {
-        fields,
-        region,
+    .map_err(native_error)?;
+    Ok(parsed.map(|parsed| ParsedFields {
+        fields: parsed.fields,
+        region: parsed.region,
         default_date,
     }))
 }
@@ -1013,6 +906,7 @@ pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     let _ = DATETIME_KEYWORDS.set(py, keywords.unbind());
     config::configure(module)?;
     formatted::configure(module)?;
+    prepared::configure(module)?;
     let configuration_type = py.get_type::<Configs>();
     // SAFETY: registration has completed while the GIL is held. The sealed
     // configuration type has a stable layout and its descriptors stay fixed.

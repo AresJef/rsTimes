@@ -318,7 +318,8 @@ fn _pddt_diff<'py>(
     let targets = if let Some(bytes) = buffer {
         if bytes.len() % 8 != 0
             || bytes.len() / 8 != count
-            || target_mask.is_some_and(|m| m.len() != count)
+            || target_mask
+                .is_some_and(|m| m.len() != count && !(storage == Some("M") && m.is_empty()))
         {
             return Err(crate::error_context::value_error(
                 "target column length must equal source length",
@@ -339,9 +340,13 @@ fn _pddt_diff<'py>(
         } else {
             None
         };
+        let validity = super::validity::TemporalValidity::new(
+            if storage == "M" { target_mask } else { None },
+            count,
+        )?;
         let mut values = vector(count)?;
         for (i, bytes) in bytes.chunks_exact(8).enumerate() {
-            if target_mask.is_some_and(|m| m[i] != 0) {
+            if storage != "M" && target_mask.is_some_and(|m| m[i] != 0) {
                 values.push(None);
                 continue;
             }
@@ -352,10 +357,10 @@ fn _pddt_diff<'py>(
                 let nanos = match storage {
                     "M" => {
                         let tick = i64::from_ne_bytes(raw);
-                        if tick == i64::MIN {
+                        if validity.missing(i, tick) {
                             return Ok(None);
                         }
-                        crate::epoch::numpy_ticks(
+                        crate::epoch::native_datetime_ticks(
                             tick,
                             code.ok_or_else(|| {
                                 crate::error_context::runtime("missing target unit")

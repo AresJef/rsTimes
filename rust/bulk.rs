@@ -23,8 +23,7 @@ struct Types {
 /// Shared batch context, kept visible to the loop rather than behind a closure call.
 struct Batch<'a, 'py> {
     slf: &'a Bound<'py, Delta>,
-    fields: &'a [i64; 15],
-    date_fields: &'a [i64; 15],
+    fields: &'a crate::delta::value::DeltaValue,
     empty: bool,
     native: bool,
     types: &'a Types,
@@ -77,7 +76,7 @@ impl<'py> Batch<'_, 'py> {
             }
             if actual == self.types.date {
                 return crate::interop::apply_date_only_fields(
-                    self.date_fields,
+                    self.fields,
                     self.empty,
                     value,
                     unsafe { value.cast_unchecked::<PyDate>() },
@@ -94,17 +93,30 @@ impl<'py> Batch<'_, 'py> {
         }
         if self.native {
             if let Some(numpy) = &self.numpy {
-                if let Some((micros, datetime)) = numpy.addition_microseconds(value)? {
-                    if datetime {
-                        return crate::numpy_scalar::apply_datetime_fields_us(
-                            self.slf.py(),
-                            self.fields,
-                            self.empty,
-                            micros,
-                            1,
-                        );
+                if let Some(source) = numpy.delta_scalar(value, true)? {
+                    match source {
+                        crate::numpy_scalar::DeltaScalar::Date { civil, coarse } => {
+                            return crate::numpy_scalar::apply_delta_date(
+                                self.slf.py(),
+                                self.fields,
+                                civil,
+                                1,
+                                coarse,
+                            );
+                        }
+                        crate::numpy_scalar::DeltaScalar::Duration {
+                            days,
+                            clock_ns,
+                            calendar_unit: false,
+                        } => {
+                            return self
+                                .allocate_delta(self.addition.add_fixed_parts(days, clock_ns)?);
+                        }
+                        crate::numpy_scalar::DeltaScalar::Duration {
+                            calendar_unit: true,
+                            ..
+                        } => {}
                     }
-                    return self.allocate_delta(self.addition.add_microseconds(micros)?);
                 }
             }
         }
@@ -277,8 +289,7 @@ fn fill_arithmetic_list<'py, const REPLACE: bool>(
     }
     // Build the complete context once at the first mixed item, then retain
     // ordinary native/foreign dispatch for the remaining live list.
-    let fields = slf.get().snapshot();
-    let date_fields = slf.get().calendar_snapshot(false);
+    let fields = slf.get().native_value();
     let types = Types {
         delta: delta_type,
         datetime: slf.py().get_type::<PyDateTime>().as_type_ptr(),
@@ -288,7 +299,6 @@ fn fill_arithmetic_list<'py, const REPLACE: bool>(
     let batch = Batch {
         slf,
         fields: &fields,
-        date_fields: &date_fields,
         empty: !slf.get().__bool__(),
         native: true,
         types: &types,
@@ -531,8 +541,7 @@ pub(crate) fn apply<'py>(
             }
         }
     }
-    let fields = slf.get().snapshot();
-    let date_fields = slf.get().calendar_snapshot(false);
+    let fields = slf.get().native_value();
     let empty = !slf.get().__bool__();
     let delta_type = if exact_delta {
         // SAFETY: The exact live receiver owns this ready base type.
@@ -616,7 +625,6 @@ pub(crate) fn apply<'py>(
     let batch = Batch {
         slf,
         fields: &fields,
-        date_fields: &date_fields,
         empty,
         native,
         types: &types,

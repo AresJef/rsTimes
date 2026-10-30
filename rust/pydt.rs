@@ -3582,23 +3582,12 @@ fn _pydt_add<'py>(
     let clock = clock * sign;
     let days = (weeks.0 * 7 + days.0) * sign + clock.div_euclid(86_400_000_000);
     let clock = clock.rem_euclid(86_400_000_000);
-    let fields = [
-        months.div_euclid(12),
-        months.rem_euclid(12),
-        days,
-        clock / 3_600_000_000,
-        clock / 60_000_000 % 60,
-        clock / 1_000_000 % 60,
-        clock % 1_000_000,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-    ];
+    let fields = crate::delta::value::DeltaValue::from_totals(
+        i128::from(months),
+        i128::from(days) * crate::delta::value::NS_PER_DAY + i128::from(clock) * 1000,
+        crate::delta::value::AbsoluteFields::EMPTY,
+    )
+    .map_err(|_| crate::error_context::overflow("calendar duration overflow"))?;
     let (out, _) = crate::calendar::apply(&fields, parts(value), 1, true)
         .map_err(crate::error_context::overflow)?;
     result(value, out, true)

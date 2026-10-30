@@ -106,7 +106,12 @@ def test_numpy_multiplier_scalar_paths(unit,ticks):
     assert Pydt.fromdatetime64(value) == expected
     assert parse_to_epoch(value, unit='us') == microseconds
     assert parse_str('12:00', default=value).date() == expected.date()
-    assert Delta(days=1) + value == expected + timedelta(days=1)
+    # GN07 preserves the original ns until Delta's datetime exit, which rounds
+    # once to us. Parser and fromdatetime64 deliberately retain their own rules.
+    original_ns=int(value.astype('datetime64[ns]').astype(np.int64))
+    quotient,remainder=divmod(original_ns,1000)
+    rounded=quotient+(remainder>500 or (remainder==500 and quotient%2))
+    assert Delta(days=1) + value == datetime(1970,1,1)+timedelta(days=1,microseconds=rounded)
 
 
 @pytest.mark.parametrize('kind', [np.datetime64,np.timedelta64])

@@ -18,6 +18,7 @@ struct Parts {
     values: Column<Option<Piece>>,
     zones: Vec<Zone>,
     today: bool,
+    declared_zone: Option<usize>,
 }
 
 fn clone_zone(py: Python<'_>, zone: &Zone) -> Zone {
@@ -157,7 +158,7 @@ impl<'a, 'py> Reader<'a, 'py> {
     clippy::too_many_arguments,
     reason = "Once-prepared date or clock component"
 )]
-#[pyo3(signature=(data,resolver,clock,column,entry,buffer=None,source=None,multiplier=1,source_zone=None,time_buffer=false))]
+#[pyo3(signature=(data,resolver,clock,column,entry,buffer=None,source=None,multiplier=1,source_zone=None,time_buffer=false,mask=None))]
 fn _pddt_parts<'py>(
     data: &Bound<'py, PyAny>,
     resolver: &Bound<'py, PyAny>,
@@ -169,6 +170,7 @@ fn _pddt_parts<'py>(
     multiplier: i32,
     source_zone: Option<&Bound<'py, PyAny>>,
     time_buffer: bool,
+    mask: Option<&[u8]>,
 ) -> PyResult<Parts> {
     let py = data.py();
     let parameter = if clock { "time" } else { "date" };
@@ -184,6 +186,7 @@ fn _pddt_parts<'py>(
                 "invalid date component buffer",
             ));
         }
+        let validity = super::validity::TemporalValidity::new(mask, bytes.len() / 8)?;
         let code = if time_buffer {
             10
         } else {
@@ -202,7 +205,7 @@ fn _pddt_parts<'py>(
                 .try_into()
                 .map_err(|_| crate::error_context::runtime("invalid date component bytes"))?;
             let ticks = i64::from_ne_bytes(raw);
-            if ticks == i64::MIN {
+            if validity.missing(i, ticks) {
                 values.push(None);
                 continue;
             }
@@ -215,7 +218,7 @@ fn _pddt_parts<'py>(
                     }
                     return Ok(i128::from(ticks));
                 }
-                let mut ns = epoch::numpy_ticks(ticks, code, multiplier)?.nanos;
+                let mut ns = epoch::native_datetime_ticks(ticks, code, multiplier)?.nanos;
                 if let Some(zone) = source_zone {
                     ns = super::zones::utc_wall(ns, zone, fixed)?;
                 }
@@ -237,6 +240,11 @@ fn _pddt_parts<'py>(
             values: Column::Values(values),
             zones: reader.zones,
             today: false,
+            declared_zone: if clock && source_zone.is_some() {
+                Some(id)
+            } else {
+                None
+            },
         });
     }
     let scalar = !column
@@ -277,10 +285,19 @@ fn _pddt_parts<'py>(
         }
         Column::Values(values)
     };
+    let declared_zone = if clock {
+        match &values {
+            Column::Scalar(Some(piece)) => Some(piece.zone),
+            _ => None,
+        }
+    } else {
+        None
+    };
     Ok(Parts {
         values,
         zones: reader.zones,
         today,
+        declared_zone,
     })
 }
 
@@ -363,6 +380,15 @@ fn _pddt_combine<'py>(
             },
             false,
         )?;
+    }
+    // No valid combined row may reach push (empty/all-null date or clock),
+    // but a typed clock still declares a source zone. This O(1) fallback does
+    // not rescan data or change the actual-precision default unit.
+    if !replace && rows.zones.len() == 1 {
+        if let Some(id) = time.declared_zone.filter(|&id| id != 0) {
+            rows.zones.push(clone_zone(py, &time.zones[id]));
+            rows.empty_zone = rows.zones.len() - 1;
+        }
     }
     finish(py, rows, requested, target, entry, &policy)
 }

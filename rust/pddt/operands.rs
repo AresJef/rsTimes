@@ -8,7 +8,7 @@ use pyo3::types::{PyBytes, PyDate, PyDelta, PyDeltaAccess, PyDict};
 
 #[derive(Clone, Copy)]
 pub(super) enum Value {
-    Delta([i64; 15]),
+    Delta(crate::delta::value::DeltaValue),
     Span(i128),
     Date(i128, bool),
     Missing(u8),
@@ -96,7 +96,7 @@ fn read(value: &Bound<'_, PyAny>, unit: &mut Unit) -> PyResult<Option<Value>> {
         return Ok(Some(Value::Missing(0)));
     }
     if let Ok(delta) = value.cast::<Delta>() {
-        return Ok(Some(Value::Delta(delta.get().snapshot())));
+        return Ok(Some(Value::Delta(delta.get().native_value())));
     }
     if let Ok(delta) = value.cast::<PyDelta>() {
         let ns = if let Some(v) = crate::interop::duration_nanoseconds(value)? {
@@ -270,7 +270,7 @@ fn protocol_version(value: &Bound<'_, PyAny>, name: &str) -> PyResult<u32> {
     clippy::too_many_arguments,
     reason = "One operand preparation boundary over optional native temporal storage"
 )]
-#[pyo3(signature=(data,column,length,entry,subtract=false,reflected=false,buffer=None,storage=None,source=None,multiplier=1,source_zone=None))]
+#[pyo3(signature=(data,column,length,entry,subtract=false,reflected=false,buffer=None,storage=None,source=None,multiplier=1,source_zone=None,mask=None))]
 fn _pddt_operand(
     data: &Bound<'_, PyAny>,
     column: bool,
@@ -283,6 +283,7 @@ fn _pddt_operand(
     source: Option<&str>,
     multiplier: i32,
     source_zone: Option<&Bound<'_, PyAny>>,
+    mask: Option<&[u8]>,
 ) -> PyResult<Option<Operand>> {
     let py = data.py();
     let mut unit = Unit::Second;
@@ -295,6 +296,7 @@ fn _pddt_operand(
                 "operand column length must equal source length",
             ));
         }
+        let validity = super::validity::TemporalValidity::new(mask, length)?;
         let code = numpy_code(source.unwrap_or(""))?;
         unit = super::prepare::scalar_unit(code)?;
         let mut values = Vec::with_capacity(length);
@@ -304,11 +306,11 @@ fn _pddt_operand(
                 .map_err(|_| crate::error_context::runtime("invalid temporal operand tick"))?;
             let ticks = i64::from_ne_bytes(raw);
             let value = if storage == Some("M") {
-                if ticks == i64::MIN {
+                if validity.missing(i, ticks) {
                     Value::Missing(3)
                 } else {
                     Value::Date(
-                        crate::epoch::numpy_ticks(ticks, code, multiplier)?.nanos,
+                        crate::epoch::native_datetime_ticks(ticks, code, multiplier)?.nanos,
                         source_zone.is_some_and(|v| !v.is_none()),
                     )
                 }
@@ -657,16 +659,24 @@ fn binary<'py, const DYNAMIC: bool>(
                         )?
                     };
                     let input = super::operations::fields(wall)?;
-                    let f = [
-                        input[0], input[1], input[2], input[3], input[4], input[5], input[6],
-                    ];
-                    let (changed, _) = crate::calendar::apply(fields, f, sign as i64, true)
+                    let civil = crate::civil::CivilNs {
+                        year: i128::from(input[0]),
+                        month: input[1] as u8,
+                        day: input[2] as u8,
+                        clock_ns: ((input[3] * 3600 + input[4] * 60 + input[5]) * 1_000_000_000
+                            + input[6] * 1000
+                            + input[7]) as u64,
+                    };
+                    let civil = crate::civil::apply(fields, civil, sign as i64)
                         .map_err(crate::error_context::overflow)?;
-                    let tail = if fields[14] >= 0 { 0 } else { input[7] };
-                    let changed = super::operations::nanos([
-                        changed[0], changed[1], changed[2], changed[3], changed[4], changed[5],
-                        changed[6], tail,
-                    ])?;
+                    let ordinal = crate::civil::ordinal(civil.year, civil.month, civil.day)
+                        .map_err(crate::error_context::overflow)?;
+                    let changed = (ordinal - 719_163)
+                        .checked_mul(NS_DAY)
+                        .and_then(|date| date.checked_add(i128::from(civil.clock_ns)))
+                        .ok_or_else(|| {
+                            crate::error_context::overflow("date arithmetic overflow")
+                        })?;
                     if changed == wall {
                         return Ok(source);
                     }

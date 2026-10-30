@@ -15,6 +15,7 @@ mod prepare;
 mod queries;
 mod range;
 mod range_calendar;
+mod validity;
 mod zones;
 
 use pyo3::prelude::*;
@@ -22,6 +23,7 @@ use pyo3::prelude::*;
 /// Install only the current rewrite's private entry points.
 pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     buffer::configure(module)?;
+    validity::configure(module)?;
     operations::configure(module)?;
     operands::configure(module)?;
     periods::configure(module)?;

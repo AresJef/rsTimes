@@ -420,6 +420,12 @@ pub(crate) fn numpy_ticks(ticks: i64, code: i32, multiplier: i32) -> PyResult<Pa
     if ticks == i64::MIN {
         return Err(crate::error_context::value_error("NaT has no epoch value"));
     }
+    native_datetime_ticks(ticks, code, multiplier)
+}
+
+/// Decode a physically valid native date tick. Its caller has already applied
+/// the source's sentinel or independent validity rule; MIN itself is a value.
+pub(crate) fn native_datetime_ticks(ticks: i64, code: i32, multiplier: i32) -> PyResult<Parsed> {
     let ticks = crate::numpy_scalar::scaled_ticks(ticks, multiplier)?;
     let (ns, unit) = match code {
         0 | 1 => {

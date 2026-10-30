@@ -19,6 +19,7 @@ compile_error!(
 use pyo3::prelude::*;
 mod bulk;
 mod calendar;
+mod civil;
 mod delta;
 mod epoch;
 mod error_context;

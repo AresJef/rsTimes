@@ -340,7 +340,7 @@ fn _pddt_prepare<'py>(
     clippy::too_many_arguments,
     reason = "Prepared buffer metadata boundary"
 )]
-#[pyo3(signature=(data,policy,source,multiplier=1,unit=None,source_zone=None,target=None,entry="Pddt"))]
+#[pyo3(signature=(data,policy,source,multiplier=1,unit=None,source_zone=None,target=None,entry="Pddt",mask=None))]
 fn _pddt_dates<'py>(
     py: Python<'py>,
     data: &[u8],
@@ -351,6 +351,7 @@ fn _pddt_dates<'py>(
     source_zone: Option<&Bound<'py, PyAny>>,
     target: Option<&Bound<'py, PyAny>>,
     entry: &str,
+    mask: Option<&[u8]>,
 ) -> PyResult<(Bound<'py, PyBytes>, &'static str, Py<PyAny>)> {
     let code = match source {
         "Y" => 0,
@@ -374,6 +375,7 @@ fn _pddt_dates<'py>(
             "invalid date buffer metadata",
         ));
     }
+    let validity = super::validity::TemporalValidity::new(mask, data.len() / 8)?;
     let requested = unit.map(Unit::parse).transpose()?;
     let mut rows = Rows::new(scalar_unit(code)?);
     let source_zone = source_zone.filter(|z| !z.is_none());
@@ -385,7 +387,7 @@ fn _pddt_dates<'py>(
     for (index, bytes) in data.chunks_exact(8).enumerate() {
         raw.copy_from_slice(bytes);
         let ticks = i64::from_ne_bytes(raw);
-        if ticks == i64::MIN {
+        if validity.missing(index, ticks) {
             rows.missing();
             continue;
         }
@@ -397,9 +399,10 @@ fn _pddt_dates<'py>(
             });
             continue;
         }
-        let mut parsed = epoch::numpy_ticks(ticks, code, multiplier).map_err(|error| {
-            crate::error_context::location(py, error, entry, &format!("data[{index}]"))
-        })?;
+        let mut parsed =
+            epoch::native_datetime_ticks(ticks, code, multiplier).map_err(|error| {
+                crate::error_context::location(py, error, entry, &format!("data[{index}]"))
+            })?;
         if let Some(zone) = source_zone {
             parsed.zone = Zone::Object(zone.clone().unbind());
         }

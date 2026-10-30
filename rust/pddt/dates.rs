@@ -176,7 +176,7 @@ pub(super) fn numpy_code(source: &str) -> PyResult<i32> {
 
 #[pyfunction]
 #[expect(clippy::too_many_arguments, reason = "Native temporal column metadata")]
-#[pyo3(signature=(data,policy,kind,source,multiplier=1,unit=None,source_zone=None,target=None,entry="Pddt"))]
+#[pyo3(signature=(data,policy,kind,source,multiplier=1,unit=None,source_zone=None,target=None,entry="Pddt",mask=None))]
 fn _pddt_date_buffer<'py>(
     py: Python<'py>,
     data: &[u8],
@@ -188,6 +188,7 @@ fn _pddt_date_buffer<'py>(
     source_zone: Option<&Bound<'py, PyAny>>,
     target: Option<&Bound<'py, PyAny>>,
     entry: &str,
+    mask: Option<&[u8]>,
 ) -> PyResult<(Bound<'py, PyBytes>, &'static str, Py<PyAny>)> {
     if data.len() % 8 != 0 || multiplier < 1 {
         return Err(crate::error_context::runtime(
@@ -197,6 +198,7 @@ fn _pddt_date_buffer<'py>(
     let code = numpy_code(source)?;
     let mut rows = Rows::new(super::prepare::scalar_unit(code)?);
     rows.reserve(data.len() / 8)?;
+    let validity = super::validity::TemporalValidity::new(mask, data.len() / 8)?;
     let requested = unit.map(Unit::parse).transpose()?;
     let source_zone = source_zone.filter(|t| !t.is_none());
     let fixed = if let Some(zone) = source_zone {
@@ -210,12 +212,12 @@ fn _pddt_date_buffer<'py>(
             .try_into()
             .map_err(|_| crate::error_context::runtime("invalid date bytes"))?;
         let ticks = i64::from_ne_bytes(raw);
-        if ticks == i64::MIN {
+        if validity.missing(i, ticks) {
             rows.missing();
             continue;
         }
         let row = (|| -> PyResult<(Parsed, bool)> {
-            let mut parsed = epoch::numpy_ticks(ticks, code, multiplier)?;
+            let mut parsed = epoch::native_datetime_ticks(ticks, code, multiplier)?;
             let mut instant = false;
             if let Some(zone) = source_zone {
                 if kind == "date" || replace {

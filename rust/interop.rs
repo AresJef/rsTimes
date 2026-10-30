@@ -592,9 +592,8 @@ pub(crate) fn builtin_span<'py>(
     } else {
         return Ok(None);
     };
-    let (result, _) =
-        crate::calendar::apply(&delta.calendar_snapshot(datetime), input, 1, datetime)
-            .map_err(crate::error_context::overflow)?;
+    let (result, _) = crate::calendar::apply(&delta.native_value(), input, 1, datetime)
+        .map_err(crate::error_context::overflow)?;
     if !(1..=9999).contains(&result[0]) {
         return Ok(None);
     }
@@ -638,11 +637,21 @@ pub(crate) fn apply_datetime<'py>(
         return Ok(Some(other.clone()));
     }
     if delta.preserves_datetime_clock(dt)
-        && (delta.relative(14) < 0 || timestamp_nanoseconds(other)?.unwrap_or(0) == 0)
+        && ((delta
+            .native_value()
+            .absolute
+            .get(crate::delta::value::AbsoluteField::Microsecond)
+            .is_none()
+            && delta
+                .native_value()
+                .absolute
+                .get(crate::delta::value::AbsoluteField::Nanosecond)
+                .is_none())
+            || timestamp_nanoseconds(other)?.unwrap_or(0) == 0)
     {
         return Ok(Some(other.clone()));
     }
-    apply_datetime_fields(&delta.calendar_snapshot(true), false, other, dt, sign)
+    apply_datetime_fields(&delta.native_value(), false, other, dt, sign)
 }
 
 /// Apply an already captured Delta value through the same checked date kernel.
@@ -653,7 +662,7 @@ pub(crate) fn apply_datetime<'py>(
 /// Preserves all original arithmetic, subtype and constructor errors.
 #[inline(always)]
 pub(crate) fn apply_datetime_fields<'py>(
-    fields: &[i64; 15],
+    fields: &crate::delta::value::DeltaValue,
     empty: bool,
     other: &Bound<'py, PyAny>,
     dt: &Bound<'py, PyDateTime>,
@@ -675,7 +684,7 @@ pub(crate) fn apply_datetime_fields<'py>(
 /// Preserves the shared calendar, bounds and builtin allocation errors.
 #[inline(always)]
 pub(crate) fn apply_builtin_datetime_fields<'py>(
-    fields: &[i64; 15],
+    fields: &crate::delta::value::DeltaValue,
     empty: bool,
     other: &Bound<'py, PyAny>,
     dt: &Bound<'py, PyDateTime>,
@@ -688,7 +697,7 @@ pub(crate) fn apply_builtin_datetime_fields<'py>(
 /// # Errors
 /// Preserves date, custom constructor and allocation failures.
 pub(crate) fn apply_datetime_fields_vector<'py>(
-    fields: &[i64; 15],
+    fields: &crate::delta::value::DeltaValue,
     empty: bool,
     other: &Bound<'py, PyAny>,
     dt: &Bound<'py, PyDateTime>,
@@ -702,7 +711,7 @@ pub(crate) fn apply_datetime_fields_vector<'py>(
 /// Preserves normalization, boundaries and custom constructor exception handling.
 #[inline(always)]
 fn apply_datetime_fields_impl<'py, const VECTOR: bool, const BUILTIN: bool>(
-    fields: &[i64; 15],
+    fields: &crate::delta::value::DeltaValue,
     empty: bool,
     other: &Bound<'py, PyAny>,
     dt: &Bound<'py, PyDateTime>,
@@ -715,11 +724,10 @@ fn apply_datetime_fields_impl<'py, const VECTOR: bool, const BUILTIN: bool>(
     if empty {
         return Ok(Some(other.clone()));
     }
-    // Keep wide pandas decoding outside the ordinary calendar loop frame.
-    // Only possible foreign carriers take this path; it retains the same fields,
-    // no-change rule and constructor callbacks as the native branch below.
-    if !BUILTIN && needs_true_year(dt.get_year()) && !other.is_exact_instance_of::<PyDateTime>() {
-        return apply_datetime_carrier::<VECTOR>(fields, other, dt, sign);
+    // A real Timestamp retains its complete ns coordinate until its own public
+    // replacement method. Other datetime subclasses use the us target below.
+    if !BUILTIN && is_timestamp(other)? {
+        return apply_timestamp(fields, other, dt, sign).map(Some);
     }
     let parts = [
         i64::from(dt.get_year()),
@@ -733,7 +741,7 @@ fn apply_datetime_fields_impl<'py, const VECTOR: bool, const BUILTIN: bool>(
     // Finish calendar work before any Python constructor callback.
     let (result, unchanged) = crate::calendar::apply(fields, parts, sign, true)
         .map_err(crate::error_context::overflow)?;
-    if unchanged && (BUILTIN || other.is_exact_instance_of::<PyDateTime>() || fields[14] < 0) {
+    if unchanged {
         return Ok(Some(other.clone()));
     }
     let [year, month, day, hour, minute, second, microsecond] = result;
@@ -767,34 +775,53 @@ fn apply_datetime_fields_impl<'py, const VECTOR: bool, const BUILTIN: bool>(
         };
         return unsafe { Bound::from_owned_ptr_or_err(py, result) }.map(Some);
     }
-    finish_datetime_subclass::<VECTOR>(other, dt, result, unchanged, fields[14] >= 0)
+    finish_datetime_subclass::<VECTOR>(other, dt, result, unchanged)
 }
 
-/// Decode a possible foreign carrier without enlarging ordinary datetime loops.
+/// Apply complete local Timestamp fields without an intermediate us projection.
 /// # Errors
-/// Preserves actual-value decoding, checked calendar and subtype callback errors.
+/// Preserves actual storage, checked calendar and the real replace callback.
 #[inline(never)]
-fn apply_datetime_carrier<'py, const VECTOR: bool>(
-    fields: &[i64; 15],
+fn apply_timestamp<'py>(
+    fields: &crate::delta::value::DeltaValue,
     other: &Bound<'py, PyAny>,
     dt: &Bound<'py, PyDateTime>,
     sign: i64,
-) -> PyResult<Option<Bound<'py, PyAny>>> {
-    let parts = timestamp_parts(other)?.map(|parts| parts.0).unwrap_or([
-        i64::from(dt.get_year()),
-        i64::from(dt.get_month()),
-        i64::from(dt.get_day()),
-        i64::from(dt.get_hour()),
-        i64::from(dt.get_minute()),
-        i64::from(dt.get_second()),
-        i64::from(dt.get_microsecond()),
-    ]);
-    let (result, unchanged) = crate::calendar::apply(fields, parts, sign, true)
-        .map_err(crate::error_context::overflow)?;
-    if unchanged && fields[14] < 0 {
-        return Ok(Some(other.clone()));
+) -> PyResult<Bound<'py, PyAny>> {
+    let parts = timestamp_local_fields(other)?;
+    let access = timestamp_properties(other.py())?;
+    let tail = access.nanos.read(other)?.extract::<i64>()?;
+    let input = crate::civil::CivilNs {
+        year: i128::from(parts[0]),
+        month: parts[1] as u8,
+        day: parts[2] as u8,
+        clock_ns: (((parts[3] * 60 + parts[4]) * 60 + parts[5]) * 1_000_000_000
+            + parts[6] * 1000
+            + tail) as u64,
+    };
+    let result =
+        crate::civil::apply(fields, input, sign).map_err(crate::error_context::overflow)?;
+    if result == input {
+        return Ok(other.clone());
     }
-    finish_datetime_subclass::<VECTOR>(other, dt, result, unchanged, fields[14] >= 0)
+    let clock = result.clock_ns;
+    let new_tail = (clock % 1000) as i64;
+    replace_timestamp(
+        other,
+        [
+            i64::try_from(result.year).map_err(|_| {
+                crate::error_context::overflow("Timestamp year exceeds signed64 capacity")
+            })?,
+            i64::from(result.month),
+            i64::from(result.day),
+            (clock / 3_600_000_000_000) as i64,
+            (clock / 60_000_000_000 % 60) as i64,
+            (clock / 1_000_000_000 % 60) as i64,
+            (clock / 1000 % 1_000_000) as i64,
+        ],
+        (new_tail != tail || (tail != 0 && access.replace_needs_tail)).then_some(new_tail),
+        dt.get_fold(),
+    )
 }
 
 /// Keep foreign precision and constructor callbacks outside builtin loop frames.
@@ -804,30 +831,9 @@ fn finish_datetime_subclass<'py, const VECTOR: bool>(
     dt: &Bound<'py, PyDateTime>,
     result: [i64; 7],
     unchanged: bool,
-    replace_fraction: bool,
 ) -> PyResult<Option<Bound<'py, PyAny>>> {
-    let [_, month, day, hour, minute, second, microsecond] = result;
-    let nanos = timestamp_nanoseconds(other)?;
-    if unchanged && (!replace_fraction || nanos.unwrap_or(0) == 0) {
+    if unchanged {
         return Ok(Some(other.clone()));
-    }
-    if let Some(nanos) = nanos {
-        return replace_timestamp(
-            other,
-            [result[0], month, day, hour, minute, second, microsecond],
-            if nanos != 0
-                && (replace_fraction || timestamp_properties(other.py())?.replace_needs_tail)
-            {
-                // pandas2.replace consults an overridden nanosecond property.
-                // pandas3 already preserves it; retain that faster path. Omit
-                // zero because an explicit zero can narrow a wide date to ns.
-                Some(if replace_fraction { 0 } else { nanos })
-            } else {
-                None
-            },
-            dt.get_fold(),
-        )
-        .map(Some);
     }
     let prepared = crate::pydt::delta_calendar_fields(dt, result)?;
     construct_subclass::<VECTOR>(
@@ -892,7 +898,7 @@ pub(crate) fn apply_date_only<'py>(
     if !delta.__bool__() {
         return Ok(Some(other.clone()));
     }
-    apply_date_only_fields(&delta.calendar_snapshot(false), false, other, date, sign)
+    apply_date_only_fields(&delta.native_value(), false, other, date, sign)
 }
 
 /// Apply an already captured Delta value through the same checked date kernel.
@@ -903,7 +909,7 @@ pub(crate) fn apply_date_only<'py>(
 /// Preserves all original arithmetic, subtype and constructor errors.
 #[inline]
 pub(crate) fn apply_date_only_fields<'py>(
-    fields: &[i64; 15],
+    fields: &crate::delta::value::DeltaValue,
     empty: bool,
     other: &Bound<'py, PyAny>,
     date: &Bound<'py, PyDate>,

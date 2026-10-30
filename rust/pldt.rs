@@ -3,6 +3,8 @@
 //! The SDK owns the Series/Arrow FFI boundary. Worker calculations below contain
 //! no Python objects, imports, callbacks, or implicit GIL acquisition.
 
+mod text;
+
 use polars::prelude::*;
 use pyo3::prelude::*;
 use pyo3_polars::PySeries;
