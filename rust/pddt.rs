@@ -14,7 +14,6 @@ mod periods;
 mod prepare;
 mod queries;
 mod range;
-mod range_calendar;
 mod validity;
 mod zones;
 

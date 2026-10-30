@@ -100,6 +100,26 @@ impl Policies {
             ))
         }
     }
+    /// Range endpoints use the first/last complete-sequence mask choice.
+    pub(super) fn endpoint(&self, end: bool) -> Self {
+        if matches!(self.ambiguous, Ambiguous::Mask) {
+            let choice = if end {
+                self.mask.last()
+            } else {
+                self.mask.first()
+            };
+            if let Some(choice) = choice {
+                return self.with_choice(*choice != 0);
+            }
+            return Self {
+                ambiguous: Ambiguous::Raise,
+                nonexistent: self.nonexistent,
+                mask: Vec::new(),
+                shift_ns: self.shift_ns,
+            };
+        }
+        self.clone()
+    }
     pub(super) fn infer(&self) -> bool {
         matches!(self.ambiguous, Ambiguous::Infer)
     }

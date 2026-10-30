@@ -2068,7 +2068,7 @@ fn with_default_token<R>(token: &str, lookup: impl FnOnce(&[u32]) -> R) -> R {
 }
 
 /// Query one default name using shared inline storage for common words.
-fn lookup_default_name(token: &str, weekday: bool) -> i32 {
+pub(crate) fn lookup_default_name(token: &str, weekday: bool) -> i32 {
     let rule = if weekday {
         crate::parser::fields::Rule::Weekday
     } else {

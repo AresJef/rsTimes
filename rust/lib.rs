@@ -24,6 +24,7 @@ mod civil;
 mod clock;
 mod date_input;
 mod date_parts;
+mod date_transform;
 mod delta;
 mod epoch;
 mod error_context;
@@ -42,8 +43,12 @@ mod protocol;
 mod pydt;
 mod pydt_compare;
 mod python_cache;
+mod range_calendar;
+mod range_frequency;
+mod range_generate;
 mod serde_values;
 mod state;
+mod temporal_operand;
 mod temporal_zone;
 
 /// Return the native implementation label for installation diagnostics.
@@ -78,6 +83,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     epoch::configure(module)?;
     pddt::configure(module)?;
     pldt::configure(module)?;
+    range_frequency::configure(module)?;
     module.add_function(wrap_pyfunction!(state::_restore_delta, module)?)?;
     module.add_function(wrap_pyfunction!(interop::_configure_optional, module)?)?;
     module.add_function(wrap_pyfunction!(runtime_info, module)?)?;

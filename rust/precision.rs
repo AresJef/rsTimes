@@ -46,6 +46,20 @@ pub(crate) fn epoch_tick(nanos: i128, tick_ns: i128, round_ok: bool) -> Result<i
     i64::try_from(nanos.div_euclid(tick_ns)).map_err(|_| TickError::Capacity)
 }
 
+/// Finest storage resolution needed by a duration's actual integer quantum.
+pub(crate) fn quantum_unit(nanos: i128) -> crate::epoch::Unit {
+    use crate::epoch::Unit;
+    if nanos.rem_euclid(1000) != 0 {
+        Unit::Nanosecond
+    } else if nanos.rem_euclid(1_000_000) != 0 {
+        Unit::Microsecond
+    } else if nanos.rem_euclid(1_000_000_000) != 0 {
+        Unit::Millisecond
+    } else {
+        Unit::Second
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

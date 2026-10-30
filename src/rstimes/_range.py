@@ -252,22 +252,27 @@ def rounding_step(value):
     return step
 
 
-def mature_units(metadata,source):
-    """Separate a mature engine's working precision from its initial output unit."""
+def mature_units(metadata, source, carrier=None):
+    """Separate the mature engine's exact local carrier from final resolution.
+
+    source is the original output requirement; carrier is an optional exact
+    local working unit. Omission uses source for both roles.
+    """
     if type(metadata) not in _METADATA:
-        return None,None
-    units=('s','ms','us','ns')
-    index=units.index(source)
-    kwargs=metadata.kwds
-    generic=type(metadata) is _o.DateOffset
-    business=type(metadata) in (_o.BusinessHour,_o.CustomBusinessHour)
-    if any(key in kwargs for key in ('nanosecond','nanoseconds')):
-        index=3
-    elif business or any(key in kwargs for key in ('microsecond','microseconds')):
-        index=max(index,2)
-    offset=kwargs.get('offset')
-    if isinstance(offset,pd.Timedelta):
-        index=max(index,units.index(offset.unit))
-    # DateOffset may use fractional seconds without an explicit microsecond key.
-    # Generate those with at least us, then the native finalizer keeps exact output.
-    return units[max(index,2) if generic or business else index],units[index]
+        return None, None
+    units = ("s", "ms", "us", "ns")
+    required = 0
+    kwargs = metadata.kwds
+    generic = type(metadata) is _o.DateOffset
+    business = type(metadata) in (_o.BusinessHour, _o.CustomBusinessHour)
+    if any(key in kwargs for key in ("nanosecond", "nanoseconds")):
+        required = 3
+    elif business or any(key in kwargs for key in ("microsecond", "microseconds")):
+        required = 2
+    offset = kwargs.get("offset")
+    if isinstance(offset, pd.Timedelta):
+        required = max(required, units.index(offset.unit))
+    output = max(units.index(source), required)
+    working = max(units.index(source if carrier is None else carrier), required,
+                  2 if generic or business else 0)
+    return units[working], units[output]

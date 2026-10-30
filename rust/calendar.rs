@@ -215,6 +215,31 @@ pub(crate) fn move_date(
     from_ordinal(i64::try_from(ordinal).map_err(|_| OVERFLOW)?)
 }
 
+/// Repeated local time prefers the source actual offset, then the earlier instant.
+pub(crate) fn calendar_repeat(wall: i128, source_offset: i128, first: i128, second: i128) -> i128 {
+    if wall - second == source_offset {
+        second
+    } else {
+        first
+    }
+}
+/// Select the real-gap direction from source offset, then civil movement.
+pub(crate) fn calendar_gap_forward(
+    wall: i128,
+    source_wall: i128,
+    source_offset: i128,
+    before: i128,
+    after: i128,
+) -> bool {
+    if source_offset == before {
+        true
+    } else if source_offset == after {
+        false
+    } else {
+        wall >= source_wall
+    }
+}
+
 /// Gap alternatives remain in the explicitly selected local calendar day.
 pub(crate) fn calendar_gap_targets(wall: i128, gap: i128, forward: bool) -> [Option<i128>; 2] {
     const DAY: i128 = 86_400_000_000_000;

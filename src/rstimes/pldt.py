@@ -7,7 +7,7 @@ Polars. The implementation is being expanded under the approved PLDT contract.
 
 from pathlib import Path
 from collections.abc import Mapping
-from datetime import date, timezone
+from datetime import date, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -28,10 +28,19 @@ from ._native import (_pldt_prepare_text, _pldt_prepare_format, _pldt_text,
                       _pldt_number_column, _pldt_number_objects,
                       _pldt_date_column, _pldt_date_objects, _pldt_date_buffer,
                       _pldt_calendar, _pldt_integer_objects, _pldt_integer_column,
-                      _pldt_parts_column, _pldt_parts_time, _pldt_parts_objects, _pldt_parts_buffer, _pldt_combine)
+                      _pldt_parts_column, _pldt_parts_time, _pldt_parts_objects, _pldt_parts_buffer, _pldt_combine, _pldt_iso_column, _pldt_iso_objects,
+                      _pldt_frequency, _pldt_range_endpoints, _pldt_range, _pldt_range_external,
+                      _pldt_component_column, _pldt_component_objects, _pldt_transform,
+                      _pldt_operand_objects, _pldt_operand_column, _pldt_operand_ticks,
+                      _pldt_binary, _pldt_scalar_callback)
 from ._pldt_timezone import prepare_timezone as _prepare_zone
 from ._localization import local_timezone as _local_zone, resolve_timezone as _resolve_zone
-from .errors import _own_error, _raise_argument_context
+from .errors import _own_error, _raise_argument_context, _external_error
+
+if pd is not None:
+    from ._range import frequency as _pandas_frequency, mature_units as _mature_units
+else:
+    _pandas_frequency = _mature_units = None
 
 _PLUGIN_PATH = Path(_native.__file__)
 _UNITS = ("ms", "us", "ns")
@@ -314,6 +323,121 @@ def _numeric_expression(source, kind, *, unit=None, tz=None,
                                         kwargs=kwargs, is_elementwise=data["ambiguous"] not in ("infer", "mask") and mask is None)
     except Exception as error:
         _raise_argument_context(error, entry, "arguments", None)
+
+
+def _range_factory(cls, start=None, *, end=None, periods=None, freq=None, tz=None,
+                   normalize=False, inclusive="both", unit=None, name=None, default=None,
+                   yearfirst=None, dayfirst=None, isoformat=True, strict=False, cfg=None,
+                   ambiguous="raise", nonexistent="raise"):
+    entry = "Pldt.date_range"
+    try:
+        unit = _unit(unit, optional=True)
+        name = _name(name)
+        if periods is not None:
+            periods = _integer_arg(periods, entry, "periods")
+            if periods < 0:
+                raise _own_error(ValueError("must be nonnegative"), "periods", periods)
+        normalize = _bool_option(normalize, entry, "normalize")
+        isoformat = _bool_option(isoformat, entry, "isoformat")
+        strict = _bool_option(strict, entry, "strict")
+        yearfirst = None if yearfirst is None else _bool_option(yearfirst, entry, "yearfirst")
+        dayfirst = None if dayfirst is None else _bool_option(dayfirst, entry, "dayfirst")
+        if cfg is not None and not isinstance(cfg, Configs):
+            raise _own_error(TypeError("must be Configs or None"), "cfg", cfg)
+        if not isinstance(inclusive, str):
+            raise _own_error(TypeError("must be both/left/right/neither"), "inclusive", inclusive)
+        if inclusive not in ("both", "left", "right", "neither"):
+            raise _own_error(ValueError("must be both/left/right/neither"), "inclusive", inclusive)
+        policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
+        target = _prepare_zone(tz)
+        if freq is None and (start is None or end is None or periods is None):
+            freq = "D"
+        metadata = None
+        delegated = False
+        if freq is None:
+            plan = None
+        elif pd is not None and isinstance(freq, pd.DateOffset) and not isinstance(freq, timedelta):
+            plan, metadata, delegated = _pandas_frequency(freq)
+        else:
+            plan = _pldt_frequency(freq)
+            delegated = plan is None
+            if delegated:
+                if pd is None:
+                    raise ImportError("this special date_range rule requires optional pandas; install rstimes[pandas]")
+                plan, metadata, delegated = _pandas_frequency(freq)
+        if delegated and sum(value is not None for value in (start, end, periods)) != 2:
+            raise _own_error(ValueError("exactly two of start, end and periods are required with a frequency"), "arguments", None)
+        inputs = _pldt_range_endpoints(start, end, policy, plan, unit, target, normalize, default,
+                                      yearfirst, dayfirst, isoformat, strict, cfg, delegated)
+        output = Pldt if cls is Pldt else pl.Series
+        if not delegated:
+            result = _pldt_range(output, inputs, periods, plan, policy, inclusive, name or "")
+        else:
+            first, last, carrier_unit = inputs.carrier()
+            first = None if first is None else pd.Timestamp(np.datetime64(first, carrier_unit))
+            last = None if last is None else pd.Timestamp(np.datetime64(last, carrier_unit))
+            generation_unit, minimum_unit = _mature_units(metadata, inputs.unit, carrier_unit)
+            if generation_unit is not None:
+                units = ("s", "ms", "us", "ns")
+                generation_unit = units[max(units.index(generation_unit), units.index(carrier_unit))]
+            try:
+                external = pd.date_range(start=first, end=last, periods=periods, freq=metadata,
+                                         unit=generation_unit, inclusive="both")
+            except Exception as error:
+                raise _external_error(error)
+            carrier = pl.Series("", _base_array(external.asi8))
+            result = _pldt_range_external(output, inputs, carrier, external.unit, policy, inclusive,
+                                         unit or minimum_unit, unit is None and minimum_unit is not None, name or "")
+        return result if cls is Pldt else cls(result)
+    except Exception as error:
+        _raise_argument_context(error, entry, "arguments", None)
+
+
+def _iso_factory(cls, data, *, size=None, tz=None, unit=None, name=None,
+                 ambiguous="raise", nonexistent="raise"):
+    try:
+        unit = _unit(unit, optional=True)
+        size = None if size is None else _size(size, "Pldt.fromisoformat")
+        name = _name(name)
+        target = _prepare_zone(tz)
+        policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
+        if isinstance(data, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+            raise _own_error(TypeError("requires ISO text or a one-dimensional text collection"), "dtstr", data)
+        output = Pldt if cls is Pldt else pl.Series
+        column = isinstance(data, _PD_COLUMN)
+        source_name = _name(getattr(data, "name", None)) if column else None
+        if isinstance(data, np.ndarray):
+            data = _base_array(data)
+            column = True
+        if isinstance(data, pl.Series):
+            if size is not None:
+                raise _own_error(ValueError("omit size for a collection"), "size", size)
+            data = pl.Series(data)
+            source_name = data.name
+            column = True
+            if data.dtype.base_type() is not pl.Object:
+                result = _pldt_iso_column(data.rename(name) if name is not None else data, output, unit, target, policy)
+                return result if cls is Pldt else cls(result)
+        result = _pldt_iso_objects(data, output, unit, target, policy, size,
+                                   name if name is not None else source_name or "", column)
+        return result if cls is Pldt else cls(result)
+    except Exception as error:
+        _raise_argument_context(error, "Pldt.fromisoformat", "arguments", None)
+
+
+def _iso_expression(source, *, tz=None, unit=None, ambiguous="raise", nonexistent="raise"):
+    try:
+        unit = _unit(unit, optional=True)
+        target = _prepare_zone(tz)
+        policy, mask, scalar = _timezone_policy(ambiguous, nonexistent, expression=True)
+        data = policy.plugin_kwargs()
+        kwargs = {"version": 1, "unit": unit, "target": None if target is None else target.plugin_kwargs(),
+                  "policy": data, "mask_scalar": scalar}
+        return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_iso",
+                                        args=[source] if mask is None else [source, mask], kwargs=kwargs,
+                                        is_elementwise=data["ambiguous"] not in ("mask", "infer") and mask is None)
+    except Exception as error:
+        _raise_argument_context(error, "Pldt.fromisoformat", "arguments", None)
 
 
 def _date_factory(cls, data, kind, *, size=None, tz=None, unit=None, name=None,
@@ -657,35 +781,6 @@ def _tz_expr(source, operation, tz, base_tz=None, naive=False, ambiguous="raise"
         _raise_argument_context(error, entry, "arguments", None)
 
 
-def _operand(value, *, expression):
-    """Prepare the actual scalar/vector role once, never from result length."""
-    if isinstance(value, pl.Expr):
-        if not expression:
-            raise TypeError("Pldt.add: eager days cannot be an Expr")
-        return value, value.meta.is_scalar()
-    if isinstance(value, (Mapping, set, frozenset, str, bytes, bytearray, pl.DataFrame, pl.LazyFrame) + _PD_TABLE):
-        raise TypeError("Pldt.add: days must be one integer or a one-dimensional integer collection")
-    if isinstance(value, np.ndarray):
-        value = _base_array(value)
-        if value.dtype.kind in "iu":
-            value = pl.Series("days", value)
-        elif value.dtype.kind != "O":
-            raise TypeError("Pldt.add: days must contain integers, not booleans or floats")
-    if isinstance(value, pl.Series):
-        if not value.dtype.is_integer():
-            raise TypeError("Pldt.add: days must contain integers, not booleans or floats")
-        if value.null_count():
-            raise TypeError("Pldt.add: days cannot contain null")
-        return (pl.lit(value) if expression else value), False
-    if hasattr(type(value), "__index__"):
-        number = _integer_arg(value, "Pldt.add", "days")
-        return (pl.lit(number, dtype=pl.Int64) if expression else pl.Series("days", [number])), True
-    if isinstance(value, (list, tuple, range) + _PD_COLUMN) or hasattr(type(value), "__iter__") or hasattr(type(value), "__getitem__"):
-        series = pl.Series("days", [_integer_arg(item, "Pldt.add", "days") for item in value], dtype=pl.Int64)
-        return (pl.lit(series) if expression else series), False
-    value = _integer_arg(value, "Pldt.add", "days")
-    return (pl.lit(value, dtype=pl.Int64) if expression else pl.Series("days", [value])), True
-
 
 def _expr(source, operation, argument=0, operand=None, scalar=False):
     """Build an official plugin expression with owned, versioned kwargs."""
@@ -706,7 +801,330 @@ def _eager(source, operation, argument=0, operand=None, scalar=False):
     return _pldt_execute(source, target, operation, argument, operand, scalar)
 
 
-class Pldt(pl.Series):
+_UNCHANGED_ZONE = object()
+_FIELD_NAMES = ("year", "month", "day", "hour", "minute", "second", "microsecond", "nanosecond")
+_INCREMENT_NAMES = ("years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds", "milliseconds", "microseconds", "nanoseconds")
+_FIELD_RANGES = ((None, None), (1, 12), (1, 31), (0, 23), (0, 59), (0, 59), (0, 999999), (0, 999))
+
+
+def _component(value, entry, parameter, optional, names, low, high):
+    """Read a modification parameter once, preserving None and owning literals."""
+    if isinstance(value, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+        raise _own_error(TypeError("requires a scalar or one-dimensional field collection"), parameter, value)
+    column = isinstance(value, _PD_COLUMN)
+    if isinstance(value, np.ndarray):
+        value = _base_array(value)
+        column = True
+        if value.dtype.kind in "iu":
+            value = pl.Series(parameter, value)
+        elif value.dtype.kind in "US" and names:
+            value = pl.Series(parameter, value)
+        elif value.dtype.kind != "O":
+            raise _own_error(TypeError("requires integer fields, not Boolean or floating dtype"), parameter, value)
+    if isinstance(value, _PD_COLUMN):
+        kind = getattr(value.dtype, "kind", None)
+        if kind not in ("i", "u", "O", "U", "T"):
+            raise _own_error(TypeError("requires integer fields or supported selector names"), parameter, value)
+    if isinstance(value, pl.Series):
+        value = pl.Series(value)
+        column = True
+        if value.dtype.base_type() is not pl.Object:
+            return _pldt_component_column(value, (optional, names, low, high), entry, parameter), False
+    return _pldt_component_objects(value, column, (optional, names, low, high), entry, parameter)
+
+
+def _transform_roles(kind):
+    if kind in ("replace", "adjust"):
+        return [(label, True, 0, *bounds) for label, bounds in zip(_FIELD_NAMES, _FIELD_RANGES)]
+    if kind in ("add", "sub"):
+        return [(label, False, 0, None, None) for label in _INCREMENT_NAMES]
+    required = ("offset", False, 0, None, None)
+    if kind in ("year", "quarter"):
+        return [required, ("month", True, 1 if kind == "year" else 0, 1, 12 if kind == "year" else 3), ("day", True, 0, 1, 31)]
+    if kind == "month":
+        return [required, ("day", True, 0, 1, 31)]
+    if kind == "weekday":
+        return [required, ("weekday", True, 2, 0, 6)]
+    return [required]
+
+
+def _date_operation(owner, kind, components, method, *, tzinfo=_UNCHANGED_ZONE,
+                    ambiguous="raise", nonexistent="raise"):
+    """Prepare roles once and enter one native Series/Expr calendar kernel."""
+    entry = "Pldt." + method
+    try:
+        expression = isinstance(owner, _ExprNamespace)
+        source = owner._expr if expression else pl.Series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
+        replace_zone = tzinfo is not _UNCHANGED_ZONE
+        target = _prepare_zone(tzinfo) if replace_zone else None
+        if kind == "replace":
+            policy, mask, mask_scalar = _timezone_policy(ambiguous, nonexistent, expression=expression)
+        else:
+            policy, mask, mask_scalar = None, None, False
+        args, scalars = [], []
+        for value, role in zip(components, _transform_roles(kind)):
+            if isinstance(value, pl.Expr):
+                if not expression:
+                    raise _own_error(TypeError("Expr fields require the Expr namespace"), role[0], value)
+                argument, scalar = value, value.meta.is_scalar()
+            else:
+                argument, scalar = _component(value, entry, *role)
+                if expression:
+                    argument = pl.lit(argument[0], dtype=pl.Int64) if scalar else pl.lit(argument)
+            args.append(argument)
+            scalars.append(scalar)
+        if expression:
+            options = {"version": 1, "kind": kind, "entry": entry, "scalars": scalars,
+                       "target": None if target is None else target.plugin_kwargs(),
+                       "replace_zone": replace_zone, "policy": None if policy is None else policy.plugin_kwargs(),
+                       "mask_scalar": mask_scalar}
+            if mask is not None:
+                args.append(mask)
+            return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_transform",
+                                            args=[source, *args], kwargs=options, is_elementwise=False)
+        cls = type(owner._series) if isinstance(owner, _SeriesNamespace) and isinstance(owner._series, Pldt) else type(owner) if isinstance(owner, Pldt) else Pldt
+        result = _pldt_transform(source, args, scalars, Pldt if cls is Pldt else pl.Series,
+                                kind, entry, target, replace_zone, policy)
+        return result if cls is Pldt else cls(result)
+    except Exception as error:
+        _raise_argument_context(error, entry, "arguments", None)
+
+
+def _prepare_arithmetic(other, entry, subtract, reflected=False, named=False):
+    """Read real temporal metadata without extracting Python date scalars."""
+    if isinstance(other, (pl.Expr, Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame) + _PD_TABLE):
+        if named:
+            raise _own_error(TypeError("requires actual Delta values or a one-dimensional Delta collection; dynamic Expr operands are unsupported"), "delta", other)
+        return None
+    column = False
+    if isinstance(other, _PD_COLUMN):
+        column = True
+        array = other.array if isinstance(other, (pd.Series, pd.Index)) else other
+        if isinstance(array, (pd.arrays.DatetimeArray, pd.arrays.TimedeltaArray)):
+            storage = "M" if isinstance(array, pd.arrays.DatetimeArray) else "m"
+            if named:
+                raise _own_error(TypeError("requires actual Delta values"), "delta", other)
+            unit = array.unit
+            data = _base_array(array.asi8)
+            return _pldt_operand_ticks(pl.Series("", data), storage, _NUMPY_DATE_CODES[unit], 1,
+                                       storage == "M" and array.tz is not None, True)
+        other = array
+    if isinstance(other, np.ndarray):
+        other = _base_array(other)
+        column = True
+        if other.dtype.kind in "Mm":
+            if named:
+                raise _own_error(TypeError("requires actual Delta values"), "delta", other)
+            unit, multiplier = np.datetime_data(other.dtype)
+            if unit not in _NUMPY_DATE_CODES:
+                raise _own_error(ValueError("temporal units must be years through nanoseconds"), "other", other)
+            return _pldt_operand_ticks(pl.Series("", other.view(np.int64)), other.dtype.kind,
+                                       _NUMPY_DATE_CODES[unit], multiplier, False, True)
+        if other.dtype.kind != "O":
+            if named:
+                raise _own_error(TypeError("requires actual Delta values"), "delta", other)
+            return None
+    if isinstance(other, pl.Series):
+        other = pl.Series(other)
+        column = True
+        if other.dtype.base_type() in (pl.Date, pl.Datetime, pl.Duration):
+            if named:
+                raise _own_error(TypeError("requires actual Delta values"), "delta", other)
+            return _pldt_operand_column(other)
+        if other.dtype.base_type() is not pl.Object:
+            if other.dtype.base_type() is pl.Null:
+                other = [None] * len(other)
+            else:
+                raise _own_error(TypeError("arithmetic columns require actual date/duration/Delta values"), "other", other)
+    return _pldt_operand_objects(other, column, subtract, reflected, named, entry)
+
+
+def _callback_arithmetic_result(result, entry):
+    """Read only already-supported temporal values; never parse callback text."""
+    return _prepare_arithmetic(result, entry, True)
+
+
+def _binary_eager(owner, other, subtract=False, reflected=False, named=False):
+    """Own arithmetic dispatch; external scalar negotiation remains Python's."""
+    method = "sub_delta" if named and subtract else "add_delta" if named else "__sub__" if subtract else "__radd__" if reflected else "__add__"
+    entry = "Pldt." + method
+    actual = owner._series if isinstance(owner, _SeriesNamespace) else owner
+    source = pl.Series(actual)
+    try:
+        operand = _prepare_arithmetic(other, entry, subtract, reflected, named)
+        if operand is None:
+            if named:
+                raise _own_error(TypeError("requires actual Delta values or a strict equal-length Delta collection"), "delta", other)
+            return NotImplemented
+        if named and operand.kind != 1:
+            raise _own_error(TypeError("requires actual Delta values"), "delta", other)
+        result_only = False
+        if operand.scalar_dynamic:
+            if not named:
+                return NotImplemented
+            result = _pldt_scalar_callback(operand, actual)
+            if result is NotImplemented:
+                raise TypeError("the actual arithmetic callback returned NotImplemented")
+            operand = _prepare_arithmetic(result, entry, True)
+            if operand is None or operand.kind != 3 or operand.dynamic:
+                raise TypeError("a named arithmetic callback must return an equal-length date collection")
+            result_only = True
+        if operand.kind == 3 and not subtract and not result_only:
+            return NotImplemented
+        cls = type(actual) if isinstance(actual, Pldt) else Pldt
+        output = pl.Series if operand.kind == 3 and not result_only else Pldt if cls is Pldt else pl.Series
+        result = _pldt_binary(source, operand, output, subtract, entry, result_only, pl.Series, _callback_arithmetic_result)
+        return result if output is Pldt or operand.kind == 3 and not result_only else cls(result)
+    except Exception as error:
+        _raise_argument_context(error, entry, "other", other)
+
+
+def _delta_expression(source, delta, subtract):
+    """Snapshot concrete plain Delta fields; never execute Python in a worker."""
+    entry = "Pldt.sub_delta" if subtract else "Pldt.add_delta"
+    try:
+        operand = _prepare_arithmetic(delta, entry, subtract, named=True)
+        if operand is None or operand.kind != 1:
+            raise _own_error(TypeError("requires actual Delta values"), "delta", delta)
+        if operand.dynamic:
+            raise _own_error(TypeError("dynamic Python arithmetic is not supported by native Expr"), "delta", delta)
+        args = [source] if operand.scalar else [source, pl.lit(operand.plugin_column())]
+        return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_delta", args=args,
+                                        kwargs={"version": 1, "prepared": operand.plugin_data() if operand.scalar else b"",
+                                                "subtract": subtract, "entry": entry, "scalar": operand.scalar},
+                                        is_elementwise=False)
+    except Exception as error:
+        _raise_argument_context(error, entry, "delta", delta)
+
+
+class _TransformMethods:
+    """Date operations shared by Pldt and the two native namespaces."""
+    def to_datetime(self, year=None, month=None, day=None, hour=None, minute=None, second=None, microsecond=None, nanosecond=None):
+        """Merge legal fields once; fit a legal day intent to the final month."""
+        return _date_operation(self, "adjust", (year, month, day, hour, minute, second, microsecond, nanosecond), "to_datetime")
+
+    def to_date(self, year=None, month=None, day=None):
+        """Merge legal fields once; fit a legal day intent to the final month."""
+        return _date_operation(self, "adjust", (year, month, day, None, None, None, None, None), "to_date")
+
+    def to_time(self, hour=None, minute=None, second=None, microsecond=None, nanosecond=None):
+        """Merge legal fields once; fit a legal day intent to the final month."""
+        return _date_operation(self, "adjust", (None, None, None, hour, minute, second, microsecond, nanosecond), "to_time")
+
+    def to_year(self, offset, month=None, day=None):
+        """Move local calendar periods, retaining precision and fitting month end."""
+        return _date_operation(self, "year", (offset, month, day), "to_year")
+
+    def to_quarter(self, offset, month=None, day=None):
+        """Move local calendar periods, retaining precision and fitting month end."""
+        return _date_operation(self, "quarter", (offset, month, day), "to_quarter")
+
+    def to_month(self, offset, day=None):
+        """Move local calendar periods, retaining precision and fitting month end."""
+        return _date_operation(self, "month", (offset, day), "to_month")
+
+    def to_weekday(self, offset, weekday=None):
+        """Move local calendar periods, retaining precision and fitting month end."""
+        return _date_operation(self, "weekday", (offset, weekday), "to_weekday")
+
+    def to_day(self, offset):
+        """Move local calendar periods, retaining precision and fitting month end."""
+        return _date_operation(self, "day", (offset, ), "to_day")
+
+    def to_curr_year(self, month=None, day=None):
+        """Select the calendar period directly through the shared native kernel."""
+        return _date_operation(self, "year", (0, month, day), "to_curr_year")
+
+    def to_prev_year(self, month=None, day=None):
+        """Select the calendar period directly through the shared native kernel."""
+        return _date_operation(self, "year", (-1, month, day), "to_prev_year")
+
+    def to_next_year(self, month=None, day=None):
+        """Select the calendar period directly through the shared native kernel."""
+        return _date_operation(self, "year", (1, month, day), "to_next_year")
+
+    def to_curr_quarter(self, month=None, day=None):
+        """Select the calendar period directly through the shared native kernel."""
+        return _date_operation(self, "quarter", (0, month, day), "to_curr_quarter")
+
+    def to_prev_quarter(self, month=None, day=None):
+        """Select the calendar period directly through the shared native kernel."""
+        return _date_operation(self, "quarter", (-1, month, day), "to_prev_quarter")
+
+    def to_next_quarter(self, month=None, day=None):
+        """Select the calendar period directly through the shared native kernel."""
+        return _date_operation(self, "quarter", (1, month, day), "to_next_quarter")
+
+    def to_curr_month(self, day=None):
+        """Select the calendar period directly through the shared native kernel."""
+        return _date_operation(self, "month", (0, day), "to_curr_month")
+
+    def to_prev_month(self, day=None):
+        """Select the calendar period directly through the shared native kernel."""
+        return _date_operation(self, "month", (-1, day), "to_prev_month")
+
+    def to_next_month(self, day=None):
+        """Select the calendar period directly through the shared native kernel."""
+        return _date_operation(self, "month", (1, day), "to_next_month")
+
+    def to_curr_weekday(self, weekday=None):
+        """Select the calendar period directly through the shared native kernel."""
+        return _date_operation(self, "weekday", (0, weekday), "to_curr_weekday")
+
+    def to_prev_weekday(self, weekday=None):
+        """Select the calendar period directly through the shared native kernel."""
+        return _date_operation(self, "weekday", (-1, weekday), "to_prev_weekday")
+
+    def to_next_weekday(self, weekday=None):
+        """Select the calendar period directly through the shared native kernel."""
+        return _date_operation(self, "weekday", (1, weekday), "to_next_weekday")
+
+    def to_monday(self):
+        """Select this week's monday, using Monday as day zero."""
+        return _date_operation(self, "weekday", (0, 0), "to_monday")
+
+    def to_tuesday(self):
+        """Select this week's tuesday, using Monday as day zero."""
+        return _date_operation(self, "weekday", (0, 1), "to_tuesday")
+
+    def to_wednesday(self):
+        """Select this week's wednesday, using Monday as day zero."""
+        return _date_operation(self, "weekday", (0, 2), "to_wednesday")
+
+    def to_thursday(self):
+        """Select this week's thursday, using Monday as day zero."""
+        return _date_operation(self, "weekday", (0, 3), "to_thursday")
+
+    def to_friday(self):
+        """Select this week's friday, using Monday as day zero."""
+        return _date_operation(self, "weekday", (0, 4), "to_friday")
+
+    def to_saturday(self):
+        """Select this week's saturday, using Monday as day zero."""
+        return _date_operation(self, "weekday", (0, 5), "to_saturday")
+
+    def to_sunday(self):
+        """Select this week's sunday, using Monday as day zero."""
+        return _date_operation(self, "weekday", (0, 6), "to_sunday")
+
+    def to_yesterday(self):
+        """Move one local calendar day, retaining clock and nanoseconds."""
+        return _date_operation(self, "day", (-1,), "to_yesterday")
+
+    def to_tomorrow(self):
+        """Move one local calendar day, retaining clock and nanoseconds."""
+        return _date_operation(self, "day", (1,), "to_tomorrow")
+
+    def add(self, years=0, quarters=0, months=0, weeks=0, days=0, hours=0, minutes=0, seconds=0, milliseconds=0, microseconds=0, nanoseconds=0):
+        """Combine integer calendar increments before final precision/capacity checks."""
+        return _date_operation(self, "add", (years, quarters, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds), "add")
+
+    def sub(self, years=0, quarters=0, months=0, weeks=0, days=0, hours=0, minutes=0, seconds=0, milliseconds=0, microseconds=0, nanoseconds=0):
+        """Combine integer calendar increments before final precision/capacity checks."""
+        return _date_operation(self, "sub", (years, quarters, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds), "sub")
+
+
+class Pldt(_TransformMethods, pl.Series):
     """A true Polars Datetime Series with native calendar operations.
 
     Args:
@@ -850,6 +1268,25 @@ class Pldt(pl.Series):
         return _combine_factory(cls, date, time, size=size, tz=tz, unit=unit, name=name,
                                  ambiguous=ambiguous, nonexistent=nonexistent)
 
+    @classmethod
+    def fromisoformat(cls, dtstr, *, size=None, tz=None, unit=None, name=None,
+                      ambiguous="raise", nonexistent="raise"):
+        """Read complete strict ISO dates, retaining source fraction width."""
+        return _iso_factory(cls, dtstr, size=size, tz=tz, unit=unit, name=name,
+                             ambiguous=ambiguous, nonexistent=nonexistent)
+
+    @classmethod
+    def date_range(cls, start=None, *, end=None, periods=None, freq=None, tz=None,
+                   normalize=False, inclusive="both", unit=None, name=None, default=None,
+                   yearfirst=None, dayfirst=None, isoformat=True, strict=False, cfg=None,
+                   ambiguous="raise", nonexistent="raise"):
+        """Generate native calendar/elapsed dates; only special rules use optional pandas."""
+        return _range_factory(cls, start, end=end, periods=periods, freq=freq, tz=tz,
+                              normalize=normalize, inclusive=inclusive, unit=unit, name=name,
+                              default=default, yearfirst=yearfirst, dayfirst=dayfirst,
+                              isoformat=isoformat, strict=strict, cfg=cfg,
+                              ambiguous=ambiguous, nonexistent=nonexistent)
+
     def as_unit(self, unit, round_ok=True):
         """Return the chosen ms/us/ns resolution; round_ok=True floors precision loss."""
         return _as_unit(self, unit, round_ok)
@@ -870,9 +1307,29 @@ class Pldt(pl.Series):
         """Convert with an explicit naive source zone, optionally removing target metadata."""
         return _tz_eager(self, "switch", targ_tz, base_tz, naive, ambiguous, nonexistent)
 
-    def to_next_month(self):
-        """Return a Pldt moved one calendar month, fitting month-end dates."""
-        return _eager(self, "next_month")
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        """Preserve NumPy temporal operands for the approved arithmetic routes."""
+        if method == "__call__" and len(inputs) == 2 and not kwargs and ufunc in (np.add, np.subtract):
+            left, right = inputs
+            other = right if left is self else left
+            temporal = isinstance(other, (np.datetime64, np.timedelta64)) or isinstance(other, np.ndarray) and other.dtype.kind in "Mm"
+            if temporal:
+                if ufunc is np.subtract and left is not self:
+                    return NotImplemented
+                return _binary_eager(self, other, subtract=ufunc is np.subtract, reflected=left is not self)
+        return super().__array_ufunc__(ufunc, method, *inputs, **kwargs)
+
+    def __add__(self, other):
+        """Apply a calendar Delta or fixed elapsed duration at the current unit."""
+        return _binary_eager(self, other)
+
+    def __radd__(self, other):
+        """Apply reflected Delta/duration addition through normal Python negotiation."""
+        return _binary_eager(self, other, reflected=True)
+
+    def __sub__(self, other):
+        """Subtract Delta/duration, or return a native Duration Series for dates."""
+        return _binary_eager(self, other, subtract=True)
 
     def is_month(self, month):
         """Return a Boolean Series; missing dates are False."""
@@ -880,9 +1337,30 @@ class Pldt(pl.Series):
         return _eager(self, "is_month", month)
 
 
-class _SeriesNamespace:
+class _SeriesNamespace(_TransformMethods):
+    def add_delta(self, delta):
+        """Apply actual Delta rules and return one final Pldt column."""
+        return _binary_eager(self, delta, named=True)
+
+    def sub_delta(self, delta):
+        """Reverse relative Delta quantities while retaining absolute fields."""
+        return _binary_eager(self, delta, subtract=True, named=True)
+
+    def replace(self, year=None, month=None, day=None, hour=None, minute=None,
+                second=None, microsecond=None, nanosecond=None, tzinfo=_UNCHANGED_ZONE, *,
+                ambiguous="raise", nonexistent="raise"):
+        """Strictly merge date fields; omitted tzinfo retains, None removes the zone."""
+        return _date_operation(self, "replace", (year, month, day, hour, minute, second, microsecond, nanosecond),
+                               "pldt.replace", tzinfo=tzinfo, ambiguous=ambiguous, nonexistent=nonexistent)
+
     def __init__(self, series):
         self._series = series
+
+    def fromisoformat(self, *, tz=None, unit=None, name=None, ambiguous="raise", nonexistent="raise"):
+        """Parse complete ISO text into one native date column."""
+        cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
+        return _iso_factory(cls, self._series, tz=tz, unit=unit, name=name,
+                             ambiguous=ambiguous, nonexistent=nonexistent)
 
     def combine(self, time=None, *, tz=None, unit=None, name=None, ambiguous="raise", nonexistent="raise"):
         """Use this Series for dates and compose one final native Pldt."""
@@ -974,24 +1452,34 @@ class _SeriesNamespace:
         """Convert with an explicit naive source zone, optionally removing target metadata."""
         return _tz_eager(self._series, "switch", targ_tz, base_tz, naive, ambiguous, nonexistent)
 
-    def to_next_month(self):
-        """Move a typed date column by one month, returning Pldt."""
-        return _eager(self._series, "next_month")
-
     def is_month(self, month):
         """Return a native Boolean column without an intermediate Pldt."""
         month = _integer_arg(month, "Pldt.is_month", "month")
         return _eager(self._series, "is_month", month)
 
-    def add(self, *, days=0):
-        """Add a scalar or strictly equal-length integer days column."""
-        operand, scalar = _operand(days, expression=False)
-        return _eager(self._series, "add_days", operand=operand, scalar=scalar)
 
+class _ExprNamespace(_TransformMethods):
+    def add_delta(self, delta):
+        """Build a native Expr from concrete ordinary Delta snapshots."""
+        return _delta_expression(self._expr, delta, False)
 
-class _ExprNamespace:
+    def sub_delta(self, delta):
+        """Build a native Expr reversing only relative Delta quantities."""
+        return _delta_expression(self._expr, delta, True)
+
+    def replace(self, year=None, month=None, day=None, hour=None, minute=None,
+                second=None, microsecond=None, nanosecond=None, tzinfo=_UNCHANGED_ZONE, *,
+                ambiguous="raise", nonexistent="raise"):
+        """Strictly merge date fields; omitted tzinfo retains, None removes the zone."""
+        return _date_operation(self, "replace", (year, month, day, hour, minute, second, microsecond, nanosecond),
+                               "pldt.replace", tzinfo=tzinfo, ambiguous=ambiguous, nonexistent=nonexistent)
+
     def __init__(self, expr):
         self._expr = expr
+
+    def fromisoformat(self, *, tz=None, unit=None, ambiguous="raise", nonexistent="raise"):
+        """Parse a strict ISO String Expr with a fixed unit/timezone schema."""
+        return _iso_expression(self._expr, tz=tz, unit=unit, ambiguous=ambiguous, nonexistent=nonexistent)
 
     def combine(self, time=None, *, tz=None, unit=None, ambiguous="raise", nonexistent="raise"):
         """Compose a date Expr with a native clock, keeping a fixed schema."""
@@ -1077,19 +1565,10 @@ class _ExprNamespace:
         """Convert with an explicit naive source zone, optionally removing target metadata."""
         return _tz_expr(self._expr, "switch", targ_tz, base_tz, naive, ambiguous, nonexistent)
 
-    def to_next_month(self):
-        """Return a native Expr applying the shared calendar-month kernel."""
-        return _expr(self._expr, "next_month")
-
     def is_month(self, month):
         """Return a Boolean Expr, preserving the source expression name."""
         month = _integer_arg(month, "Pldt.is_month", "month")
         return _expr(self._expr, "is_month", month)
-
-    def add(self, *, days=0):
-        """Add integer days, distinguishing logical scalars from vectors."""
-        operand, scalar = _operand(days, expression=True)
-        return _expr(self._expr, "add_days", operand=operand, scalar=scalar)
 
 
 if hasattr(pl.Series, "pldt") or hasattr(pl.Expr, "pldt"):

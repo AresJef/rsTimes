@@ -109,6 +109,36 @@ impl Rows {
     pub(super) fn inherit_zone(&mut self, zone: usize) {
         self.common = Some(zone);
     }
+    pub(super) fn reserve(&mut self, additional: usize) -> Result<(), Failure> {
+        let length = self
+            .values
+            .len()
+            .checked_add(additional)
+            .ok_or_else(|| Failure::new(Kind::Capacity, "date column length overflow"))?;
+        if length > isize::MAX as usize / std::mem::size_of::<Option<i128>>()
+            || length > isize::MAX as usize / std::mem::size_of::<Source>()
+        {
+            return Err(Failure::new(
+                Kind::Capacity,
+                "date column exceeds the native allocation range",
+            ));
+        }
+        self.values
+            .try_reserve(additional)
+            .map_err(|_| Failure::new(Kind::Memory, "cannot allocate the date column"))?;
+        self.sources
+            .try_reserve(additional)
+            .map_err(|_| Failure::new(Kind::Memory, "cannot allocate date source metadata"))?;
+        Ok(())
+    }
+    pub(super) fn ensure_one(&mut self) -> Result<(), Failure> {
+        if self.values.len() == self.values.capacity()
+            || self.sources.len() == self.sources.capacity()
+        {
+            self.reserve(self.values.capacity().max(16))?;
+        }
+        Ok(())
+    }
     pub(super) fn repeat(&mut self, size: usize) -> Result<(), Failure> {
         if self.values.len() != 1 {
             return Err(Failure::new(

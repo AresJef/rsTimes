@@ -3,12 +3,16 @@
 //! The SDK owns the Series/Arrow FFI boundary. Worker calculations below contain
 //! no Python objects, imports, callbacks, or implicit GIL acquisition.
 
+mod arithmetic;
 mod calendar;
 mod combine;
 mod dates;
 mod factory;
 mod finish;
 mod input;
+mod iso;
+mod operations;
+mod range;
 mod text;
 mod timezone;
 mod zones;
@@ -259,7 +263,11 @@ pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     text::configure(module)?;
     factory::configure(module)?;
     dates::configure(module)?;
+    iso::configure(module)?;
+    operations::configure(module)?;
+    range::configure(module)?;
     calendar::configure(module)?;
+    arithmetic::configure(module)?;
     combine::configure(module)?;
     zones::configure(module)?;
     timezone::configure(module)

@@ -1,34 +1,22 @@
 //! Native field/relative transforms over one immutable date-buffer snapshot.
 use super::arguments::Integers;
-use super::common::{NS_DAY, Rows, finish, pack};
+use super::common::{Rows, finish, pack};
 use super::zones::{Candidates, Policies};
 use crate::epoch::{Parsed, Unit, Zone};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
-pub(super) fn fields(ns: i128) -> PyResult<[i64; 8]> {
-    let ordinal = i64::try_from(ns.div_euclid(NS_DAY) + 719_163)
-        .map_err(|_| crate::error_context::overflow("calendar day exceeds native range"))?;
-    let date = crate::calendar::from_ordinal(ordinal).map_err(crate::error_context::overflow)?;
-    let clock = ns.rem_euclid(NS_DAY);
-    Ok([
-        date[0],
-        date[1],
-        date[2],
-        (clock / 3_600_000_000_000) as i64,
-        (clock / 60_000_000_000 % 60) as i64,
-        (clock / 1_000_000_000 % 60) as i64,
-        (clock / 1000 % 1_000_000) as i64,
-        (clock % 1000) as i64,
-    ])
+fn transform_error(error: crate::date_transform::Error) -> PyErr {
+    match error {
+        crate::date_transform::Error::Value(message) => crate::error_context::value_error(message),
+        crate::date_transform::Error::Capacity(message) => crate::error_context::overflow(message),
+    }
 }
-pub(super) fn nanos(f: [i64; 8]) -> PyResult<i128> {
-    let day = crate::calendar::checked_ordinal(f[0], f[1], f[2])
-        .map_err(crate::error_context::overflow)?;
-    Ok((i128::from(day) - 719_163) * NS_DAY
-        + ((i128::from(f[3]) * 60 + i128::from(f[4])) * 60 + i128::from(f[5])) * 1_000_000_000
-        + i128::from(f[6]) * 1000
-        + i128::from(f[7]))
+pub(super) fn fields(ns: i128) -> PyResult<[i64; 8]> {
+    crate::date_transform::fields(ns).map_err(transform_error)
+}
+pub(super) fn nanos(fields: [i64; 8]) -> PyResult<i128> {
+    crate::date_transform::nanos(fields).map_err(transform_error)
 }
 
 /// Prefer the actual source offset, constrained to a valid target calendar day.
@@ -41,11 +29,12 @@ pub(super) fn automatic(
 ) -> PyResult<i128> {
     let select = |c: Candidates| match c {
         Candidates::One(v) => Some(v),
-        Candidates::Repeated(a, b) => Some(if wall - b == source_wall - source {
-            b
-        } else {
-            a
-        }),
+        Candidates::Repeated(a, b) => Some(crate::calendar::calendar_repeat(
+            wall,
+            source_wall - source,
+            a,
+            b,
+        )),
         Candidates::Gap { .. } => None,
     };
     let candidate = super::zones::candidates(wall, zone)?;
@@ -54,13 +43,13 @@ pub(super) fn automatic(
             .ok_or_else(|| crate::error_context::runtime("missing automatic candidate"));
     };
     let gap = i128::from(after - before) * 1000;
-    let forward = if source_wall - source == i128::from(before) * 1000 {
-        true
-    } else if source_wall - source == i128::from(after) * 1000 {
-        false
-    } else {
-        wall >= source_wall
-    };
+    let forward = crate::calendar::calendar_gap_forward(
+        wall,
+        source_wall,
+        source_wall - source,
+        i128::from(before) * 1000,
+        i128::from(after) * 1000,
+    );
     for shifted in crate::calendar::calendar_gap_targets(wall, gap, forward)
         .into_iter()
         .flatten()
@@ -68,11 +57,12 @@ pub(super) fn automatic(
         let candidate = super::zones::candidates(shifted, zone)?;
         let value = match candidate {
             Candidates::One(v) => Some(v),
-            Candidates::Repeated(a, b) => Some(if shifted - b == source_wall - source {
-                b
-            } else {
-                a
-            }),
+            Candidates::Repeated(a, b) => Some(crate::calendar::calendar_repeat(
+                shifted,
+                source_wall - source,
+                a,
+                b,
+            )),
             Candidates::Gap { .. } => None,
         };
         if let Some(value) = value {
@@ -85,81 +75,8 @@ pub(super) fn automatic(
 }
 
 fn transformed(wall: i128, kind: &str, args: &[PyRef<'_, Integers>], row: usize) -> PyResult<i128> {
-    let mut f = fields(wall)?;
-    let get = |i: usize| args[i].0.get(row);
-    if matches!(kind, "replace" | "adjust") {
-        for (i, field) in f.iter_mut().enumerate() {
-            if let Some(value) = get(i) {
-                *field = value;
-            }
-        }
-        if get(6).is_some() && get(7).is_none() {
-            f[7] = 0;
-        }
-        let last = crate::calendar::days_in_month(f[0], f[1]);
-        if f[2] > last {
-            if kind == "replace" {
-                return Err(crate::error_context::value_error(format!(
-                    "day {} is invalid for year {} and month {}",
-                    f[2], f[0], f[1]
-                )));
-            }
-            f[2] = last;
-        }
-        return nanos(f);
-    }
-    let required = |i| {
-        get(i).ok_or_else(|| crate::error_context::runtime("required component was not prepared"))
-    };
-    let (months, days, clock, month, day) = if matches!(kind, "add" | "sub") {
-        let sign = if kind == "sub" { -1 } else { 1 };
-        let months = (i128::from(required(0)?) * 12
-            + i128::from(required(1)?) * 3
-            + i128::from(required(2)?))
-            * sign;
-        let days = (i128::from(required(3)?) * 7 + i128::from(required(4)?)) * sign;
-        let clock = ((((i128::from(required(5)?) * 60 + i128::from(required(6)?)) * 60
-            + i128::from(required(7)?))
-            * 1000
-            + i128::from(required(8)?))
-            * 1000
-            + i128::from(required(9)?))
-            * 1000
-            + i128::from(required(10)?);
-        (months, days, clock * sign, None, None)
-    } else {
-        let offset = i128::from(required(0)?);
-        match kind {
-            "year" => (offset * 12, 0, 0, get(1), get(2)),
-            "quarter" => (
-                offset * 3,
-                0,
-                0,
-                get(1).map(|v| (f[1] - 1) / 3 * 3 + v),
-                get(2),
-            ),
-            "month" => (offset, 0, 0, None, get(1)),
-            "weekday" => {
-                let ordinal = crate::calendar::checked_ordinal(f[0], f[1], f[2])
-                    .map_err(crate::error_context::overflow)?;
-                (
-                    0,
-                    offset * 7 + get(1).map_or(0, |v| i128::from(v - (ordinal - 1).rem_euclid(7))),
-                    0,
-                    None,
-                    None,
-                )
-            }
-            "day" => (0, offset, 0, None, None),
-            _ => return Err(crate::error_context::runtime("unknown calendar transform")),
-        }
-    };
-    let date = crate::calendar::move_date([f[0], f[1], f[2]], months, days, month, day)
-        .map_err(crate::error_context::overflow)?;
-    f[..3].copy_from_slice(&date);
-    nanos(f)?
-        .checked_add(clock)
-        .ok_or_else(|| crate::error_context::overflow("calendar clock increment overflow"))
+    crate::date_transform::transform(wall, kind, |index| args[index].0.get(row))
+        .map_err(transform_error)
 }
 
 type Output<'py> = (Bound<'py, PyBytes>, &'static str, Py<PyAny>, bool);
