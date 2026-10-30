@@ -42,29 +42,29 @@ fn _pddt_rescale<'py>(
                 let nanos = i128::from(tick).checked_mul(scale).ok_or_else(|| {
                     crate::error_context::overflow("date unit conversion overflow")
                 })?;
-                if !round_ok && nanos.rem_euclid(target) != 0 {
-                    return Err(crate::error_context::location(
-                        py,
-                        crate::error_context::value_error(
-                            "cannot preserve the date at this unit; choose a finer unit or explicitly allow rounding",
-                        ),
-                        entry,
-                        &format!("data[{index}]"),
-                    ));
-                }
-                i64::try_from(nanos.div_euclid(target))
-                    .ok()
-                    .filter(|v| *v != i64::MIN)
-                    .ok_or_else(|| {
-                        crate::error_context::location(
+                match crate::precision::epoch_tick(nanos, target, round_ok) {
+                    Err(crate::precision::TickError::Precision) => {
+                        return Err(crate::error_context::location(
+                            py,
+                            crate::error_context::value_error(
+                                "cannot preserve the date at this unit; choose a finer unit or explicitly allow rounding",
+                            ),
+                            entry,
+                            &format!("data[{index}]"),
+                        ));
+                    }
+                    Err(crate::precision::TickError::Capacity) | Ok(i64::MIN) => {
+                        return Err(crate::error_context::location(
                             py,
                             crate::error_context::overflow(
                                 "date is outside the requested unit range; choose a coarser unit",
                             ),
                             entry,
                             &format!("data[{index}]"),
-                        )
-                    })?
+                        ));
+                    }
+                    Ok(value) => value,
+                }
             };
             output.copy_from_slice(&converted.to_ne_bytes());
         }

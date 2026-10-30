@@ -81,20 +81,14 @@ impl Unit {
 /// The fractional multiplication uses the input float's normal arithmetic; a
 /// coarser output is selected afterwards, never through a microsecond carrier.
 pub(crate) fn float_nanos(number: f64, unit: Unit) -> PyResult<i128> {
-    if number.is_nan() {
-        return Err(crate::error_context::value_error(
-            "numeric epoch must not be NaN",
-        ));
-    }
-    if !number.is_finite() || number < i128::MIN as f64 || number >= i128::MAX as f64 {
-        return Err(crate::error_context::overflow("numeric epoch is too large"));
-    }
-    let whole = number.trunc();
-    let fraction = ((number - whole) * unit.nanos() as f64).floor() as i128;
-    (whole as i128)
-        .checked_mul(unit.nanos())
-        .and_then(|value| value.checked_add(fraction))
-        .ok_or_else(|| crate::error_context::overflow("numeric epoch is too large"))
+    crate::precision::float_epoch_nanos(number, unit.nanos()).map_err(|error| match error {
+        crate::precision::FloatEpochError::NaN => {
+            crate::error_context::value_error("numeric epoch must not be NaN")
+        }
+        crate::precision::FloatEpochError::Capacity => {
+            crate::error_context::overflow("numeric epoch is too large")
+        }
+    })
 }
 
 /// A timezone boundary value; ordinary parsing owns no Python object.

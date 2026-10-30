@@ -145,25 +145,7 @@ impl Rows {
 
 /// Fixed zones are prepared once per zone, never once per date.
 pub(super) fn fixed_offset(py: Python<'_>, zone: &Zone) -> PyResult<Option<i64>> {
-    match zone {
-        Zone::Naive => Ok(Some(0)),
-        Zone::Offset(us) => Ok(Some(*us)),
-        Zone::Object(value) => {
-            let zone = value.bind(py);
-            // SAFETY: datetime's initialized capsule owns its standard UTC object.
-            let fixed = unsafe {
-                ffi::Py_TYPE(zone.as_ptr()) == ffi::Py_TYPE((*ffi::PyDateTimeAPI()).TimeZone_UTC)
-            };
-            if fixed {
-                return crate::epoch::offset_us(
-                    &zone
-                        .call_method1("utcoffset", (py.None(),))
-                        .map_err(crate::error_context::external)?,
-                );
-            }
-            crate::pydt::fixed_zoneinfo_offset(zone)
-        }
-    }
+    crate::date_input::fixed_offset(py, zone)
 }
 
 pub(super) fn same_zone(py: Python<'_>, a: &Zone, b: &Zone) -> PyResult<bool> {

@@ -169,12 +169,7 @@ pub(super) fn candidates(wall: i128, zone: &Bound<'_, PyAny>) -> PyResult<Candid
     }
 }
 
-#[derive(Clone, Copy)]
-pub(super) struct Pending {
-    pub first: i128,
-    pub second: i128,
-    pub zone: usize,
-}
+pub(super) use crate::local_infer::Pending;
 
 fn choose(
     policy: &Policies,
@@ -250,41 +245,12 @@ pub(super) fn localize(
     choose(policy, candidates(shifted, zone)?, index, zone_id, pending)
 }
 
-/// Infer within each consecutive ambiguous run in input order, never by sorting.
-/// One non-increasing step separates its first and second actual UTC candidates.
+/// Keep the adopted Python boundary while sharing its native inference rule.
 pub(super) fn infer(values: &mut [Option<i128>], pending: &[Option<Pending>]) -> PyResult<()> {
-    let mut start = 0;
-    while start < pending.len() {
-        let Some(first) = pending[start] else {
-            start += 1;
-            continue;
-        };
-        let mut end = start + 1;
-        while end < pending.len() && pending[end].is_some_and(|v| v.zone == first.zone) {
-            end += 1;
-        }
-        let mut switch = None;
-        for i in start + 1..end {
-            let previous = pending[i - 1]
-                .ok_or_else(|| crate::error_context::runtime("missing inference candidate"))?;
-            let current = pending[i]
-                .ok_or_else(|| crate::error_context::runtime("missing inference candidate"))?;
-            if current.first <= previous.first && switch.replace(i).is_some() {
-                return Err(crate::error_context::value_error(
-                    "cannot infer local time: multiple clock reversals occur within one repeated interval",
-                ));
-            }
-        }
-        let split=switch.ok_or_else(||crate::error_context::value_error(
-            "cannot infer this repeated local time from input order; provide a boolean or boolean collection"))?;
-        for i in start..end {
-            let item = pending[i]
-                .ok_or_else(|| crate::error_context::runtime("missing inference candidate"))?;
-            values[i] = Some(if i < split { item.first } else { item.second });
-        }
-        start = end;
-    }
-    Ok(())
+    crate::local_infer::infer(values, pending).map_err(|error| match error {
+        crate::local_infer::InferError::Data(message) => crate::error_context::value_error(message),
+        crate::local_infer::InferError::Internal(message) => crate::error_context::runtime(message),
+    })
 }
 
 /// Convert one known instant to wall coordinates without creating a Pddt.

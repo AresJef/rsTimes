@@ -17,25 +17,34 @@ compile_error!(
 );
 
 use pyo3::prelude::*;
+mod batch_shape;
 mod bulk;
 mod calendar;
 mod civil;
+mod clock;
+mod date_input;
+mod date_parts;
 mod delta;
 mod epoch;
 mod error_context;
 mod interop;
+mod local_infer;
 mod localization;
 mod numeric;
+mod numeric_epoch;
 mod numpy_scalar;
 mod parser;
 mod pddt;
 #[allow(missing_docs, unsafe_op_in_unsafe_fn)] // Official plugin macro generates C ABI wrappers.
 mod pldt;
+mod precision;
 mod protocol;
 mod pydt;
 mod pydt_compare;
 mod python_cache;
+mod serde_values;
 mod state;
+mod temporal_zone;
 
 /// Return the native implementation label for installation diagnostics.
 #[pyfunction]

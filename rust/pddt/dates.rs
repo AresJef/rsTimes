@@ -1,6 +1,6 @@
 //! Actual date roles and scalar/column calendar factories before final wrapping.
 use super::common::{NS_DAY, Rows, finish};
-use crate::epoch::{self, Options, Parsed, Unit, Zone};
+use crate::epoch::{self, Parsed, Unit, Zone};
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
@@ -30,50 +30,15 @@ fn role(value: &Bound<'_, PyAny>, kind: &str, replace: bool) -> PyResult<Option<
         }
         return crate::parser::iso_factory::read(text.to_str()?).map(|p| Some((p, false)));
     }
-    if super::arguments::date_missing(value)? {
-        return Ok(None);
-    }
-    if kind == "numpy" {
-        let (ticks, code, multiplier) =
-            crate::numpy_scalar::datetime_ticks(value)?.ok_or_else(|| {
-                crate::error_context::type_error(
-                    "requires a NumPy datetime64 value; use fromdatetime for Python datetime",
-                )
-            })?;
-        return epoch::numpy_ticks(ticks, code, multiplier).map(|p| Some((p, false)));
-    }
-    let valid = unsafe {
-        if kind == "date" {
-            ffi::PyDate_Check(value.as_ptr())
-        } else {
-            ffi::PyDateTime_Check(value.as_ptr())
-        }
-    };
-    if valid == 0 {
-        return Err(crate::error_context::type_error(if kind == "date" {
-            "requires date or datetime values; use parse for text and fromdatetime64 for NumPy dates"
-        } else {
-            "requires datetime values, not plain date, text or numeric data"
-        }));
-    }
-    let opts = Options {
-        default: None,
-        yearfirst: None,
-        dayfirst: None,
-        ignoretz: replace || kind == "date",
-        isoformat: true,
-        strict: false,
-        iso_only: false,
-        cfg: None,
-        input_unit: Unit::Second,
-    };
-    let mut parsed = epoch::read(value, &opts)?;
-    if kind == "date" {
-        parsed.nanos = parsed.nanos.div_euclid(NS_DAY) * NS_DAY;
-        parsed.zone = Zone::Naive;
-    }
-    let instant = kind == "datetime" && !replace && !matches!(parsed.zone, Zone::Naive);
-    Ok(Some((parsed, instant)))
+    crate::date_input::named_date(
+        value,
+        match kind {
+            "date" => crate::date_input::DateSource::Date,
+            "numpy" => crate::date_input::DateSource::Numpy,
+            _ => crate::date_input::DateSource::Datetime,
+        },
+        replace,
+    )
 }
 
 #[pyfunction]

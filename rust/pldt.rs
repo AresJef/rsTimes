@@ -3,13 +3,20 @@
 //! The SDK owns the Series/Arrow FFI boundary. Worker calculations below contain
 //! no Python objects, imports, callbacks, or implicit GIL acquisition.
 
+mod calendar;
+mod combine;
+mod dates;
+mod factory;
+mod finish;
+mod input;
 mod text;
+mod timezone;
+mod zones;
 
 use polars::prelude::*;
 use pyo3::prelude::*;
 use pyo3_polars::PySeries;
 use pyo3_polars::derive::polars_expr;
-use pyo3_polars::error::PyPolarsErr;
 use pyo3_polars::export::polars_ffi::version_0::export_series;
 use serde::Deserialize;
 use std::mem::ManuallyDrop;
@@ -46,9 +53,14 @@ fn output_field(fields: &[Field], kwargs: Options) -> PolarsResult<Field> {
     let source = fields
         .first()
         .ok_or_else(|| polars_err!(InvalidOperation: "Pldt requires a date source"))?;
-    polars_ensure!(matches!(source.dtype(), DataType::Datetime(_, _)), InvalidOperation: "Pldt requires Datetime input");
+    polars_ensure!(matches!(source.dtype(), DataType::Datetime(_, _) | DataType::Date), InvalidOperation: "Pldt requires Date/Datetime input");
     if matches!(kwargs.operation, Operation::IsMonth) {
         Ok(Field::new(source.name().clone(), DataType::Boolean))
+    } else if source.dtype() == &DataType::Date {
+        Ok(Field::new(
+            source.name().clone(),
+            DataType::Datetime(TimeUnit::Milliseconds, None),
+        ))
     } else {
         Ok(source.clone())
     }
@@ -66,19 +78,19 @@ fn shift_month(value: i64, per_day: i64) -> PolarsResult<i64> {
     let day = value.div_euclid(per_day);
     let ordinal = day
         .checked_add(EPOCH_ORDINAL)
-        .ok_or_else(|| polars_err!(ComputeError: "Pldt.to_next_month: date overflow"))?;
+        .ok_or_else(|| polars_err!(OutOfBounds: "Pldt.to_next_month: date overflow"))?;
     let [year, month, date] = crate::calendar::from_ordinal(ordinal)
-        .map_err(|message| polars_err!(ComputeError: "Pldt.to_next_month: {}", message))?;
+        .map_err(|message| polars_err!(OutOfBounds: "Pldt.to_next_month: {}", message))?;
     let (year, month) = if month == 12 {
         (year + 1, 1)
     } else {
         (year, month + 1)
     };
     let target = crate::calendar::checked_ordinal(year, month, date)
-        .map_err(|message| polars_err!(ComputeError: "Pldt.to_next_month: {}", message))?;
+        .map_err(|message| polars_err!(OutOfBounds: "Pldt.to_next_month: {}", message))?;
     let ticks = i128::from(target - EPOCH_ORDINAL) * i128::from(per_day)
         + i128::from(value.rem_euclid(per_day));
-    i64::try_from(ticks).map_err(|_| polars_err!(ComputeError: "Pldt.to_next_month: result exceeds current unit; use as_unit explicitly"))
+    i64::try_from(ticks).map_err(|_| polars_err!(OutOfBounds: "Pldt.to_next_month: result exceeds current unit; use as_unit explicitly"))
 }
 
 fn execute(inputs: &[Series], options: &Options) -> PolarsResult<Series> {
@@ -86,6 +98,13 @@ fn execute(inputs: &[Series], options: &Options) -> PolarsResult<Series> {
     let source = inputs
         .first()
         .ok_or_else(|| polars_err!(InvalidOperation: "Pldt requires a date source"))?;
+    let promoted;
+    let source = if source.dtype() == &DataType::Date {
+        promoted = source.cast(&DataType::Datetime(TimeUnit::Milliseconds, None))?;
+        &promoted
+    } else {
+        source
+    };
     let dates = source.datetime()?;
     let unit = dates.time_unit();
     let zone = dates.time_zone();
@@ -141,7 +160,7 @@ fn execute(inputs: &[Series], options: &Options) -> PolarsResult<Series> {
                     .ok_or_else(|| polars_err!(InvalidOperation: "Pldt.add: missing days"))?;
                 let shifted = value.map(|value| {
                     let ticks = i128::from(value) + i128::from(amount) * i128::from(per_day);
-                    i64::try_from(ticks).map_err(|_| polars_err!(ComputeError: "Pldt.add: result exceeds current unit; use as_unit explicitly"))
+                    i64::try_from(ticks).map_err(|_| polars_err!(OutOfBounds: "Pldt.add: result exceeds current unit; use as_unit explicitly"))
                 }).transpose()?;
                 result.append_option(shifted);
             }
@@ -196,14 +215,52 @@ fn _pldt_execute<'py>(
     }
     let result = py
         .detach(|| execute(&inputs, &options))
-        .map_err(PyPolarsErr::from)?;
+        .map_err(eager_error)?;
     // This is the same SDK-owned SeriesExport transfer as PySeries::into_pyobject.
     // Polars' _import consumes it and assumes responsibility for release callbacks.
-    let export = ManuallyDrop::new(export_series(&result));
+    export(py, &result, target)
+}
+
+/// Transfer ownership through the SDK's versioned SeriesExport protocol.
+pub(super) fn export<'py>(
+    _py: Python<'py>,
+    result: &Series,
+    target: &Bound<'py, PyAny>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let export = ManuallyDrop::new(export_series(result));
     target.call_method1("_import", ((&raw const export).addr(),))
+}
+
+/// Adapt known native failure categories only at the eager Python boundary.
+/// Plugin execution retains the engine's native error protocol instead.
+pub(super) fn eager_error(error: PolarsError) -> PyErr {
+    match error {
+        PolarsError::SchemaMismatch(message) => {
+            crate::error_context::type_error(message.to_string())
+        }
+        PolarsError::OutOfBounds(message) => crate::error_context::overflow(message.to_string()),
+        PolarsError::ShapeMismatch(message)
+        | PolarsError::InvalidOperation(message)
+        | PolarsError::ComputeError(message) => {
+            crate::error_context::value_error(message.to_string())
+        }
+        PolarsError::Python { error } => crate::error_context::external(error.0),
+        PolarsError::Context { .. } | PolarsError::ExprContext { .. } => {
+            eager_error(error.context_trace())
+        }
+        other => pyo3_polars::error::PyPolarsErr::from(other).into(),
+    }
 }
 
 /// Register the eager adapter without importing or requiring Python Polars.
 pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_function(wrap_pyfunction!(_pldt_execute, module)?)
+    module.add_function(wrap_pyfunction!(_pldt_execute, module)?)?;
+    input::configure(module)?;
+    text::configure(module)?;
+    factory::configure(module)?;
+    dates::configure(module)?;
+    calendar::configure(module)?;
+    combine::configure(module)?;
+    zones::configure(module)?;
+    timezone::configure(module)
 }

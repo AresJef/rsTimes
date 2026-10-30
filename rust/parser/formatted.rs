@@ -39,6 +39,26 @@ impl Format {
     }
 }
 
+impl Format {
+    /// Inspect already expanded structure, not the source label or locale text.
+    pub(crate) fn has_fraction(&self) -> bool {
+        self.steps
+            .iter()
+            .any(|step| matches!(step, Step::Field { code: 'f', .. }))
+    }
+    pub(crate) fn has_timezone(&self) -> bool {
+        self.steps.iter().any(|step| {
+            matches!(
+                step,
+                Step::Field {
+                    code: 'z' | 'Z',
+                    ..
+                }
+            )
+        })
+    }
+}
+
 fn compile(
     text: &str,
     steps: &mut Vec<Step>,
