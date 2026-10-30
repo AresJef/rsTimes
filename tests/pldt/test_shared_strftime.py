@@ -136,7 +136,14 @@ def test_pydt_stored_fraction_and_actual_subclass_format_dispatch():
     assert calls == ['%.9f']
     for fmt in ('%Y/%m/%d', '%A', '%_d', 'literal', '', '%%f', '%c'):
         plain = Pydt(1, 1, 1, 1, 2, 3)
-        assert plain.strftime(fmt) == datetime.strftime(plain, fmt)
+        try:
+            expected = datetime.strftime(plain, fmt)
+        except Exception as original:
+            with pytest.raises(type(original)) as caught:
+                plain.strftime(fmt)
+            assert caught.value.args == original.args
+        else:
+            assert plain.strftime(fmt) == expected
 
 
 @pytest.mark.parametrize('invalid', [None, 1, True, b'%f'])

@@ -17,6 +17,7 @@ mod output;
 mod periods;
 mod queries;
 mod range;
+mod state;
 mod text;
 mod timezone;
 mod zones;
@@ -65,6 +66,7 @@ pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     operations::configure(module)?;
     output::configure(module)?;
     format::configure(module)?;
+    state::configure(module)?;
     periods::configure(module)?;
     queries::configure(module)?;
     difference::configure(module)?;

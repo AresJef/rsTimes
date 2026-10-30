@@ -24,6 +24,10 @@ from ._native import (_integer_arg, _bool_option, _pldt_native,
                       _pldt_objects, _pldt_register_missing, _pldt_policies, _pldt_timezone)
 from .parser import Configs
 from .pydt import Pydt
+from ._pldt_state import (register as _state_register, capture as _capture_state,
+                          apply as _apply_state, recipe as _state_recipe, copy_value as _state_copy)
+from ._class_protocol import definition as _state_definition
+from ._polars import plain_series as _plain_series, register as _register_polars_base
 from ._formatting import prepare_format as _prepare_format
 from ._native import (_pldt_prepare_text, _pldt_prepare_format, _pldt_text,
                       _pldt_text_needed, _pldt_format_objects, _pldt_now,
@@ -137,7 +141,7 @@ def _construct(data, *, unit, name, copy, default, yearfirst, dayfirst, isoforma
                 raise TypeError("Pldt: extended NumPy floating values are not supported date ticks")
             data = pl.Series("", data.astype(np.float32) if data.dtype == np.dtype("float16") else data)
     if isinstance(data, pl.Series):
-        data = pl.Series(data)  # Independent shell; retain typed native owner/chunks.
+        data = _plain_series(data)  # Independent shell; retain typed native owner/chunks.
         source_name = data.name
         kind = data.dtype.base_type()
         if kind not in (pl.String, pl.Object) and (kind in (pl.Date, pl.Datetime, pl.Null) or data.dtype.is_numeric()):
@@ -217,7 +221,7 @@ def _strptime_eager(data, fmt, *, size=None, tz=None, unit=None, name=None,
         elif size is not None:
             raise _own_error(ValueError("omit size for a collection"), "size", size)
         if isinstance(data, pl.Series) and data.dtype.base_type() in (pl.String, pl.Null):
-            source = pl.Series(data)
+            source = _plain_series(data)
             if source.dtype == pl.Null:
                 source = source.cast(pl.String)
             context = _pldt_prepare_format(compiled, cfg)
@@ -295,7 +299,7 @@ def _numeric_eager(cls, data, kind, *, size=None, tz=None, unit=None, name=None,
         if isinstance(data, pl.Series):
             if size is not None:
                 raise _own_error(ValueError("omit size for a collection"), "size", size)
-            source = pl.Series(data)
+            source = _plain_series(data)
             source_name = source.name
             if source.dtype.base_type() is not pl.Object:
                 if name is not None:
@@ -418,7 +422,7 @@ def _iso_factory(cls, data, *, size=None, tz=None, unit=None, name=None,
         if isinstance(data, pl.Series):
             if size is not None:
                 raise _own_error(ValueError("omit size for a collection"), "size", size)
-            data = pl.Series(data)
+            data = _plain_series(data)
             source_name = data.name
             column = True
             if data.dtype.base_type() is not pl.Object:
@@ -503,7 +507,7 @@ def _date_factory(cls, data, kind, *, size=None, tz=None, unit=None, name=None,
                 raise _own_error(TypeError("fromdatetime64 requires a real NumPy source, not Polars"), "dt64", data)
             if size is not None:
                 raise _own_error(ValueError("omit size for a collection"), "size", size)
-            source = pl.Series(data)
+            source = _plain_series(data)
             source_name = source.name
             if source.dtype.base_type() is not pl.Object:
                 source = source.rename(name) if name is not None else source
@@ -575,7 +579,7 @@ def _part_source(value, clock, keep_zone):
                 raise _own_error(TypeError("extended floating dtypes are not supported date/clock values"), parameter, value)
             value = pl.Series("", value.astype(np.float32) if value.dtype == np.dtype("float16") else value)
     if isinstance(value, pl.Series):
-        value = pl.Series(value)
+        value = _plain_series(value)
         name = value.name
         column = True
         if value.dtype.base_type() is pl.Time and clock:
@@ -649,7 +653,7 @@ def _integer_operand(value, entry, parameter):
             value = pl.Series("", value.astype(np.float32) if value.dtype == np.dtype("float16") else value)
     if isinstance(value, pl.Series):
         column = True
-        value = pl.Series(value)
+        value = _plain_series(value)
         if value.dtype.base_type() is not pl.Object:
             return _pldt_integer_column(value), False
     source, scalar = _pldt_integer_objects(value, column, entry, parameter)
@@ -740,7 +744,7 @@ def _tz_eager(source, operation, tz, base_tz=None, naive=False, ambiguous="raise
     try:
         naive = _bool_option(naive, entry, "naive")
         policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
-        receiver = pl.Series(source)
+        receiver = _plain_series(source)
         dtype = receiver.dtype
         if dtype.base_type() not in (pl.Date, pl.Datetime):
             raise _own_error(TypeError("source must be a Date/Datetime column"), "data", source)
@@ -817,7 +821,7 @@ def _component(value, entry, parameter, optional, names, low, high):
         if kind not in ("i", "u", "O", "U", "T"):
             raise _own_error(TypeError("requires integer fields or supported selector names"), parameter, value)
     if isinstance(value, pl.Series):
-        value = pl.Series(value)
+        value = _plain_series(value)
         column = True
         if value.dtype.base_type() is not pl.Object:
             return _pldt_component_column(value, (optional, names, low, high), entry, parameter), False
@@ -845,7 +849,7 @@ def _date_operation(owner, kind, components, method, *, tzinfo=_UNCHANGED_ZONE,
     entry = "Pldt." + method
     try:
         expression = isinstance(owner, _ExprNamespace)
-        source = owner._expr if expression else pl.Series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
+        source = owner._expr if expression else _plain_series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
         replace_zone = tzinfo is not _UNCHANGED_ZONE
         target = _prepare_zone(tzinfo) if replace_zone else None
         if kind == "replace":
@@ -916,7 +920,7 @@ def _prepare_arithmetic(other, entry, subtract, reflected=False, named=False):
                 raise _own_error(TypeError("requires actual Delta values"), "delta", other)
             return None
     if isinstance(other, pl.Series):
-        other = pl.Series(other)
+        other = _plain_series(other)
         column = True
         if other.dtype.base_type() in (pl.Date, pl.Datetime, pl.Duration):
             if named:
@@ -940,7 +944,7 @@ def _binary_eager(owner, other, subtract=False, reflected=False, named=False):
     method = "sub_delta" if named and subtract else "add_delta" if named else "__sub__" if subtract else "__radd__" if reflected else "__add__"
     entry = "Pldt." + method
     actual = owner._series if isinstance(owner, _SeriesNamespace) else owner
-    source = pl.Series(actual)
+    source = _plain_series(actual)
     try:
         operand = _prepare_arithmetic(other, entry, subtract, reflected, named)
         if operand is None:
@@ -1014,7 +1018,7 @@ def _period_operation(owner, kind, token, value, mode, query, method):
         actual = owner._series if isinstance(owner, _SeriesNamespace) else owner
         cls = type(actual) if isinstance(actual, Pldt) else Pldt
         target = pl.Series if query or cls is not Pldt else Pldt
-        result = _pldt_period(pl.Series(actual), context, target)
+        result = _pldt_period(_plain_series(actual), context, target)
         return result if query or cls is Pldt else cls(result)
     except Exception as error:
         _raise_argument_context(error, entry, "arguments", None)
@@ -1048,7 +1052,7 @@ def _diff_target(value, count=None):
             value = pl.Series("", value.astype(np.float32) if value.dtype == np.dtype("float16") else value)
     if isinstance(value, pl.Series):
         column = True
-        value = pl.Series(value)
+        value = _plain_series(value)
         if value.dtype.base_type() is not pl.Object:
             return value, False, 0, None, False
     target, scalar = _pldt_diff_objects(value, column, count)
@@ -1068,7 +1072,7 @@ def _boundary_difference(owner, dtobj, unit, absolute, inclusive):
         if inclusive not in ("one", "both", "neither"):
             raise _own_error(ValueError("must be 'one', 'both' or 'neither'"), "inclusive", inclusive)
         expression = isinstance(owner, _ExprNamespace)
-        source = owner._expr if expression else pl.Series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
+        source = owner._expr if expression else _plain_series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
         if expression and isinstance(dtobj, pl.Expr):
             target, scalar, storage, numpy, aware = dtobj, dtobj.meta.is_scalar(), 0, None, False
         else:
@@ -1091,7 +1095,7 @@ def _query_operation(owner, code, method, value=_NO_QUERY_TARGET, names=0, param
     entry = "Pldt." + method
     try:
         expression = isinstance(owner, _ExprNamespace)
-        source = owner._expr if expression else pl.Series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
+        source = owner._expr if expression else _plain_series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
         target = None
         scalar = False
         if value is not _NO_QUERY_TARGET:
@@ -1123,7 +1127,7 @@ def _output_operation(owner, code, method, utc=False, sep="T", timespec="auto", 
             return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_output",
                                             args=[owner._expr], kwargs={"prepared": context.plugin_data()},
                                             is_elementwise=True)
-        source = pl.Series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
+        source = _plain_series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
         return _pldt_output(source, context, pl.Series)
     except Exception as error:
         _raise_argument_context(error, entry, "arguments", None)
@@ -1132,7 +1136,7 @@ def _output_operation(owner, code, method, utc=False, sep="T", timespec="auto", 
 def _python_output(owner, clock=False):
     entry = "Pldt.timetz" if clock else "Pldt.datetime"
     try:
-        source = pl.Series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
+        source = _plain_series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
         key = source.dtype.time_zone if source.dtype.base_type() is pl.Datetime else None
         zone = _resolve_zone(key) if key is not None else None
         values = _pldt_python_output(source, Pydt, zone, clock)
@@ -1164,7 +1168,7 @@ def _strftime_operation(owner, format):
             return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_strftime",
                                             args=[owner._expr], kwargs={"prepared": context.plugin_data()},
                                             is_elementwise=True)
-        source = pl.Series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
+        source = _plain_series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
         zone = None
         if not context.native() and source.dtype.base_type() is pl.Datetime and source.dtype.time_zone is not None:
             zone = _resolve_zone(source.dtype.time_zone)
@@ -1616,6 +1620,14 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             _raise_argument_context(error, "Pldt", "arguments", None)
 
     @classmethod
+    def _from_pyseries(cls, pyseries):
+        # One mature result boundary: only Datetime columns remain Pldt.
+        # Integer/String/Date/etc. outputs keep ordinary Series protocols.
+        if pyseries.dtype().base_type() is not pl.Datetime:
+            return pl.Series._from_pyseries(pyseries)
+        return super()._from_pyseries(pyseries)
+
+    @classmethod
     def parse(cls, data, *, unit=None, name=None, copy=False, tz=None, default=None,
               yearfirst=None, dayfirst=None, isoformat=True, strict=False, cfg=None,
               ambiguous="raise", nonexistent="raise"):
@@ -1762,6 +1774,35 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         """Convert with an explicit naive source zone, optionally removing target metadata."""
         return _tz_eager(self, "switch", targ_tz, base_tz, naive, ambiguous, nonexistent)
 
+    def __copy__(self):
+        """Return an independent same-class shell with shallow business state."""
+        return _state_copy(self, False)
+
+    def __deepcopy__(self, memo=None):
+        """Copy date buffers physically and business state with one shared memo."""
+        return _state_copy(self, True, memo)
+
+    def __getstate__(self):
+        """Return business dictionary/initialized slots, without native caches."""
+        return _capture_state(self)
+
+    def __setstate__(self, state):
+        """Restore business state without replacing the validated date core."""
+        _apply_state(self, state)
+
+    def __reduce__(self):
+        """Return the versioned native core and separate business state recipe."""
+        return _state_recipe(self)
+
+    def __reduce_ex__(self, protocol):
+        """Respect a genuine custom reduce hook, otherwise save the current core."""
+        if _state_definition(type(self), "__reduce__") is not Pldt.__reduce__:
+            try:
+                return self.__reduce__()
+            except Exception as error:
+                raise _external_error(error)
+        return _state_recipe(self)
+
     def to_numpy(self, *, writable=False, allow_copy=True, allow_nat_collision=False):
         """Use Polars' NumPy export, rejecting valid ticks that collide with NaT.
 
@@ -1769,7 +1810,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         original ``writable``/``allow_copy`` behavior and errors.
         """
         allow = _bool_option(allow_nat_collision, "Pldt.to_numpy", "allow_nat_collision")
-        source = pl.Series(self)
+        source = _plain_series(self)
         result = pl.Series.to_numpy(self, writable=writable, allow_copy=allow_copy)
         if not allow:
             row = _pldt_nat_collision(source)
@@ -1784,7 +1825,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         including real ``types_mapper`` callbacks, execute before validation.
         """
         allow = _bool_option(allow_nat_collision, "Pldt.to_pandas", "allow_nat_collision")
-        source = pl.Series(self)
+        source = _plain_series(self)
         result = pl.Series.to_pandas(self, use_pyarrow_extension_array=use_pyarrow_extension_array, **kwargs)
         # This is the actual returned representation, including user callbacks;
         # selecting an Arrow keyword alone is not evidence of preserved validity.
@@ -1795,7 +1836,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
     def __array__(self, dtype=None, copy=None):
         """Retain native dtype/copy dispatch and validate explicit dtype changes."""
         protected = dtype is not None and type(self).__getattribute__ is object.__getattribute__ and _getattr_static(self, "to_numpy") is Pldt.to_numpy
-        source = pl.Series(self) if protected else None
+        source = _plain_series(self) if protected else None
         result = pl.Series.__array__(self, dtype=dtype, copy=copy)
         # A genuine business override owns its returned representation. Do not
         # invoke its descriptor again or impose this base exit on that protocol.
@@ -1806,20 +1847,20 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             code = _NUMPY_DATE_CODES.get(unit, _NUMPY_EXPORT_SUBNS.get(unit))
             if code is None:
                 raise ValueError("Pldt.__array__: NumPy output needs a concrete date unit")
-            _pldt_check_numpy(source, pl.Series(result.view(np.int64)), (code, multiplier))
+            _pldt_check_numpy(source, _plain_series(result.view(np.int64)), (code, multiplier))
         elif result.dtype.kind == "f" and result.dtype.type not in _NUMPY_FLOAT_TYPES:
             if np.finfo(result.dtype).nmant < 63:
-                _pldt_check_numpy(source, pl.Series(result.astype(np.float64)), None)
+                _pldt_check_numpy(source, _plain_series(result.astype(np.float64)), None)
             elif source.has_nulls() or not np.array_equal(result, source.to_physical().to_numpy()):
                 raise ValueError("Pldt.__array__: requested NumPy dtype cannot preserve the date tick or missing positions")
         elif result.dtype.kind in "iuf":
-            _pldt_check_numpy(source, pl.Series(result), None)
+            _pldt_check_numpy(source, _plain_series(result), None)
         else:
             # Explicit object/text requests still must round-trip each value
             # and missing position. No implicit fallback or replacement dtype.
             original = source.dtype.time_unit
             restored = np.asarray(result, dtype=f"datetime64[{original}]")
-            _pldt_check_numpy(source, pl.Series(restored.view(np.int64)), (_NUMPY_DATE_CODES[original], 1))
+            _pldt_check_numpy(source, _plain_series(restored.view(np.int64)), (_NUMPY_DATE_CODES[original], 1))
         return result
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
@@ -2109,6 +2150,8 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 if hasattr(pl.Series, "pldt") or hasattr(pl.Expr, "pldt"):
     raise RuntimeError("Cannot register rstimes.pldt: the Polars 'pldt' namespace is already occupied")
 
+_state_register(Pldt)
+_register_polars_base(Pldt)
 pl.api.register_series_namespace("pldt")(_SeriesNamespace)
 pl.api.register_expr_namespace("pldt")(_ExprNamespace)
 

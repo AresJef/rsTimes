@@ -4,6 +4,7 @@ from zoneinfo import available_timezones
 
 import numpy as np
 from ._optional import PANDAS as pd, POLARS as pl
+from ._polars import plain_series as _plain_series
 from ._native import (_bool_option, _pddt_result_type, _pddt_rescale, _pddt_prepare, _pddt_dates,
                       _pddt_check_native_dates, _pddt_register, _pddt_policies, _pddt_check_policies, _pddt_wall, _pddt_now, _integer_arg, _pddt_numbers, _pddt_number_buffer,
                       _pddt_integers, _pddt_calendar, _pddt_date_objects, _pddt_date_buffer,
@@ -74,7 +75,7 @@ def _outer(data, parameter="data"):
                 # A Pldt public NumPy export has its own NaT-collision guard;
                 # this internal validity-aware path must reach final target
                 # processing first, and must not reread a mutable source shell.
-                values = pl.Series(values)
+                values = _plain_series(values)
                 source_name = values.name
                 zone = values.dtype.time_zone
                 source_zone = _timezone(zone) if zone is not None else None
@@ -83,7 +84,7 @@ def _outer(data, parameter="data"):
                 # separate until the actual target unit/timezone is checked.
                 return values.to_numpy(), source_zone, source_name, None, validity
             if kind == pl.Date:
-                values = pl.Series(values)
+                values = _plain_series(values)
                 source_name = values.name
                 validity = b"" if values.null_count() == 0 else np.asarray(values.is_null().to_numpy(), dtype="uint8").tobytes()
                 return values.to_numpy(), None, source_name, None, validity

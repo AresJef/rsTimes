@@ -53,3 +53,16 @@ def test_export_validation_uses_original_owner_even_if_mapper_mutates_shell():
     result = x.to_pandas(types_mapper=mapper)
     assert len(calls) == 1 and len(x) == 3
     assert pl.from_pandas(result).to_physical().to_list() == [0, 1]
+
+
+def test_default_deep_copy_allocates_both_data_and_validity_buffers():
+    import copy
+    x = Pldt([-(1 << 63), None, 1], unit='ns')
+    shallow, deep = copy.copy(x), copy.deepcopy(x)
+    arrays = [value.to_arrow() for value in (x, shallow, deep)]
+    buffers = [array.buffers() for array in arrays]
+    assert buffers[0][0].address == buffers[1][0].address
+    assert buffers[0][1].address == buffers[1][1].address
+    assert buffers[0][0].address != buffers[2][0].address
+    assert buffers[0][1].address != buffers[2][1].address
+    assert [value.to_physical().to_list() for value in (x, shallow, deep)] == [[-(1 << 63), None, 1]] * 3
