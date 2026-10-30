@@ -153,6 +153,23 @@ fn values(source: &Series, scalar: bool, role: Role) -> Result<Column<Option<i64
     }
 }
 
+pub(super) fn query_values(
+    source: &Series,
+    scalar: bool,
+    names: u8,
+) -> Result<Column<Option<i64>>, Failure> {
+    values(
+        source,
+        scalar,
+        Role {
+            optional: false,
+            names,
+            low: None,
+            high: None,
+        },
+    )
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Options {

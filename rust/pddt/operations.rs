@@ -15,9 +15,6 @@ fn transform_error(error: crate::date_transform::Error) -> PyErr {
 pub(super) fn fields(ns: i128) -> PyResult<[i64; 8]> {
     crate::date_transform::fields(ns).map_err(transform_error)
 }
-pub(super) fn nanos(fields: [i64; 8]) -> PyResult<i128> {
-    crate::date_transform::nanos(fields).map_err(transform_error)
-}
 
 /// Prefer the actual source offset, constrained to a valid target calendar day.
 /// Regional candidate probing is deliberately absent from naive/fixed loops.

@@ -242,13 +242,30 @@ impl Zone {
     }
     /// UTC to local coordinates, retaining integer precision.
     pub(crate) fn wall(&self, instant: i128) -> Result<i128, ZoneError> {
-        let offset = match &self.rules {
-            Rules::Fixed(value) => *value,
-            Rules::Region(zone) => zone.to_offset(timestamp(instant)?).seconds(),
-        };
+        let offset = self.offset_seconds(instant)?;
         instant
             .checked_add(i128::from(offset) * NS_SECOND)
             .ok_or(ZoneError::Capacity("timezone offset arithmetic overflow"))
+    }
+    pub(crate) fn offset_seconds(&self, instant: i128) -> Result<i32, ZoneError> {
+        Ok(match &self.rules {
+            Rules::Fixed(value) => *value,
+            // TZif transitions have integral-second coordinates. Give the
+            // pinned backend the containing real second: its TZif lookup
+            // truncates negative fractional timestamps toward zero.
+            Rules::Region(zone) => zone
+                .to_offset(timestamp(instant.div_euclid(NS_SECOND) * NS_SECOND)?)
+                .seconds(),
+        })
+    }
+    pub(crate) fn is_dst(&self, instant: i128) -> Result<bool, ZoneError> {
+        Ok(match &self.rules {
+            Rules::Fixed(_) => false,
+            Rules::Region(zone) => zone
+                .to_offset_info(timestamp(instant.div_euclid(NS_SECOND) * NS_SECOND)?)
+                .dst()
+                .is_dst(),
+        })
     }
     /// Resolve only actual local ambiguity; simple offsets never allocate dates.
     pub(crate) fn candidates(&self, wall: i128) -> Result<Candidates, ZoneError> {
@@ -288,9 +305,15 @@ impl Zone {
         };
         let left = wall - i128::from(before) * NS_SECOND;
         let right = wall - i128::from(after) * NS_SECOND;
+        // TZif transition search uses whole seconds. A negative fractional
+        // timestamp truncates toward zero there, potentially skipping the
+        // transition immediately after it. Start at a strict earlier integral
+        // second; the independently checked local bounds still decide success.
         let seed = left
             .min(right)
+            .div_euclid(NS_SECOND)
             .checked_sub(1)
+            .and_then(|second| second.checked_mul(NS_SECOND))
             .ok_or(ZoneError::Capacity("gap boundary overflow"))?;
         let transition = zone
             .following(timestamp(seed)?)
@@ -318,6 +341,37 @@ impl Zone {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn negative_epoch_gap_edges_retain_the_last_fractional_second() {
+        let zone = Zone::named("Asia/Manila").unwrap();
+        let begin = (i128::from(crate::calendar::ordinal(1844, 12, 31)) - 719_163) * NS_DAY;
+        for wall in [begin, begin + 1, begin + NS_DAY / 2, begin + NS_DAY - 1] {
+            let Candidates::Gap { before, after } = zone.candidates(wall).unwrap() else {
+                panic!("the whole selected local day is missing")
+            };
+            assert_eq!(
+                zone.gap_edges(wall, before, after).unwrap(),
+                (begin, begin + NS_DAY)
+            );
+        }
+    }
+
+    #[test]
+    fn negative_epoch_offsets_use_the_real_second_before_transition() {
+        let zone = Zone::named("Asia/Manila").unwrap();
+        let begin = (i128::from(crate::calendar::ordinal(1844, 12, 31)) - 719_163) * NS_DAY;
+        let Candidates::Gap { before, after } = zone.candidates(begin).unwrap() else {
+            panic!("the selected local day is missing")
+        };
+        let at = begin - i128::from(before) * NS_SECOND;
+        assert_eq!(zone.wall(at - 1).unwrap(), begin - 1);
+        assert_eq!(zone.wall(at).unwrap(), at + i128::from(after) * NS_SECOND);
+        assert_eq!(
+            zone.wall(at + 1).unwrap(),
+            at + 1 + i128::from(after) * NS_SECOND
+        );
+    }
 
     #[test]
     fn bundled_names_parse_and_dublin_keeps_vanguard_dst_flags() {

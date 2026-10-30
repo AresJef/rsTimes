@@ -18,8 +18,10 @@ compile_error!(
 
 use pyo3::prelude::*;
 mod batch_shape;
+mod boundary_count;
 mod bulk;
 mod calendar;
+mod calendar_query;
 mod civil;
 mod clock;
 mod date_input;
@@ -36,6 +38,7 @@ mod numeric_epoch;
 mod numpy_scalar;
 mod parser;
 mod pddt;
+mod period;
 #[allow(missing_docs, unsafe_op_in_unsafe_fn)] // Official plugin macro generates C ABI wrappers.
 mod pldt;
 mod precision;
@@ -49,6 +52,7 @@ mod range_generate;
 mod serde_values;
 mod state;
 mod temporal_operand;
+mod temporal_target;
 mod temporal_zone;
 
 /// Return the native implementation label for installation diagnostics.

@@ -1,255 +1,22 @@
 //! Exact boundary counts, with once-prepared native scalar or positional targets.
 use super::arguments::Column;
-use super::common::{NS_DAY, missing_mask, vector};
-use crate::epoch::{Options, Unit, Zone};
+use super::common::{missing_mask, vector};
+use crate::epoch::{Options, Unit};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyFloat, PyString};
+use pyo3::types::{PyBytes, PyString};
 
-#[derive(Clone, Copy)]
-struct Date {
-    nanos: i128,
-    aware: bool,
-}
-#[derive(Clone, Copy)]
-enum Bucket {
-    Calendar(u8),
-    Week,
-    Fixed(i128),
-}
-impl Bucket {
-    fn parse(unit: &str) -> PyResult<Self> {
-        Ok(match unit {
-            "Y" => Self::Calendar(0),
-            "Q" => Self::Calendar(1),
-            "M" => Self::Calendar(2),
-            "W" => Self::Week,
-            "D" => Self::Fixed(NS_DAY),
-            "h" => Self::Fixed(3_600_000_000_000),
-            "m" | "min" => Self::Fixed(60_000_000_000),
-            "s" => Self::Fixed(1_000_000_000),
-            "ms" => Self::Fixed(1_000_000),
-            "us" => Self::Fixed(1000),
-            "ns" => Self::Fixed(1),
-            _ => {
-                return Err(crate::error_context::value_error(
-                    "unit must be Y, Q, M, W, D, h, m, min, s, ms, us or ns",
-                ));
+use crate::boundary_count::{BoundaryIndex, Bucket, CalendarIndex, FixedIndex, TickBucket};
+use crate::temporal_target::{Date, domain, read};
+impl From<crate::boundary_count::Error> for PyErr {
+    fn from(error: crate::boundary_count::Error) -> Self {
+        match error {
+            crate::boundary_count::Error::Value(message) => {
+                crate::error_context::value_error(message)
             }
-        })
-    }
-    fn index(self, value: i128) -> PyResult<i128> {
-        match self {
-            Self::Fixed(step) => Ok(value.div_euclid(step)),
-            Self::Week => Ok((value.div_euclid(NS_DAY) + 3).div_euclid(7)),
-            Self::Calendar(kind) => calendar_index(kind, calendar_ordinal(value)?),
-        }
-    }
-}
-
-fn calendar_ordinal(value: i128) -> PyResult<i64> {
-    i64::try_from(value.div_euclid(NS_DAY) + 719_163)
-        .map_err(|_| crate::error_context::overflow("calendar day exceeds the native range"))
-}
-
-fn calendar_index(kind: u8, ordinal: i64) -> PyResult<i128> {
-    let [year, month, _] =
-        crate::calendar::from_ordinal(ordinal).map_err(crate::error_context::overflow)?;
-    let year = i128::from(year) - 1970;
-    Ok(match kind {
-        0 => year,
-        1 => year * 4 + i128::from((month - 1) / 3),
-        _ => year * 12 + i128::from(month - 1),
-    })
-}
-
-/// One operation owns its calendar kind and last completed day result.
-/// Target reads and errors still occur before this pure integer lookup.
-#[derive(Clone, Copy)]
-struct CalendarMemo {
-    kind: u8,
-    last: Option<(i64, i128)>,
-}
-impl CalendarMemo {
-    fn new(kind: u8) -> Self {
-        Self { kind, last: None }
-    }
-    fn index(&mut self, ordinal: i64) -> PyResult<i128> {
-        if let Some((previous, index)) = self.last {
-            if previous == ordinal {
-                return Ok(index);
+            crate::boundary_count::Error::Capacity(message) => {
+                crate::error_context::overflow(message)
             }
         }
-        let index = calendar_index(self.kind, ordinal)?;
-        self.last = Some((ordinal, index));
-        Ok(index)
-    }
-}
-
-/// A fixed boundary can be counted in storage ticks without a wide division per row.
-#[derive(Clone, Copy)]
-enum TickBucket {
-    Scale(i128),
-    Divide(i64),
-    Calendar(Bucket, Unit),
-}
-impl TickBucket {
-    fn new(bucket: Bucket, unit: Unit) -> Self {
-        // Supported fixed steps and storage units divide exactly; the largest
-        // quotient is one day in nanoseconds, comfortably inside i64.
-        match bucket {
-            Bucket::Fixed(step) if unit.nanos() >= step => Self::Scale(unit.nanos() / step),
-            Bucket::Fixed(step) => Self::Divide((step / unit.nanos()) as i64),
-            _ => Self::Calendar(bucket, unit),
-        }
-    }
-    fn index(self, tick: i64) -> PyResult<i128> {
-        match self {
-            Self::Scale(factor) => Ok(i128::from(tick) * factor),
-            Self::Divide(divisor) => Ok(i128::from(tick.div_euclid(divisor))),
-            Self::Calendar(bucket, unit) => bucket.index(i128::from(tick) * unit.nanos()),
-        }
-    }
-}
-
-/// These two native plans are chosen once, keeping calendar state out of the
-/// fixed-unit loop. Static dispatch preserves one shared result/error writer.
-trait BoundaryIndex {
-    fn source(&mut self, tick: i64) -> PyResult<i128>;
-    fn target(&mut self, nanos: i128) -> PyResult<i128>;
-}
-
-struct FixedIndex {
-    source: TickBucket,
-    target: Bucket,
-}
-impl BoundaryIndex for FixedIndex {
-    #[inline]
-    fn source(&mut self, tick: i64) -> PyResult<i128> {
-        self.source.index(tick)
-    }
-    #[inline]
-    fn target(&mut self, nanos: i128) -> PyResult<i128> {
-        self.target.index(nanos)
-    }
-}
-
-struct CalendarIndex {
-    ticks_per_day: i64,
-    source: CalendarMemo,
-    target: CalendarMemo,
-}
-impl CalendarIndex {
-    fn new(kind: u8, unit: Unit) -> Self {
-        // All four storage resolutions divide a day exactly within i64.
-        Self {
-            ticks_per_day: (NS_DAY / unit.nanos()) as i64,
-            source: CalendarMemo::new(kind),
-            target: CalendarMemo::new(kind),
-        }
-    }
-}
-impl BoundaryIndex for CalendarIndex {
-    #[inline]
-    fn source(&mut self, tick: i64) -> PyResult<i128> {
-        let ordinal = tick
-            .div_euclid(self.ticks_per_day)
-            .checked_add(719_163)
-            .ok_or_else(|| {
-                crate::error_context::overflow("calendar day exceeds the native range")
-            })?;
-        self.source.index(ordinal)
-    }
-    #[inline]
-    fn target(&mut self, nanos: i128) -> PyResult<i128> {
-        self.target.index(calendar_ordinal(nanos)?)
-    }
-}
-
-fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult<Option<Date>> {
-    if super::prepare::missing(value) {
-        return Ok(None);
-    }
-    if crate::numeric::is_bool(value) {
-        return Err(crate::error_context::type_error(
-            "boolean values are not date or epoch inputs",
-        ));
-    }
-    if let Ok(text) = value.cast::<PyString>() {
-        let converted;
-        let text = if value.is_exact_instance_of::<PyString>() {
-            text
-        } else {
-            converted = value.str().map_err(crate::error_context::external)?;
-            &converted
-        };
-        if super::prepare::missing_text(text)? {
-            return Ok(None);
-        }
-        let p = crate::epoch::read(text.as_any(), opts)?;
-        return Ok(Some(Date {
-            nanos: p.nanos,
-            aware: !matches!(p.zone, Zone::Naive),
-        }));
-    }
-    if let Some((tick, code, multiplier)) = crate::numpy_scalar::datetime_ticks(value)? {
-        super::prepare::scalar_unit(code)?;
-        if tick == i64::MIN {
-            return Ok(None);
-        }
-        return crate::epoch::numpy_ticks(tick, code, multiplier).map(|p| {
-            Some(Date {
-                nanos: p.nanos,
-                aware: false,
-            })
-        });
-    }
-    if value.is_instance_of::<pyo3::types::PyDelta>()
-        || crate::numpy_scalar::duration_ticks(value)?.is_some()
-    {
-        return Err(crate::error_context::type_error(
-            "a duration is not a date target",
-        ));
-    }
-    if unsafe { pyo3::ffi::PyIndex_Check(value.as_ptr()) != 0 } {
-        let nanos = crate::numeric::index_i128(value)?
-            .checked_mul(1_000_000_000)
-            .ok_or_else(|| {
-                crate::error_context::overflow("numeric seconds exceed the native range")
-            })?;
-        return Ok(Some(Date {
-            nanos,
-            aware: false,
-        }));
-    }
-    if crate::numeric::supported_float(value) {
-        let number = if value.is_instance_of::<PyFloat>() {
-            value.extract::<f64>()?
-        } else {
-            crate::numeric::float_value(value)?
-        };
-        if number.is_nan() {
-            return Ok(None);
-        }
-        return crate::epoch::float_nanos(number, Unit::Second).map(|nanos| {
-            Some(Date {
-                nanos,
-                aware: false,
-            })
-        });
-    }
-    let p = crate::epoch::read(value, opts)?;
-    Ok(Some(Date {
-        nanos: p.nanos,
-        aware: !matches!(p.zone, Zone::Naive),
-    }))
-}
-fn domain(value: Option<Date>, aware: bool) -> PyResult<Option<Date>> {
-    if value.is_some_and(|v| v.aware != aware) {
-        Err(crate::error_context::type_error(
-            "cannot mix naive and aware date targets; prepare the target timezone explicitly",
-        ))
-    } else {
-        Ok(value)
     }
 }
 
@@ -282,7 +49,13 @@ fn _pddt_diff<'py>(
     }
     let source_unit = Unit::parse(source_unit)?;
     let plan = Bucket::parse(unit).map_err(|e| {
-        crate::error_context::argument(py, e, ENTRY, "unit", PyString::new(py, unit).as_any())
+        crate::error_context::argument(
+            py,
+            PyErr::from(e),
+            ENTRY,
+            "unit",
+            PyString::new(py, unit).as_any(),
+        )
     })?;
     let adjustment = match inclusive {
         "one" => 0,
@@ -499,33 +272,16 @@ fn pack_diff<'py, I: BoundaryIndex>(
                 } else {
                     indexer.target(target.nanos)?
                 };
-                let mut difference = left.checked_sub(right).ok_or_else(|| {
-                    crate::error_context::overflow("date difference exceeds native range")
-                })?;
-                if absolute {
-                    difference = difference.checked_abs().ok_or_else(|| {
-                        crate::error_context::overflow("absolute difference exceeds native range")
-                    })?;
-                }
-                difference = difference
-                    .checked_add(if difference < 0 {
-                        -adjustment
-                    } else {
-                        adjustment
-                    })
-                    .ok_or_else(|| {
-                        crate::error_context::overflow("inclusive difference exceeds native range")
-                    })?;
-                i64::try_from(difference).map_err(|_| {
-                    crate::error_context::location(
-                        py,
-                        crate::error_context::overflow(
-                            "difference exceeds the full int64 range; choose a coarser diff unit",
-                        ),
-                        ENTRY,
-                        &format!("result[{i}]"),
-                    )
-                })?
+                crate::boundary_count::finish(left, right, absolute, adjustment).map_err(
+                    |error| {
+                        crate::error_context::location(
+                            py,
+                            PyErr::from(error),
+                            ENTRY,
+                            &format!("result[{i}]"),
+                        )
+                    },
+                )?
             };
             out.copy_from_slice(&result.to_ne_bytes());
         }

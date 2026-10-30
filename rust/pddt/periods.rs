@@ -5,105 +5,19 @@ use crate::epoch::{Unit, Zone};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
-#[derive(Clone, Copy)]
-pub(super) enum Period {
-    Year,
-    Quarter,
-    Month,
-    Week,
-    Day,
-    Tick(i128),
-    NamedMonth(i64),
-    NamedWeekday(i64),
-}
-impl Period {
-    pub fn parse(text: &str, clock: bool) -> PyResult<Self> {
-        let value = match text {
-            "Y" => Self::Year,
-            "Q" => Self::Quarter,
-            "M" => Self::Month,
-            "W" => Self::Week,
-            "D" => Self::Day,
-            "h" => Self::Tick(3_600_000_000_000),
-            "m" | "min" => Self::Tick(60_000_000_000),
-            "s" => Self::Tick(1_000_000_000),
-            "ms" => Self::Tick(1_000_000),
-            "us" => Self::Tick(1000),
-            "ns" => Self::Tick(1),
-            _ => {
-                let (month, weekday) = crate::pydt::boundary_names(text);
-                if month > 0 {
-                    Self::NamedMonth(i64::from(month))
-                } else if clock && weekday >= 0 {
-                    Self::NamedWeekday(i64::from(weekday))
-                } else {
-                    return Err(crate::error_context::value_error(
-                        "unknown or empty period or stored name; use Y, Q, M, W and supported clock units or stored names",
-                    ));
-                }
-            }
-        };
-        if !clock && matches!(value, Self::Day | Self::Tick(_) | Self::NamedWeekday(_)) {
-            return Err(crate::error_context::value_error(
-                "first/last require Y, Q, M, W or a stored month name",
-            ));
+pub(super) use crate::period::Period;
+use crate::period::Snap;
+impl From<crate::period::Error> for PyErr {
+    fn from(error: crate::period::Error) -> Self {
+        match error {
+            crate::period::Error::Value(message) => crate::error_context::value_error(message),
+            crate::period::Error::Capacity(message) => crate::error_context::overflow(message),
+            crate::period::Error::Internal(message) => crate::error_context::runtime(message),
         }
-        Ok(value)
-    }
-    pub fn clock(self) -> bool {
-        matches!(self, Self::Tick(_))
-    }
-    pub fn bounds(self, wall: i128) -> PyResult<(i128, i128)> {
-        if let Self::Tick(step) = self {
-            let lower = wall.div_euclid(step) * step;
-            return Ok((
-                lower,
-                lower
-                    .checked_add(step)
-                    .ok_or_else(|| crate::error_context::overflow("period boundary overflow"))?,
-            ));
-        }
-        let day = wall.div_euclid(NS_DAY);
-        if matches!(self, Self::Day) {
-            return Ok((day * NS_DAY, (day + 1) * NS_DAY));
-        }
-        if matches!(self, Self::Week | Self::NamedWeekday(_)) {
-            let weekday = (day + 3).rem_euclid(7);
-            let lower = day - weekday;
-            return Ok(match self {
-                Self::NamedWeekday(value) => (
-                    (lower + i128::from(value)) * NS_DAY,
-                    (lower + i128::from(value) + 1) * NS_DAY,
-                ),
-                _ => (lower * NS_DAY, (lower + 7) * NS_DAY),
-            });
-        }
-        let f = super::operations::fields(wall)?;
-        let (month, width) = match self {
-            Self::Year => (1, 12),
-            Self::Quarter => ((f[1] - 1) / 3 * 3 + 1, 3),
-            Self::Month => (f[1], 1),
-            Self::NamedMonth(month) => (month, 1),
-            _ => return Err(crate::error_context::runtime("invalid calendar period")),
-        };
-        let first = crate::calendar::checked_ordinal(f[0], month, 1)
-            .map_err(crate::error_context::overflow)?;
-        let next = crate::calendar::move_date([f[0], month, 1], width, 0, None, None)
-            .map_err(crate::error_context::overflow)?;
-        let last = crate::calendar::checked_ordinal(next[0], next[1], next[2])
-            .map_err(crate::error_context::overflow)?;
-        Ok((
-            (i128::from(first) - 719_163) * NS_DAY,
-            (i128::from(last) - 719_163) * NS_DAY,
-        ))
     }
 }
-
 fn align(value: i128, unit: Unit, end: bool) -> PyResult<i128> {
-    let q = value.div_euclid(unit.nanos());
-    (q + i128::from(!end && value.rem_euclid(unit.nanos()) != 0))
-        .checked_mul(unit.nanos())
-        .ok_or_else(|| crate::error_context::overflow("period output overflow"))
+    crate::period::align(value, unit.nanos(), end).map_err(PyErr::from)
 }
 
 /// Actual candidates at a local bound, clipped to this period and output lattice.
@@ -385,7 +299,7 @@ fn _pddt_fsp<'py>(
 }
 
 fn direction(value: i128, source: i128, mode: u8) -> bool {
-    (mode != 1 || value >= source) && (mode != 2 || value <= source)
+    crate::period::direction(value, source, mode)
 }
 fn rounded(
     wall: i128,
@@ -484,20 +398,11 @@ fn _pddt_round<'py>(
                 None,
             )?
         };
-        let q = wall.div_euclid(step);
-        let r = wall.rem_euclid(step);
-        if r == 0 {
+        let target = crate::period::rounded(wall, step, mode)?;
+        if target == wall {
             values.push(Some(source));
             continue;
         }
-        let up = match mode {
-            0 => r > step - r || (r == step - r && q.rem_euclid(2) != 0),
-            1 => true,
-            _ => false,
-        };
-        let target = (q + i128::from(up))
-            .checked_mul(step)
-            .ok_or_else(|| crate::error_context::overflow("rounded date overflow"))?;
         let value = if let Some(offset) = fixed {
             target - i128::from(offset) * 1000
         } else {
@@ -514,15 +419,6 @@ fn _pddt_round<'py>(
         values.push(Some(value));
     }
     Ok((pack(py, &values, unit, true, entry)?, changed))
-}
-
-#[derive(Clone, Copy)]
-struct Snap {
-    period: Period,
-    months: i64,
-    step: i128,
-    width_months: i64,
-    width: i128,
 }
 
 #[derive(Clone, Copy)]
@@ -568,54 +464,6 @@ impl SnapCache {
 }
 
 impl Snap {
-    fn prepare(period: Period, wall: i128) -> PyResult<(Self, i128)> {
-        let (months, step, width_months, width) = match period {
-            Period::Year => (12, 0, 12, 0),
-            Period::Quarter => (3, 0, 3, 0),
-            Period::Month => (1, 0, 1, 0),
-            Period::NamedMonth(_) => (12, 0, 1, 0),
-            Period::Week => (0, 7 * NS_DAY, 0, 7 * NS_DAY),
-            Period::NamedWeekday(_) => (0, 7 * NS_DAY, 0, NS_DAY),
-            Period::Day => (0, NS_DAY, 0, NS_DAY),
-            Period::Tick(step) => (0, step, 0, step),
-        };
-        let spec = Self {
-            period,
-            months,
-            step,
-            width_months,
-            width,
-        };
-        let mut lower = period.bounds(wall)?.0;
-        if lower > wall {
-            lower = spec.shift(lower, -1)?;
-        }
-        Ok((spec, lower))
-    }
-    fn shift(self, start: i128, direction: i64) -> PyResult<i128> {
-        if self.months != 0 {
-            self.month_boundary(start, self.months * direction)
-        } else {
-            start
-                .checked_add(self.step * i128::from(direction))
-                .ok_or_else(|| crate::error_context::overflow("Snap period overflow"))
-        }
-    }
-    fn month_boundary(self, start: i128, months: i64) -> PyResult<i128> {
-        let f = super::operations::fields(start)?;
-        let date = crate::calendar::move_date([f[0], f[1], 1], i128::from(months), 0, None, None)
-            .map_err(crate::error_context::overflow)?;
-        super::operations::nanos([date[0], date[1], date[2], 0, 0, 0, 0, 0])
-    }
-    fn end(self, start: i128) -> PyResult<i128> {
-        if self.width_months != 0 {
-            self.month_boundary(start, self.width_months)
-        } else {
-            start
-                .checked_add(self.width)
-                .ok_or_else(|| crate::error_context::overflow("Snap period overflow"))
-        }
-    }
     fn candidates(
         self,
         mut start: i128,

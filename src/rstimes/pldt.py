@@ -19,7 +19,7 @@ if pl is None:
 
 from polars.plugins import register_plugin_function
 from . import _native
-from ._native import (_integer_arg, _bool_option, _pldt_execute, _pldt_native,
+from ._native import (_integer_arg, _bool_option, _pldt_native,
                       _pldt_objects, _pldt_register_missing, _pldt_policies, _pldt_timezone)
 from .parser import Configs
 from ._formatting import prepare_format as _prepare_format
@@ -32,7 +32,8 @@ from ._native import (_pldt_prepare_text, _pldt_prepare_format, _pldt_text,
                       _pldt_frequency, _pldt_range_endpoints, _pldt_range, _pldt_range_external,
                       _pldt_component_column, _pldt_component_objects, _pldt_transform,
                       _pldt_operand_objects, _pldt_operand_column, _pldt_operand_ticks,
-                      _pldt_binary, _pldt_scalar_callback)
+                      _pldt_binary, _pldt_scalar_callback, _pldt_period_prepare, _pldt_period,
+                      _pldt_query, _pldt_query_clock, _pldt_diff, _pldt_diff_objects)
 from ._pldt_timezone import prepare_timezone as _prepare_zone
 from ._localization import local_timezone as _local_zone, resolve_timezone as _resolve_zone
 from .errors import _own_error, _raise_argument_context, _external_error
@@ -782,23 +783,8 @@ def _tz_expr(source, operation, tz, base_tz=None, naive=False, ambiguous="raise"
 
 
 
-def _expr(source, operation, argument=0, operand=None, scalar=False):
-    """Build an official plugin expression with owned, versioned kwargs."""
-    args = [source] if operand is None else [source, operand]
-    return register_plugin_function(
-        plugin_path=_PLUGIN_PATH,
-        function_name="pldt_execute",
-        args=args,
-        kwargs={"version": 1, "operation": operation, "argument": argument, "scalar": scalar},
-        is_elementwise=operand is None,
-    )
 
 
-def _eager(source, operation, argument=0, operand=None, scalar=False):
-    target = pl.Series if operation == "is_month" else type(source) if isinstance(source, Pldt) else Pldt
-    if target not in (pl.Series, Pldt):
-        return target(_pldt_execute(source, pl.Series, operation, argument, operand, scalar))
-    return _pldt_execute(source, target, operation, argument, operand, scalar)
 
 
 _UNCHANGED_ZONE = object()
@@ -997,6 +983,348 @@ def _delta_expression(source, delta, subtract):
         _raise_argument_context(error, entry, "delta", delta)
 
 
+def _period_operation(owner, kind, token, value, mode, query, method):
+    """Prepare a static period/grid once and enter its shared native loop."""
+    entry = "Pldt." + method
+    try:
+        if kind in ("boundary", "snap") and not isinstance(token, str):
+            raise _own_error(TypeError("requires a period string or a supported saved name"), "unit", token)
+        if kind == "fsp":
+            value = _integer_arg(value, entry, "precision")
+        elif kind == "round":
+            if pd is not None and isinstance(value, pd.DateOffset):
+                plan, _, delegated = _pandas_frequency(value)
+                if delegated or plan is None:
+                    raise _own_error(ValueError("requires a positive fixed frequency"), "freq", value)
+            else:
+                plan = _pldt_frequency(value)
+            step = None if plan is None else plan.rounding_step
+            if step is None or step <= 0:
+                raise _own_error(ValueError("requires a positive fixed frequency such as '15min', 'h' or 'D'"), "freq", value)
+            value = step
+        context = _pldt_period_prepare(kind, token, value, mode, query, entry)
+        if isinstance(owner, _ExprNamespace):
+            return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_period", args=[owner._expr],
+                                            kwargs={"prepared": context.plugin_data()}, is_elementwise=True)
+        actual = owner._series if isinstance(owner, _SeriesNamespace) else owner
+        cls = type(actual) if isinstance(actual, Pldt) else Pldt
+        target = pl.Series if query or cls is not Pldt else Pldt
+        result = _pldt_period(pl.Series(actual), context, target)
+        return result if query or cls is Pldt else cls(result)
+    except Exception as error:
+        _raise_argument_context(error, entry, "arguments", None)
+
+
+_NO_QUERY_TARGET = object()
+
+
+def _diff_target(value, count=None):
+    """Prepare exact date/seconds coordinates, with native dtype metadata."""
+    if isinstance(value, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame) + _PD_TABLE):
+        raise _own_error(TypeError("requires a scalar or a one-dimensional target collection"), "dtobj", value)
+    column = isinstance(value, _PD_COLUMN)
+    if column and getattr(value.dtype, "kind", None) == "M":
+        array = value.array if isinstance(value, (pd.Series, pd.Index)) else value
+        unit = array.unit
+        if unit not in _NUMPY_DATE_CODES:
+            raise _own_error(ValueError("unsupported datetime target unit"), "dtobj", value)
+        return pl.Series("", _base_array(array.asi8)), False, 1, (_NUMPY_DATE_CODES[unit], 1), getattr(value.dtype, "tz", None) is not None
+    if isinstance(value, np.ndarray):
+        value = _base_array(value)
+        column = True
+        if value.dtype.kind == "M":
+            unit, multiplier = np.datetime_data(value.dtype)
+            if unit not in _NUMPY_DATE_CODES:
+                raise _own_error(ValueError("unsupported NumPy date target unit"), "dtobj", value)
+            return pl.Series("", value.view(np.int64)), False, 1, (_NUMPY_DATE_CODES[unit], multiplier), False
+        if value.dtype.kind == "f" and value.dtype.type not in _NUMPY_FLOAT_TYPES:
+            raise _own_error(TypeError("extended floating targets are not supported"), "dtobj", value)
+        if value.dtype.kind in "iufbU":
+            value = pl.Series("", value.astype(np.float32) if value.dtype == np.dtype("float16") else value)
+    if isinstance(value, pl.Series):
+        column = True
+        value = pl.Series(value)
+        if value.dtype.base_type() is not pl.Object:
+            return value, False, 0, None, False
+    target, scalar = _pldt_diff_objects(value, column, count)
+    return target, scalar, 2, None, False
+
+
+def _boundary_difference(owner, dtobj, unit, absolute, inclusive):
+    """Count boundaries directly; targets never become an intermediate Pldt."""
+    entry = "Pldt.pldt.diff"
+    try:
+        absolute = _bool_option(absolute, entry, "absolute")
+        for name, value in (("unit", unit), ("inclusive", inclusive)):
+            if not isinstance(value, str):
+                raise _own_error(TypeError("must be a string"), name, value)
+        if unit not in ("Y", "Q", "M", "W", "D", "h", "m", "min", "s", "ms", "us", "ns"):
+            raise _own_error(ValueError("unit must be Y/Q/M/W/D/h/m/min/s/ms/us/ns"), "unit", unit)
+        if inclusive not in ("one", "both", "neither"):
+            raise _own_error(ValueError("must be 'one', 'both' or 'neither'"), "inclusive", inclusive)
+        expression = isinstance(owner, _ExprNamespace)
+        source = owner._expr if expression else pl.Series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
+        if expression and isinstance(dtobj, pl.Expr):
+            target, scalar, storage, numpy, aware = dtobj, dtobj.meta.is_scalar(), 0, None, False
+        else:
+            target, scalar, storage, numpy, aware = _diff_target(dtobj, None if expression else source.len())
+            if expression:
+                target = pl.lit(target[0], dtype=pl.Binary) if scalar else pl.lit(target)
+        if expression:
+            return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_diff",
+                                            args=[owner._expr, target], kwargs={"version": 1, "unit": unit,
+                                                "absolute": absolute, "inclusive": inclusive, "scalar": scalar,
+                                                "storage": storage, "numpy": numpy, "aware": aware},
+                                            is_elementwise=False)
+        return _pldt_diff(source, target, unit, absolute, inclusive, scalar, storage, numpy, aware)
+    except Exception as error:
+        _raise_argument_context(error, entry, "arguments", None)
+
+
+def _query_operation(owner, code, method, value=_NO_QUERY_TARGET, names=0, parameter=None):
+    """Prepare a scalar/strict positional query, emitting only its result."""
+    entry = "Pldt." + method
+    try:
+        expression = isinstance(owner, _ExprNamespace)
+        source = owner._expr if expression else pl.Series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
+        target = None
+        scalar = False
+        if value is not _NO_QUERY_TARGET:
+            if expression and isinstance(value, pl.Expr):
+                target, scalar = value, value.meta.is_scalar()
+            else:
+                target, scalar = _component(value, entry, parameter, False, names, None, None)
+                if expression:
+                    target = pl.lit(target[0], dtype=pl.Int64) if scalar else pl.lit(target)
+        reference = _pldt_query_clock() if code in (107, 108) and (expression or source.len() != source.null_count()) else None
+        if expression:
+            return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_query",
+                                            args=[source] if target is None else [source, target],
+                                            kwargs={"version": 1, "code": code, "entry": entry,
+                                                    "scalar": scalar, "reference": reference},
+                                            is_elementwise=target is None)
+        result = _pldt_query(source, code, entry, target, scalar, reference)
+        return result.struct.unnest() if code in (202, 203) else result
+    except Exception as error:
+        _raise_argument_context(error, entry, parameter or "arguments", None if value is _NO_QUERY_TARGET else value)
+
+
+class _QueryMethods:
+    """Direct nullable Int64/Boolean queries over actual local date fields."""
+    @property
+    def year(self):
+        """Signed calendar year as a nullable Int64 column."""
+        return _query_operation(self, 20, "year")
+
+    @property
+    def month(self):
+        """One-based month as a nullable Int64 column."""
+        return _query_operation(self, 21, "month")
+
+    @property
+    def day(self):
+        """One-based day as a nullable Int64 column."""
+        return _query_operation(self, 22, "day")
+
+    @property
+    def hour(self):
+        """Hour within the local day as nullable Int64."""
+        return _query_operation(self, 23, "hour")
+
+    @property
+    def minute(self):
+        """Minute within the hour as nullable Int64."""
+        return _query_operation(self, 24, "minute")
+
+    @property
+    def second(self):
+        """Second within the minute as nullable Int64."""
+        return _query_operation(self, 25, "second")
+
+    @property
+    def microsecond(self):
+        """Microsecond within the second as nullable Int64."""
+        return _query_operation(self, 26, "microsecond")
+
+    @property
+    def nanosecond(self):
+        """Additional nanosecond tail, 0 through999, as nullable Int64."""
+        return _query_operation(self, 27, "nanosecond")
+
+    @property
+    def weekday(self):
+        """Weekday with Monday0, as nullable Int64."""
+        return _query_operation(self, 28, "weekday")
+
+    @property
+    def day_of_year(self):
+        """One-based day within the local calendar year."""
+        return _query_operation(self, 29, "day_of_year")
+
+    @property
+    def days_in_month(self):
+        """Number of days in the local calendar month."""
+        return _query_operation(self, 30, "days_in_month")
+
+    @property
+    def quarter(self):
+        """One-based calendar quarter as nullable Int64."""
+        return _query_operation(self, 31, "quarter")
+
+    @property
+    def millisecond(self):
+        """Millisecond within the second, from0 through999."""
+        return _query_operation(self, 10, "millisecond")
+
+    @property
+    def is_leap_year(self):
+        """Whether the local year is leap; source null is False."""
+        return _query_operation(self, 109, "is_leap_year")
+
+    def isoyear(self):
+        """Signed ISO week year, independently of UInt32 table capacity."""
+        return _query_operation(self, 0, "isoyear")
+
+    def isoweek(self):
+        """One-based ISO week number."""
+        return _query_operation(self, 1, "isoweek")
+
+    def isoweekday(self):
+        """ISO weekday with Monday1."""
+        return _query_operation(self, 2, "isoweekday")
+
+    def days_in_year(self):
+        """Number of days in the local calendar year."""
+        return _query_operation(self, 3, "days_in_year")
+
+    def days_bf_year(self):
+        """Days before this calendar year, relative to0001-01-01."""
+        return _query_operation(self, 4, "days_bf_year")
+
+    def days_in_quarter(self):
+        """Number of calendar days in this quarter."""
+        return _query_operation(self, 5, "days_in_quarter")
+
+    def days_bf_quarter(self):
+        """Days in this year before the current quarter."""
+        return _query_operation(self, 6, "days_bf_quarter")
+
+    def day_of_quarter(self):
+        """One-based day in this calendar quarter."""
+        return _query_operation(self, 7, "day_of_quarter")
+
+    def days_bf_month(self):
+        """Days in this year before the current month."""
+        return _query_operation(self, 8, "days_bf_month")
+
+    def day_of_month(self):
+        """One-based local day of month."""
+        return _query_operation(self, 9, "day_of_month")
+
+    def is_year(self, year):
+        """Match scalar or equal-length integer year targets."""
+        return _query_operation(self, 100, "is_year", year, parameter="year")
+
+    def is_quarter(self, quarter):
+        """Match scalar or equal-length integer quarter targets."""
+        return _query_operation(self, 101, "is_quarter", quarter, parameter="quarter")
+
+    def is_month(self, month):
+        """Match integer or saved month names, by position; null is False."""
+        return _query_operation(self, 102, "is_month", month, 1, "month")
+
+    def is_weekday(self, weekday):
+        """Match integer or saved weekday names, with Monday0."""
+        return _query_operation(self, 103, "is_weekday", weekday, 2, "weekday")
+
+    def is_day(self, day):
+        """Match scalar or equal-length integer day targets."""
+        return _query_operation(self, 104, "is_day", day, parameter="day")
+
+    def is_long_year(self):
+        """Whether the calendar year has53 ISO weeks; null is False."""
+        return _query_operation(self, 105, "is_long_year")
+
+    def leap_bt_year(self, year):
+        """Count leap years between row years and targets, lower inclusive."""
+        return _query_operation(self, 11, "leap_bt_year", year, parameter="year")
+
+    def is_dst(self):
+        """Whether the native zone has nonzero DST; naive/null is False."""
+        return _query_operation(self, 106, "is_dst")
+
+    def utcoffset_seconds(self):
+        """Actual integer UTC offset; naive and missing rows are null."""
+        return _query_operation(self, 12, "utcoffset_seconds")
+
+    def is_past(self):
+        """Strictly before one captured reference; Expr captures on creation."""
+        return _query_operation(self, 107, "is_past")
+
+    def is_future(self):
+        """Strictly after one captured reference; Expr captures on creation."""
+        return _query_operation(self, 108, "is_future")
+
+    def isocalendar(self):
+        """Return year/week/day as a native Struct with UInt32 fields."""
+        return _query_operation(self, 201, "isocalendar")
+
+    def timedf(self):
+        """Return local time fields as an eager DataFrame or native Struct Expr."""
+        return _query_operation(self, 202, "timedf")
+
+    def utctimedf(self):
+        """Return UTC time fields; naive fields do not move and DST is zero."""
+        return _query_operation(self, 203, "utctimedf")
+
+
+class _PeriodMethods:
+    """Shared date boundaries and names, distinct from native numerical methods."""
+    def to_first_of(self, unit):
+        """Select a calendar boundary while preserving date unit and timezone."""
+        return _period_operation(self, "boundary", unit, 0, 0, False, "to_first_of")
+
+    def is_first_of(self, unit):
+        """Query the actual calendar boundary; missing source dates are False."""
+        return _period_operation(self, "boundary", unit, 0, 0, True, "is_first_of")
+
+    def to_last_of(self, unit):
+        """Select a calendar boundary while preserving date unit and timezone."""
+        return _period_operation(self, "boundary", unit, 0, 1, False, "to_last_of")
+
+    def is_last_of(self, unit):
+        """Query the actual calendar boundary; missing source dates are False."""
+        return _period_operation(self, "boundary", unit, 0, 1, True, "is_last_of")
+
+    def to_start_of(self, unit):
+        """Select a calendar boundary while preserving date unit and timezone."""
+        return _period_operation(self, "boundary", unit, 0, 2, False, "to_start_of")
+
+    def is_start_of(self, unit):
+        """Query the actual calendar boundary; missing source dates are False."""
+        return _period_operation(self, "boundary", unit, 0, 2, True, "is_start_of")
+
+    def to_end_of(self, unit):
+        """Select a calendar boundary while preserving date unit and timezone."""
+        return _period_operation(self, "boundary", unit, 0, 3, False, "to_end_of")
+
+    def is_end_of(self, unit):
+        """Query the actual calendar boundary; missing source dates are False."""
+        return _period_operation(self, "boundary", unit, 0, 3, True, "is_end_of")
+
+    def normalize(self):
+        """Return the real start of this local day, staying within the day."""
+        return _period_operation(self, "boundary", "D", 0, 2, False, "normalize")
+
+    def snap(self, unit="s"):
+        """Select the nearest real period start; equal distances select later."""
+        return _period_operation(self, "snap", unit, 0, 0, False, "snap")
+
+    def fsp(self, precision):
+        """Truncate the fractional second, preserving the current storage unit."""
+        return _period_operation(self, "fsp", None, precision, 0, False, "fsp")
+
+
 class _TransformMethods:
     """Date operations shared by Pldt and the two native namespaces."""
     def to_datetime(self, year=None, month=None, day=None, hour=None, minute=None, second=None, microsecond=None, nanosecond=None):
@@ -1124,7 +1452,7 @@ class _TransformMethods:
         return _date_operation(self, "sub", (years, quarters, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds), "sub")
 
 
-class Pldt(_TransformMethods, pl.Series):
+class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, pl.Series):
     """A true Polars Datetime Series with native calendar operations.
 
     Args:
@@ -1331,13 +1659,25 @@ class Pldt(_TransformMethods, pl.Series):
         """Subtract Delta/duration, or return a native Duration Series for dates."""
         return _binary_eager(self, other, subtract=True)
 
-    def is_month(self, month):
-        """Return a Boolean Series; missing dates are False."""
-        month = _integer_arg(month, "Pldt.is_month", "month")
-        return _eager(self, "is_month", month)
 
 
-class _SeriesNamespace(_TransformMethods):
+class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods):
+    def diff(self, dtobj, unit, absolute=False, inclusive="one"):
+        """Count date-unit boundaries; numeric targets are seconds, not ticks."""
+        return _boundary_difference(self, dtobj, unit, absolute, inclusive)
+
+    def round(self, freq="s"):
+        """Date rounding on a positive fixed grid; preserves current storage unit."""
+        return _period_operation(self, "round", None, freq, 0, False, "pldt.round")
+
+    def ceil(self, freq="s"):
+        """Date rounding on a positive fixed grid; preserves current storage unit."""
+        return _period_operation(self, "round", None, freq, 1, False, "pldt.ceil")
+
+    def floor(self, freq="s"):
+        """Date rounding on a positive fixed grid; preserves current storage unit."""
+        return _period_operation(self, "round", None, freq, 2, False, "pldt.floor")
+
     def add_delta(self, delta):
         """Apply actual Delta rules and return one final Pldt column."""
         return _binary_eager(self, delta, named=True)
@@ -1452,13 +1792,25 @@ class _SeriesNamespace(_TransformMethods):
         """Convert with an explicit naive source zone, optionally removing target metadata."""
         return _tz_eager(self._series, "switch", targ_tz, base_tz, naive, ambiguous, nonexistent)
 
-    def is_month(self, month):
-        """Return a native Boolean column without an intermediate Pldt."""
-        month = _integer_arg(month, "Pldt.is_month", "month")
-        return _eager(self._series, "is_month", month)
 
 
-class _ExprNamespace(_TransformMethods):
+class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods):
+    def diff(self, dtobj, unit, absolute=False, inclusive="one"):
+        """Return native Int64 boundary counts in the logical row domain."""
+        return _boundary_difference(self, dtobj, unit, absolute, inclusive)
+
+    def round(self, freq="s"):
+        """Date rounding on a positive fixed grid; preserves current storage unit."""
+        return _period_operation(self, "round", None, freq, 0, False, "pldt.round")
+
+    def ceil(self, freq="s"):
+        """Date rounding on a positive fixed grid; preserves current storage unit."""
+        return _period_operation(self, "round", None, freq, 1, False, "pldt.ceil")
+
+    def floor(self, freq="s"):
+        """Date rounding on a positive fixed grid; preserves current storage unit."""
+        return _period_operation(self, "round", None, freq, 2, False, "pldt.floor")
+
     def add_delta(self, delta):
         """Build a native Expr from concrete ordinary Delta snapshots."""
         return _delta_expression(self._expr, delta, False)
@@ -1565,10 +1917,6 @@ class _ExprNamespace(_TransformMethods):
         """Convert with an explicit naive source zone, optionally removing target metadata."""
         return _tz_expr(self._expr, "switch", targ_tz, base_tz, naive, ambiguous, nonexistent)
 
-    def is_month(self, month):
-        """Return a Boolean Expr, preserving the source expression name."""
-        month = _integer_arg(month, "Pldt.is_month", "month")
-        return _expr(self._expr, "is_month", month)
 
 
 if hasattr(pl.Series, "pldt") or hasattr(pl.Expr, "pldt"):

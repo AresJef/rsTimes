@@ -327,6 +327,14 @@ pub(crate) struct Plan {
 #[pymethods]
 impl Plan {
     #[getter]
+    fn rounding_step(&self) -> Option<i128> {
+        match self.frequency.kind {
+            Kind::Fixed(value) => Some(value),
+            Kind::Days => Some(i128::from(self.frequency.n) * 86_400_000_000_000),
+            _ => None,
+        }
+    }
+    #[getter]
     pub(crate) fn tick(&self) -> Option<i128> {
         if let Kind::Fixed(value) = self.frequency.kind {
             Some(value)

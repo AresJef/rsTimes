@@ -160,9 +160,9 @@ def test_unknown_kwargs_version_is_rejected_without_data_scan() -> None:
 
     expr = register_plugin_function(
         plugin_path=Path(_native.__file__),
-        function_name="pldt_execute",
+        function_name="pldt_query",
         args=[pl.col("time")],
-        kwargs={"version": 2, "operation": "next_month", "argument": 0, "scalar": False},
+        kwargs={"version": 2, "code": 20, "entry": "Pldt.year", "scalar": False, "reference": None},
     )
-    with pytest.raises(pl.exceptions.PolarsError, match="kwargs version"):
+    with pytest.raises(pl.exceptions.PolarsError, match="preparation version"):
         pl.DataFrame(dates()).lazy().select(expr).collect_schema()
