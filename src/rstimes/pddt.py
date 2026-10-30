@@ -9,6 +9,7 @@ from ._native import (_bool_option, _pddt_result_type, _pddt_rescale, _pddt_prep
                       _pddt_integers, _pddt_calendar, _pddt_date_objects, _pddt_date_buffer,
                       _pddt_parts, _pddt_combine, _pddt_strptime, _pddt_component, _pddt_transform, _pddt_operand, _pddt_binary, _pddt_period, _pddt_fsp, _pddt_round, _pddt_snap, _pddt_query, _pddt_diff, _pddt_export, _pddt_objects, _pddt_range, _pddt_range_endpoints, _pddt_range_external)
 from ._formatting import prepare_format as _prepare_format
+from ._native import _strftime_prepare, _pddt_strftime
 from ._range import frequency as _range_frequency, attach_frequency as _range_attach_frequency, rounding_step as _rounding_step, mature_units as _range_mature_units
 from ._range import _ARRAY_HAS_FREQ
 from .parser import Configs
@@ -3391,22 +3392,34 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error,"Pddt.isoformat","options",(sep,timespec))
 
     def strftime(self,format):
-        """Format dates with the platform's complete strftime rules.
+        """Format with complete system rules and exact fractional directives.
 
         Parameters
         ----------
         format : str
-            System format string. An empty format string is valid.
+            An empty string is valid. ``%f`` uses nine digits for ns and six
+            for s/ms/us. ``%.0f`` emits nothing; ``%.1f`` through ``%.9f``
+            include a dot and truncate or right-pad without changing dates.
+            Remaining directives retain pandas' system/platform behavior.
 
         Returns
         -------
         pandas.Index
-            Formatted strings using pandas' mature formatter. Supported system
-            directives and wide-year limits depend on the platform.
+            Strings with the source name and missing positions. System
+            directives and their wide-year limits depend on the platform.
+
+        Examples
+        --------
+        >>> Pddt(["2024-01-01T12:34:56.123456789"]).strftime("%f %.3f").tolist()
+        ['123456789 .123']
         """
         try:
             if not isinstance(format,str):
                 raise _own_error(TypeError("must be a string; an empty string is allowed"),"format",format)
+            prepared = _strftime_prepare(format)
+            if prepared.modified():
+                values = _pddt_strftime(self.asi8.tobytes(), self.unit, self.tz, prepared)
+                return pd.Index(values, dtype=object, name=self.name)
             try:
                 return pd.DatetimeIndex.strftime(self,format)
             except Exception as error:

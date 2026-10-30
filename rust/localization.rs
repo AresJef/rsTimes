@@ -179,6 +179,14 @@ pub(crate) fn calendar_name(
     Ok(names[position].bind(py).clone())
 }
 
+/// Immutable compiled names for Python-free native column workers.
+pub(crate) fn native_name(group: usize, position: usize) -> Option<&'static str> {
+    data::GROUPS
+        .get(group)
+        .and_then(|names| names.get(position))
+        .copied()
+}
+
 /// Register the small independent services; registration does not probe local time.
 pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_local_timezone_name, module)?)?;

@@ -6,6 +6,7 @@ Polars. The implementation is being expanded under the approved PLDT contract.
 """
 
 from pathlib import Path
+from inspect import getattr_static as _getattr_static
 from collections.abc import Mapping
 from datetime import date, timezone, timedelta
 from zoneinfo import ZoneInfo
@@ -22,6 +23,7 @@ from . import _native
 from ._native import (_integer_arg, _bool_option, _pldt_native,
                       _pldt_objects, _pldt_register_missing, _pldt_policies, _pldt_timezone)
 from .parser import Configs
+from .pydt import Pydt
 from ._formatting import prepare_format as _prepare_format
 from ._native import (_pldt_prepare_text, _pldt_prepare_format, _pldt_text,
                       _pldt_text_needed, _pldt_format_objects, _pldt_now,
@@ -33,7 +35,9 @@ from ._native import (_pldt_prepare_text, _pldt_prepare_format, _pldt_text,
                       _pldt_component_column, _pldt_component_objects, _pldt_transform,
                       _pldt_operand_objects, _pldt_operand_column, _pldt_operand_ticks,
                       _pldt_binary, _pldt_scalar_callback, _pldt_period_prepare, _pldt_period,
-                      _pldt_query, _pldt_query_clock, _pldt_diff, _pldt_diff_objects)
+                      _pldt_query, _pldt_query_clock, _pldt_diff, _pldt_diff_objects,
+                      _pldt_output_prepare, _pldt_output, _pldt_nat_collision, _pldt_python_output,
+                      _pldt_check_numpy, _pldt_check_temporal, _strftime_prepare, _pldt_strftime)
 from ._pldt_timezone import prepare_timezone as _prepare_zone
 from ._localization import local_timezone as _local_zone, resolve_timezone as _resolve_zone
 from .errors import _own_error, _raise_argument_context, _external_error
@@ -49,6 +53,7 @@ _PD_COLUMN = (pd.Series, pd.Index, pd.api.extensions.ExtensionArray) if pd is no
 _PD_TABLE = (pd.DataFrame, pd.MultiIndex) if pd is not None else ()
 _PD_DATETIME_ARRAY = pd.arrays.DatetimeArray if pd is not None else ()
 _NUMPY_FLOAT_TYPES = (np.float16, np.float32, np.float64)
+_NUMPY_EXPORT_SUBNS = {"ps": -1, "fs": -2, "as": -3}
 _NUMPY_DATE_CODES = {"Y": 0, "M": 1, "W": 2, "D": 4, "h": 5, "m": 6, "s": 7, "ms": 8, "us": 9, "ns": 10, "generic": 14}
 _pldt_register_missing(pd.NA if pd is not None else None, pd.NaT if pd is not None else None)
 
@@ -1109,6 +1114,128 @@ def _query_operation(owner, code, method, value=_NO_QUERY_TARGET, names=0, param
         _raise_argument_context(error, entry, parameter or "arguments", None if value is _NO_QUERY_TARGET else value)
 
 
+def _output_operation(owner, code, method, utc=False, sep="T", timespec="auto", locale=None):
+    """Prepare one native output plan, preserving a plain result's role."""
+    entry = "Pldt." + method
+    try:
+        context = _pldt_output_prepare(code, utc, sep, timespec, locale, entry)
+        if isinstance(owner, _ExprNamespace):
+            return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_output",
+                                            args=[owner._expr], kwargs={"prepared": context.plugin_data()},
+                                            is_elementwise=True)
+        source = pl.Series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
+        return _pldt_output(source, context, pl.Series)
+    except Exception as error:
+        _raise_argument_context(error, entry, "arguments", None)
+
+
+def _python_output(owner, clock=False):
+    entry = "Pldt.timetz" if clock else "Pldt.datetime"
+    try:
+        source = pl.Series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
+        key = source.dtype.time_zone if source.dtype.base_type() is pl.Datetime else None
+        zone = _resolve_zone(key) if key is not None else None
+        values = _pldt_python_output(source, Pydt, zone, clock)
+        result = np.empty(len(values), dtype=object)
+        result[:] = values
+        return result
+    except Exception as error:
+        _raise_argument_context(error, entry, "data", None)
+
+
+class _PythonOutputMethods:
+    def datetime(self):
+        """Return an object array of Pydt/None, explicitly truncating to microseconds."""
+        return _python_output(self)
+
+    @property
+    def timetz(self):
+        """Return an object array of standard time/None, preserving zone and fold."""
+        return _python_output(self, True)
+
+
+def _strftime_operation(owner, format):
+    entry = "Pldt.strftime"
+    try:
+        context = _strftime_prepare(format)
+        if isinstance(owner, _ExprNamespace):
+            if not context.native():
+                raise _own_error(ValueError("system-locale/platform formats require eager data; use eager strftime or native .dt.strftime"), "format", format)
+            return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_strftime",
+                                            args=[owner._expr], kwargs={"prepared": context.plugin_data()},
+                                            is_elementwise=True)
+        source = pl.Series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
+        zone = None
+        if not context.native() and source.dtype.base_type() is pl.Datetime and source.dtype.time_zone is not None:
+            zone = _resolve_zone(source.dtype.time_zone)
+        return _pldt_strftime(source, context, zone, pl.Series)
+    except Exception as error:
+        _raise_argument_context(error, entry, "format", format)
+
+
+class _OutputMethods:
+    """Native numerical, date, clock and text outputs without Python row objects."""
+    def toseconds(self, utc=False):
+        """Return Float64 seconds in local coordinates, or UTC when requested."""
+        return _output_operation(self, 0, "toseconds", utc=utc)
+
+    def tomicroseconds(self, utc=False):
+        """Return Int64 microseconds, flooring only at this explicit output."""
+        return _output_operation(self, 1, "tomicroseconds", utc=utc)
+
+    def toordinal(self):
+        """Return Int64 proleptic Gregorian day ordinals; missing stays null."""
+        return _output_operation(self, 2, "toordinal")
+
+    def timestamp(self):
+        """Return Float64 UTC seconds; naive dates use the process local zone."""
+        return _output_operation(self, 3, "timestamp")
+
+    @property
+    def values_naive(self):
+        """Return a plain native Datetime column of local wall coordinates."""
+        return _output_operation(self, 4, "values_naive")
+
+    @property
+    def date(self):
+        """Return a native Date column, checked against its signed32-day range."""
+        return _output_operation(self, 5, "date")
+
+    @property
+    def time(self):
+        """Return a native Time column retaining the full time-of-day nanoseconds."""
+        return _output_operation(self, 6, "time")
+
+    def isoformat(self, sep="T", timespec="auto"):
+        """Return ISO strings with explicit precision and colon-separated offsets."""
+        return _output_operation(self, 10, "isoformat", sep=sep, timespec=timespec)
+
+    def strftime(self, format):
+        """Return strings using native numeric/fraction fields or an eager system adapter.
+
+        ``%f`` has nine digits for ns and six for ms/us. ``%.0f`` is empty;
+        ``%.1f`` through ``%.9f`` include a dot and truncate or right-pad.
+        System locale/platform directives require eager data.
+        """
+        return _strftime_operation(self, format)
+
+    def ctime(self):
+        """Return English ctime strings, independent of the process locale."""
+        return _output_operation(self, 11, "ctime")
+
+    def month_name(self, locale=None):
+        """Return compiled CLDR month names; the default language is English."""
+        return _output_operation(self, 12, "month_name", locale=locale)
+
+    def weekday_name(self, locale=None):
+        """Return compiled CLDR weekday names; the default language is English."""
+        return _output_operation(self, 13, "weekday_name", locale=locale)
+
+    def tzname(self):
+        """Return the native zone abbreviation at each instant, or null if naive."""
+        return _output_operation(self, 14, "tzname")
+
+
 class _QueryMethods:
     """Direct nullable Int64/Boolean queries over actual local date fields."""
     @property
@@ -1452,7 +1579,7 @@ class _TransformMethods:
         return _date_operation(self, "sub", (years, quarters, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds), "sub")
 
 
-class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, pl.Series):
+class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _PythonOutputMethods, pl.Series):
     """A true Polars Datetime Series with native calendar operations.
 
     Args:
@@ -1635,6 +1762,66 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, pl.Series):
         """Convert with an explicit naive source zone, optionally removing target metadata."""
         return _tz_eager(self, "switch", targ_tz, base_tz, naive, ambiguous, nonexistent)
 
+    def to_numpy(self, *, writable=False, allow_copy=True, allow_nat_collision=False):
+        """Use Polars' NumPy export, rejecting valid ticks that collide with NaT.
+
+        Only ``allow_nat_collision`` is an rsTimes option. Polars retains its
+        original ``writable``/``allow_copy`` behavior and errors.
+        """
+        allow = _bool_option(allow_nat_collision, "Pldt.to_numpy", "allow_nat_collision")
+        source = pl.Series(self)
+        result = pl.Series.to_numpy(self, writable=writable, allow_copy=allow_copy)
+        if not allow:
+            row = _pldt_nat_collision(source)
+            if row is not None:
+                raise _own_error(OverflowError("valid date collides with the NumPy NaT reserved tick; use Arrow or to_physical with validity, or explicitly set allow_nat_collision=True"), f"data[{row}]", None)
+        return result
+
+    def to_pandas(self, *, use_pyarrow_extension_array=False, allow_nat_collision=False, **kwargs):
+        """Use the complete Polars pandas export and check its actual date result.
+
+        Arrow-backed output can retain the full int64 domain. Native kwargs,
+        including real ``types_mapper`` callbacks, execute before validation.
+        """
+        allow = _bool_option(allow_nat_collision, "Pldt.to_pandas", "allow_nat_collision")
+        source = pl.Series(self)
+        result = pl.Series.to_pandas(self, use_pyarrow_extension_array=use_pyarrow_extension_array, **kwargs)
+        # This is the actual returned representation, including user callbacks;
+        # selecting an Arrow keyword alone is not evidence of preserved validity.
+        target = pl.from_pandas(result)
+        _pldt_check_temporal(source, target, allow)
+        return result
+
+    def __array__(self, dtype=None, copy=None):
+        """Retain native dtype/copy dispatch and validate explicit dtype changes."""
+        protected = dtype is not None and type(self).__getattribute__ is object.__getattribute__ and _getattr_static(self, "to_numpy") is Pldt.to_numpy
+        source = pl.Series(self) if protected else None
+        result = pl.Series.__array__(self, dtype=dtype, copy=copy)
+        # A genuine business override owns its returned representation. Do not
+        # invoke its descriptor again or impose this base exit on that protocol.
+        if not protected:
+            return result
+        if result.dtype.kind == "M":
+            unit, multiplier = np.datetime_data(result.dtype)
+            code = _NUMPY_DATE_CODES.get(unit, _NUMPY_EXPORT_SUBNS.get(unit))
+            if code is None:
+                raise ValueError("Pldt.__array__: NumPy output needs a concrete date unit")
+            _pldt_check_numpy(source, pl.Series(result.view(np.int64)), (code, multiplier))
+        elif result.dtype.kind == "f" and result.dtype.type not in _NUMPY_FLOAT_TYPES:
+            if np.finfo(result.dtype).nmant < 63:
+                _pldt_check_numpy(source, pl.Series(result.astype(np.float64)), None)
+            elif source.has_nulls() or not np.array_equal(result, source.to_physical().to_numpy()):
+                raise ValueError("Pldt.__array__: requested NumPy dtype cannot preserve the date tick or missing positions")
+        elif result.dtype.kind in "iuf":
+            _pldt_check_numpy(source, pl.Series(result), None)
+        else:
+            # Explicit object/text requests still must round-trip each value
+            # and missing position. No implicit fallback or replacement dtype.
+            original = source.dtype.time_unit
+            restored = np.asarray(result, dtype=f"datetime64[{original}]")
+            _pldt_check_numpy(source, pl.Series(restored.view(np.int64)), (_NUMPY_DATE_CODES[original], 1))
+        return result
+
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         """Preserve NumPy temporal operands for the approved arithmetic routes."""
         if method == "__call__" and len(inputs) == 2 and not kwargs and ufunc in (np.add, np.subtract):
@@ -1661,7 +1848,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, pl.Series):
 
 
 
-class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods):
+class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _PythonOutputMethods):
     def diff(self, dtobj, unit, absolute=False, inclusive="one"):
         """Count date-unit boundaries; numeric targets are seconds, not ticks."""
         return _boundary_difference(self, dtobj, unit, absolute, inclusive)
@@ -1794,7 +1981,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods):
 
 
 
-class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods):
+class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods):
     def diff(self, dtobj, unit, absolute=False, inclusive="one"):
         """Return native Int64 boundary counts in the logical row domain."""
         return _boundary_difference(self, dtobj, unit, absolute, inclusive)

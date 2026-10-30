@@ -1236,7 +1236,9 @@ pub(crate) fn try_from_fields<'py>(
 /// The Python wrapper selects only the exact base Pydt and standard factory
 /// sources; user subclasses and custom timezone protocols retain their hooks.
 #[pyfunction]
-fn _pydt_from_instant<'py>(value: &Bound<'py, PyDateTime>) -> PyResult<Bound<'py, PyAny>> {
+pub(crate) fn _pydt_from_instant<'py>(
+    value: &Bound<'py, PyDateTime>,
+) -> PyResult<Bound<'py, PyAny>> {
     let py = value.py();
     let class = CLASS
         .get(py)

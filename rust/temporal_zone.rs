@@ -267,6 +267,20 @@ impl Zone {
                 .is_dst(),
         })
     }
+    pub(crate) fn abbreviation(&self, instant: i128) -> Result<String, ZoneError> {
+        Ok(match &self.rules {
+            Rules::Fixed(0) => "UTC".into(),
+            Rules::Fixed(offset) => format!(
+                "{}{:02}",
+                if *offset < 0 { "-" } else { "+" },
+                offset.unsigned_abs() / 3600
+            ),
+            Rules::Region(zone) => zone
+                .to_offset_info(timestamp(instant.div_euclid(NS_SECOND) * NS_SECOND)?)
+                .abbreviation()
+                .to_string(),
+        })
+    }
     /// Resolve only actual local ambiguity; simple offsets never allocate dates.
     pub(crate) fn candidates(&self, wall: i128) -> Result<Candidates, ZoneError> {
         let offset = match &self.rules {

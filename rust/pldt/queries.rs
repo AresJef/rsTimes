@@ -114,41 +114,7 @@ pub(super) fn local_rules() -> Result<Zone, Failure> {
     let _ = LOCAL.set(zone.clone());
     Ok(LOCAL.get().cloned().unwrap_or(zone))
 }
-fn source_unit(source: &Series) -> Result<i128, Failure> {
-    match source.dtype() {
-        DataType::Date => Ok(DAY),
-        DataType::Datetime(unit, _) => Ok(super::input::epoch_unit(*unit).nanos()),
-        _ => Err(Failure::new(Kind::Type, "requires a temporal source")),
-    }
-}
-fn visit(
-    source: &Series,
-    mut push: impl FnMut(usize, Option<i128>) -> Result<(), Failure>,
-) -> Result<(), Failure> {
-    let quantum = source_unit(source)?;
-    if source.dtype() == &DataType::Date {
-        for (row, value) in source
-            .date()
-            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-            .physical()
-            .iter()
-            .enumerate()
-        {
-            push(row, value.map(|v| i128::from(v) * quantum))?;
-        }
-    } else {
-        for (row, value) in source
-            .datetime()
-            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-            .physical()
-            .iter()
-            .enumerate()
-        {
-            push(row, value.map(|v| i128::from(v) * quantum))?;
-        }
-    }
-    Ok(())
-}
+use super::input::visit_nanos as visit;
 fn single<const Q: u8>(inputs: &[Series], options: &Options) -> Result<Series, Failure> {
     let source = &inputs[0];
     let boolean = (100..200).contains(&Q);

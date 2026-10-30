@@ -9,7 +9,7 @@ from ._native import (_pydt_register, _pydt_shift, _pydt_from_us, _pydt_compare_
                       _pydt_from_ordinal, _pydt_from_doy, _pydt_from_iso, _pydt_leaps,
                       _pydt_copy_datetime, _pydt_copy_date, _pydt_from_instant, _pydt_from_calendar, _pydt_combine, _pydt_calendar_date, _pydt_repr_fields, _pydt_carrier, _pydt_replace, _pydt_replace_general, _pydt_stored_timezone, _pydt_millisecond,
                       _pydt_normalize, _pydt_add, _pydt_diff, _pydt_matches, _pydt_offset_seconds, _pydt_convert, _pydt_flag, _pydt_is_local, _pydt_is_utc, _pydt_name_matches, _pydt_iso, _pydt_from_numpy, _pydt_timedict, _pydt_from_seconds, _pydt_strptime, _pydt_from_numpy_zoned, _pydt_dst, _pydt_is_dst, _pydt_timetuple)
-from ._native import parse as _parse
+from ._native import parse as _parse, _pydt_strftime
 from ._native import _PydtBase, _pydt_binary, _pydt_clock, _pydt_copy_fold, _pydt_reduce
 from ._native import _bool_option, _pydt_create
 from ._native import _pydt_day_of_year, _pydt_days_in_month, _pydt_is_leap_year
@@ -3347,6 +3347,18 @@ class Pydt(_PydtBase):
             return f"{type(self).__name__}({values})"
         except Exception as error:
             _raise_argument_context(error, "Pydt.__repr__", "arguments", None)
+
+    def strftime(self, format):
+        """Format with system directives and exact ``%f``/``%.0f``–``%.9f``.
+
+        ``%f`` uses six digits. Explicit dot precision truncates or pads the
+        stored microsecond value; ``%.0f`` emits nothing. Other system rules
+        and real subclass ``__format__``/``strftime`` dispatch stay intact.
+        """
+        try:
+            return _pydt_strftime(self, format)
+        except Exception as error:
+            _raise_argument_context(error, "Pydt.strftime", "format", format)
 
     def __format__(self, fmt):
         """Format this date with an empty or strftime-style specification.

@@ -30,6 +30,7 @@ mod date_transform;
 mod delta;
 mod epoch;
 mod error_context;
+mod host_zone;
 mod interop;
 mod local_infer;
 mod localization;
@@ -51,7 +52,10 @@ mod range_frequency;
 mod range_generate;
 mod serde_values;
 mod state;
+mod strftime_output;
+mod strftime_plan;
 mod temporal_operand;
+mod temporal_output;
 mod temporal_target;
 mod temporal_zone;
 
@@ -88,6 +92,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     pddt::configure(module)?;
     pldt::configure(module)?;
     range_frequency::configure(module)?;
+    strftime_output::configure(module)?;
     module.add_function(wrap_pyfunction!(state::_restore_delta, module)?)?;
     module.add_function(wrap_pyfunction!(interop::_configure_optional, module)?)?;
     module.add_function(wrap_pyfunction!(runtime_info, module)?)?;

@@ -1,5 +1,5 @@
 //! One-time host input preparation and pure, fixed-resolution conversion.
-use super::finish::Rows;
+use super::finish::{Failure, Kind, Rows};
 use super::zones::{Context, PolicyContext, prepare_host_zone};
 use crate::epoch::{Options as ParseOptions, Unit, Zone};
 use crate::parser::Truth;
@@ -71,7 +71,6 @@ pub(super) fn column(
     source: &Series,
     options: NativeOptions<'_>,
 ) -> Result<Series, super::finish::Failure> {
-    use super::finish::{Failure, Kind};
     options.policy.check_len(source.len())?;
     let (original, source_zone) = match source.dtype() {
         DataType::Datetime(unit, zone) => (epoch_unit(*unit), zone.clone()),
@@ -553,4 +552,40 @@ pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_pldt_native, module)?)?;
     module.add_function(wrap_pyfunction!(_pldt_objects, module)?)?;
     module.add_function(wrap_pyfunction!(_pldt_register_missing, module)?)
+}
+
+fn output_source_quantum(source: &Series) -> Result<i128, Failure> {
+    match source.dtype() {
+        DataType::Date => Ok(86_400_000_000_000),
+        DataType::Datetime(unit, _) => Ok(super::input::epoch_unit(*unit).nanos()),
+        _ => Err(Failure::new(Kind::Type, "requires a temporal source")),
+    }
+}
+pub(super) fn visit_nanos(
+    source: &Series,
+    mut push: impl FnMut(usize, Option<i128>) -> Result<(), Failure>,
+) -> Result<(), Failure> {
+    let quantum = output_source_quantum(source)?;
+    if source.dtype() == &DataType::Date {
+        for (row, value) in source
+            .date()
+            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
+            .physical()
+            .iter()
+            .enumerate()
+        {
+            push(row, value.map(|v| i128::from(v) * quantum))?;
+        }
+    } else {
+        for (row, value) in source
+            .datetime()
+            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
+            .physical()
+            .iter()
+            .enumerate()
+        {
+            push(row, value.map(|v| i128::from(v) * quantum))?;
+        }
+    }
+    Ok(())
 }
