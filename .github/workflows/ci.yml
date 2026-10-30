@@ -16,11 +16,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   verify:
+    # This long-running draft uses PR synchronization for stage validation.
+    # Its initial push pilot is already running; opening the PR must not repeat it.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.head_ref || github.ref_name) != 'codex/pldt-nanoseconds-72h-20261030' ||
+      (github.event_name == 'pull_request' && github.event.action != 'opened')
     uses: ./.github/workflows/build.yml
     with:
-      profile: ${{ inputs.profile || (github.ref == 'refs/heads/codex/pldt-nanoseconds-72h-20261030' && 'pilot') || 'full' }}
+      profile: ${{ inputs.profile || ((github.head_ref || github.ref_name) == 'codex/pldt-nanoseconds-72h-20261030' && 'pilot') || 'full' }}
