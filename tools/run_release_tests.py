@@ -6,6 +6,7 @@ product matrix also runs the independently frozen upstream string corpus.
 """
 import argparse
 import importlib.metadata
+import importlib.util
 from pathlib import Path
 import sys
 
@@ -29,6 +30,8 @@ def main():
             "parser/test_frozen_parse.py", "parser/test_entrypoints.py",
             "parser/test_behavior_revision.py", "parser/test_object_parse.py",
         ]
+        if importlib.util.find_spec("polars") is not None:
+            paths.append("pldt")
         options = ["-q", *(str(root / "tests" / path) for path in paths),
                    "--junitxml", args.junitxml]
         raise SystemExit(pytest.main(options))

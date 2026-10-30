@@ -28,6 +28,8 @@ mod numeric;
 mod numpy_scalar;
 mod parser;
 mod pddt;
+#[allow(missing_docs, unsafe_op_in_unsafe_fn)] // Official plugin macro generates C ABI wrappers.
+mod pldt;
 mod protocol;
 mod pydt;
 mod pydt_compare;
@@ -65,6 +67,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     pydt_compare::configure(module)?;
     epoch::configure(module)?;
     pddt::configure(module)?;
+    pldt::configure(module)?;
     module.add_function(wrap_pyfunction!(state::_restore_delta, module)?)?;
     module.add_function(wrap_pyfunction!(interop::_configure_optional, module)?)?;
     module.add_function(wrap_pyfunction!(runtime_info, module)?)?;
