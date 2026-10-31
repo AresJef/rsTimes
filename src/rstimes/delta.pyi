@@ -6,7 +6,7 @@ from dateutil.relativedelta import relativedelta
 _DateT = TypeVar('_DateT', bound=date)
 _DeltaT = TypeVar('_DeltaT', bound='Delta')
 _Metadata = dict[str, object] | tuple[dict[str, object] | None, dict[str, object]] | None
-_State = tuple[str, int, tuple[int, ...], int, _Metadata]
+_State = tuple[str, int, tuple[int, ...], _Metadata]
 _FixedAmount = SupportsIndex | float | np.float16 | np.float32 | np.float64
 
 class Delta:
@@ -26,31 +26,33 @@ months : int or SupportsIndex, default 0
 weeks : int, float or numpy.float16/float32/float64, default 0
     Signed weeks to add. Negative values reverse that direction; zero is a real
     zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 days : int, float or numpy.float16/float32/float64, default 0
     Signed days to add. Negative values reverse that direction; zero is a real
     zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 hours : int, float or numpy.float16/float32/float64, default 0
     Signed hours to add. Negative values reverse that direction; zero is a real
     zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 minutes : int, float or numpy.float16/float32/float64, default 0
     Signed minutes to add. Negative values reverse that direction; zero is a
     real zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 seconds : int, float or numpy.float16/float32/float64, default 0
     Signed seconds to add. Negative values reverse that direction; zero is a
     real zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 milliseconds : int, float or numpy.float16/float32/float64, default 0
     Signed milliseconds to add. Negative values reverse that direction; zero is
     a real zero increment. Fixed-duration floats are combined and rounded once
-    to microseconds.
+    to nanoseconds.
 microseconds : int, float or numpy.float16/float32/float64, default 0
     Signed microseconds to add. Negative values reverse that direction; zero is
     a real zero increment. Fixed-duration floats are combined and rounded once
-    to microseconds.
+    to nanoseconds.
+nanoseconds : int, float or numpy.float16/float32/float64, keyword-only, default 0
+    Relative nanoseconds, combined exactly with all fixed-duration fields.
 year : int | None, default None
     Absolute year replacement. None leaves it unset; explicit integers must be
     positive. Values above 9999 are limited to that maximum.
@@ -80,6 +82,10 @@ microsecond : int | None, default None
     Absolute microsecond replacement in 0 through 999999. None leaves it unset;
     zero is an actual setting. Floats and out-of-range numbers are rejected. If
     millisecond is also set, only the final three microsecond digits are used.
+nanosecond : int | None, keyword-only, default None
+    Absolute tail after the six microsecond digits, in0..999. None leaves
+    this field unset; zero explicitly clears the source tail. Setting only
+    microsecond also clears the source tail when applied to a date.
 
 Returns
 -------
@@ -90,7 +96,12 @@ Notes
 -----
 Relative amounts add or subtract time; singular fields replace date or clock fields. None leaves an absolute field unset, while an explicit clock zero sets that field to zero. Positive year/month/day selections keep their upper limiting and month-end behavior. Other absolute fields require their stated ranges. Integer-like values such as NumPy integers are accepted for absolute fields; floats are rejected.
 
-Fixed-duration fractions are combined and rounded once to microseconds, with halfway cases rounded to an even microsecond. Relative years, quarters and months require the integer index protocol; floats are rejected. Public numeric fields reject boolean values. Fixed-duration inputs accept the listed real floating types and integer index values, not arbitrary numeric conversions. Calendar month moves need not be reversible: January 31 plus one month and then minus one month may finish on January 29.
+Fixed-duration fractions are combined and rounded once to nanoseconds, with halfway cases rounded to an even nanosecond. Relative years, quarters and months require the integer index protocol; floats are rejected. Public numeric fields reject boolean values. Fixed-duration inputs accept the listed real floating types and integer index values, not arbitrary numeric conversions. Calendar month moves need not be reversible: January 31 plus one month and then minus one month may finish on January 29.
+
+Applying to datetime or Pydt rounds the complete target to microseconds
+once, with ties to even. A date selects the containing calendar day.
+Timestamp and column adapters retain nanoseconds; existing Pddt and Pldt
+values keep their fixed unit and reject an inexact or overflowing result.
 
 Values compare and hash by their fields with other Delta values. Fields cannot be changed in place; calling __init__ again leaves the existing value unchanged.
 
@@ -102,10 +113,11 @@ True
 0
 >>> from datetime import date
 >>> date(2024, 1, 31) + Delta(months=1)
-datetime.date(2024, 2, 29)"""
+datetime.date(2024, 2, 29)
+"""
 
-    def __new__(cls: type[_DeltaT], years: SupportsIndex=0, quarters: SupportsIndex=0, months: SupportsIndex=0, weeks: _FixedAmount=0, days: _FixedAmount=0, hours: _FixedAmount=0, minutes: _FixedAmount=0, seconds: _FixedAmount=0, milliseconds: _FixedAmount=0, microseconds: _FixedAmount=0, year: SupportsIndex | None=None, month: SupportsIndex | None=None, day: SupportsIndex | None=None, weekday: SupportsIndex | None=None, hour: SupportsIndex | None=None, minute: SupportsIndex | None=None, second: SupportsIndex | None=None, millisecond: SupportsIndex | None=None, microsecond: SupportsIndex | None=None) -> _DeltaT:
-        """Create a Delta value; see Delta for complete parameter descriptions.
+    def __new__(cls: type[_DeltaT], years: SupportsIndex=0, quarters: SupportsIndex=0, months: SupportsIndex=0, weeks: _FixedAmount=0, days: _FixedAmount=0, hours: _FixedAmount=0, minutes: _FixedAmount=0, seconds: _FixedAmount=0, milliseconds: _FixedAmount=0, microseconds: _FixedAmount=0, year: SupportsIndex | None=None, month: SupportsIndex | None=None, day: SupportsIndex | None=None, weekday: SupportsIndex | None=None, hour: SupportsIndex | None=None, minute: SupportsIndex | None=None, second: SupportsIndex | None=None, millisecond: SupportsIndex | None=None, microsecond: SupportsIndex | None=None, *, nanoseconds: _FixedAmount=0, nanosecond: SupportsIndex | None=None) -> _DeltaT:
+        """Create a fully initialized exact Delta value.
 
 Parameters
 ----------
@@ -121,31 +133,33 @@ months : int or SupportsIndex, default 0
 weeks : int, float or numpy.float16/float32/float64, default 0
     Signed weeks to add. Negative values reverse that direction; zero is a real
     zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 days : int, float or numpy.float16/float32/float64, default 0
     Signed days to add. Negative values reverse that direction; zero is a real
     zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 hours : int, float or numpy.float16/float32/float64, default 0
     Signed hours to add. Negative values reverse that direction; zero is a real
     zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 minutes : int, float or numpy.float16/float32/float64, default 0
     Signed minutes to add. Negative values reverse that direction; zero is a
     real zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 seconds : int, float or numpy.float16/float32/float64, default 0
     Signed seconds to add. Negative values reverse that direction; zero is a
     real zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 milliseconds : int, float or numpy.float16/float32/float64, default 0
     Signed milliseconds to add. Negative values reverse that direction; zero is
     a real zero increment. Fixed-duration floats are combined and rounded once
-    to microseconds.
+    to nanoseconds.
 microseconds : int, float or numpy.float16/float32/float64, default 0
     Signed microseconds to add. Negative values reverse that direction; zero is
     a real zero increment. Fixed-duration floats are combined and rounded once
-    to microseconds.
+    to nanoseconds.
+nanoseconds : int, float or numpy.float16/float32/float64, keyword-only, default 0
+    Relative nanoseconds, combined exactly with all fixed-duration fields.
 year : int | None, default None
     Absolute year replacement. None leaves it unset; explicit integers must be
     positive. Values above 9999 are limited to that maximum.
@@ -175,24 +189,19 @@ microsecond : int | None, default None
     Absolute microsecond replacement in 0 through 999999. None leaves it unset;
     zero is an actual setting. Floats and out-of-range numbers are rejected. If
     millisecond is also set, only the final three microsecond digits are used.
+nanosecond : int | None, keyword-only, default None
+    Absolute tail after the six microsecond digits, in0..999. None leaves
+    this field unset; zero explicitly clears the source tail. Setting only
+    microsecond also clears the source tail when applied to a date.
 
 Returns
 -------
-Delta subclass
-    A new instance of the requested class.
-
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+Delta
+    A complete immutable instance of cls. See Delta for target precision and calendar rules."""
         ...
 
-    def __init__(self, years: SupportsIndex=0, quarters: SupportsIndex=0, months: SupportsIndex=0, weeks: _FixedAmount=0, days: _FixedAmount=0, hours: _FixedAmount=0, minutes: _FixedAmount=0, seconds: _FixedAmount=0, milliseconds: _FixedAmount=0, microseconds: _FixedAmount=0, year: SupportsIndex | None=None, month: SupportsIndex | None=None, day: SupportsIndex | None=None, weekday: SupportsIndex | None=None, hour: SupportsIndex | None=None, minute: SupportsIndex | None=None, second: SupportsIndex | None=None, millisecond: SupportsIndex | None=None, microsecond: SupportsIndex | None=None) -> None:
-        """Accept construction arguments without changing an already initialized value.
+    def __init__(self, years: SupportsIndex=0, quarters: SupportsIndex=0, months: SupportsIndex=0, weeks: _FixedAmount=0, days: _FixedAmount=0, hours: _FixedAmount=0, minutes: _FixedAmount=0, seconds: _FixedAmount=0, milliseconds: _FixedAmount=0, microseconds: _FixedAmount=0, year: SupportsIndex | None=None, month: SupportsIndex | None=None, day: SupportsIndex | None=None, weekday: SupportsIndex | None=None, hour: SupportsIndex | None=None, minute: SupportsIndex | None=None, second: SupportsIndex | None=None, millisecond: SupportsIndex | None=None, microsecond: SupportsIndex | None=None, *, nanoseconds: _FixedAmount=0, nanosecond: SupportsIndex | None=None) -> None:
+        """Leave the already constructed immutable value unchanged.
 
 Parameters
 ----------
@@ -208,31 +217,33 @@ months : int or SupportsIndex, default 0
 weeks : int, float or numpy.float16/float32/float64, default 0
     Signed weeks to add. Negative values reverse that direction; zero is a real
     zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 days : int, float or numpy.float16/float32/float64, default 0
     Signed days to add. Negative values reverse that direction; zero is a real
     zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 hours : int, float or numpy.float16/float32/float64, default 0
     Signed hours to add. Negative values reverse that direction; zero is a real
     zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 minutes : int, float or numpy.float16/float32/float64, default 0
     Signed minutes to add. Negative values reverse that direction; zero is a
     real zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 seconds : int, float or numpy.float16/float32/float64, default 0
     Signed seconds to add. Negative values reverse that direction; zero is a
     real zero increment. Fixed-duration floats are combined and rounded once to
-    microseconds.
+    nanoseconds.
 milliseconds : int, float or numpy.float16/float32/float64, default 0
     Signed milliseconds to add. Negative values reverse that direction; zero is
     a real zero increment. Fixed-duration floats are combined and rounded once
-    to microseconds.
+    to nanoseconds.
 microseconds : int, float or numpy.float16/float32/float64, default 0
     Signed microseconds to add. Negative values reverse that direction; zero is
     a real zero increment. Fixed-duration floats are combined and rounded once
-    to microseconds.
+    to nanoseconds.
+nanoseconds : int, float or numpy.float16/float32/float64, keyword-only, default 0
+    Relative nanoseconds, combined exactly with all fixed-duration fields.
 year : int | None, default None
     Absolute year replacement. None leaves it unset; explicit integers must be
     positive. Values above 9999 are limited to that maximum.
@@ -262,20 +273,15 @@ microsecond : int | None, default None
     Absolute microsecond replacement in 0 through 999999. None leaves it unset;
     zero is an actual setting. Floats and out-of-range numbers are rejected. If
     millisecond is also set, only the final three microsecond digits are used.
+nanosecond : int | None, keyword-only, default None
+    Absolute tail after the six microsecond digits, in0..999. None leaves
+    this field unset; zero explicitly clears the source tail. Setting only
+    microsecond also clears the source tail when applied to a date.
 
 Returns
 -------
 None
-    No return value. Calling __init__ again does not change this Delta.
-
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+    No return value. Repeated direct initialization never changes fields or hash."""
         ...
 
     @classmethod
@@ -284,7 +290,7 @@ OverflowError
 
 Source date zero means no absolute replacement; clock zero remains an explicit setting. Relative years/months are interpreted before limiting the destination day. Unsupported or unrepresentable rules raise ValueError instead of silently changing their meaning.
 
-Reads the source fields directly, including real subclass attributes, without calling normalized(). Fractional fixed durations use the same microsecond rounding as Delta construction. The returned Delta follows Delta's date, fold and arithmetic rules; conversion does not promise that every operation can replace the source object unchanged.
+Reads the source fields directly, including real subclass attributes, without calling normalized(). Fractional fixed durations use the same exact nanosecond preparation as Delta construction. The returned Delta follows Delta's date, fold and arithmetic rules; conversion does not promise that every operation can replace the source object unchanged.
 
 This adapter requires the optional python-dateutil package. Install
 rsTimes[dateutil] and restart Python after adding the dependency.
@@ -468,6 +474,18 @@ int
         ...
 
     @property
+    def nanoseconds(self) -> int:
+        """Return the normalized relative tail after microseconds.
+
+        Returns
+        -------
+        int
+            An integer from0 through999. Negative durations borrow from the
+            day group; for example Delta(nanoseconds=-1).nanoseconds is999.
+        """
+        ...
+
+    @property
     def year(self) -> int | None:
         """int | None: Absolute year replacement, or None when unset.
 
@@ -553,6 +571,18 @@ Returns
 int | None
     The value described above, in the stated type and units; None represents an
     absent optional field or offset where indicated."""
+        ...
+
+    @property
+    def nanosecond(self) -> int | None:
+        """Return the independently present absolute nanosecond tail.
+
+        Returns
+        -------
+        int | None
+            None when unset, otherwise0..999. An explicit zero is a setting
+            and makes Delta truthy; it is different from None.
+        """
         ...
 
     @overload
@@ -936,7 +966,7 @@ int
 Returns
 -------
 _State
-    The saved fields and additional attributes used by this package."""
+    The version2 four-tuple ("rstimes.delta",2,core17,metadata). Derived caches are excluded; old version1 and byte formats are rejected."""
         ...
 
     def __setstate__(self, state: object) -> None:

@@ -538,26 +538,26 @@ unsafe fn compare_general(
     let result = catch_unwind(AssertUnwindSafe(|| -> PyResult<_> {
         let receiver = unsafe { Borrowed::from_ptr(py, receiver).cast_unchecked::<Delta>() };
         let other = unsafe { Borrowed::from_ptr(py, other) };
-        if matches!(operation, ffi::Py_EQ | ffi::Py_NE) && same_value_semantics(&receiver, &other)?
+        if matches!(operation, ffi::Py_EQ | ffi::Py_NE)
+            && same_value_semantics(&receiver, &other)?
+            && let Ok(right) = other.cast::<Delta>()
         {
-            if let Ok(right) = other.cast::<Delta>() {
-                let equal = receiver.get().native_eq(right.get());
-                return Ok(PyBool::new(
-                    py,
-                    if operation == ffi::Py_EQ {
-                        equal
-                    } else {
-                        !equal
-                    },
-                )
-                .to_owned()
-                .into_ptr());
-            }
+            let equal = receiver.get().native_eq(right.get());
+            return Ok(PyBool::new(
+                py,
+                if operation == ffi::Py_EQ {
+                    equal
+                } else {
+                    !equal
+                },
+            )
+            .to_owned()
+            .into_ptr());
         }
-        if operation == ffi::Py_NE {
-            if let Some(result) = inherited_inequality(&receiver, &other)? {
-                return Ok(result.into_ptr());
-            }
+        if operation == ffi::Py_NE
+            && let Some(result) = inherited_inequality(&receiver, &other)?
+        {
+            return Ok(result.into_ptr());
         }
         Ok(py.NotImplemented().into_ptr())
     }));
@@ -979,7 +979,7 @@ unsafe extern "C" fn getter<const INDEX: usize>(
         // alive. No Rust reference escapes, and no mutable borrow is held.
         let receiver = unsafe { Borrowed::from_ptr(py, receiver).cast_unchecked::<Delta>() };
         let value = receiver.get().relative(INDEX);
-        if INDEX >= 7 && value == -1 {
+        if INDEX >= 8 && value == -1 {
             return Ok(py.None().into_ptr());
         }
         Ok(unsafe { ffi::PyLong_FromLongLong(value) })
@@ -1306,7 +1306,7 @@ unsafe fn binary_builtin<'py, const SUBTRACT: bool>(
                     return Ok(Some(unsafe { ffi::Py_NewRef(other.as_ptr()) }));
                 }
                 crate::interop::apply_builtin_datetime_fields(
-                    &delta.get().calendar_snapshot(true),
+                    &delta.get().native_value(),
                     false,
                     other,
                     &datetime,
@@ -1376,26 +1376,18 @@ unsafe fn binary_foreign<'py, const SUBTRACT: bool>(
     right: Borrowed<'_, 'py, PyAny>,
     class: *mut ffi::PyTypeObject,
 ) -> PyResult<*mut ffi::PyObject> {
-    // Warm exact NumPy scalars can use the existing native conversion after
-    // builtin date/duration dispatch. Requiring both caches avoids changing
-    // first-import order; subclasses and cold calls retain normal callbacks.
+    // Preserve original temporal scalar identity before NumPy item conversion.
+    // The exact-type cache qualifies public layout; real subclasses retain the
+    // existing reflected protocol below. Both orientations share the ns model.
     if unsafe { ffi::Py_TYPE(left.as_ptr()) } == class
-        && crate::interop::exact_relative_type(py).is_some()
         && let Some(types) = crate::numpy_scalar::ExactTypes::cached(py)
-        && let Some((micros, datetime)) = types.microseconds_for_operation(&right, !SUBTRACT)?
+        && let Some(source) = types.delta_scalar(&right, !SUBTRACT)?
     {
         let delta = unsafe { left.cast_unchecked::<Delta>() };
-        if datetime {
-            return crate::numpy_scalar::apply_datetime_us(py, delta.get(), micros, 1)
-                .map(Bound::into_ptr);
-        }
-        return unsafe {
-            new_delta(
-                py,
-                delta.get().with_microseconds(micros, SUBTRACT, false)?,
-                class,
-            )
-        };
+        return delta
+            .get()
+            .apply_numpy(py, source, SUBTRACT, false, false)
+            .map(Bound::into_ptr);
     }
     // Exact native Delta/relativedelta operands bypass the generic date and
     // duration tests. Non-exact objects retain both original instance checks.
@@ -1410,17 +1402,17 @@ unsafe fn binary_foreign<'py, const SUBTRACT: bool>(
                 )
             };
         }
-    } else if unsafe { ffi::Py_TYPE(right.as_ptr()) } == class {
-        if let Some(fields) = crate::interop::exact_relative_fields(&left)? {
-            let delta = unsafe { right.cast_unchecked::<Delta>() };
-            return unsafe {
-                new_delta(
-                    py,
-                    delta.get().with_relative_fields(fields, SUBTRACT, true)?,
-                    class,
-                )
-            };
-        }
+    } else if unsafe { ffi::Py_TYPE(right.as_ptr()) } == class
+        && let Some(fields) = crate::interop::exact_relative_fields(&left)?
+    {
+        let delta = unsafe { right.cast_unchecked::<Delta>() };
+        return unsafe {
+            new_delta(
+                py,
+                delta.get().with_relative_fields(fields, SUBTRACT, true)?,
+                class,
+            )
+        };
     }
     let result = if unsafe { ffi::PyObject_TypeCheck(left.as_ptr(), class) } != 0 {
         let value = unsafe { left.cast_unchecked::<Delta>() };
@@ -1430,17 +1422,30 @@ unsafe fn binary_foreign<'py, const SUBTRACT: bool>(
             value.get().__add__(&right)
         }
     } else if unsafe { ffi::PyObject_TypeCheck(right.as_ptr(), class) } != 0 {
-        if let Some(original_item) = crate::numpy_scalar::reflected_item(&left)? {
-            // Normal scalars retain NumPy's original item-based dispatch;
-            // NaT has already been rejected without conflating it with None.
-            return if SUBTRACT {
-                original_item.sub(right)
-            } else {
-                original_item.add(right)
-            }
-            .map(Bound::into_ptr);
-        }
         let value = unsafe { right.cast_unchecked::<Delta>() };
+        let types = match crate::numpy_scalar::ExactTypes::cached(py) {
+            Some(types) => Some(types),
+            None => crate::numpy_scalar::ExactTypes::for_value(&left)?,
+        };
+        if let Some(source) = types
+            .map(|types| types.delta_scalar(&left, true))
+            .transpose()?
+            .flatten()
+        {
+            if matches!(
+                source,
+                crate::numpy_scalar::DeltaScalar::Duration {
+                    calendar_unit: true,
+                    ..
+                }
+            ) {
+                return Ok(py.NotImplemented().into_ptr());
+            }
+            return value
+                .get()
+                .apply_numpy(py, source, SUBTRACT, true, true)
+                .map(Bound::into_ptr);
+        }
         if SUBTRACT {
             value.get().__rsub__(&left)
         } else {
@@ -1570,13 +1575,13 @@ Repeated calls leave its value unchanged."
     // No instance data is retained by this definition.
 });
 
-struct Getters([ffi::PyGetSetDef; 15]);
+struct Getters([ffi::PyGetSetDef; 17]);
 // Static readonly names, docstrings and field-specific callback pointers.
 // CPython does not mutate this table.
 unsafe impl Sync for Getters {}
 /// Build a readonly field descriptor with static name and documentation.
 ///
-/// INDEX selects one of the 15 validated fields at compile time.
+/// INDEX selects one of the17 validated fields at compile time.
 const fn property<const INDEX: usize>(
     name: &'static std::ffi::CStr,
     doc: &'static std::ffi::CStr,
@@ -1610,36 +1615,44 @@ static GETTERS: Getters = Getters([
         c"int: Normalized relative microseconds, in 0..999999.",
     ),
     property::<7>(
+        c"nanoseconds",
+        c"int: Normalized relative nanosecond tail, in0..999.",
+    ),
+    property::<8>(
         c"year",
         c"int | None: Absolute year replacement, or None when unset.",
     ),
-    property::<8>(
+    property::<9>(
         c"month",
         c"int | None: Absolute month replacement (1..12), or None when unset.",
     ),
-    property::<9>(
+    property::<10>(
         c"day",
         c"int | None: Absolute day replacement (1..31), or None when unset.",
     ),
-    property::<10>(
+    property::<11>(
         c"weekday",
         c"int | None: Absolute weekday replacement (Monday=0 to Sunday=6), or None.",
     ),
-    property::<11>(
+    property::<12>(
         c"hour",
         c"int | None: Absolute hour replacement (0..23), or None when unset.",
     ),
-    property::<12>(
+    property::<13>(
         c"minute",
         c"int | None: Absolute minute replacement (0..59), or None when unset.",
     ),
-    property::<13>(
+    property::<14>(
         c"second",
         c"int | None: Absolute second replacement (0..59), or None when unset.",
     ),
-    property::<14>(
+    property::<15>(
         c"microsecond",
         c"int | None: Absolute microsecond replacement (0..999999), or None.",
+    ),
+    property::<16>(
+        c"nanosecond",
+        c"int | None: Absolute nanosecond tail in0..999, or None.",
     ),
 ]);
 
@@ -1700,33 +1713,33 @@ pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
             .call0()
             .map_err(crate::error_context::external)?
             .extract::<bool>()?
+        && let Some(original) = unsafe { (*class_ptr).tp_alloc }
     {
-        if let Some(original) = unsafe { (*class_ptr).tp_alloc } {
-            // A byte budget bounds retained dead blocks and their pointer table;
-            // it is independent of benchmark case sizes and user input lengths.
-            let limit = (2 * 1024 * 1024)
-                / (unsafe { (*class_ptr).tp_basicsize as usize }
-                    + std::mem::size_of::<ptr::NonNull<c_void>>());
-            let cache = unsafe { &mut *ALLOCATION_CACHE.0.get() };
-            cache.blocks.try_reserve_exact(limit).map_err(|_| {
-                pyo3::exceptions::PyMemoryError::new_err("cannot allocate Delta cache")
-            })?;
-            cache.limit = limit;
-            module.add(
-                "_allocation_cache",
-                PyCapsule::new_with_value(
-                    py,
-                    CacheGuard { _ownership: 1 },
-                    c"rstimes._native._allocation_cache",
-                )?,
-            )?;
-            let _ = ORIGINAL_ALLOC.set(original);
-            EXACT_ALLOC_TYPE.store(class_ptr, Ordering::Relaxed);
-            unsafe {
-                (*class_ptr).tp_alloc = Some(allocate_exact);
-                (*class_ptr).tp_free = Some(free_exact);
-            };
-        }
+        // A byte budget bounds retained dead blocks and their pointer table;
+        // it is independent of benchmark case sizes and user input lengths.
+        let limit = (2 * 1024 * 1024)
+            / (unsafe { (*class_ptr).tp_basicsize as usize }
+                + std::mem::size_of::<ptr::NonNull<c_void>>());
+        let cache = unsafe { &mut *ALLOCATION_CACHE.0.get() };
+        cache
+            .blocks
+            .try_reserve_exact(limit)
+            .map_err(|_| pyo3::exceptions::PyMemoryError::new_err("cannot allocate Delta cache"))?;
+        cache.limit = limit;
+        module.add(
+            "_allocation_cache",
+            PyCapsule::new_with_value(
+                py,
+                CacheGuard { _ownership: 1 },
+                c"rstimes._native._allocation_cache",
+            )?,
+        )?;
+        let _ = ORIGINAL_ALLOC.set(original);
+        EXACT_ALLOC_TYPE.store(class_ptr, Ordering::Relaxed);
+        unsafe {
+            (*class_ptr).tp_alloc = Some(allocate_exact);
+            (*class_ptr).tp_free = Some(free_exact);
+        };
     }
     let original = unsafe { (*class_ptr).tp_new }
         .ok_or_else(|| crate::error_context::runtime("Delta allocator is missing"))?;
@@ -1763,6 +1776,7 @@ pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
         "minutes",
         "seconds",
         "microseconds",
+        "nanoseconds",
         "year",
         "month",
         "day",
@@ -1771,6 +1785,7 @@ pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
         "minute",
         "second",
         "microsecond",
+        "nanosecond",
     ]
     .into_iter()
     .enumerate()

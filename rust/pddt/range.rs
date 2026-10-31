@@ -1,28 +1,12 @@
 //! Prepared static frequency plans and native range generation.
 use super::common::{Rows, finish};
-use super::range_calendar::{Business, Frequency, Kind};
 use crate::epoch::{Parsed, Unit, Zone};
+use crate::range_calendar::{Business, Frequency, Kind, Plan};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDelta, PyDeltaAccess, PyDict};
 
 type RangeOutput<'py> = (Bound<'py, PyBytes>, &'static str, Py<PyAny>, usize, usize);
 
-#[pyclass(frozen, name = "_PddtFrequency")]
-pub(super) struct Plan {
-    frequency: Frequency,
-    precision: Unit,
-}
-#[pymethods]
-impl Plan {
-    #[getter]
-    fn tick(&self) -> Option<i128> {
-        if let Kind::Fixed(value) = self.frequency.kind {
-            Some(value)
-        } else {
-            None
-        }
-    }
-}
 fn integer(props: &Bound<'_, PyDict>, key: &str, default: i64) -> PyResult<i64> {
     props.get_item(key)?.map_or(Ok(default), |v| v.extract())
 }
@@ -72,10 +56,8 @@ fn _pddt_frequency(kind: &str, n: i64, props: &Bound<'_, PyDict>) -> PyResult<Pl
         if bytes.len() % 8 != 0 {
             return Err(crate::error_context::runtime("invalid holiday snapshot"));
         }
-        for bytes in bytes.chunks_exact(8) {
-            let raw: [u8; 8] = bytes
-                .try_into()
-                .map_err(|_| crate::error_context::runtime("invalid holiday bytes"))?;
+        for bytes in bytes.as_chunks::<8>().0.iter() {
+            let raw: [u8; 8] = *bytes;
             let value = i64::from_ne_bytes(raw);
             if value != i64::MIN && mask[Business::weekday(i128::from(value))] {
                 holidays.push(value);
@@ -268,10 +250,10 @@ fn _pddt_range<'py>(
         py, start, end, &policy, unit, target, normalize, default, yearfirst, dayfirst, isoformat,
         strict, cfg, calendar, tick,
     )?;
-    if unit.is_none() {
-        if let Some(plan) = &plan {
-            inputs.unit = inputs.unit.max(plan.precision);
-        }
+    if unit.is_none()
+        && let Some(plan) = &plan
+    {
+        inputs.unit = inputs.unit.max(plan.precision);
     }
     let target = (!inputs.zone.bind(py).is_none()).then(|| inputs.zone.bind(py));
     _pddt_range_sequence(
@@ -444,15 +426,9 @@ fn prepare_endpoints<'py>(
     };
     let selected_object = super::common::zone_object(py, &selected)?;
     let selected_fixed = super::common::fixed_offset(py, &selected)?;
-    let finest = if tick.is_some_and(|v| v.rem_euclid(1000) != 0) {
-        Unit::Nanosecond
-    } else if tick.is_some_and(|v| v.rem_euclid(1_000_000) != 0) {
-        Unit::Microsecond
-    } else if tick.is_some_and(|v| v.rem_euclid(1_000_000_000) != 0) {
-        Unit::Millisecond
-    } else {
-        Unit::Second
-    };
+    let finest = tick
+        .map(crate::precision::quantum_unit)
+        .unwrap_or(Unit::Second);
     let selected_unit = requested.unwrap_or(reader.unit.max(finest));
     let mut coordinates = [None, None];
     let mut known = [None, None];
@@ -568,15 +544,12 @@ fn _pddt_range_sequence<'py>(
             ));
         }
     };
-    let count = usize::from(start.is_some())
-        + usize::from(end.is_some())
-        + usize::from(periods.is_some())
-        + usize::from(plan.is_some());
-    if count != 3 {
-        return Err(crate::error_context::value_error(
-            "exactly three of start, end, periods and freq must be specified",
-        ));
-    }
+    crate::range_generate::arity(
+        start.is_some(),
+        end.is_some(),
+        periods.is_some(),
+        plan.is_some(),
+    )?;
     let finest = if start
         .into_iter()
         .chain(end)
@@ -590,188 +563,25 @@ fn _pddt_range_sequence<'py>(
         Unit::Microsecond
     };
     let unit = unit.map(Unit::parse).transpose()?.unwrap_or(finest);
-    if let Some(plan) = &plan {
-        let fraction = match plan.frequency.kind {
-            Kind::Fixed(v) => v,
-            _ => plan.frequency.offset,
-        };
-        if fraction.rem_euclid(unit.nanos()) != 0 {
-            return Err(crate::error_context::value_error(
-                "frequency cannot be preserved at this unit; choose a finer unit",
-            ));
-        }
-    }
     let mut rows = Rows::new(unit);
     if let Some(length) = periods {
         rows.reserve(length)?;
     }
-    let instant = plan
-        .as_ref()
-        .is_none_or(|p| matches!(p.frequency.kind, Kind::Fixed(_)));
-    if let Some(plan) = plan {
-        let frequency = &plan.frequency;
-        let direction = if let Kind::Fixed(step) = frequency.kind {
-            if step < 0 { -1 } else { 1 }
-        } else {
-            frequency.n.signum()
-        };
-        let mut first = start
-            .map(|v| frequency.roll(v, direction))
-            .transpose()
-            .map_err(crate::error_context::overflow)?;
-        let mut last = end;
-        if let (Some(last_value), Some(_)) = (last, periods) {
-            last = Some(
-                frequency
-                    .roll(last_value, -direction)
-                    .map_err(crate::error_context::overflow)?,
-            );
-        }
-        if let Some(length) = periods {
-            let offset = i64::try_from(length)
-                .map_err(|_| crate::error_context::overflow("period count exceeds native range"))?
-                .checked_sub(1)
-                .ok_or_else(|| crate::error_context::overflow("period count underflow"))?;
-            if first.is_none() {
-                first = Some(
-                    frequency
-                        .apply(
-                            last.ok_or_else(|| {
-                                crate::error_context::value_error("end is required")
-                            })?,
-                            -offset,
-                        )
-                        .map_err(crate::error_context::overflow)?,
-                );
-            }
-            if last.is_none() {
-                last = Some(
-                    frequency
-                        .apply(
-                            first.ok_or_else(|| {
-                                crate::error_context::value_error("start is required")
-                            })?,
-                            offset,
-                        )
-                        .map_err(crate::error_context::overflow)?,
-                );
-            }
-        }
-        let (Some(mut current), Some(last)) = (first, last) else {
-            return Err(crate::error_context::value_error(
-                "range requires enough endpoint information",
-            ));
-        };
-        if periods != Some(0) {
-            while if direction > 0 {
-                current <= last
-            } else {
-                current >= last
-            } {
-                let known = if start == Some(current) {
-                    known_start
-                } else if end == Some(current) {
-                    known_end
-                } else {
-                    None
-                };
-                append(
-                    &mut rows,
-                    py,
-                    known.unwrap_or(current),
-                    unit,
-                    known.is_some() || instant,
-                )?;
-                if current == last {
-                    break;
-                }
-                let next = frequency
-                    .apply(current, 1)
-                    .map_err(crate::error_context::overflow)?;
-                if (direction > 0 && next <= current) || (direction < 0 && next >= current) {
-                    return Err(crate::error_context::value_error(
-                        "frequency does not advance in its declared direction",
-                    ));
-                }
-                current = next;
-            }
-        }
-    } else {
-        let (Some(first), Some(last), Some(length)) = (start, end, periods) else {
-            return Err(crate::error_context::value_error(
-                "freq=None requires start, end and periods",
-            ));
-        };
-        if first.rem_euclid(unit.nanos()) != 0 || last.rem_euclid(unit.nanos()) != 0 {
-            return Err(crate::error_context::value_error(
-                "range endpoints cannot be preserved at this unit; choose a finer unit",
-            ));
-        }
-        // Interpolate on the requested storage lattice, towards the earlier
-        // tick. Nanosecond intermediates must not create false precision errors.
-        let (first, last) = (
-            first.div_euclid(unit.nanos()),
-            last.div_euclid(unit.nanos()),
-        );
-        let delta = last
-            .checked_sub(first)
-            .ok_or_else(|| crate::error_context::overflow("range span exceeds native precision"))?;
-        let denominator = length.saturating_sub(1) as i128;
-        let (quotient, remainder) = if denominator > 0 {
-            (delta.div_euclid(denominator), delta.rem_euclid(denominator))
-        } else {
-            (0, 0)
-        };
-        for i in 0..length {
-            let value = if length == 1 {
-                first
-            } else {
-                first
-                    .checked_add(
-                        quotient
-                            .checked_mul(i as i128)
-                            .and_then(|whole| {
-                                remainder
-                                    .checked_mul(i as i128)
-                                    .map(|part| whole + part.div_euclid(denominator))
-                            })
-                            .ok_or_else(|| {
-                                crate::error_context::overflow(
-                                    "range interpolation exceeds native precision",
-                                )
-                            })?,
-                    )
-                    .ok_or_else(|| crate::error_context::overflow("range interpolation overflow"))?
-            };
-            append(
-                &mut rows,
-                py,
-                value.checked_mul(unit.nanos()).ok_or_else(|| {
-                    crate::error_context::overflow("range interpolation overflow")
-                })?,
-                unit,
-                true,
-            )?;
-        }
-    }
-    let length = rows.values.len();
-    let mut trim_left = 0;
-    let mut trim_right = 0;
-    if start == end && start.is_some() {
-        if !left && !right {
-            trim_left = usize::from(length > 0);
-            trim_right = usize::from(length > 1);
-        }
-    } else {
-        if !left && rows.values.first().copied().flatten() == known_start.or(start) {
-            trim_left = usize::from(length > 0);
-        }
-        if !right && rows.values.last().copied().flatten() == known_end.or(end) {
-            trim_right = usize::from(length > trim_left);
-        }
-    }
+    let trim = crate::range_generate::generate(
+        crate::range_generate::Input {
+            start,
+            end,
+            periods,
+            frequency: plan.as_ref().map(|plan| &plan.frequency),
+            unit,
+            inclusive: (left, right),
+            known_start,
+            known_end,
+        },
+        |value, instant| append(&mut rows, py, value, unit, instant),
+    )?;
     let (data, unit, zone) = finish(py, rows, Some(unit), target, "Pddt.date_range", &policy)?;
-    Ok((data, unit, zone, trim_left, trim_right))
+    Ok((data, unit, zone, trim.left, trim.right))
 }
 
 #[pyfunction]
@@ -828,7 +638,7 @@ fn _pddt_range_external<'py>(
             ));
         }
     };
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime(
             "invalid generated date buffer",
         ));
@@ -840,10 +650,8 @@ fn _pddt_range_external<'py>(
     rows.reserve(count)?;
     let mut first = None;
     let mut last = None;
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid generated date item"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let value = i64::from_ne_bytes(raw);
         if value == i64::MIN {
             rows.missing();
@@ -895,4 +703,17 @@ pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_pddt_range_endpoints, module)?)?;
     module.add_function(wrap_pyfunction!(_pddt_range_external, module)?)?;
     module.add_function(wrap_pyfunction!(_pddt_range_sequence, module)?)
+}
+
+impl From<crate::range_generate::Error> for PyErr {
+    fn from(error: crate::range_generate::Error) -> Self {
+        match error {
+            crate::range_generate::Error::Value(message) => {
+                crate::error_context::value_error(message)
+            }
+            crate::range_generate::Error::Capacity(message) => {
+                crate::error_context::overflow(message)
+            }
+        }
+    }
 }

@@ -465,12 +465,12 @@ fn normalize_local<'py>(value: Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>>
     }
     if standard_region(&tz)? {
         validate_regional(dt, &tz)?;
-    } else if let Some(back) = roundtrip(dt, &tz)? {
-        if parts(back.cast::<PyDateTime>()?) != parts(dt) {
-            return Err(crate::error_context::value_error(
-                "local time does not exist according to tzinfo.fromutc(); choose an existing local time",
-            ));
-        }
+    } else if let Some(back) = roundtrip(dt, &tz)?
+        && parts(back.cast::<PyDateTime>()?) != parts(dt)
+    {
+        return Err(crate::error_context::value_error(
+            "local time does not exist according to tzinfo.fromutc(); choose an existing local time",
+        ));
     }
     Ok(value)
 }
@@ -613,12 +613,12 @@ fn calendar_target<const RETAIN_DAY: bool>(
                 .ok_or_else(|| crate::error_context::overflow("Pydt local adjustment overflow"))?,
         )?;
         let probe = wall_carrier(py, candidate, tz)?;
-        if let Some(back) = roundtrip(&probe, tz)? {
-            if parts(back.cast::<PyDateTime>()?) != candidate {
-                return Err(crate::error_context::value_error(
-                    "timezone cannot confirm a valid calendar target",
-                ));
-            }
+        if let Some(back) = roundtrip(&probe, tz)?
+            && parts(back.cast::<PyDateTime>()?) != candidate
+        {
+            return Err(crate::error_context::value_error(
+                "timezone cannot confirm a valid calendar target",
+            ));
         }
         return Ok((candidate, 0));
     }
@@ -635,10 +635,10 @@ fn calendar_target<const RETAIN_DAY: bool>(
                 .map_err(|_| crate::error_context::overflow("Pydt local adjustment overflow"))?,
         )?;
         let probe = wall_carrier(py, fields, tz)?;
-        if let Some(back) = roundtrip(&probe, tz)? {
-            if parts(back.cast::<PyDateTime>()?) != fields {
-                continue;
-            }
+        if let Some(back) = roundtrip(&probe, tz)?
+            && parts(back.cast::<PyDateTime>()?) != fields
+        {
+            continue;
         }
         return Ok((fields, 0));
     }
@@ -813,12 +813,12 @@ fn optional_period_target(
                 } else {
                     builtin_with_fold(&probe, true)?
                 };
-                if let Some(back) = roundtrip(&selected, &zone)? {
-                    if parts(back.cast::<PyDateTime>()?) != fields {
-                        return Err(crate::error_context::value_error(
-                            "custom timezone cannot confirm the requested period boundary",
-                        ));
-                    }
+                if let Some(back) = roundtrip(&selected, &zone)?
+                    && parts(back.cast::<PyDateTime>()?) != fields
+                {
+                    return Err(crate::error_context::value_error(
+                        "custom timezone cannot confirm the requested period boundary",
+                    ));
                 }
             }
             return Ok(Some((fields, fold)));
@@ -877,10 +877,10 @@ fn rounded_target(
                 } else {
                     builtin_with_fold(&carrier, true)?
                 };
-                if let Some(back) = roundtrip(&selected, &zone)? {
-                    if parts(back.cast::<PyDateTime>()?) != fields {
-                        continue;
-                    }
+                if let Some(back) = roundtrip(&selected, &zone)?
+                    && parts(back.cast::<PyDateTime>()?) != fields
+                {
+                    continue;
                 }
             }
             let instant = wall - offset;
@@ -1236,7 +1236,9 @@ pub(crate) fn try_from_fields<'py>(
 /// The Python wrapper selects only the exact base Pydt and standard factory
 /// sources; user subclasses and custom timezone protocols retain their hooks.
 #[pyfunction]
-fn _pydt_from_instant<'py>(value: &Bound<'py, PyDateTime>) -> PyResult<Bound<'py, PyAny>> {
+pub(crate) fn _pydt_from_instant<'py>(
+    value: &Bound<'py, PyDateTime>,
+) -> PyResult<Bound<'py, PyAny>> {
     let py = value.py();
     let class = CLASS
         .get(py)
@@ -1944,10 +1946,8 @@ fn epoch_microseconds(value: &Bound<'_, PyDateTime>, utc: bool) -> PyResult<i64>
         + f[4] * 60_000_000
         + f[5] * 1_000_000
         + f[6];
-    if utc {
-        if let Some(offset) = offset_us(&utc_offset(value)?)? {
-            us -= offset;
-        }
+    if utc && let Some(offset) = offset_us(&utc_offset(value)?)? {
+        us -= offset;
     }
     Ok(us)
 }
@@ -2068,7 +2068,7 @@ fn with_default_token<R>(token: &str, lookup: impl FnOnce(&[u32]) -> R) -> R {
 }
 
 /// Query one default name using shared inline storage for common words.
-fn lookup_default_name(token: &str, weekday: bool) -> i32 {
+pub(crate) fn lookup_default_name(token: &str, weekday: bool) -> i32 {
     let rule = if weekday {
         crate::parser::fields::Rule::Weekday
     } else {
@@ -3475,10 +3475,11 @@ fn _pydt_timedelta<'py>(
         + i128::from(duration.get_microseconds());
     // pandas' coarse out-of-bounds durations have a zero builtin carrier.
     // Preserve the ordinary native read; only that ambiguous carrier needs ticks.
-    if us == 0 && !duration.is_exact_instance_of::<PyDelta>() {
-        if let Some(nanos) = crate::interop::duration_nanoseconds(duration.as_any())? {
-            us = nanos.div_euclid(1000);
-        }
+    if us == 0
+        && !duration.is_exact_instance_of::<PyDelta>()
+        && let Some(nanos) = crate::interop::duration_nanoseconds(duration.as_any())?
+    {
+        us = nanos.div_euclid(1000);
     }
     duration_result(value, if subtract { -us } else { us })
 }
@@ -3497,10 +3498,8 @@ fn _pydt_binary<'py>(
     if let Ok(duration) = operand.cast::<PyDelta>() {
         return _pydt_timedelta(value, duration, subtract);
     }
-    if subtract {
-        if let Ok(other) = operand.cast::<PyDateTime>() {
-            return crate::pydt_compare::_pydt_datetime_sub(value, other);
-        }
+    if subtract && let Ok(other) = operand.cast::<PyDateTime>() {
+        return crate::pydt_compare::_pydt_datetime_sub(value, other);
     }
     if crate::interop::is_relativedelta(operand)? {
         let carrier = _pydt_carrier(value)?;
@@ -3582,23 +3581,12 @@ fn _pydt_add<'py>(
     let clock = clock * sign;
     let days = (weeks.0 * 7 + days.0) * sign + clock.div_euclid(86_400_000_000);
     let clock = clock.rem_euclid(86_400_000_000);
-    let fields = [
-        months.div_euclid(12),
-        months.rem_euclid(12),
-        days,
-        clock / 3_600_000_000,
-        clock / 60_000_000 % 60,
-        clock / 1_000_000 % 60,
-        clock % 1_000_000,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-    ];
+    let fields = crate::delta::value::DeltaValue::from_totals(
+        i128::from(months),
+        i128::from(days) * crate::delta::value::NS_PER_DAY + i128::from(clock) * 1000,
+        crate::delta::value::AbsoluteFields::EMPTY,
+    )
+    .map_err(|_| crate::error_context::overflow("calendar duration overflow"))?;
     let (out, _) = crate::calendar::apply(&fields, parts(value), 1, true)
         .map_err(crate::error_context::overflow)?;
     result(value, out, true)

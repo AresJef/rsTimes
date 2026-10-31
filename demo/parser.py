@@ -131,6 +131,8 @@ def region_timezone_demo():
 def errors_demo():
     """Catch text and configuration failures by their specific public classes."""
     print("\nPublic error classes:")
+    assert parse_to_epoch(1e-9, unit='ns') == 1
+    print('Shared native epoch precision: 1e-9 seconds -> 1 nanosecond')
     try:
         parse_str("2024-01-02 12:99", strict=True)
     except ParseError as error:

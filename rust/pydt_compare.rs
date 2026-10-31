@@ -473,22 +473,22 @@ unsafe extern "C" fn compare(
                     }
                 }
             }
-        } else if ffi::PyDateTime_Check(right) != 0 {
-            if let Some(standard) = COMPARE.get().copied() {
-                // A normal datetime subclass inheriting the original native
-                // comparator has no foreign precision to inspect. Its Python
-                // subclass hooks still get CPython's normal dispatch priority.
-                if (*kind)
-                    .tp_richcompare
-                    .is_some_and(|slot| std::ptr::fn_addr_eq(slot, standard))
-                {
-                    if let Some(answer) = same_zone_compare(left, right, operation) {
-                        return answer;
-                    }
-                    return call_standard(left, right, operation, standard);
+        } else if ffi::PyDateTime_Check(right) != 0
+            && let Some(standard) = COMPARE.get().copied()
+        {
+            // A normal datetime subclass inheriting the original native
+            // comparator has no foreign precision to inspect. Its Python
+            // subclass hooks still get CPython's normal dispatch priority.
+            if (*kind)
+                .tp_richcompare
+                .is_some_and(|slot| std::ptr::fn_addr_eq(slot, standard))
+            {
+                if let Some(answer) = same_zone_compare(left, right, operation) {
+                    return answer;
                 }
-                return compare_foreign(left, right, operation, standard);
+                return call_standard(left, right, operation, standard);
             }
+            return compare_foreign(left, right, operation, standard);
         }
         if let Some(standard) = COMPARE.get().copied() {
             // A cached Timestamp with a wide carrier still needs true ticks.

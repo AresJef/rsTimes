@@ -23,9 +23,9 @@ struct Types {
 /// Shared batch context, kept visible to the loop rather than behind a closure call.
 struct Batch<'a, 'py> {
     slf: &'a Bound<'py, Delta>,
-    fields: &'a [i64; 15],
-    date_fields: &'a [i64; 15],
+    fields: &'a crate::delta::value::DeltaValue,
     empty: bool,
+    hours: Option<i64>,
     native: bool,
     types: &'a Types,
     addition: &'a PreparedAddition,
@@ -64,12 +64,13 @@ impl<'py> Batch<'_, 'py> {
                 );
             }
             if actual == self.types.datetime {
-                return crate::interop::apply_builtin_datetime_fields(
+                return crate::interop::apply_builtin_datetime_batch(
                     self.fields,
                     self.empty,
                     value,
                     unsafe { value.cast_unchecked::<PyDateTime>() },
                     1,
+                    self.hours,
                 )?
                 .ok_or_else(|| {
                     crate::error_context::runtime("Datetime kernel returned no result")
@@ -77,7 +78,7 @@ impl<'py> Batch<'_, 'py> {
             }
             if actual == self.types.date {
                 return crate::interop::apply_date_only_fields(
-                    self.date_fields,
+                    self.fields,
                     self.empty,
                     value,
                     unsafe { value.cast_unchecked::<PyDate>() },
@@ -92,20 +93,32 @@ impl<'py> Batch<'_, 'py> {
                 );
             }
         }
-        if self.native {
-            if let Some(numpy) = &self.numpy {
-                if let Some((micros, datetime)) = numpy.addition_microseconds(value)? {
-                    if datetime {
-                        return crate::numpy_scalar::apply_datetime_fields_us(
-                            self.slf.py(),
-                            self.fields,
-                            self.empty,
-                            micros,
-                            1,
-                        );
-                    }
-                    return self.allocate_delta(self.addition.add_microseconds(micros)?);
+        if self.native
+            && let Some(numpy) = &self.numpy
+            && let Some(source) = numpy.delta_scalar(value, true)?
+        {
+            match source {
+                crate::numpy_scalar::DeltaScalar::Date(source) => {
+                    return crate::numpy_scalar::apply_delta_date_batch(
+                        self.slf.py(),
+                        self.fields,
+                        source,
+                        1,
+                        source.coarse(),
+                        self.hours,
+                    );
                 }
+                crate::numpy_scalar::DeltaScalar::Duration {
+                    days,
+                    clock_ns,
+                    calendar_unit: false,
+                } => {
+                    return self.allocate_delta(self.addition.add_fixed_parts(days, clock_ns)?);
+                }
+                crate::numpy_scalar::DeltaScalar::Duration {
+                    calendar_unit: true,
+                    ..
+                } => {}
             }
         }
         self.add_foreign(value)
@@ -277,8 +290,7 @@ fn fill_arithmetic_list<'py, const REPLACE: bool>(
     }
     // Build the complete context once at the first mixed item, then retain
     // ordinary native/foreign dispatch for the remaining live list.
-    let fields = slf.get().snapshot();
-    let date_fields = slf.get().calendar_snapshot(false);
+    let fields = slf.get().native_value();
     let types = Types {
         delta: delta_type,
         datetime: slf.py().get_type::<PyDateTime>().as_type_ptr(),
@@ -288,8 +300,8 @@ fn fill_arithmetic_list<'py, const REPLACE: bool>(
     let batch = Batch {
         slf,
         fields: &fields,
-        date_fields: &date_fields,
         empty: !slf.get().__bool__(),
+        hours: crate::calendar::batch_hours(&fields),
         native: true,
         types: &types,
         addition,
@@ -531,8 +543,7 @@ pub(crate) fn apply<'py>(
             }
         }
     }
-    let fields = slf.get().snapshot();
-    let date_fields = slf.get().calendar_snapshot(false);
+    let fields = slf.get().native_value();
     let empty = !slf.get().__bool__();
     let delta_type = if exact_delta {
         // SAFETY: The exact live receiver owns this ready base type.
@@ -616,8 +627,12 @@ pub(crate) fn apply<'py>(
     let batch = Batch {
         slf,
         fields: &fields,
-        date_fields: &date_fields,
         empty,
+        hours: if native {
+            crate::calendar::batch_hours(&fields)
+        } else {
+            None
+        },
         native,
         types: &types,
         addition: &addition,

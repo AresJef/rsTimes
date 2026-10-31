@@ -1,6 +1,6 @@
 # Delta 使用说明
 
-`Delta`保存相对增量和可选的绝对字段。本发行版本为`0.2.0b2`，范围见[发行说明](releases/v0.2.0b2.md)。安装及四个对照demo的环境准备见README；demo/runtime.json选择并验证已发行的wheel。
+`Delta`保存相对增量和可选的绝对字段。本文件描述当前本地PLDT／Delta纳秒升级候选；已公开的`0.2.0b2`仍作为冻结起点，发行范围见[发行说明](releases/v0.2.0b2.md)。四个demo由demo/runtime.json明确选择实际验证的环境和产物；候选功能不冒称已经公开发行。
 
 ```python
 from datetime import date, datetime, timedelta
@@ -14,7 +14,7 @@ assert datetime(2024, 1, 31, 12) + Delta(months=1, hour=9) == datetime(2024, 2, 
 
 ## 构造、None与整数
 
-相对参数为years、quarters、months、weeks、days、hours、minutes、seconds、milliseconds、microseconds；有符号数表示真实增减量，0表示零增量，不接受None。位置顺序中weeks在days之前，建议用关键字。
+相对参数为years、quarters、months、weeks、days、hours、minutes、seconds、milliseconds、microseconds，以及仅关键字nanoseconds；有符号数表示真实增减量，0表示零增量，不接受None。原19个位置不移动，nanoseconds和绝对nanosecond均只能通过关键字传入。
 
 绝对参数用于设置字段，默认None。省略或None表示未设置，数字代表明确设置；不能再用0或负数表示跳过。
 
@@ -26,6 +26,7 @@ assert datetime(2024, 1, 31, 12) + Delta(months=1, hour=9) == datetime(2024, 2, 
 | minute、second | 整数0—59 |
 | millisecond | 整数0—999 |
 | microsecond | 整数0—999999 |
+| nanosecond | 整数0—999，六位微秒之后的额外尾数；None保留，0明确清零 |
 
 绝对字段接受标准整数协议，包括NumPy整数；float即使为9.0也报TypeError。星期和时钟字段超过范围报ValueError，不再静默截取。极端整数及真实计算溢出报OverflowError。
 
@@ -37,7 +38,7 @@ assert Delta(hour=0).hour == 0
 # Delta(hour=25)   # ValueError；小时只能0—23
 ```
 
-weeks至microseconds这七个固定时长单位保留小数能力，合并后最后一次舍入到微秒，中点取偶。相对years、quarters、months要求整数协议，拒绝float（含1.0）和布尔；一年半请用months=18。相对增量会进位，绝对字段设置不会把超出范围的时钟变成下一天。
+weeks至nanoseconds这八个固定时长单位保留既定真实浮点类型的小数能力，精确合并二进制浮点后，最后一次舍入到纳秒，中点取偶。相对years、quarters、months要求整数协议，拒绝float（含1.0）和布尔；一年半请用months=18。相对增量会进位，绝对字段设置不会把超出范围的时钟变成下一天。应用到datetime／Pydt或返回timedelta时，先保留完整结果，出口才最后一次舍入到微秒；Timestamp／Pddt／Pldt保留真实纳秒。已有列保持unit，精度不够时明确报错，用户主动as_unit。
 
 ```python
 assert Delta(hours=1.5) == Delta(hours=1, minutes=30)
@@ -45,7 +46,7 @@ negative=Delta(microseconds=-1)
 assert (negative.days,negative.hours,negative.minutes,negative.seconds,negative.microseconds)==(-1,23,59,59,999999)
 ```
 
-同时指定millisecond和microsecond时，毫秒部分由millisecond决定，microsecond只保留末三位。month/day调整仍有日历含义；1月31日加一个月再减一个月可能得到1月29日。
+同时指定millisecond和microsecond时，毫秒部分由millisecond决定，microsecond只保留末三位。nanosecond表示额外0—999尾数；只设置microsecond会清除来源纳秒尾数，只设置nanosecond则保留来源微秒。month/day调整仍有日历含义；1月31日加一个月再减一个月可能得到1月29日。
 
 ## 运算与比较
 
@@ -66,8 +67,10 @@ from dateutil.relativedelta import relativedelta
 assert Delta.from_relativedelta(relativedelta(hours=1.5)) == Delta(hours=1, minutes=30)
 assert Delta.from_relativedelta(relativedelta(year=10000, month=1, months=-1)) == Delta(year=9999, month=12)
 start = datetime(2024, 1, 1)
-assert start + Delta(hours=1.1, microseconds=-1.5) == datetime(2024, 1, 1, 1, 5, 59, 999999)
+assert start + Delta(hours=1.1, microseconds=-1.5) == datetime(2024, 1, 1, 1, 5, 59, 999998)
 ```
+
+该例先得到规范的`...999998微秒＋500纳秒`，再投影到datetime；恰好半微秒时取偶数999998。不能把升级前只保存微秒的旧预期当成新纳秒核心的答案。
 
 ## 批量应用与固定时长
 
@@ -83,15 +86,15 @@ NumPy的datetime64/timedelta64两类NaT均报ValueError。已支持的单位、�
 
 ## 不可变值、复制和保存
 
-字段只读，重复调用__init__不改变既有值。copy/deepcopy和pickle保留本包值及正常子类字典/可写slots；恢复错误哈希缓存会丢弃后按真实字段重新计算。只保证本包格式，不读取旧cyTimes pickle或Cython内部状态。pickle仅用于可信数据。
+字段只读，重复调用__init__不改变既有值。copy/deepcopy和pickle保留本包值及正常子类字典/可写slots。当前状态为("rstimes.delta",2,core17,metadata)，不保存哈希缓存；恢复后按真实字段计算哈希。固定17字段小端核心为144字节；旧version1／旧bytes及cyTimes状态均明确拒绝，不提供迁移或兼容别名。pickle仅用于可信数据。
 
-直接数值参数拒绝Python／NumPy布尔。公开None仅表达参数含义；Delta内部仍使用紧凑整数表示，不把Python对象带进普通运算内核。本轮已核对其对象大小与起点相同，整数构造、既有主要运算与相关批量路径仍受逐项5%性能保护。
+直接数值参数拒绝Python／NumPy布尔。公开None仅表达参数含义；Delta内部仍使用紧凑整数表示，不把Python对象带进普通运算内核。本轮CPython3.13／macOS ARM64实测基础对象由冻结起点64字节增至80字节，纳秒及额外字段的存储成本明确保留；不将该单环境观察冒称全部平台大小，整数构造、既有主要运算与相关批量路径仍受逐项5%性能保护。
 
 ## NumPy 和状态恢复的本轮修正
 
-NumPy dtype 的倍数会计入日期或时长，例如 `datetime64(1, "10D")` 是纪元后的第10天。转换到微秒时，负数小于微秒的余数仍向下取整；两类 NaT 均报 ValueError。
+NumPy dtype 的倍数会计入日期或时长，例如 `datetime64(1, "10D")` 是纪元后的第10天。原始刻度和纳秒先进入同一内核；返回datetime时仅在最终微秒出口取偶舍入，不提前截尾。两类NaT均报ValueError，ps/fs/as及generic不扩成新支持。
 
-`apply_many(values)` 的每项结果与普通 `value + delta` 保持一致，包括返回类型与错误。NumPy 某些日期单位会返回 `date`，另一些单位可能不支持普通相加；批量入口同样遵守这些结果。
+`apply_many(values)` 的每项结果与普通 `value + delta` 保持一致，包括返回类型与错误。datetime64的Y/M/W/D单位在普通左侧`value +/- delta`及批量中返回date；h/m/s/ms/us/ns返回datetime。`delta + value`及显式反向方法保留各自datetime合同。timedelta64的W/D/h/m/s/ms/us/ns普通标量正反方向均返回Delta并保留真实纳秒；Y/M仅保留Delta在左的既定支持，普通NumPy左方向及对应批量仍报错。不扩成任意ndarray广播或显式np.add/np.subtract的通用ufunc承诺。
 
 带槽位的子类恢复属性时，按恢复开始时的条目处理。用户 setter 后来改动输入字典，不会使正在执行的恢复崩溃，也不会改变 Delta 的不可变字段和哈希。详见[本次发行说明](releases/v0.2.0b2.md)。
 
@@ -99,6 +102,24 @@ NumPy dtype 的倍数会计入日期或时长，例如 `datetime64(1, "10D")` �
 ## Pandas values and subclass operations
 
 With pandas installed, Delta uses the actual Timestamp date and Timedelta duration. Calendar arithmetic keeps a representable Timestamp result, including years beyond the standard datetime range. A duration does not become zero merely because it exceeds the standard timedelta range. A requested output that cannot hold the result raises an overflow or range error.
+
+A nonzero nanosecond in an ordinary Timestamp result is encoded in actual ns
+storage: its displayed fraction, `value`, `asm8` and native comparisons agree.
+This includes pandas2 coarse inputs. Only a proven inherited native replacement
+uses the necessary compatibility carrier; custom replacement returns and errors
+remain authoritative. Coarse wide dates with no nanosecond tail keep their unit.
+A final nonzero tail must fit Timestamp's actual ns capacity; capacity is checked
+after calendar changes, so a wide source can still be moved into a valid year.
+
+```python
+import pandas as pd
+from rstimes import Delta
+
+coarse = pd.Timestamp("1970-01-01").as_unit("us")
+fine = coarse + Delta(nanoseconds=1)
+assert fine.value == 1 and fine.unit == "ns"
+assert fine == pd.Timestamp(1, unit="ns")
+```
 
 ```python
 import numpy as np

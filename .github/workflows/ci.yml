@@ -16,11 +16,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   verify:
+    # This long-running draft uses PR synchronization without duplicate push jobs.
+    # Early pilots are complete; the current source now needs the full32 matrix.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.head_ref || github.ref_name) != 'codex/pldt-nanoseconds-72h-20261030' ||
+      (github.event_name == 'pull_request' && github.event.action != 'opened')
     uses: ./.github/workflows/build.yml
     with:
       profile: ${{ inputs.profile || 'full' }}

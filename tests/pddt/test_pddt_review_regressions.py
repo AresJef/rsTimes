@@ -110,7 +110,7 @@ def test_range_frequency_keeps_declared_precision(freq,unit):
 def test_calendar_finite_float_truncation_and_size_distinction():
     x=Pddt(['2024-01-31 12:34:56'])
     # P04/P11: calendar quantities and absolute fields are integer protocol only.
-    for operation in (lambda:x.add(months=1.9,days=-1.9),lambda:x.replace(month=2.9,hour=9.9),lambda:x.to_year(1.9)):
+    for operation in (lambda:x.add(months=1.9,days=-1.9),lambda:x.pddt.replace(month=2.9,hour=9.9),lambda:x.to_year(1.9)):
         with pytest.raises(TypeError):operation()
     with pytest.raises(TypeError):Pddt.now(1.9)
     for value in ('2',float('nan'),float('inf')):

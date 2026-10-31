@@ -25,6 +25,32 @@ pub(crate) enum ParseError {
     Value(String),
     Overflow(String),
     Assertion(String),
+    UnknownRegion(Vec<u32>),
+    ConflictingRegions(String, String),
+}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Value(message) | Self::Overflow(message) | Self::Assertion(message) => {
+                f.write_str(message)
+            }
+            Self::UnknownRegion(key) => {
+                f.write_str("time zone '")?;
+                for &code in key.iter().take(120) {
+                    if let Some(value) = char::from_u32(code) {
+                        write!(f, "{}", value.escape_debug())?;
+                    } else {
+                        write!(f, "\\u{code:04x}")?;
+                    }
+                }
+                f.write_str("' is not registered; register it with cfg.add_tzone()")
+            }
+            Self::ConflictingRegions(key, previous) => {
+                write!(f, "conflicting time zones: {key:?} and {previous:?}")
+            }
+        }
+    }
 }
 
 /// Result shared by the native grammar and its configuration adapter.
@@ -355,10 +381,10 @@ impl<P: Policy> Fields<P> {
         };
         if flag == 0 {
             self.finish_hour()?;
-            if self.clock_was_seen(flag) {
-                if let Some(state) = self.policy.tracking_mut() {
-                    state.pending_hour = previous;
-                }
+            if self.clock_was_seen(flag)
+                && let Some(state) = self.policy.tracking_mut()
+            {
+                state.pending_hour = previous;
             }
             self.hour_input = value;
             self.ampm = -1;
@@ -418,10 +444,10 @@ impl<P: Policy> Fields<P> {
     pub fn initial_fraction(&mut self, value: i32, tail: i32, nanos: bool) {
         self.microsecond = value;
         self.fraction.set(tail, nanos);
-        if self.strict() {
-            if let Some(state) = self.policy.tracking_mut() {
-                state.clock_seen |= 8;
-            }
+        if self.strict()
+            && let Some(state) = self.policy.tracking_mut()
+        {
+            state.clock_seen |= 8;
         }
     }
 

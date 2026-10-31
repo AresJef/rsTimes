@@ -63,14 +63,236 @@ type Owner = Namespace;
 #[derive(Clone)]
 pub(crate) struct NativeView<'a> {
     owners: &'a [Owner; 8],
+    zones: &'a ZoneMap,
+    flags: (bool, bool),
+}
+
+/// Region recognition metadata permitted in detached native workers.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, pyo3::IntoPyObject)]
+pub(crate) struct NativeRegion {
+    pub(crate) key: String,
+    pub(crate) available: bool,
+    pub(crate) fixed_offset_us: Option<i64>,
+}
+
+/// Immutable parser snapshot with no Python owner or callable. Vocabulary edits
+/// detach the source Arc, while regional availability is captured explicitly.
+#[derive(Clone)]
+pub(crate) struct NativeRules {
+    owners: [Owner; 8],
+    regions: Arc<HashMap<Token, Arc<NativeRegion>>>,
+    flags: (bool, bool),
+}
+
+/// Official plugin kwargs contain values, never interpreter addresses or Python
+/// objects. This representation is rebuilt once per invocation, never per row.
+#[derive(Clone, serde::Serialize, serde::Deserialize, pyo3::IntoPyObject)]
+pub(crate) struct NativeRulesData {
+    pub(crate) version: u8,
+    // None names the immutable table built into this same native version.
+    // Some(empty) is an explicit empty table, never a request for defaults.
+    pub(crate) tables: [Option<Vec<(Token, i32)>>; 8],
+    pub(crate) regions: Vec<(Token, NativeRegion)>,
+    pub(crate) flags: (bool, bool),
+}
+
+impl NativeRules {
+    /// Capture the immutable library rules without constructing Configs.
+    pub(crate) fn library() -> Self {
+        Self {
+            owners: defaults().clone(),
+            regions: Arc::new(HashMap::new()),
+            flags: (true, false),
+        }
+    }
+    /// Capture deterministic values for the official serde plugin boundary.
+    pub(crate) fn data(&self) -> NativeRulesData {
+        let tables = std::array::from_fn(|i| {
+            if Arc::ptr_eq(&self.owners[i].0, &defaults()[i].0) {
+                return None;
+            }
+            let mut table: Vec<_> = self.owners[i]
+                .ext
+                .iter()
+                .map(|(key, value)| (key.clone(), *value))
+                .collect();
+            table.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+            Some(table)
+        });
+        let mut regions: Vec<_> = self
+            .regions
+            .iter()
+            .map(|(key, value)| (key.clone(), (**value).clone()))
+            .collect();
+        regions.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        NativeRulesData {
+            version: 2,
+            tables,
+            regions,
+            flags: self.flags,
+        }
+    }
+    /// Validate raw kwargs before native recognition can observe their values.
+    pub(crate) fn from_data(data: NativeRulesData) -> ParseResult<Self> {
+        if data.version != 2 {
+            return Err(super::fields::ParseError::Value(
+                "native parser vocabulary snapshot version must be 2".into(),
+            ));
+        }
+        let mut owners = defaults().clone();
+        for (i, table) in data.tables.into_iter().enumerate() {
+            let Some(table) = table else {
+                continue;
+            };
+            owners[i] = Namespace::default();
+            let bounds = match i {
+                3 => (-86399, 86399),
+                4 => (1, 12),
+                5 => (0, 6),
+                6 => (0, 2),
+                7 => (0, 1),
+                _ => (0, 1),
+            };
+            for (key, value) in table {
+                if key.is_empty()
+                    || key.iter().any(|&c| c > 0x10ffff)
+                    || !(bounds.0..=bounds.1).contains(&value)
+                    || owners[i].ext.insert(key, value).is_some()
+                {
+                    return Err(super::fields::ParseError::Value(
+                        "invalid native parser vocabulary snapshot".into(),
+                    ));
+                }
+            }
+        }
+        let mut regions = HashMap::with_capacity(data.regions.len());
+        for (token, region) in data.regions {
+            if token.is_empty()
+                || token.iter().any(|&c| c > 0x10ffff)
+                || region.key.is_empty()
+                || region
+                    .fixed_offset_us
+                    .is_some_and(|v| v.unsigned_abs() >= 86_400_000_000)
+                || regions.insert(token, Arc::new(region)).is_some()
+            {
+                return Err(super::fields::ParseError::Value(
+                    "invalid native parser region snapshot".into(),
+                ));
+            }
+        }
+        Ok(Self {
+            owners,
+            regions: Arc::new(regions),
+            flags: data.flags,
+        })
+    }
+}
+
+impl RuleLookup for NativeRules {
+    fn query(&mut self, rule: Rule, token: &[u32]) -> ParseResult<i32> {
+        Ok(namespace_value(
+            &self.owners[rule_namespace(rule)],
+            rule,
+            token,
+        ))
+    }
+}
+
+impl super::core::Recognition for NativeRules {
+    type Region = Arc<NativeRegion>;
+    fn flags(&self) -> (bool, bool) {
+        self.flags
+    }
+    fn has_regions(&self) -> bool {
+        !self.regions.is_empty()
+    }
+    fn region(&self, token: &[u32]) -> Option<Self::Region> {
+        self.regions.get(token).cloned()
+    }
+    fn region_key(region: &Self::Region) -> &str {
+        &region.key
+    }
+}
+
+impl super::core::Recognition for NativeView<'_> {
+    type Region = Arc<RegisteredZone>;
+    fn flags(&self) -> (bool, bool) {
+        self.flags
+    }
+    fn has_regions(&self) -> bool {
+        !self.zones.is_empty()
+    }
+    fn region(&self, token: &[u32]) -> Option<Self::Region> {
+        self.zones.get(token).cloned()
+    }
+    fn region_key(region: &Self::Region) -> &str {
+        &region.key
+    }
+}
+
+/// Shared formatted recognition; associated regions keep Python and worker
+/// ownership separate while all directive parsing remains one native function.
+pub(crate) trait FormattedRules {
+    type Region: Clone;
+    fn word(&self, rule: Rule, input: &[u32]) -> Option<(i32, usize)>;
+    fn region(&self, input: &[u32]) -> Option<(Self::Region, usize)>;
+    fn available(region: &Self::Region) -> bool;
+}
+
+fn longest_word(owners: &[Owner; 8], rule: Rule, input: &[u32]) -> Option<(i32, usize)> {
+    owners[rule_namespace(rule)]
+        .ext
+        .iter()
+        .filter(|(key, _)| input.starts_with(key.as_slice()))
+        .max_by_key(|(key, _)| key.len())
+        .map(|(key, value)| (*value, key.len()))
+}
+
+impl FormattedRules for NativeRules {
+    type Region = Arc<NativeRegion>;
+    fn word(&self, rule: Rule, input: &[u32]) -> Option<(i32, usize)> {
+        longest_word(&self.owners, rule, input)
+    }
+    fn region(&self, input: &[u32]) -> Option<(Self::Region, usize)> {
+        self.regions
+            .iter()
+            .filter(|(key, _)| input.starts_with(key.as_slice()))
+            .max_by_key(|(key, _)| key.len())
+            .map(|(key, value)| (value.clone(), key.len()))
+    }
+    fn available(region: &Self::Region) -> bool {
+        region.available
+    }
 }
 
 /// Cheap immutable rule ownership for one formatted batch; edits detach normally.
 pub(crate) struct FormatRules {
     owners: [Owner; 8],
     zones: Arc<ZoneMap>,
+    flags: (bool, bool),
 }
 impl FormatRules {
+    /// Reuse one owned batch snapshot with the ordinary codepoint grammar.
+    pub(crate) fn native_view(&self) -> NativeView<'_> {
+        NativeView {
+            owners: &self.owners,
+            zones: &self.zones,
+            flags: self.flags,
+        }
+    }
+
+    /// Retain the original registered Python zone for a native parsed IANA key.
+    /// The caller's scratch is reused only after its parsed fields are owned.
+    pub(crate) fn region_key(
+        &self,
+        key: &str,
+        scratch: &mut Vec<u32>,
+    ) -> Option<Arc<RegisteredZone>> {
+        scratch.clear();
+        scratch.extend(key.chars().map(u32::from));
+        self.zones.get(scratch.as_slice()).cloned()
+    }
+
     /// Capture one effective set without copying any complete vocabulary table.
     pub(crate) fn prepare(value: Option<&Bound<'_, PyAny>>) -> PyResult<Self> {
         if let Some(value) = value.filter(|v| !v.is_none()) {
@@ -83,32 +305,34 @@ impl FormatRules {
             Ok(Self {
                 owners: cfg.owners.clone(),
                 zones: cfg.zones.clone(),
+                flags: cfg.flags(),
             })
         } else {
             Ok(Self {
                 owners: defaults().clone(),
                 zones: Arc::new(ZoneMap::new()),
+                flags: (true, false),
             })
         }
     }
-    /// Longest registered word at the current formatted input position.
-    pub(crate) fn word(&self, rule: Rule, input: &[u32]) -> Option<(i32, usize)> {
-        self.owners[rule_namespace(rule)]
-            .ext
-            .iter()
-            .filter(|(key, _)| input.starts_with(key.as_slice()))
-            .max_by_key(|(key, _)| key.len())
-            .map(|(key, value)| (*value, key.len()))
+}
+impl FormattedRules for FormatRules {
+    type Region = Arc<RegisteredZone>;
+    fn word(&self, rule: Rule, input: &[u32]) -> Option<(i32, usize)> {
+        longest_word(&self.owners, rule, input)
     }
-    /// Longest explicit IANA region; never infer an operating-system abbreviation.
-    pub(crate) fn region(&self, input: &[u32]) -> Option<(Arc<RegisteredZone>, usize)> {
+    fn region(&self, input: &[u32]) -> Option<(Self::Region, usize)> {
         self.zones
             .iter()
             .filter(|(key, _)| input.starts_with(key.as_slice()))
             .max_by_key(|(key, _)| key.len())
             .map(|(key, value)| (value.clone(), key.len()))
     }
+    fn available(region: &Self::Region) -> bool {
+        region.object.is_some()
+    }
 }
+
 #[inline]
 fn rule_namespace(rule: Rule) -> usize {
     match rule {
@@ -154,6 +378,22 @@ pub(super) struct DefaultView;
 impl RuleLookup for DefaultView {
     fn query(&mut self, rule: Rule, token: &[u32]) -> ParseResult<i32> {
         Ok(default_lookup(rule, token))
+    }
+}
+
+impl super::core::Recognition for DefaultView {
+    type Region = Arc<RegisteredZone>;
+    fn flags(&self) -> (bool, bool) {
+        (true, false)
+    }
+    fn has_regions(&self) -> bool {
+        false
+    }
+    fn region(&self, _token: &[u32]) -> Option<Self::Region> {
+        None
+    }
+    fn region_key(region: &Self::Region) -> &str {
+        &region.key
     }
 }
 
@@ -697,7 +937,7 @@ impl Configs {
         }
     }
     /// Share immutable rules; subsequent edits detach only the changed namespace.
-    fn independent(&self) -> Self {
+    pub(crate) fn independent(&self) -> Self {
         Self {
             owners: self.owners.clone(),
             cache: std::array::from_fn(|_| None),
@@ -714,13 +954,31 @@ impl Configs {
     pub(crate) fn native_view(&self) -> NativeView<'_> {
         NativeView {
             owners: &self.owners,
+            zones: &self.zones,
+            flags: self.flags(),
         }
     }
-    pub(super) fn zone(&self, token: &[u32]) -> Option<Arc<RegisteredZone>> {
-        self.zones.get(token).cloned()
-    }
-    pub(super) fn has_zones(&self) -> bool {
-        !self.zones.is_empty()
+    /// Freeze only native recognition data; never retain a ZoneInfo in workers.
+    pub(crate) fn native_snapshot(&self) -> NativeRules {
+        let regions = self
+            .zones
+            .iter()
+            .map(|(token, zone)| {
+                (
+                    token.clone(),
+                    Arc::new(NativeRegion {
+                        key: zone.key.clone(),
+                        available: zone.object.is_some(),
+                        fixed_offset_us: zone.fixed_offset_us,
+                    }),
+                )
+            })
+            .collect();
+        NativeRules {
+            owners: self.owners.clone(),
+            regions: Arc::new(regions),
+            flags: self.flags(),
+        }
     }
 }
 #[pymethods]

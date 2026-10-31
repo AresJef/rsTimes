@@ -4,11 +4,13 @@ from zoneinfo import available_timezones
 
 import numpy as np
 from ._optional import PANDAS as pd, POLARS as pl
-from ._native import (_bool_option, _pddt_result_type, _pddt_rescale, _pddt_prepare, _pddt_dates,
-                      _pddt_register, _pddt_policies, _pddt_check_policies, _pddt_wall, _pddt_now, _integer_arg, _pddt_numbers, _pddt_number_buffer,
+from ._polars import plain_series as _plain_series
+from ._native import (_bool_option, _pddt_result_type, _pddt_rescale, _pddt_data, _pddt_prepare, _pddt_strings, _pddt_dates,
+                      _pddt_check_native_dates, _pddt_register, _pddt_policies, _pddt_check_policies, _pddt_wall, _pddt_now, _integer_arg, _pddt_numbers, _pddt_number_buffer,
                       _pddt_integers, _pddt_calendar, _pddt_date_objects, _pddt_date_buffer,
                       _pddt_parts, _pddt_combine, _pddt_strptime, _pddt_component, _pddt_transform, _pddt_operand, _pddt_binary, _pddt_period, _pddt_fsp, _pddt_round, _pddt_snap, _pddt_query, _pddt_diff, _pddt_export, _pddt_objects, _pddt_range, _pddt_range_endpoints, _pddt_range_external)
 from ._formatting import prepare_format as _prepare_format
+from ._native import _strftime_prepare, _pddt_strftime
 from ._range import frequency as _range_frequency, attach_frequency as _range_attach_frequency, rounding_step as _rounding_step, mature_units as _range_mature_units
 from ._range import _ARRAY_HAS_FREQ
 from .parser import Configs
@@ -66,19 +68,29 @@ def _outer(data, parameter="data"):
             values = data
         if pl is not None and issubclass(type(values), pl.Series):
             source_name = values.name
-            kind = values.dtype.base_type()
+            dtype = values.dtype
+            kind = dtype.base_type()
             if kind == pl.Datetime:
-                unit = values.dtype.time_unit
+                # Snapshot the immutable native data into a plain Series shell.
+                # A Pldt public NumPy export has its own NaT-collision guard;
+                # this internal validity-aware path must reach final target
+                # processing first, and must not reread a mutable source shell.
+                values = _plain_series(values)
+                source_name = values.name
                 zone = values.dtype.time_zone
                 source_zone = _timezone(zone) if zone is not None else None
-                ticks = values.cast(pl.Int64).fill_null(_MIN_TICK).to_numpy()
-                return ticks.view(f"datetime64[{unit}]"), source_zone, source_name, None
+                validity = b"" if values.null_count() == 0 else np.asarray(values.is_null().to_numpy(), dtype="uint8").tobytes()
+                # NumPy carries the physical bits; source validity remains
+                # separate until the actual target unit/timezone is checked.
+                return values.to_numpy(), source_zone, source_name, None, validity
             if kind == pl.Date:
-                ticks = values.cast(pl.Int64).fill_null(_MIN_TICK).to_numpy()
-                return ticks.view("datetime64[D]"), None, source_name, None
+                values = _plain_series(values)
+                source_name = values.name
+                validity = b"" if values.null_count() == 0 else np.asarray(values.is_null().to_numpy(), dtype="uint8").tobytes()
+                return values.to_numpy(), None, source_name, None, validity
             if kind in (pl.Time, pl.List, pl.Array, pl.Struct):
                 raise _own_error(TypeError("this Polars dtype is not date data"), parameter, data)
-            if values.dtype.is_numeric():
+            if dtype.is_numeric():
                 hint = "ns"
         elif pl is not None and issubclass(type(values), (pl.DataFrame, pl.LazyFrame)):
             raise _own_error(TypeError("must be a one-dimensional collection, not a Polars table"), parameter, data)
@@ -92,7 +104,7 @@ def _outer(data, parameter="data"):
                 raise _own_error(ValueError("must be one-dimensional"), parameter, data)
             if getattr(values.dtype, "kind", None) in ("i", "u", "f"):
                 hint = "ns"
-        return values, source_zone, source_name, hint
+        return values, source_zone, source_name, hint, None
     except Exception as error:
         # The original callback/column adapter failure is not a parse error.
         raise _external_error(error)
@@ -158,7 +170,7 @@ def _finish(cls, values, *, zone=None, name=None, freq=None):
 
 def _prepare(data, unit, target, copy, default, yearfirst, dayfirst,
              isoformat, strict, cfg, policy, entry):
-    values, source_zone, name, hint = _outer(data)
+    values, source_zone, name, hint, validity = _outer(data)
     if issubclass(type(values), (np.ndarray, pd.api.extensions.ExtensionArray)):
         kind = getattr(values.dtype, "kind", None)
         if kind not in ("i", "u", "f", "M", "O", "U"):
@@ -177,12 +189,21 @@ def _prepare(data, unit, target, copy, default, yearfirst, dayfirst,
         if source in _UNITS and multiplier == 1 and selected == source:
             if source_zone is not None or target is None:
                 _pddt_check_policies(policy, len(values))
+                if validity is not None:
+                    _pddt_check_native_dates(values.view("int64"), validity, entry)
                 return values.copy() if copy else values, target if target is not None else source_zone, name
         packed, selected, zone = _pddt_dates(values.tobytes(), policy, source, multiplier,
-            unit, source_zone, target, entry)
+            unit, source_zone, target, entry, validity)
     else:
-        packed, selected, zone = _pddt_prepare(values, policy, unit, hint, default,
-            yearfirst, dayfirst, isoformat, strict, cfg, target, entry)
+        native = None
+        if pl is not None and type(values) is pl.Series and values.dtype == pl.String:
+            native = _pddt_strings(values, policy, unit, default,
+                yearfirst, dayfirst, isoformat, strict, cfg, target, entry)
+        if native is None:
+            packed, selected, zone = _pddt_prepare(values, policy, unit, hint, default,
+                yearfirst, dayfirst, isoformat, strict, cfg, target, entry)
+        else:
+            packed, selected, zone = native
     return np.frombuffer(packed, dtype=f"datetime64[{selected}]"), zone, name
 
 
@@ -232,8 +253,10 @@ def _numeric_source(value, parameter="data", integer=False):
         known = known or issubclass(type(value), (pl.Series, pl.DataFrame, pl.LazyFrame))
     if not known:
         return value, False, None, None
-    values, _, name, _ = _outer(value, parameter)
+    values, _, name, _, validity = _outer(value, parameter)
     kind = getattr(getattr(values, "dtype", None), "kind", None)
+    if validity is not None and kind == "M":
+        raise _own_error(TypeError("native date columns do not supply numeric fields or epoch seconds"), parameter, value)
     mask = None
     if kind in ("b", "c", "m", "S", "V"):
         raise _own_error(TypeError("this dtype is not numeric date input"), parameter, value)
@@ -291,7 +314,7 @@ def _from_dates(cls, data, size, tz, unit, name, ambiguous, nonexistent, kind, e
     parameter = "dtstr" if kind == "iso" else "dt64" if kind == "numpy" else "dt"
     source_name = None
     if known:
-        values, source_zone, source_name, _ = _outer(data, parameter)
+        values, source_zone, source_name, _, validity = _outer(data, parameter)
         if count is not None:
             raise _own_error(ValueError("omit size for a collection"), "size", size)
         if issubclass(type(values), np.ndarray) and values.dtype.kind == "M":
@@ -310,7 +333,7 @@ def _from_dates(cls, data, size, tz, unit, name, ambiguous, nonexistent, kind, e
             if not values.dtype.isnative:
                 values = values.astype(values.dtype.newbyteorder("="))
             packed, selected, zone = _pddt_date_buffer(values.tobytes(), policy, kind,
-                source, multiplier, unit, source_zone, target, entry)
+                source, multiplier, unit, source_zone, target, entry, validity)
         else:
             if issubclass(type(values), (np.ndarray, pd.api.extensions.ExtensionArray)) and values.dtype.kind not in (("O", "U") if kind == "iso" else ("O",)):
                 raise _own_error(TypeError("requires actual date values, not this column dtype"), parameter, data)
@@ -363,13 +386,13 @@ def _combine_part(value, clock):
         known = known or issubclass(type(value), (pl.Series, pl.DataFrame, pl.LazyFrame))
     if not known:
         return _pddt_parts(value, _timezone, clock, False, entry), None
-    values, zone, name, _ = _outer(value, "time" if clock else "date")
+    values, zone, name, _, validity = _outer(value, "time" if clock else "date")
     if issubclass(type(values), np.ndarray) and values.dtype.kind == "M":
         source, multiplier = np.datetime_data(values.dtype)
         if not values.dtype.isnative:
             values = values.astype(values.dtype.newbyteorder("="))
         return _pddt_parts(None, _timezone, clock, True, entry,
-            values.tobytes(), source, multiplier, zone), name
+            values.tobytes(), source, multiplier, zone, False, validity), name
     kind = getattr(getattr(values, "dtype", None), "kind", None)
     if kind in ("b", "c", "m", "S", "V"):
         raise _own_error(TypeError("this dtype does not supply date or clock fields"), "time" if clock else "date", value)
@@ -443,7 +466,7 @@ def _binary(self, other, subtract=False, reflected=False):
     # pandas Series/DataFrame own their full alignment/column dispatch.
     if issubclass(type(other), (pd.Series, pd.DataFrame)):
         return NotImplemented
-    source, source_zone, _, _ = (other, None, None, None)
+    source, source_zone, _, _, validity = (other, None, None, None, None)
     column = issubclass(type(other), (list, tuple, dict, set, frozenset, np.ndarray,
         pd.Index, pd.api.extensions.ExtensionArray))
     if pl is not None:
@@ -453,14 +476,14 @@ def _binary(self, other, subtract=False, reflected=False):
         if pl is not None and issubclass(type(other), pl.Series) and other.dtype.base_type()==pl.Duration:
             source=other.cast(pl.Int64).fill_null(_MIN_TICK).to_numpy().view(f"timedelta64[{other.dtype.time_unit}]")
         else:
-            source, source_zone, _, _ = _outer(other, "other")
+            source, source_zone, _, _, validity = _outer(other, "other")
         if issubclass(type(source), pd.arrays.TimedeltaArray):
             source=source.asi8.view(f"timedelta64[{source.unit}]")
         if issubclass(type(source), np.ndarray) and source.dtype.kind in ("M", "m"):
             unit, multiplier = np.datetime_data(source.dtype)
             if not source.dtype.isnative:
                 source = source.astype(source.dtype.newbyteorder("="))
-            native = (source.tobytes(), source.dtype.kind, unit, multiplier, source_zone)
+            native = (source.tobytes(), source.dtype.kind, unit, multiplier, source_zone, validity)
         elif issubclass(type(source), (np.ndarray, pd.api.extensions.ExtensionArray)) and source.dtype.kind not in ("O",):
             parent = pd.DatetimeIndex.__sub__ if subtract else pd.DatetimeIndex.__radd__ if reflected else pd.DatetimeIndex.__add__
             try:
@@ -519,7 +542,7 @@ def _rounded(self, freq, mode, entry):
 
 def _calendar_query(self, code, entry, target=_UNSET, parameter=None, names=0):
     prepared=None if target is _UNSET else _component(target,len(self),entry,parameter,False,names)
-    packed,mask=_pddt_query(self.asi8.tobytes(),self.unit,self.tz,code,entry,prepared)
+    packed,mask=_pddt_query(_pddt_data(self.asi8),self.unit,self.tz,code,entry,prepared)
     if 100<=code<200:
         return pd.Index(np.frombuffer(packed,dtype="bool"),name=entry.rsplit(".",1)[-1])
     values=np.frombuffer(packed,dtype="int64")
@@ -558,14 +581,14 @@ def _difference(self,dtobj,unit,absolute,inclusive):
     values,zone,metadata=(dtobj,None,{})
     if known:
         try:
-            values,zone,_,_=_outer(dtobj,"dtobj")
+            values,zone,_,_,validity=_outer(dtobj,"dtobj")
         except Exception as error:
             _raise_argument_context(error,entry,"dtobj",dtobj)
         if issubclass(type(values), np.ndarray) and values.dtype.kind=="M":
             date_unit,multiplier=np.datetime_data(values.dtype)
             if not values.dtype.isnative:
                 values=values.astype(values.dtype.newbyteorder("="))
-            metadata=dict(buffer=values.tobytes(),storage="M",date_unit=date_unit,multiplier=multiplier,target_zone=zone)
+            metadata=dict(buffer=values.tobytes(),storage="M",date_unit=date_unit,multiplier=multiplier,target_zone=zone,target_mask=validity)
         else:
             values,_,_,native=_numeric_source(values,"dtobj",True)
             if native is not None:
@@ -885,7 +908,7 @@ class Pddt(pd.DatetimeIndex):
             array = self._data
             if unit == array.unit:
                 return self
-            packed = _pddt_rescale(array.asi8.tobytes(), array.unit, unit,
+            packed = _pddt_rescale(_pddt_data(array.asi8), array.unit, unit,
                                   round_ok, "Pddt.as_unit")
             values = np.frombuffer(packed, dtype=f"datetime64[{unit}]")
             return _finish(type(self), values, zone=array.tz, name=self.name)
@@ -1559,7 +1582,8 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error, "Pddt.fromdayofyear", "arguments", None)
 
     @classmethod
-    def fromisoformat(cls, dtstr, *, size=None, unit=None, name=None):
+    def fromisoformat(cls, dtstr, *, size=None, tz=None, unit=None, name=None,
+                      ambiguous="raise", nonexistent="raise"):
         """Build from complete ISO text, without ordinary-text fallback.
 
         Parameters
@@ -1570,11 +1594,20 @@ class Pddt(pd.DatetimeIndex):
             numeric timezone offsets are preserved. Explicit dates must be valid.
         size : integer, optional
             Required for a scalar and omitted for a collection.
+        tz : datetime.tzinfo, str or None, default None
+            Optional common target. Naive fields are localized in this zone;
+            aware values retain their instant and convert to it. None preserves
+            a common source zone and rejects incompatible mixed sources.
         unit : {'s', 'ms', 'us', 'ns'}, optional
             Output resolution. Defaults to us, or ns for text beyond six digits;
             an explicitly selected resolution must retain the parsed value.
         name : hashable, optional
             Name of the resulting date column.
+
+        ambiguous : bool, numpy.bool_, str or boolean collection, default 'raise'
+            Candidate policy when naive fields fall in a repeated local time.
+        nonexistent : str or timedelta, default 'raise'
+            Missing-local-time policy when naive fields are attached to tz.
 
         Returns
         -------
@@ -1587,10 +1620,12 @@ class Pddt(pd.DatetimeIndex):
         [2]
         >>> Pddt.fromisoformat("2024-01-02x12:30.5", size=1).microsecond.tolist()
         [500000]
+        >>> Pddt.fromisoformat(["2024-01-02T12:30+08:00", "2024-01-02T04:30Z"], tz="UTC").hour.tolist()
+        [4, 4]
         """
         try:
-            return _from_dates(cls, dtstr, size, None, unit, name, "raise",
-                "raise", "iso", "Pddt.fromisoformat")
+            return _from_dates(cls, dtstr, size, tz, unit, name, ambiguous,
+                nonexistent, "iso", "Pddt.fromisoformat")
         except Exception as error:
             _raise_argument_context(error, "Pddt.fromisoformat", "arguments", None)
 
@@ -1651,7 +1686,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error, "Pddt.combine", "arguments", None)
 
     @classmethod
-    def strptime(cls, dtstr, fmt, *, size=None, unit=None, name=None, cfg=None,
+    def strptime(cls, dtstr, fmt, *, size=None, tz=None, unit=None, name=None, cfg=None,
                  ambiguous="raise", nonexistent="raise"):
         """Read dates from a format using current Configs words and native fields.
 
@@ -1665,6 +1700,10 @@ class Pddt(pd.DatetimeIndex):
             and zero clock fields. Names use the effective Configs word rules.
         size : integer, optional
             Required for a scalar; omitted for a collection.
+        tz : datetime.tzinfo, str or None, default None
+            Optional common target. Naive fields are localized in this zone;
+            aware values retain their instant and convert to it. None preserves
+            a common source zone and rejects incompatible mixed sources.
         unit : {'s', 'ms', 'us', 'ns'}, optional
             Output resolution, default us or ns for an actual nanosecond tail.
             Fractional digits are read fully and truncated to this resolution
@@ -1690,11 +1729,14 @@ class Pddt(pd.DatetimeIndex):
         [7]
         >>> Pddt.strptime("1970-01-01 00:00:00.123456789", "%Y-%m-%d %H:%M:%S.%f", size=1, unit="us").asi8.tolist()
         [123456]
+        >>> Pddt.strptime(["2024-01-02 12:00+0800", "2024-01-02 12:00+0900"], "%Y-%m-%d %H:%M%z", tz="UTC").hour.tolist()
+        [4, 3]
         """
         try:
             selected = _unit(unit, optional=True)
             count = None if size is None else _size(size, "Pddt.strptime")
             policy = _policies(ambiguous, nonexistent)
+            target = None if tz is None else _timezone(tz, "tz")
             compiled = _prepare_format(fmt)
             known = issubclass(type(dtstr), (list, tuple, dict, set, frozenset, np.ndarray,
                 pd.Series, pd.Index, pd.api.extensions.ExtensionArray))
@@ -1702,13 +1744,13 @@ class Pddt(pd.DatetimeIndex):
                 known = known or issubclass(type(dtstr), (pl.Series, pl.DataFrame, pl.LazyFrame))
             source_name = None
             if known:
-                values, _, source_name, _ = _outer(dtstr, "dtstr")
+                values, _, source_name, _, _ = _outer(dtstr, "dtstr")
                 if issubclass(type(values), (np.ndarray, pd.api.extensions.ExtensionArray)) and values.dtype.kind not in ("O", "U"):
                     raise _own_error(TypeError("requires text values for the supplied format"), "dtstr", dtstr)
             else:
                 values = dtstr
             packed, selected, zone = _pddt_strptime(values, compiled, policy, cfg,
-                count, known, selected)
+                count, known, selected, target=target)
             return _finish(cls, np.frombuffer(packed, dtype=f"datetime64[{selected}]"),
                 zone=zone, name=source_name if name is None else name)
         except Exception as error:
@@ -1814,41 +1856,18 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error, "Pddt.date_range", "arguments", None)
 
 
-    def replace(self, year=None, month=None, day=None, hour=None, minute=None,
-                second=None, microsecond=None, nanosecond=None, tzinfo=_UNSET, *,
-                ambiguous="raise", nonexistent="raise"):
-        """Replace selected fields exactly; every resulting date must be valid.
-
-        Parameters
-        ----------
-        year, month, day, hour, minute, second, microsecond, nanosecond : integer or equal-length integer collection, optional
-            None retains each original field. Months are 1–12, days 1–31,
-            hours 0–23, minutes/seconds 0–59, microseconds 0–999999 and
-            nanosecond tails 0–999. Years may include zero and negative years.
-            Each combination must be a real date. Replacing microsecond clears
-            the old nanosecond tail unless nanosecond is also supplied.
-        tzinfo : tzinfo or str, optional
-            Omit to retain the zone; None removes it while keeping local fields.
-            A new zone reinterprets the local fields in that zone.
-        ambiguous, nonexistent : policy, default 'raise'
-            Policies for repeated or missing regional local times.
+    @property
+    def pddt(self):
+        """Return the date-field namespace for this Pddt instance.
 
         Returns
         -------
-        Pddt
-            Updated dates with the same storage unit and name. Unchanged values
-            retain the original object. The source is never modified.
-
-        Examples
-        --------
-        >>> Pddt(["2024-01-02"]).replace(day=3).day.tolist()
-        [3]
+        _PddtNamespace
+            Its replace method changes date fields. A direct replace method,
+            when provided by the installed pandas, retains pandas' complete
+            whole-value replacement contract.
         """
-        try:
-            return _fields(self, (year,month,day,hour,minute,second,microsecond,nanosecond),
-                "Pddt.replace", True, tzinfo, ambiguous, nonexistent)
-        except Exception as error:
-            _raise_argument_context(error, "Pddt.replace", "arguments", None)
+        return _PddtNamespace(self)
 
     def to_datetime(self, year=None, month=None, day=None, hour=None, minute=None,
                     second=None, microsecond=None, nanosecond=None):
@@ -3380,23 +3399,35 @@ class Pddt(pd.DatetimeIndex):
         except Exception as error:
             _raise_argument_context(error,"Pddt.isoformat","options",(sep,timespec))
 
-    def strftime(self,format):
-        """Format dates with the platform's complete strftime rules.
+    def strftime(self,format: str) -> pd.Index:
+        """Format with complete system rules and exact fractional directives.
 
         Parameters
         ----------
         format : str
-            System format string. An empty format string is valid.
+            An empty string is valid. ``%f`` uses nine digits for ns and six
+            for s/ms/us. ``%.0f`` emits nothing; ``%.1f`` through ``%.9f``
+            include a dot and truncate or right-pad without changing dates.
+            Remaining directives retain pandas' system/platform behavior.
 
         Returns
         -------
         pandas.Index
-            Formatted strings using pandas' mature formatter. Supported system
-            directives and wide-year limits depend on the platform.
+            Strings with the source name and missing positions. System
+            directives and their wide-year limits depend on the platform.
+
+        Examples
+        --------
+        >>> Pddt(["2024-01-01T12:34:56.123456789"]).strftime("%f %.3f").tolist()
+        ['123456789 .123']
         """
         try:
             if not isinstance(format,str):
                 raise _own_error(TypeError("must be a string; an empty string is allowed"),"format",format)
+            prepared = _strftime_prepare(format)
+            if prepared.modified():
+                values = _pddt_strftime(self.asi8.tobytes(), self.unit, self.tz, prepared)
+                return pd.Index(values, dtype=object, name=self.name)
             try:
                 return pd.DatetimeIndex.strftime(self,format)
             except Exception as error:
@@ -3634,3 +3665,55 @@ class Pddt(pd.DatetimeIndex):
             except Exception as error:
                 raise _external_error(error)
         return Pddt.__reduce__(self)
+
+
+class _PddtNamespace:
+    """Pddt-only date-field operations, separate from pandas value replacement.
+
+    Parameters
+    ----------
+    index : Pddt
+        The owning immutable date index. Only Pddt.pddt creates this namespace;
+        no accessor is registered on ordinary pandas DatetimeIndex objects.
+    """
+    __slots__ = ("_index",)
+
+    def __init__(self, index):
+        self._index = index
+
+    def replace(self, year=None, month=None, day=None, hour=None, minute=None,
+                second=None, microsecond=None, nanosecond=None, tzinfo=_UNSET, *,
+                ambiguous="raise", nonexistent="raise"):
+        """Replace selected fields exactly; every resulting date must be valid.
+
+        Parameters
+        ----------
+        year, month, day, hour, minute, second, microsecond, nanosecond : integer or equal-length integer collection, optional
+            None retains each original field. Months are 1–12, days 1–31,
+            hours 0–23, minutes/seconds 0–59, microseconds 0–999999 and
+            nanosecond tails 0–999. Years may include zero and negative years.
+            Each combination must be a real date. Replacing microsecond clears
+            the old nanosecond tail unless nanosecond is also supplied.
+        tzinfo : tzinfo or str, optional
+            Omit to retain the zone; None removes it while keeping local fields.
+            A new zone reinterprets the local fields in that zone.
+        ambiguous, nonexistent : policy, default 'raise'
+            Policies for repeated or missing regional local times.
+
+        Returns
+        -------
+        Pddt
+            Updated dates with the same storage unit and name. Unchanged values
+            retain the original object. The source is never modified.
+
+        Examples
+        --------
+        >>> Pddt(["2024-01-02"]).pddt.replace(day=3).day.tolist()
+        [3]
+        """
+        try:
+            return _fields(self._index, (year,month,day,hour,minute,second,microsecond,nanosecond),
+                "Pddt.pddt.replace", True, tzinfo, ambiguous, nonexistent)
+        except Exception as error:
+            _raise_argument_context(error, "Pddt.pddt.replace", "arguments", None)
+

@@ -3,28 +3,39 @@
 /// Keep interpreter-specific layout and Unicode data tied to the target Python.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     pyo3_build_config::use_pyo3_cfgs();
-    if std::env::var("CARGO_CFG_TARGET_OS")? == "windows" {
-        // Windows does not export CPython's private Unicode classification
-        // function. Generate its exact public str.isalpha rule at build time;
-        // parsing still uses only native integer lookups at runtime.
+    {
+        // Capture the target interpreter's exact public str.isalpha rule once
+        // at build time. Both Python and native UTF8 readers then use the same
+        // immutable Rust data; Polars workers never call a CPython classifier.
         let interpreter = pyo3_build_config::get();
         let python = interpreter.executable().unwrap_or("python");
         let script = r#"
-ranges = []
-start = None
-for point in range(128, 0x110000):
-    if chr(point).isalpha():
-        if start is None:
-            start = point
-    elif start is not None:
-        ranges.append((start, point - 1))
-        start = None
-if start is not None:
-    ranges.append((start, 0x10ffff))
-print('pub(super) const LETTERS: &[(u32, u32)] = &[')
-for first, last in ranges:
-    print(f'({first}, {last}),')
+import unicodedata
+blocks = []
+indices = []
+lookup = {}
+for start in range(0, 0x110000, 256):
+    words = [0, 0, 0, 0]
+    for offset in range(256):
+        if chr(start + offset).isalpha():
+            words[offset // 64] |= 1 << (offset % 64)
+    words = tuple(words)
+    if words not in lookup:
+        lookup[words] = len(blocks)
+        blocks.append(words)
+    indices.append(lookup[words])
+assert len(blocks) < 65536
+print('pub(super) const LETTER_BLOCKS: &[u16; 4352] = &[')
+for offset in range(0, len(indices), 32):
+    print(','.join(map(str, indices[offset:offset+32])) + ',')
 print('];')
+print('pub(super) const LETTER_BITS: &[[u64; 4]] = &[')
+for words in blocks:
+    print('[' + ','.join(map(str, words)) + '],')
+print('];')
+starts = [code for code in range(0x110000) if chr(code).isdecimal() and unicodedata.decimal(chr(code)) == 0]
+assert all(unicodedata.decimal(chr(start + digit)) == digit for start in starts for digit in range(10))
+print('pub(super) const DECIMAL_STARTS: &[u32] = &[' + ','.join(map(str, starts)) + '];')
 "#;
         let output = std::process::Command::new(python)
             .args(["-I", "-c", script])

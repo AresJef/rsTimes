@@ -1,6 +1,6 @@
 //! Versioned serialization and copying for this package's Delta objects.
 //!
-//! The state marker is rstimes.delta and the format version is 1. External state
+//! The state marker is rstimes.delta and the format version is 2. External state
 //! is fully validated before native fields are committed; trusted native copies
 //! reuse that validated payload. Pickle can execute Python code and is supported
 //! only for trusted data. Old cyTimes pickle and Cython entry points are excluded.
@@ -100,23 +100,13 @@ pub(crate) fn capture_object_metadata<'py>(slf: &Bound<'py, PyAny>) -> PyResult<
     Ok(state)
 }
 
-/// Capture this package's five-item versioned pickle state.
-///
-/// # Returns
-/// (marker, version, fields, cached_hash, dictionary), where marker is
-/// rstimes.delta, version is 1, fields contains 15 integers, and dictionary is
-/// None, a copied subclass dictionary, or dictionary/slot metadata.
-///
-/// # Errors
-/// Propagates allocation and subclass dictionary access errors.
+/// Capture the version-two four-item state without derived caches.
+/// (marker,2,core17,metadata); business metadata retains its own real protocol.
 pub fn capture<'py>(slf: &Bound<'py, Delta>) -> PyResult<Bound<'py, PyAny>> {
     let py = slf.py();
-    let value = slf.borrow();
-    let fields = PyTuple::new(py, value.snapshot())?;
-    let cache = value.cached_hash();
-    drop(value);
-    let dictionary = capture_metadata(slf)?;
-    Ok(("rstimes.delta", 1, fields, cache, dictionary)
+    let fields = PyTuple::new(py, slf.get().snapshot())?;
+    let metadata = capture_metadata(slf)?;
+    Ok(("rstimes.delta", 2, fields, metadata)
         .into_pyobject(py)?
         .into_any())
 }
@@ -135,50 +125,40 @@ fn integer(value: &Bound<'_, PyAny>) -> PyResult<i64> {
     value.extract()
 }
 
-/// Validate canonical serialized fields and their optional cached hash.
-///
-/// # Errors
-/// Rejects malformed containers and noncanonical fields; cached hashes are recomputed.
-fn decode_fields(
-    data: &Bound<'_, PyAny>,
-    cache: &Bound<'_, PyAny>,
-) -> PyResult<([i64; 15], isize)> {
+/// Validate exact builtin integers in the complete new core tuple.
+fn decode_fields(data: &Bound<'_, PyAny>) -> PyResult<[i64; 17]> {
     if !data.is_exact_instance_of::<PyTuple>() {
         return Err(crate::error_context::type_error(
             "Delta state fields must be a tuple",
         ));
     }
     let data = data.cast::<PyTuple>()?;
-    if data.len() != 15 {
+    if data.len() != 17 {
         return Err(crate::error_context::value_error(
-            "Delta state must contain 15 fields",
+            "Delta state must contain 17 fields",
         ));
     }
-    let mut fields = [0; 15];
+    let mut fields = [0; 17];
     for (index, value) in data.iter().enumerate() {
         fields[index] = integer(&value).map_err(|error| {
             crate::error_context::argument(data.py(), error, "", FIELD_NAMES[index], &value)
         })?;
     }
     validate_fields(&fields)?;
-    // -1 is only a lazy-computation hint. Every actual cached value is derived
-    // afresh from validated fields, never copied or trusted from external state.
-    let unused = cache.is_exact_instance_of::<PyInt>() && cache.eq(-1)?;
-    let cache = if unused { -1 } else { data.hash()? };
-    Ok((fields, cache))
+    Ok(fields)
 }
 
 /// Check canonical native ranges independently of their external encoding.
 /// # Errors
 /// Rejects invalid relative/absolute fields before any native value is allocated.
-fn validate_fields(fields: &[i64; 15]) -> PyResult<()> {
+fn validate_fields(fields: &[i64; 17]) -> PyResult<()> {
     if !(0..12).contains(&fields[1]) {
         return Err(crate::error_context::value_error(format!(
             "state.fields.months={} must be from 0 through 11, inclusive, in normalized state",
             fields[1]
         )));
     }
-    for (index, maximum) in [(3, 23), (4, 59), (5, 59), (6, 999_999)] {
+    for (index, maximum) in [(3, 23), (4, 59), (5, 59), (6, 999_999), (7, 999)] {
         if !(0..=maximum).contains(&fields[index]) {
             return Err(crate::error_context::value_error(format!(
                 "state.fields.{}={} must be from 0 through {maximum}, inclusive, in normalized state",
@@ -186,23 +166,23 @@ fn validate_fields(fields: &[i64; 15]) -> PyResult<()> {
             )));
         }
     }
-    for (offset, maximum) in [9_999, 12, 31, 6, 23, 59, 59, 999_999]
+    for (offset, maximum) in [9_999, 12, 31, 6, 23, 59, 59, 999_999, 999]
         .into_iter()
         .enumerate()
     {
-        let value = fields[7 + offset];
+        let value = fields[8 + offset];
         let minimum = if offset < 3 { 1 } else { 0 };
         if value != -1 && !(minimum..=maximum).contains(&value) {
             return Err(crate::error_context::value_error(format!(
                 "state.fields.{}={value} must be -1 (unset) or from {minimum} through {maximum}, inclusive",
-                FIELD_NAMES[7 + offset]
+                FIELD_NAMES[8 + offset]
             )));
         }
     }
     Ok(())
 }
 
-const FIELD_NAMES: [&str; 15] = [
+const FIELD_NAMES: [&str; 17] = [
     "years",
     "months",
     "days",
@@ -210,6 +190,7 @@ const FIELD_NAMES: [&str; 15] = [
     "minutes",
     "seconds",
     "microseconds",
+    "nanoseconds",
     "year",
     "month",
     "day",
@@ -218,62 +199,49 @@ const FIELD_NAMES: [&str; 15] = [
     "minute",
     "second",
     "microsecond",
+    "nanosecond",
 ];
+const PAYLOAD_MARKER: &[u8; 8] = b"rstDlt\0\x02";
 
-const PAYLOAD_MARKER: &[u8; 8] = b"rstDlt\0\x01";
-
-/// Encode exact native values as versioned little-endian bytes, without PyInts.
-fn encode<'py>(py: Python<'py>, fields: [i64; 15], cache: isize) -> Bound<'py, PyBytes> {
-    let mut bytes = [0_u8; 136];
+/// Encode only the new17-field core, in fixed little-endian order.
+fn encode<'py>(py: Python<'py>, fields: [i64; 17]) -> Bound<'py, PyBytes> {
+    let mut bytes = [0_u8; 144];
     bytes[..8].copy_from_slice(PAYLOAD_MARKER);
-    for (index, value) in fields.into_iter().chain([cache as i64]).enumerate() {
+    for (index, value) in fields.into_iter().enumerate() {
         bytes[8 + index * 8..16 + index * 8].copy_from_slice(&value.to_le_bytes());
     }
     PyBytes::new(py, &bytes)
 }
 
-/// Decode the package's complete constructor payload before exposing an object.
-/// # Errors
-/// Rejects wrong version/length and noncanonical fields; cached hashes are recomputed.
-fn decode_bytes(value: &Bound<'_, PyBytes>) -> PyResult<([i64; 15], isize)> {
+/// Reject every old/unknown payload before allocating a Delta.
+fn decode_bytes(value: &Bound<'_, PyBytes>) -> PyResult<[i64; 17]> {
     let bytes = value.as_bytes();
-    if bytes.len() != 136 || bytes[..8] != *PAYLOAD_MARKER {
+    if bytes.len() != 144 || bytes[..8] != *PAYLOAD_MARKER {
         return Err(crate::error_context::value_error(
-            "Unsupported Delta reconstruction payload",
+            "Unsupported Delta reconstruction payload; requires version 2",
         ));
     }
-    let mut fields = [0_i64; 15];
-    let mut unused = true;
-    for (index, chunk) in bytes[8..].chunks_exact(8).enumerate() {
-        let number = i64::from_le_bytes(std::array::from_fn(|offset| chunk[offset]));
-        if index < 15 {
-            fields[index] = number;
-        } else {
-            unused = number == -1;
-        }
+    let mut fields = [0_i64; 17];
+    for (index, chunk) in bytes[8..].as_chunks::<8>().0.iter().enumerate() {
+        fields[index] = i64::from_le_bytes(std::array::from_fn(|offset| chunk[offset]));
     }
     validate_fields(&fields)?;
-    let cache = if unused {
-        -1
-    } else {
-        Delta::from_snapshot(fields, -1).__hash__(value.py())?
-    };
-    Ok((fields, cache))
+    Ok(fields)
 }
 
 /// Recognize internal reconstruction forms while ordinary numeric inputs continue.
 /// # Errors
-/// Complete byte payloads receive the same strict range/hash validation as state.
+/// Complete byte payloads receive the same strict canonical-field validation as state.
 #[inline]
 pub(crate) fn construction_value(args: &Bound<'_, PyTuple>) -> PyResult<Option<Delta>> {
     // The caller checked a one-item tuple; it owns the borrowed item throughout.
     let value =
         unsafe { Borrowed::from_ptr(args.py(), pyo3::ffi::PyTuple_GET_ITEM(args.as_ptr(), 0)) };
-    if let Ok(bytes) = value.cast::<PyBytes>() {
-        if bytes.as_bytes().starts_with(&PAYLOAD_MARKER[..7]) {
-            let (fields, cache) = decode_bytes(&bytes)?;
-            return Ok(Some(Delta::from_snapshot(fields, cache)));
-        }
+    if let Ok(bytes) = value.cast::<PyBytes>()
+        && bytes.as_bytes().starts_with(&PAYLOAD_MARKER[..7])
+    {
+        let fields = decode_bytes(&bytes)?;
+        return Ok(Some(Delta::from_snapshot(fields)?));
     }
     Ok(None)
 }
@@ -391,27 +359,27 @@ pub fn restore(slf: &Bound<'_, Delta>, state: &Bound<'_, PyAny>) -> PyResult<()>
     if state.len() == 2 {
         return apply_metadata(slf, state.as_any());
     }
-    if state.len() != 5 {
+    if state.len() != 4 {
         return Err(crate::error_context::value_error(
-            "Delta state must contain 5 items",
+            "Delta state must contain 4 items",
         ));
     }
     let marker = state.get_item(0)?;
     if !marker.is_exact_instance_of::<PyString>()
         || marker.cast::<PyString>()?.to_str()? != "rstimes.delta"
-        || integer(&state.get_item(1)?)? != 1
+        || integer(&state.get_item(1)?)? != 2
     {
         return Err(crate::error_context::value_error(
             "Unsupported Delta state version",
         ));
     }
-    let (fields, _) = decode_fields(&state.get_item(2)?, &state.get_item(3)?)?;
+    let fields = decode_fields(&state.get_item(2)?)?;
     if fields != slf.get().snapshot() {
         return Err(crate::error_context::value_error(
             "Delta values are immutable; state cannot replace fields",
         ));
     }
-    apply_metadata(slf, &state.get_item(4)?)
+    apply_metadata(slf, &state.get_item(3)?)
 }
 
 use pyo3::sync::PyOnceLock;
@@ -422,16 +390,15 @@ static NEWOBJ: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 /// Allocate a complete native snapshot, bypassing user subclass constructors.
 ///
 /// # Preconditions
-/// class is Delta or a real subtype, and fields/cache are already validated.
+/// class is Delta or a real subtype, and all core fields are already validated.
 /// # Errors
 /// Propagates allocation and inherited native constructor errors.
 fn allocate_snapshot<'py>(
     py: Python<'py>,
     class: &Bound<'py, PyType>,
-    fields: [i64; 15],
-    cache: isize,
+    fields: [i64; 17],
 ) -> PyResult<Bound<'py, PyAny>> {
-    allocate_value(py, class, Delta::from_snapshot(fields, cache))
+    allocate_value(py, class, Delta::from_snapshot(fields)?)
 }
 
 /// Allocate an already complete native value without unpacking unchanged fields.
@@ -467,11 +434,10 @@ fn allocate_value<'py>(
 /// # Errors
 /// Rejects non-Delta classes and malformed fields; cached hashes never replace field-derived values.
 #[pyfunction]
-#[pyo3(signature = (class, data, cache=None))]
+#[pyo3(signature = (class, data))]
 pub fn _restore_delta<'py>(
     class: &Bound<'py, PyType>,
     data: &Bound<'py, PyAny>,
-    cache: Option<&Bound<'py, PyAny>>,
 ) -> PyResult<Bound<'py, PyAny>> {
     let py = class.py();
     if !class.is_subclass(&py.get_type::<Delta>())? {
@@ -479,22 +445,12 @@ pub fn _restore_delta<'py>(
             "Delta reconstruction requires a Delta class",
         ));
     }
-    let (fields, cache) = if let Ok(bytes) = data.cast::<PyBytes>() {
-        if cache.is_some() {
-            return Err(crate::error_context::type_error(
-                "Byte payload includes its hash cache",
-            ));
-        }
+    let fields = if let Ok(bytes) = data.cast::<PyBytes>() {
         decode_bytes(bytes)?
     } else {
-        decode_fields(
-            data,
-            cache.ok_or_else(|| {
-                crate::error_context::type_error("Delta state requires its hash cache")
-            })?,
-        )?
+        decode_fields(data)?
     };
-    allocate_snapshot(py, class, fields, cache)
+    allocate_snapshot(py, class, fields)
 }
 
 /// Return a complete-value reconstructor and separate subclass state for pickle.
@@ -513,7 +469,7 @@ pub fn reduce<'py>(slf: &Bound<'py, Delta>) -> PyResult<Bound<'py, PyAny>> {
                 .unbind(),
         )
     })?;
-    let payload = encode(py, slf.get().snapshot(), slf.get().cached_hash());
+    let payload = encode(py, slf.get().snapshot());
     let dictionary = if overrides(slf, "__getstate__", &DELTA_STATE)? {
         slf.call_method0("__getstate__")
             .map_err(crate::error_context::external)?

@@ -22,7 +22,7 @@ pub(crate) fn prepare_polars_type(series: &Bound<'_, PyAny>) -> PyResult<()> {
 }
 
 /// Test the real cached Series ancestry without imports or name-based hints.
-fn is_polars_series(value: &Bound<'_, PyAny>) -> bool {
+pub(crate) fn is_polars_series(value: &Bound<'_, PyAny>) -> bool {
     let Some(Some(series)) = POLARS_SERIES.get(value.py()) else {
         return false;
     };
@@ -66,6 +66,24 @@ impl Unit {
             Self::Nanosecond => 1,
         }
     }
+    /// Project an exact coordinate once, flooring toward the earlier tick.
+    /// A checked narrow coordinate needs no wide division; wide dates retain
+    /// the full integer path and are never constrained to an int64 container.
+    #[inline]
+    fn ticks(self, nanos: i128) -> i128 {
+        if self == Self::Nanosecond {
+            return nanos;
+        }
+        if let Ok(nanos) = i64::try_from(nanos) {
+            return i128::from(match self {
+                Self::Second => nanos.div_euclid(1_000_000_000),
+                Self::Millisecond => nanos.div_euclid(1_000_000),
+                Self::Microsecond => nanos.div_euclid(1000),
+                Self::Nanosecond => nanos,
+            });
+        }
+        nanos.div_euclid(self.nanos())
+    }
     /// NumPy/pandas spelling for this resolution.
     pub(crate) fn name(self) -> &'static str {
         match self {
@@ -81,20 +99,14 @@ impl Unit {
 /// The fractional multiplication uses the input float's normal arithmetic; a
 /// coarser output is selected afterwards, never through a microsecond carrier.
 pub(crate) fn float_nanos(number: f64, unit: Unit) -> PyResult<i128> {
-    if number.is_nan() {
-        return Err(crate::error_context::value_error(
-            "numeric epoch must not be NaN",
-        ));
-    }
-    if !number.is_finite() || number < i128::MIN as f64 || number >= i128::MAX as f64 {
-        return Err(crate::error_context::overflow("numeric epoch is too large"));
-    }
-    let whole = number.trunc();
-    let fraction = ((number - whole) * unit.nanos() as f64).floor() as i128;
-    (whole as i128)
-        .checked_mul(unit.nanos())
-        .and_then(|value| value.checked_add(fraction))
-        .ok_or_else(|| crate::error_context::overflow("numeric epoch is too large"))
+    crate::precision::float_epoch_nanos(number, unit.nanos()).map_err(|error| match error {
+        crate::precision::FloatEpochError::NaN => {
+            crate::error_context::value_error("numeric epoch must not be NaN")
+        }
+        crate::precision::FloatEpochError::Capacity => {
+            crate::error_context::overflow("numeric epoch is too large")
+        }
+    })
 }
 
 /// A timezone boundary value; ordinary parsing owns no Python object.
@@ -233,15 +245,17 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
         ));
     }
     if let Ok(text) = value.cast::<PyString>() {
+        let converted;
         let text = if value.is_exact_instance_of::<PyString>() {
-            text.clone()
+            text
         } else {
-            value.str().map_err(crate::error_context::external)?
+            converted = value.str().map_err(crate::error_context::external)?;
+            &converted
         };
         return if opts.iso_only {
             let f = crate::parser::read_fields::<Iso<Nano<Strict>>>(
                 py,
-                &text,
+                text,
                 opts.default,
                 opts.yearfirst,
                 opts.dayfirst,
@@ -253,7 +267,7 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
         } else if opts.strict {
             let f = crate::parser::read_fields::<Nano<Strict>>(
                 py,
-                &text,
+                text,
                 opts.default,
                 opts.yearfirst,
                 opts.dayfirst,
@@ -265,7 +279,7 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
         } else {
             let f = crate::parser::read_fields::<Nano<Lenient>>(
                 py,
-                &text,
+                text,
                 opts.default,
                 opts.yearfirst,
                 opts.dayfirst,
@@ -294,17 +308,16 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
             + i128::from(microsecond) * 1000
             + result.nanos.rem_euclid(1000);
         result.zone = Zone::Naive;
-        if !opts.ignoretz {
-            if let Some(tz) = value.cast::<PyDateTime>()?.get_tzinfo() {
-                if let Some(offset) = offset_us(
-                    &value
-                        .call_method0("utcoffset")
-                        .map_err(crate::error_context::external)?,
-                )? {
-                    result.nanos -= i128::from(offset) * 1000;
-                    result.zone = Zone::Object(tz.into_any().unbind());
-                }
-            }
+        if !opts.ignoretz
+            && let Some(tz) = value.cast::<PyDateTime>()?.get_tzinfo()
+            && let Some(offset) = offset_us(
+                &value
+                    .call_method0("utcoffset")
+                    .map_err(crate::error_context::external)?,
+            )?
+        {
+            result.nanos -= i128::from(offset) * 1000;
+            result.zone = Zone::Object(tz.into_any().unbind());
         }
         return Ok(result);
     }
@@ -327,20 +340,21 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
                     + i128::from(ffi::PyDateTime_DATE_GET_SECOND(ptr)))
                     * 1_000_000_000
                     + i128::from(ffi::PyDateTime_DATE_GET_MICROSECOND(ptr)) * 1000;
-                if !opts.ignoretz && ffi::PyDateTime_DATE_GET_TZINFO(ptr) != ffi::Py_None() {
-                    if let Some(offset) = offset_us(
+                if !opts.ignoretz
+                    && ffi::PyDateTime_DATE_GET_TZINFO(ptr) != ffi::Py_None()
+                    && let Some(offset) = offset_us(
                         &value
                             .call_method0("utcoffset")
                             .map_err(crate::error_context::external)?,
-                    )? {
-                        ns -= i128::from(offset) * 1000;
-                        zone = Zone::Object(
-                            value
-                                .getattr("tzinfo")
-                                .map_err(crate::error_context::external)?
-                                .unbind(),
-                        );
-                    }
+                    )?
+                {
+                    ns -= i128::from(offset) * 1000;
+                    zone = Zone::Object(
+                        value
+                            .getattr("tzinfo")
+                            .map_err(crate::error_context::external)?
+                            .unbind(),
+                    );
                 }
             }
             return Ok(Parsed {
@@ -420,6 +434,12 @@ pub(crate) fn numpy_ticks(ticks: i64, code: i32, multiplier: i32) -> PyResult<Pa
     if ticks == i64::MIN {
         return Err(crate::error_context::value_error("NaT has no epoch value"));
     }
+    native_datetime_ticks(ticks, code, multiplier)
+}
+
+/// Decode a physically valid native date tick. Its caller has already applied
+/// the source's sentinel or independent validity rule; MIN itself is a value.
+pub(crate) fn native_datetime_ticks(ticks: i64, code: i32, multiplier: i32) -> PyResult<Parsed> {
     let ticks = crate::numpy_scalar::scaled_ticks(ticks, multiplier)?;
     let (ns, unit) = match code {
         0 | 1 => {
@@ -632,7 +652,7 @@ fn parse_to_epoch(
     strict: Truth,
     cfg: Option<&Bound<'_, PyAny>>,
     input_unit: &str,
-) -> PyResult<i128> {
+) -> PyResult<Py<PyInt>> {
     let unit = Unit::parse(unit).map_err(|error| {
         crate::error_context::argument(
             dtobj.py(),
@@ -661,11 +681,17 @@ fn parse_to_epoch(
             )
         })?,
     };
-    read(dtobj, &opts)
-        .map(|result| result.nanos.div_euclid(unit.nanos()))
+    let value = read(dtobj, &opts)
+        .map(|result| unit.ticks(result.nanos))
         .map_err(|error| {
             crate::parser::entry_error(dtobj.py(), "parse_to_epoch", "dtobj", dtobj, error)
-        })
+        })?;
+    // Only the final Python constructor changes. Larger coordinates retain
+    // the full-width conversion, including values beyond native containers.
+    if let Ok(narrow) = i32::try_from(value) {
+        return Ok(narrow.into_pyobject(dtobj.py())?.unbind());
+    }
+    Ok(value.into_pyobject(dtobj.py())?.unbind())
 }
 
 /// Register the scalar epoch API beside the existing datetime parser APIs.
@@ -698,6 +724,47 @@ pub(crate) fn zone_object(py: Python<'_>, zone: &Zone) -> PyResult<Py<PyAny>> {
             };
             unsafe { Bound::from_owned_ptr_or_err(py, ffi::PyTimeZone_FromOffset(delta.as_ptr())) }
                 .map(Bound::unbind)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Unit;
+
+    #[test]
+    fn integer_projection_keeps_negative_floor_and_both_sides_of_the_narrow_boundary() {
+        let values = [
+            i128::MIN,
+            i128::MIN + 1,
+            i128::from(i64::MIN) - 1,
+            i128::from(i64::MIN),
+            i128::from(i64::MIN) + 1,
+            -1_000_000_001,
+            -1001,
+            -1000,
+            -999,
+            -1,
+            0,
+            1,
+            999,
+            1000,
+            1001,
+            1_000_000_001,
+            i128::from(i64::MAX) - 1,
+            i128::from(i64::MAX),
+            i128::from(i64::MAX) + 1,
+            i128::MAX,
+        ];
+        for unit in [
+            Unit::Second,
+            Unit::Millisecond,
+            Unit::Microsecond,
+            Unit::Nanosecond,
+        ] {
+            for value in values {
+                assert_eq!(unit.ticks(value), value.div_euclid(unit.nanos()));
+            }
         }
     }
 }

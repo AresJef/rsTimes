@@ -31,3 +31,13 @@ assert_type(Pddt.date_range('2024-01-01', periods=2), Pddt)
 
 assert_type(p.to_date(month=2), Pydt)
 assert_type(p.to_datetime(month=np.int64(2), hour=0), Pydt)
+
+# F01 namespace return and D04/E05 target keywords remain fully typed.
+assert_type(x.pddt.replace(day=3), Pddt)
+assert_type(Pddt.fromisoformat(["2024-01-01"], tz="UTC", ambiguous=False), Pddt)
+assert_type(Pddt.strptime(["2024-01-01"], "%Y-%m-%d", tz="UTC"), Pddt)
+
+class DateIndex(Pddt):
+    pass
+
+assert_type(DateIndex(["2024-01-01"]).pddt.replace(day=2), DateIndex)

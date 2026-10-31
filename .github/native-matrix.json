@@ -20,7 +20,7 @@
   "platforms": [
     {
       "id": "macos-arm64",
-      "runner": "macos-14",
+      "runner": "macos-15",
       "arch": "arm64",
       "target": "aarch64-apple-darwin",
       "container": "off",

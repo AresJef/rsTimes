@@ -26,6 +26,8 @@ except ModuleNotFoundError as error:
         raise
     pl = None
 from rstimes import Pddt,Configs,Delta,parse_to_epoch,_native
+if pl is not None:
+    from rstimes import Pldt
 
 
 def _show(label,operation,reference=None):
@@ -64,7 +66,7 @@ def calendar_demo():
     x=Pddt(['2024-01-31 12:30','2024-02-29 09:15'])
     for label,call in [('One month later',lambda:x.to_month(1)),
                        ('Combined calendar and clock addition',lambda:x.add(months=2,days=3,hours=4)),
-                       ('Absolute fields',lambda:x.replace(month=2,day=28,hour=9)),
+                       ('Absolute fields',lambda:x.pddt.replace(month=2,day=28,hour=9)),
                        ('Start of month',lambda:x.to_start_of('M')),
                        ('End of quarter',lambda:x.to_end_of('Q')),
                        ('Next Monday',lambda:x.to_next_weekday('Monday'))]:
@@ -167,13 +169,32 @@ def review_repair_demo():
     print("Finer local coordinates can produce exact UTC seconds:", exact)
 
 
+def parallel_polars_demo():
+    """Use native Pldt/Expr while keeping pandas field replacement namespaced."""
+    if pl is None:
+        return
+    text = ['2024-01-31T12:34:56.123456789', None]
+    x = Pldt(text, name='time')
+    eager = x.to_next_month()
+    expr = pl.col('time').pldt.to_next_month()
+    frame = pl.DataFrame({'time': x})
+    result = frame.lazy().select(expr).collect()['time']
+    assert result.to_physical().to_list() == eager.to_physical().to_list()
+    expected = int(np.datetime64('2024-01-31T12:34:56.123456789', 'ns').astype(np.int64)) + 1
+    assert (x + Delta(nanoseconds=1)).to_physical().to_list() == [expected, None]
+    assert x.pldt.replace(day=28).day.to_list() == [28, None]
+    assert x.strftime('%f|%.3f|%.0f').to_list() == ['123456789|.123|', None]
+    assert x.dtype == pl.Datetime('ns') and isinstance(expr, pl.Expr)
+    print('\nParallel Polars eager and real lazy Expr:', result)
+
+
 def main():
     """Run all examples with the verified, currently adopted local package."""
     print(f"rsTimes {version('rstimes')} | {_native.__file__}")
     print('Pddt / parse_to_epoch demo; pandas',pd.__version__)
     for demo in (constructor_demo,calendar_demo,precision_and_query_demo,timezone_demo,
                  configs_and_polars_demo,epoch_demo,formatted_range_repair_demo,
-                 review_repair_demo,copy_and_pickle_demo):demo()
+                 review_repair_demo,copy_and_pickle_demo,parallel_polars_demo):demo()
 
 
 if __name__=='__main__':main()

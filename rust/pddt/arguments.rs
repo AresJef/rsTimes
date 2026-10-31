@@ -2,48 +2,13 @@
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 
-pub(super) enum Column<T> {
-    Scalar(T),
-    Values(Vec<T>),
-}
-impl<T: Copy> Column<T> {
-    pub fn get(&self, row: usize) -> T {
-        match self {
-            Self::Scalar(value) => *value,
-            Self::Values(values) => values[row],
-        }
-    }
-    pub fn len(&self) -> Option<usize> {
-        match self {
-            Self::Scalar(_) => None,
-            Self::Values(values) => Some(values.len()),
-        }
-    }
-}
+pub(super) use crate::batch_shape::Column;
 
 #[pyclass(frozen, name = "_PddtIntegers")]
 pub(super) struct Integers(pub Column<Option<i64>>);
 
 pub(super) fn date_missing(value: &Bound<'_, PyAny>) -> PyResult<bool> {
-    if super::prepare::missing(value) {
-        return Ok(true);
-    }
-    if let Ok(text) = value.cast::<PyString>() {
-        return super::prepare::missing_text(text);
-    }
-    if crate::numeric::supported_float(value) {
-        let number = if value.is_instance_of::<pyo3::types::PyFloat>() {
-            value.extract::<f64>()?
-        } else {
-            crate::numeric::float_value(value)?
-        };
-        return Ok(number.is_nan());
-    }
-    if let Some((ticks, code, _)) = crate::numpy_scalar::datetime_ticks(value)? {
-        super::prepare::scalar_unit(code)?;
-        return Ok(ticks == i64::MIN);
-    }
-    Ok(false)
+    crate::date_input::date_missing(value)
 }
 
 fn integer(value: &Bound<'_, PyAny>) -> PyResult<Option<i64>> {
@@ -77,14 +42,12 @@ fn _pddt_integers(
             return Err(crate::error_context::runtime("invalid integer storage"));
         }
         let mut values = Vec::with_capacity(bytes.len() / 8);
-        for (i, bytes) in bytes.chunks_exact(8).enumerate() {
+        for (i, bytes) in bytes.as_chunks::<8>().0.iter().enumerate() {
             if mask.is_some_and(|m| m[i] != 0) {
                 values.push(None);
                 continue;
             }
-            let raw: [u8; 8] = bytes
-                .try_into()
-                .map_err(|_| crate::error_context::runtime("invalid integer bytes"))?;
+            let raw: [u8; 8] = *bytes;
             let result = match kind {
                 "i" => Some(i64::from_ne_bytes(raw)),
                 "u" => Some(i64::try_from(u64::from_ne_bytes(raw)).map_err(|_| {
@@ -140,25 +103,7 @@ pub(super) fn length(
     lengths: impl IntoIterator<Item = Option<usize>>,
     size: Option<usize>,
 ) -> PyResult<usize> {
-    let mut common = None;
-    for length in lengths.into_iter().flatten() {
-        if size.is_some() {
-            return Err(crate::error_context::value_error(
-                "omit size when any component is a collection",
-            ));
-        }
-        if common.is_some_and(|previous| previous != length) {
-            return Err(crate::error_context::value_error(
-                "all component collections must have the same length; a length-one collection is not a scalar",
-            ));
-        }
-        common = Some(length);
-    }
-    common.or(size).ok_or_else(|| {
-        crate::error_context::value_error(
-            "all-scalar factory components require size; use collections for a single row",
-        )
-    })
+    crate::batch_shape::length(lengths, size).map_err(crate::error_context::value_error)
 }
 
 pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -251,7 +196,7 @@ fn _pddt_component(
             ));
         }
         let mut out = Vec::with_capacity(length);
-        for (i, bytes) in bytes.chunks_exact(8).enumerate() {
+        for (i, bytes) in bytes.as_chunks::<8>().0.iter().enumerate() {
             if mask.is_some_and(|m| m[i] != 0) {
                 return Err(crate::error_context::location(
                     py,
@@ -262,9 +207,7 @@ fn _pddt_component(
                     &format!("{parameter}[{i}]"),
                 ));
             }
-            let raw: [u8; 8] = bytes
-                .try_into()
-                .map_err(|_| crate::error_context::runtime("invalid component bytes"))?;
+            let raw: [u8; 8] = *bytes;
             let value = if kind == Some("i") {
                 i64::from_ne_bytes(raw)
             } else {

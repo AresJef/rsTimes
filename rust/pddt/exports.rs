@@ -75,42 +75,7 @@ impl<'a, 'py> View<'a, 'py> {
     }
 }
 
-/// Exact integer ratio, rounded once to binary64, retaining the reference algorithm.
-/// Source ticks plus a legal offset fit 95 bits; the scaled significand fits u128.
-fn seconds_float(tick: i128, denominator: u64) -> f64 {
-    if tick == 0 {
-        return 0.0;
-    }
-    let numerator = tick.unsigned_abs();
-    let denominator = u128::from(denominator);
-    let mut exponent =
-        (127 - numerator.leading_zeros()) as i32 - (127 - denominator.leading_zeros()) as i32;
-    if (exponent >= 0 && numerator < (denominator << exponent as u32))
-        || (exponent < 0 && (numerator << (-exponent) as u32) < denominator)
-    {
-        exponent -= 1;
-    }
-    let shift = 52 - exponent;
-    let (n, d) = if shift >= 0 {
-        (numerator << shift as u32, denominator)
-    } else {
-        (numerator, denominator << (-shift) as u32)
-    };
-    let mut significand = n / d;
-    let remainder = n % d;
-    if remainder > d - remainder || remainder == d - remainder && significand & 1 != 0 {
-        significand += 1;
-    }
-    if significand == 1_u128 << 53 {
-        significand >>= 1;
-        exponent += 1;
-    }
-    f64::from_bits(
-        (u64::from(tick < 0) << 63)
-            | (((exponent + 1023) as u64) << 52)
-            | (significand as u64 & ((1_u64 << 52) - 1)),
-    )
-}
+use crate::temporal_output::{iso_text, seconds_float};
 
 type Output<'py> = (Bound<'py, PyBytes>, Option<Bound<'py, PyBytes>>);
 #[pyfunction]
@@ -124,7 +89,7 @@ fn _pddt_export<'py>(
     entry: &str,
     utc: bool,
 ) -> PyResult<Output<'py>> {
-    if data.len() % 8 != 0 || kind > 5 {
+    if !data.len().is_multiple_of(8) || kind > 5 {
         return Err(crate::error_context::runtime("invalid export metadata"));
     }
     let unit = Unit::parse(unit)?;
@@ -142,14 +107,13 @@ fn _pddt_export<'py>(
     let mut local_zone = None;
     let packed = PyBytes::new_with(py, size, |out| {
         for (i, (raw, out)) in data
-            .chunks_exact(8)
+            .as_chunks::<8>()
+            .0
+            .iter()
             .zip(out.chunks_exact_mut(if kind >= 4 { 72 } else { 8 }))
             .enumerate()
         {
-            let tick = i64::from_ne_bytes(
-                raw.try_into()
-                    .map_err(|_| crate::error_context::runtime("invalid export tick"))?,
-            );
+            let tick = i64::from_ne_bytes(*raw);
             if tick == i64::MIN {
                 if kind == 0 || kind == 3 {
                     out.copy_from_slice(&f64::NAN.to_ne_bytes());
@@ -236,7 +200,7 @@ fn _pddt_export<'py>(
                         ordinal - start + 1,
                         dst,
                     ];
-                    for (cell, value) in out.chunks_exact_mut(8).zip(values) {
+                    for (cell, value) in out.as_chunks_mut::<8>().0.iter_mut().zip(values) {
                         cell.copy_from_slice(&value.to_ne_bytes());
                     }
                 }
@@ -249,48 +213,6 @@ fn _pddt_export<'py>(
         Ok(())
     })?;
     Ok((packed, mask.map(|m| PyBytes::new(py, &m))))
-}
-
-fn offset_text(offset: i64) -> String {
-    let sign = if offset < 0 { '-' } else { '+' };
-    let offset = offset.unsigned_abs();
-    let second = offset / 1_000_000;
-    let micros = offset % 1_000_000;
-    let mut result = format!("{sign}{:02}:{:02}", second / 3600, second / 60 % 60);
-    if second % 60 != 0 || micros != 0 {
-        result.push_str(&format!(":{:02}", second % 60));
-    }
-    if micros != 0 {
-        result.push_str(&format!(".{micros:06}"));
-    }
-    result
-}
-fn iso_text(fields: [i64; 8], sep: &str, precision: u8, offset: Option<i64>) -> String {
-    let f = fields;
-    let mut result = format!("{:04}-{:02}-{:02}{sep}{:02}", f[0], f[1], f[2], f[3]);
-    if precision != 1 {
-        result.push_str(&format!(":{:02}", f[4]));
-    }
-    if precision != 1 && precision != 2 {
-        result.push_str(&format!(":{:02}", f[5]));
-    }
-    let digits = match precision {
-        0 if f[7] != 0 => 9,
-        0 if f[6] != 0 => 6,
-        4 => 3,
-        5 => 6,
-        6 => 9,
-        _ => 0,
-    };
-    if digits != 0 {
-        let fraction = f[6] * 1000 + f[7];
-        result.push('.');
-        result.push_str(&format!("{fraction:09}")[..digits]);
-    }
-    if let Some(offset) = offset {
-        result.push_str(&offset_text(offset));
-    }
-    result
 }
 
 struct ObjectOptions<'a, 'py> {
@@ -309,11 +231,8 @@ fn objects<'py, const K: u8>(
 ) -> PyResult<Bound<'py, PyList>> {
     let out = PyList::empty(py);
     let mut fixed_name = None;
-    for (i, raw) in data.chunks_exact(8).enumerate() {
-        let tick = i64::from_ne_bytes(
-            raw.try_into()
-                .map_err(|_| crate::error_context::runtime("invalid object tick"))?,
-        );
+    for (i, raw) in data.as_chunks::<8>().0.iter().enumerate() {
+        let tick = i64::from_ne_bytes(*raw);
         if tick == i64::MIN {
             out.append(if K <= 3 {
                 super::prepare::nat(py)?
@@ -459,7 +378,7 @@ fn _pddt_objects<'py>(
     option: Option<&Bound<'py, PyAny>>,
     timespec: Option<&Bound<'py, PyAny>>,
 ) -> PyResult<Bound<'py, PyList>> {
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime(
             "invalid object export buffer",
         ));

@@ -149,7 +149,7 @@ def _external_note(error, entry, parameter, preview, has_value):
     return error
 
 
-def _argument_error(error, entry, parameter, value, has_value=True):
+def _argument_error(error, entry, parameter, value, has_value=True, prepared_preview=None):
     """Finish a known library failure, or note an untouched external failure."""
     if _critical(error):
         return error
@@ -159,7 +159,8 @@ def _argument_error(error, entry, parameter, value, has_value=True):
         _, detail, field, preview = origin
         indexed = parameter.startswith(("values[", "data[")) and parameter.endswith("]")
         if (field is None or indexed) and parameter not in ("arguments", "operands"):
-            field, preview = parameter, _preview(value) if has_value else None
+            field, preview = parameter, (prepared_preview if prepared_preview is not None
+                                          else _preview(value)) if has_value else None
             dict.__setitem__(_EXCEPTION_DICT.__get__(error), _ORIGIN_KEY,
                              (_OWN_TOKEN, detail, field, preview))
         if field is not None:
@@ -173,7 +174,8 @@ def _argument_error(error, entry, parameter, value, has_value=True):
     # A genuine failure here propagates; do not hide it behind the old error.
     has_value = has_value and parameter != "arguments"
     return _external_note(error, entry, parameter,
-                          _preview(value) if has_value else None, has_value)
+                          (prepared_preview if prepared_preview is not None
+                           else _preview(value)) if has_value else None, has_value)
 
 
 def _raise_argument_context(error, entry, parameter, value):

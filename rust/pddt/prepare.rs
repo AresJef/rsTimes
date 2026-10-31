@@ -1,270 +1,271 @@
 //! One-pass collection preparation, with no Python datetime text intermediate.
-use super::common::{NS_DAY, Rows, finish};
-use crate::epoch::{self, Options, Parsed, Unit, Zone};
+use super::common::{Rows, finish};
+use crate::epoch::{self, Options, Unit, Zone};
+use crate::parser::config::{Configs, FormatRules};
 use crate::parser::fields::{Lenient, Nano, Policy, Precision, Strict};
-use pyo3::ffi;
+use crate::parser::prepared::TextContext;
+use polars::prelude::Series;
 use pyo3::prelude::*;
-use pyo3::sync::PyOnceLock;
-use pyo3::types::{PyBytes, PyFloat, PyInt, PyString};
-
-static MISSING: PyOnceLock<(Py<PyAny>, Py<PyAny>)> = PyOnceLock::new();
+use pyo3::types::{PyBytes, PyDate, PyDateTime, PyFloat, PyInt, PyList, PyString, PyTuple};
+use pyo3_polars::PySeries;
 
 #[pyfunction]
 fn _pddt_register(py: Python<'_>, na: Py<PyAny>, nat: Py<PyAny>, resolver: Py<PyAny>) {
-    let _ = MISSING.set(py, (na, nat));
+    crate::date_input::register_missing(py, na, nat);
     super::common::register_zone_resolver(py, resolver);
 }
 
-/// Decode completed local fields; region localization belongs to Pddt, not Parser.
-pub(super) fn text_fields<P: Policy>(
-    py: Python<'_>,
-    text: &Bound<'_, PyString>,
-    default: Option<[i32; 3]>,
-    opts: &Options<'_, '_>,
-) -> PyResult<Parsed> {
-    let parsed = crate::parser::read_fields_prepared::<P>(
-        py,
-        text,
-        default,
-        opts.yearfirst,
-        opts.dayfirst,
-        opts.ignoretz,
-        opts.isoformat,
-        opts.cfg,
-    )?;
-    let [y, m, d, h, minute, s, us] = crate::parser::complete(&parsed.fields, default)?;
-    let day = crate::calendar::checked_ordinal(i64::from(y), i64::from(m), i64::from(d))
-        .map_err(crate::error_context::overflow)?
-        - 719_163;
-    let nanos = i128::from(day) * NS_DAY
-        + ((i128::from(h) * 60 + i128::from(minute)) * 60 + i128::from(s)) * 1_000_000_000
-        + i128::from(us) * 1000
-        + i128::from(parsed.fields.fraction.tail());
-    let zone = if opts.ignoretz {
-        Zone::Naive
-    } else if let Some(region) = parsed.region {
-        let object = region.object.as_ref().ok_or_else(|| {
-            crate::error_context::value_error(
-                "the registered region is unavailable in this environment",
-            )
-        })?;
-        Zone::Object(object.clone_ref(py))
-    } else if parsed.fields.is_tzoffset_set() {
-        let offset = parsed.fields.timezone_microseconds();
-        if !(-86_400_000_000..86_400_000_000).contains(&offset) || offset == -86_400_000_000 {
-            return Err(crate::parser::invalid_offset(py, offset));
-        }
-        Zone::Offset(offset)
-    } else {
-        Zone::Naive
-    };
-    Ok(Parsed {
-        nanos,
-        unit: if parsed.fields.fraction.has_nanos() {
-            Unit::Nanosecond
-        } else {
-            Unit::Microsecond
-        },
-        zone,
+// This specialization retains the adopted pandas NaT numeric-sentinel contract.
+pub(super) type Reader<'a, 'py> = crate::date_input::Reader<'a, 'py, true>;
+pub(super) use crate::date_input::{missing, missing_text, nat, scalar_unit};
+
+type Prepared<'py> = (Bound<'py, PyBytes>, &'static str, Py<PyAny>);
+
+/// Callback-bearing defaults keep the adopted live Reader path. These exact
+/// builtin values expose no custom field or conversion callback.
+fn stable_default(value: Option<&Bound<'_, PyAny>>) -> bool {
+    value.is_none_or(|value| {
+        value.is_none()
+            || value.is_exact_instance_of::<PyString>()
+            || value.is_exact_instance_of::<PyInt>()
+            || value.is_exact_instance_of::<PyFloat>()
+            || value.is_exact_instance_of::<PyDateTime>()
+            || value.is_exact_instance_of::<PyDate>()
     })
 }
 
-/// Check only the tiny ASCII missing literals without UTF8-encoding date text.
-pub(super) fn missing_text(text: &Bound<'_, PyString>) -> PyResult<bool> {
-    // SAFETY: the checked live PyString proves Unicode layout and keeps its owner.
-    let length = unsafe { ffi::PyUnicode_GET_LENGTH(text.as_ptr()) };
-    if length == 0 {
-        return Ok(true);
-    }
-    if length != 3 {
-        return Ok(false);
-    }
-    for token in [c"NaT", c"NAT", c"nat", c"NaN", c"NAN", c"nan"] {
-        // The public Unicode comparison reads code points, including surrogates.
-        let result =
-            unsafe { ffi::PyUnicode_CompareWithASCIIString(text.as_ptr(), token.as_ptr()) };
-        if result == -1 && PyErr::occurred(text.py()) {
-            return Err(PyErr::fetch(text.py()));
+fn native_strings<'py, P: Policy>(
+    py: Python<'py>,
+    source: &Series,
+    policy: &super::zones::Policies,
+    requested: Option<Unit>,
+    opts: Options<'_, '_>,
+    target: Option<&Bound<'py, PyAny>>,
+    entry: &str,
+) -> PyResult<Prepared<'py>> {
+    let values = source.str().map_err(|_| {
+        crate::error_context::type_error("native date-text input must have Polars String dtype")
+    })?;
+    let mut rows = Rows::new(Unit::Second);
+    rows.reserve(source.len())?;
+    let mut prepared: Option<(TextContext, FormatRules)> = None;
+    let mut scratch = crate::parser::native::Scratch::default();
+    for (index, value) in values.iter().enumerate() {
+        let Some(value) = value.filter(|value| !crate::date_input::missing_utf8(value)) else {
+            rows.missing();
+            continue;
+        };
+        if prepared.is_none() {
+            let context = TextContext::eager(
+                py,
+                opts.cfg,
+                opts.default,
+                opts.yearfirst,
+                opts.dayfirst,
+                opts.isoformat,
+                opts.strict,
+            )
+            .map_err(|error| match opts.default {
+                Some(default) => {
+                    crate::error_context::argument(py, error, entry, "default", default)
+                }
+                None => error,
+            })?;
+            // Keep original ZoneInfo identities in this GIL adapter only. The
+            // shared native worker context continues to contain no Python data.
+            let zones = FormatRules::prepare(opts.cfg)?;
+            prepared = Some((context, zones));
         }
-        if result == 0 {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
-pub(super) fn missing(value: &Bound<'_, PyAny>) -> bool {
-    value.is_none()
-        || MISSING.get(value.py()).is_some_and(|(na, nat)| {
-            value.is(na.bind(value.py())) || value.is(nat.bind(value.py()))
-        })
-}
-
-pub(super) fn nat(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
-    MISSING
-        .get(py)
-        .map(|(_, nat)| nat.bind(py).clone())
-        .ok_or_else(|| crate::error_context::runtime("Pddt missing values are not registered"))
-}
-
-pub(super) fn scalar_unit(code: i32) -> PyResult<Unit> {
-    match code {
-        0..=2 | 4..=7 | 14 => Ok(Unit::Second),
-        8 => Ok(Unit::Millisecond),
-        9 => Ok(Unit::Microsecond),
-        10 => Ok(Unit::Nanosecond),
-        _ => Err(crate::error_context::value_error(
-            "unsupported NumPy date unit; use years through nanoseconds",
-        )),
-    }
-}
-
-/// One-pass scalar decoding reused by columns, range endpoints and date targets.
-pub(super) struct Reader<'a, 'py> {
-    opts: Options<'a, 'py>,
-    pub unit: Unit,
-    prepared_default: Option<Option<[i32; 3]>>,
-}
-impl<'a, 'py> Reader<'a, 'py> {
-    pub fn new(opts: Options<'a, 'py>, unit: Unit) -> Self {
-        Self {
-            opts,
-            unit,
-            prepared_default: None,
-        }
-    }
-    pub fn read(
-        &mut self,
-        item: &Bound<'_, PyAny>,
-        entry: &str,
-    ) -> PyResult<Option<(Parsed, bool)>> {
-        let result = self.read_value(item, entry)?;
-        if let Some((parsed, _)) = &result {
-            self.unit = self.unit.max(parsed.unit);
-        }
-        Ok(result)
-    }
-    fn read_value(
-        &mut self,
-        item: &Bound<'_, PyAny>,
-        entry: &str,
-    ) -> PyResult<Option<(Parsed, bool)>> {
-        let py = item.py();
-        let opts = &self.opts;
-        let (default, yearfirst, dayfirst, isoformat, cfg, strict, numeric) = (
-            opts.default,
-            opts.yearfirst,
-            opts.dayfirst,
-            opts.isoformat,
-            opts.cfg,
-            opts.strict,
-            opts.input_unit,
-        );
-
-        if missing(item) {
-            return Ok(None);
-        }
-        if crate::numeric::is_bool(item) {
-            return Err(crate::error_context::type_error(
-                "boolean values are not date inputs",
-            ));
-        }
-        if let Ok(text) = item.cast::<PyString>() {
-            let converted;
-            let text = if item.is_exact_instance_of::<PyString>() {
-                text
+        let (context, zones) = prepared.as_mut().ok_or_else(|| {
+            crate::error_context::runtime("native date-text preparation is unavailable")
+        })?;
+        let mut read = || -> PyResult<epoch::Parsed> {
+            let parsed = crate::parser::native::parse::<P>(
+                value,
+                &mut scratch,
+                &mut context.rules,
+                context.options,
+            )
+            .map_err(crate::parser::native_error)?;
+            let zone = if let Some(region) = parsed.region {
+                let registered = zones
+                    .region_key(&region.key, scratch.codepoints())
+                    .ok_or_else(|| {
+                        crate::error_context::value_error(
+                            "the registered region is unavailable in this environment",
+                        )
+                    })?;
+                Zone::Object(
+                    crate::parser::zones::object(py, &registered)?
+                        .clone()
+                        .unbind(),
+                )
+            } else if parsed.fields.is_tzoffset_set() {
+                let offset = parsed.fields.timezone_microseconds();
+                if !(-86_400_000_000..86_400_000_000).contains(&offset) || offset == -86_400_000_000
+                {
+                    return Err(crate::parser::invalid_offset(py, offset));
+                }
+                Zone::Offset(offset)
             } else {
-                converted = item.str().map_err(crate::error_context::external)?;
-                &converted
+                Zone::Naive
             };
+            Ok(epoch::Parsed {
+                nanos: crate::civil::fields_nanos(
+                    parsed.completed.map(i64::from),
+                    i64::from(parsed.fields.fraction.tail()),
+                )
+                .map_err(crate::error_context::overflow)?,
+                unit: if parsed.fields.fraction.has_nanos() {
+                    Unit::Nanosecond
+                } else {
+                    Unit::Microsecond
+                },
+                zone,
+            })
+        };
+        let parsed = read()
+            .map_err(|error| crate::error_context::text_item(py, error, entry, index, value))?;
+        rows.push(py, parsed, false)?;
+    }
+    finish(py, rows, requested, target, entry, policy)
+}
+
+/// Exact builtin sequences have no iterator callback. The caller verifies every
+/// element before preparing rules; callback-bearing defaults stay on Reader.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Callback-free collection adapter keeps parser and output roles explicit"
+)]
+fn plain_strings<'py, P: Policy>(
+    py: Python<'py>,
+    values: impl Iterator<Item = Bound<'py, PyAny>>,
+    mut rows: Rows,
+    opts: Options<'_, '_>,
+    requested: Option<Unit>,
+    target: Option<&Bound<'py, PyAny>>,
+    entry: &str,
+    policy: &super::zones::Policies,
+) -> PyResult<Prepared<'py>> {
+    let mut prepared = None;
+    let mut scratch = crate::parser::native::Scratch::default();
+    for (index, item) in values.enumerate() {
+        let mut read = || -> PyResult<Option<epoch::Parsed>> {
+            if item.is_none() {
+                return Ok(None);
+            }
+            let text = item.cast::<PyString>()?;
             if missing_text(text)? {
                 return Ok(None);
             }
-            let fallback = if let Some(value) = self.prepared_default {
-                value
-            } else {
-                let value = crate::parser::prepare_default(
-                    py, default, yearfirst, dayfirst, isoformat, cfg, strict,
+            if prepared.is_none() {
+                let default = crate::parser::prepare_default(
+                    py,
+                    opts.default,
+                    opts.yearfirst,
+                    opts.dayfirst,
+                    opts.isoformat,
+                    opts.cfg,
+                    opts.strict,
                 )
-                .map_err(|e| match default {
-                    Some(v) => crate::error_context::argument(py, e, entry, "default", v),
-                    None => e,
+                .map_err(|error| match opts.default {
+                    Some(default) => {
+                        crate::error_context::argument(py, error, entry, "default", default)
+                    }
+                    None => error,
                 })?;
-                self.prepared_default = Some(value);
-                value
-            };
-            let value = if strict {
-                text_fields::<Nano<Strict>>(py, text, fallback, opts)?
-            } else {
-                text_fields::<Nano<Lenient>>(py, text, fallback, opts)?
-            };
-            return Ok(Some((value, false)));
-        }
-        if let Some((ticks, code, multiplier)) = crate::numpy_scalar::datetime_ticks(item)? {
-            self.unit = self.unit.max(scalar_unit(code)?);
-            if ticks == i64::MIN {
-                return Ok(None);
-            }
-            return epoch::numpy_ticks(ticks, code, multiplier).map(|p| Some((p, false)));
-        }
-        if item.is_instance_of::<PyInt>() || unsafe { ffi::PyIndex_Check(item.as_ptr()) != 0 } {
-            let ticks = crate::numeric::index_i64(item)?;
-            self.unit = self.unit.max(numeric);
-            if ticks == i64::MIN {
-                return Ok(None);
-            }
-            return Ok(Some((
-                Parsed {
-                    nanos: i128::from(ticks) * numeric.nanos(),
-                    unit: numeric,
-                    zone: Zone::Naive,
-                },
-                true,
-            )));
-        }
-        if crate::numeric::supported_float(item) {
-            let value = if item.is_instance_of::<PyFloat>() {
-                item.extract::<f64>()?
-            } else {
-                crate::numeric::float_value(item)?
-            };
-            if value.is_nan() {
-                return Ok(None);
-            }
-            if !value.is_finite() || value < i64::MIN as f64 || value >= 9223372036854775808.0 {
-                return Err(crate::error_context::overflow(
-                    "numeric date tick exceeds signed64",
+                prepared = Some((
+                    crate::parser::native::Options {
+                        default,
+                        yearfirst: opts.yearfirst,
+                        dayfirst: opts.dayfirst,
+                        isoformat: opts.isoformat,
+                    },
+                    FormatRules::prepare(opts.cfg)?,
                 ));
             }
-            if value.fract() != 0.0 {
-                return Err(crate::error_context::value_error(
-                    "numeric construction requires an integer tick; use fromseconds for fractional seconds",
-                ));
-            }
-            self.unit = self.unit.max(numeric);
-            if value == i64::MIN as f64 {
-                return Ok(None);
-            }
-            return Ok(Some((
-                Parsed {
-                    nanos: i128::from(value as i64) * numeric.nanos(),
-                    unit: numeric,
-                    zone: Zone::Naive,
-                },
-                true,
-            )));
+            let (options, rules) = prepared.as_ref().ok_or_else(|| {
+                crate::error_context::runtime("date-text preparation is unavailable")
+            })?;
+            let parsed = crate::parser::read_collection_fields::<P>(
+                py,
+                text,
+                *options,
+                rules,
+                &mut scratch,
+            )?;
+            crate::date_input::finish_text(py, parsed, false).map(Some)
+        };
+        let parsed = read().map_err(|error| {
+            crate::error_context::item(py, error, entry, "data", index, Some(&item), false)
+        })?;
+        if let Some(parsed) = parsed {
+            rows.push(py, parsed, false)?;
+        } else {
+            rows.missing();
         }
-        // Actual datetime/date subclasses keep the existing live-field and
-        // offset protocol. Other iterable objects are not scalar dates.
-        if unsafe { ffi::PyDate_Check(item.as_ptr()) != 0 } {
-            let parsed = epoch::read(item, opts)?;
-            let instant = !matches!(parsed.zone, Zone::Naive);
-            return Ok(Some((parsed, instant)));
-        }
-        Err(crate::error_context::type_error(
-            "expected date/time text, date, datetime, NumPy datetime64 or a supported numeric tick",
-        ))
     }
+    finish(py, rows, requested, target, entry, policy)
+}
+
+#[pyfunction]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Prepared native String collection boundary"
+)]
+#[pyo3(signature=(data,policy,unit=None,default=None,yearfirst=None,dayfirst=None,isoformat=true,strict=false,cfg=None,target=None,entry="Pddt"))]
+fn _pddt_strings<'py>(
+    py: Python<'py>,
+    data: &Bound<'py, PyAny>,
+    policy: PyRef<'_, super::zones::Policies>,
+    unit: Option<&str>,
+    default: Option<&Bound<'py, PyAny>>,
+    yearfirst: Option<bool>,
+    dayfirst: Option<bool>,
+    isoformat: bool,
+    strict: bool,
+    cfg: Option<&Bound<'py, PyAny>>,
+    target: Option<&Bound<'py, PyAny>>,
+    entry: &str,
+) -> PyResult<Option<Prepared<'py>>> {
+    let requested = unit.map(Unit::parse).transpose()?;
+    if let Some(cfg) = cfg.filter(|value| !value.is_none()) {
+        cfg.cast::<Configs>().map_err(|_| {
+            crate::error_context::expected_type(cfg, entry, "cfg", "a Configs instance or None")
+        })?;
+    }
+    if !stable_default(default) {
+        return Ok(None);
+    }
+    if !epoch::is_polars_series(data) {
+        return Err(crate::error_context::expected_type(
+            data,
+            entry,
+            "data",
+            "a Polars Series",
+        ));
+    }
+    let source = data
+        .extract::<PySeries>()
+        .map_err(crate::error_context::external)?
+        .0;
+    let opts = Options {
+        default,
+        yearfirst,
+        dayfirst,
+        ignoretz: false,
+        isoformat,
+        strict,
+        iso_only: false,
+        cfg,
+        input_unit: requested.unwrap_or(Unit::Nanosecond),
+    };
+    if strict {
+        native_strings::<Nano<Strict>>(py, &source, &policy, requested, opts, target, entry)
+    } else {
+        native_strings::<Nano<Lenient>>(py, &source, &policy, requested, opts, target, entry)
+    }
+    .map(Some)
 }
 
 #[pyfunction]
@@ -312,6 +313,69 @@ fn _pddt_prepare<'py>(
         cfg,
         input_unit: numeric,
     };
+    // Only these native builtin iterators and exact scalar values can prove
+    // that no user callback changes configuration between text rows.
+    if stable_default(default) {
+        let simple =
+            |item: Bound<'_, PyAny>| item.is_none() || item.is_exact_instance_of::<PyString>();
+        if data.is_exact_instance_of::<PyList>() {
+            let values = data.cast::<PyList>()?;
+            if values.iter().all(simple) {
+                rows.reserve(values.len())?;
+                return if strict {
+                    plain_strings::<Nano<Strict>>(
+                        py,
+                        values.iter(),
+                        rows,
+                        opts,
+                        requested,
+                        target,
+                        entry,
+                        &policy,
+                    )
+                } else {
+                    plain_strings::<Nano<Lenient>>(
+                        py,
+                        values.iter(),
+                        rows,
+                        opts,
+                        requested,
+                        target,
+                        entry,
+                        &policy,
+                    )
+                };
+            }
+        } else if data.is_exact_instance_of::<PyTuple>() {
+            let values = data.cast::<PyTuple>()?;
+            if values.iter().all(simple) {
+                rows.reserve(values.len())?;
+                return if strict {
+                    plain_strings::<Nano<Strict>>(
+                        py,
+                        values.iter(),
+                        rows,
+                        opts,
+                        requested,
+                        target,
+                        entry,
+                        &policy,
+                    )
+                } else {
+                    plain_strings::<Nano<Lenient>>(
+                        py,
+                        values.iter(),
+                        rows,
+                        opts,
+                        requested,
+                        target,
+                        entry,
+                        &policy,
+                    )
+                };
+            }
+        }
+    }
     let mut reader = Reader::new(opts, rows.unit);
     let iterator = data
         .try_iter()
@@ -340,7 +404,7 @@ fn _pddt_prepare<'py>(
     clippy::too_many_arguments,
     reason = "Prepared buffer metadata boundary"
 )]
-#[pyo3(signature=(data,policy,source,multiplier=1,unit=None,source_zone=None,target=None,entry="Pddt"))]
+#[pyo3(signature=(data,policy,source,multiplier=1,unit=None,source_zone=None,target=None,entry="Pddt",mask=None))]
 fn _pddt_dates<'py>(
     py: Python<'py>,
     data: &[u8],
@@ -351,6 +415,7 @@ fn _pddt_dates<'py>(
     source_zone: Option<&Bound<'py, PyAny>>,
     target: Option<&Bound<'py, PyAny>>,
     entry: &str,
+    mask: Option<&[u8]>,
 ) -> PyResult<(Bound<'py, PyBytes>, &'static str, Py<PyAny>)> {
     let code = match source {
         "Y" => 0,
@@ -369,11 +434,12 @@ fn _pddt_dates<'py>(
             ));
         }
     };
-    if data.len() % 8 != 0 || multiplier < 1 {
+    if !data.len().is_multiple_of(8) || multiplier < 1 {
         return Err(crate::error_context::value_error(
             "invalid date buffer metadata",
         ));
     }
+    let validity = super::validity::TemporalValidity::new(mask, data.len() / 8)?;
     let requested = unit.map(Unit::parse).transpose()?;
     let mut rows = Rows::new(scalar_unit(code)?);
     let source_zone = source_zone.filter(|z| !z.is_none());
@@ -382,10 +448,10 @@ fn _pddt_dates<'py>(
     let native_scale = (multiplier == 1 && source_zone.is_none() && (7..=10).contains(&code))
         .then_some(rows.unit.nanos());
     let mut raw = [0; 8];
-    for (index, bytes) in data.chunks_exact(8).enumerate() {
+    for (index, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
         raw.copy_from_slice(bytes);
         let ticks = i64::from_ne_bytes(raw);
-        if ticks == i64::MIN {
+        if validity.missing(index, ticks) {
             rows.missing();
             continue;
         }
@@ -397,9 +463,10 @@ fn _pddt_dates<'py>(
             });
             continue;
         }
-        let mut parsed = epoch::numpy_ticks(ticks, code, multiplier).map_err(|error| {
-            crate::error_context::location(py, error, entry, &format!("data[{index}]"))
-        })?;
+        let mut parsed =
+            epoch::native_datetime_ticks(ticks, code, multiplier).map_err(|error| {
+                crate::error_context::location(py, error, entry, &format!("data[{index}]"))
+            })?;
         if let Some(zone) = source_zone {
             parsed.zone = Zone::Object(zone.clone().unbind());
         }
@@ -413,6 +480,7 @@ pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_pddt_result_type, module)?)?;
     module.add_function(wrap_pyfunction!(_pddt_register, module)?)?;
     module.add_function(wrap_pyfunction!(_pddt_prepare, module)?)?;
+    module.add_function(wrap_pyfunction!(_pddt_strings, module)?)?;
     module.add_function(wrap_pyfunction!(_pddt_dates, module)?)
 }
 

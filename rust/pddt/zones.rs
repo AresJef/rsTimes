@@ -2,7 +2,7 @@
 use crate::epoch::Unit;
 use crate::pydt;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDateTime, PyDelta, PyDeltaAccess, PyString};
+use pyo3::types::{PyBytes, PyDelta, PyDeltaAccess, PyString};
 
 #[derive(Clone, Copy)]
 enum Ambiguous {
@@ -169,12 +169,7 @@ pub(super) fn candidates(wall: i128, zone: &Bound<'_, PyAny>) -> PyResult<Candid
     }
 }
 
-#[derive(Clone, Copy)]
-pub(super) struct Pending {
-    pub first: i128,
-    pub second: i128,
-    pub zone: usize,
-}
+pub(super) use crate::local_infer::Pending;
 
 fn choose(
     policy: &Policies,
@@ -250,41 +245,12 @@ pub(super) fn localize(
     choose(policy, candidates(shifted, zone)?, index, zone_id, pending)
 }
 
-/// Infer within each consecutive ambiguous run in input order, never by sorting.
-/// One non-increasing step separates its first and second actual UTC candidates.
+/// Keep the adopted Python boundary while sharing its native inference rule.
 pub(super) fn infer(values: &mut [Option<i128>], pending: &[Option<Pending>]) -> PyResult<()> {
-    let mut start = 0;
-    while start < pending.len() {
-        let Some(first) = pending[start] else {
-            start += 1;
-            continue;
-        };
-        let mut end = start + 1;
-        while end < pending.len() && pending[end].is_some_and(|v| v.zone == first.zone) {
-            end += 1;
-        }
-        let mut switch = None;
-        for i in start + 1..end {
-            let previous = pending[i - 1]
-                .ok_or_else(|| crate::error_context::runtime("missing inference candidate"))?;
-            let current = pending[i]
-                .ok_or_else(|| crate::error_context::runtime("missing inference candidate"))?;
-            if current.first <= previous.first && switch.replace(i).is_some() {
-                return Err(crate::error_context::value_error(
-                    "cannot infer local time: multiple clock reversals occur within one repeated interval",
-                ));
-            }
-        }
-        let split=switch.ok_or_else(||crate::error_context::value_error(
-            "cannot infer this repeated local time from input order; provide a boolean or boolean collection"))?;
-        for i in start..end {
-            let item = pending[i]
-                .ok_or_else(|| crate::error_context::runtime("missing inference candidate"))?;
-            values[i] = Some(if i < split { item.first } else { item.second });
-        }
-        start = end;
-    }
-    Ok(())
+    crate::local_infer::infer(values, pending).map_err(|error| match error {
+        crate::local_infer::InferError::Data(message) => crate::error_context::value_error(message),
+        crate::local_infer::InferError::Internal(message) => crate::error_context::runtime(message),
+    })
 }
 
 /// Convert one known instant to wall coordinates without creating a Pddt.
@@ -295,39 +261,7 @@ pub(super) fn utc_wall(ns: i128, zone: &Bound<'_, PyAny>, offset: Option<i64>) -
     utc_local(ns, zone).map(|(_, _, wall)| wall)
 }
 
-/// Necessary dynamic protocol carrier, offset and wall value from one conversion.
-pub(super) fn utc_local<'py>(
-    ns: i128,
-    zone: &Bound<'py, PyAny>,
-) -> PyResult<(Bound<'py, PyDateTime>, i64, i128)> {
-    let py = zone.py();
-    let fields = crate::parser::objects::wide_microsecond_fields(ns.div_euclid(1000))?;
-    if !(1..=9999).contains(&fields[0]) {
-        return Err(crate::error_context::overflow(
-            "this dynamic fromutc protocol requires UTC years 1 through 9999",
-        ));
-    }
-    let carrier = pydt::wall_carrier(py, fields, zone)?;
-    let local = zone
-        .call_method1("fromutc", (carrier,))
-        .map_err(crate::error_context::external)?;
-    let local = local.cast_into::<PyDateTime>()?;
-    let f = pydt::parts(&local);
-    let offset = crate::epoch::offset_us(&pydt::utc_offset(&local)?)?.ok_or_else(|| {
-        crate::error_context::value_error("fromutc result has no valid UTC offset")
-    })?;
-    let ordinal = crate::calendar::checked_ordinal(f[0], f[1], f[2])
-        .map_err(crate::error_context::overflow)?;
-    let wall = (i128::from(ordinal) - 719_163) * super::common::NS_DAY
-        + ((i128::from(f[3]) * 60 + i128::from(f[4])) * 60 + i128::from(f[5])) * 1_000_000_000
-        + i128::from(f[6]) * 1000;
-    if wall - i128::from(offset) * 1000 != ns.div_euclid(1000) * 1000 {
-        return Err(crate::error_context::value_error(
-            "tzinfo.fromutc() did not preserve the actual instant",
-        ));
-    }
-    Ok((local, offset, wall + ns.rem_euclid(1000)))
-}
+pub(super) use crate::host_zone::utc_local;
 
 /// Decode actual UTC instants to local fields; pure fixed offsets avoid carriers.
 #[pyfunction]
@@ -339,13 +273,13 @@ fn _pddt_wall<'py>(
     entry: &str,
 ) -> PyResult<Bound<'py, PyBytes>> {
     let unit = Unit::parse(unit)?;
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::value_error("invalid date buffer"));
     }
     let object = crate::epoch::Zone::Object(zone.clone().unbind());
     let mut prepared = None;
     let mut values = Vec::with_capacity(data.len() / 8);
-    for (index, bytes) in data.chunks_exact(8).enumerate() {
+    for (index, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
         let mut raw = [0; 8];
         raw.copy_from_slice(bytes);
         let tick = i64::from_ne_bytes(raw);

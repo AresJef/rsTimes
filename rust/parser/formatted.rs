@@ -1,11 +1,15 @@
 //! Shared formatted date fields; only final target builders create Python dates.
-use super::{config::FormatRules, fields::Rule, text::TextView};
+use super::{
+    config::{FormatRules, FormattedRules},
+    fields::Rule,
+    text::TextView,
+};
 use crate::epoch::{Parsed, Unit, Zone};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyString};
 use std::collections::HashMap;
 
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 enum Step {
     Literal(Vec<u32>),
     Space,
@@ -18,7 +22,8 @@ enum Step {
 }
 
 /// Cached pure format structure, independent of live Configs and locale state.
-#[pyclass(frozen, name = "_StrptimeFormat")]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[pyclass(frozen, skip_from_py_object, name = "_StrptimeFormat")]
 pub(crate) struct Format {
     steps: Vec<Step>,
     label: String,
@@ -31,6 +36,26 @@ impl Format {
     #[getter]
     fn needs_locale(&self) -> bool {
         self.locale
+    }
+}
+
+impl Format {
+    /// Inspect already expanded structure, not the source label or locale text.
+    pub(crate) fn has_fraction(&self) -> bool {
+        self.steps
+            .iter()
+            .any(|step| matches!(step, Step::Field { code: 'f', .. }))
+    }
+    pub(crate) fn has_timezone(&self) -> bool {
+        self.steps.iter().any(|step| {
+            matches!(
+                step,
+                Step::Field {
+                    code: 'z' | 'Z',
+                    ..
+                }
+            )
+        })
     }
 }
 
@@ -243,16 +268,39 @@ fn system_word(format: &Format, code: char, input: &[u32]) -> Option<(i32, usize
 }
 
 fn decimal(c: u32) -> Option<i64> {
-    if (48..=57).contains(&c) {
-        return Some(i64::from(c - 48));
-    }
-    if c < 128 {
-        return None;
-    }
-    // SAFETY: CPython's public Unicode decimal macro accepts a code point and
-    // allocates no Python object. It preserves strptime's actual Unicode digits.
-    let digit = unsafe { pyo3::ffi::Py_UNICODE_TODECIMAL(c) };
-    (digit >= 0).then_some(i64::from(digit))
+    super::text::decimal(c)
+}
+
+/// Parsing errors carry only native data until their Python or Polars exit.
+#[derive(Debug)]
+pub(crate) enum FormatError {
+    Mismatch,
+    Value(String),
+    Overflow(String),
+    Runtime(String),
+}
+fn value_error(value: impl Into<String>) -> FormatError {
+    FormatError::Value(value.into())
+}
+fn overflow(value: impl Into<String>) -> FormatError {
+    FormatError::Overflow(value.into())
+}
+fn runtime(value: impl Into<String>) -> FormatError {
+    FormatError::Runtime(value.into())
+}
+
+/// A region carries a native identifier in workers and an already prepared
+/// registered owner in Python callers; directive semantics do not diverge.
+pub(crate) enum FormattedZone<R> {
+    Naive,
+    Offset(i64),
+    Region(R),
+}
+
+pub(crate) struct NativeOutput<R> {
+    pub(crate) fields: [i64; 7],
+    pub(crate) tail: i64,
+    pub(crate) zone: FormattedZone<R>,
 }
 
 fn numeric(code: char) -> bool {
@@ -309,7 +357,12 @@ fn minimum_numeric_tail(steps: &[Step]) -> usize {
     tail
 }
 
-fn read_number(input: &[u32], pos: &mut usize, code: char, tail: usize) -> PyResult<i64> {
+fn read_number(
+    input: &[u32],
+    pos: &mut usize,
+    code: char,
+    tail: usize,
+) -> Result<i64, FormatError> {
     if matches!(code, 'e' | 'k' | 'l') && input.get(*pos) == Some(&32) {
         *pos += 1;
     }
@@ -333,7 +386,7 @@ fn read_number(input: &[u32], pos: &mut usize, code: char, tail: usize) -> PyRes
     .min(available);
     let min = minimum(code);
     if max < min {
-        return Err(crate::error_context::value_error(
+        return Err(value_error(
             "numeric field does not match its strptime directive",
         ));
     }
@@ -358,21 +411,19 @@ fn read_number(input: &[u32], pos: &mut usize, code: char, tail: usize) -> PyRes
             value = value
                 .checked_mul(10)
                 .and_then(|v| v.checked_add(decimal(c)?))
-                .ok_or_else(|| {
-                    crate::error_context::overflow("formatted calendar field exceeds signed64")
-                })?;
+                .ok_or_else(|| overflow("formatted calendar field exceeds signed64"))?;
         }
         if negative {
             value = value
                 .checked_neg()
-                .ok_or_else(|| crate::error_context::overflow("formatted year exceeds signed64"))?;
+                .ok_or_else(|| overflow("formatted year exceeds signed64"))?;
         }
         if (bounds.0..=bounds.1).contains(&value) {
             *pos = begin + length;
             return Ok(value);
         }
     }
-    Err(crate::error_context::value_error(
+    Err(value_error(
         "numeric field is outside the range of its strptime directive",
     ))
 }
@@ -398,8 +449,7 @@ impl<'a> Context<'a> {
     }
 }
 
-#[derive(Default)]
-struct State {
+struct State<R> {
     year: Option<i64>,
     month: Option<i64>,
     day: Option<i64>,
@@ -414,8 +464,31 @@ struct State {
     week: Option<(i64, bool)>,
     iso_year: Option<i64>,
     iso_week: Option<i64>,
-    zone: Option<Zone>,
+    zone: Option<FormattedZone<R>>,
     numeric_offset: Option<i64>,
+}
+
+impl<R> Default for State<R> {
+    fn default() -> Self {
+        Self {
+            year: None,
+            month: None,
+            day: None,
+            hour: 0,
+            minute: 0,
+            second: 0,
+            nanos: 0,
+            hour12: false,
+            ampm: None,
+            doy: None,
+            weekday: None,
+            week: None,
+            iso_year: None,
+            iso_week: None,
+            zone: None,
+            numeric_offset: None,
+        }
+    }
 }
 
 /// Finished local fields, retaining native timezone metadata and submicroseconds.
@@ -445,52 +518,39 @@ impl Output {
     }
 }
 
-fn finished(mut state: State) -> PyResult<Output> {
+fn finished<R>(mut state: State<R>) -> Result<NativeOutput<R>, FormatError> {
     let year = state.year.unwrap_or(1900);
     let mut ymd = [year, state.month.unwrap_or(1), state.day.unwrap_or(1)];
     let ordinal = if let Some(iso) = state.iso_year {
         if state.doy.is_some() {
-            return Err(crate::error_context::value_error(
+            return Err(value_error(
                 "%G is incompatible with %j; use an ISO week and weekday",
             ));
         }
-        let week = state.iso_week.ok_or_else(|| {
-            crate::error_context::value_error("%G requires %V and a weekday directive")
-        })?;
-        let weekday = state.weekday.ok_or_else(|| {
-            crate::error_context::value_error("%G requires %V and a weekday directive")
-        })?;
-        let jan1 =
-            crate::calendar::checked_ordinal(iso, 1, 1).map_err(crate::error_context::overflow)?;
+        let week = state
+            .iso_week
+            .ok_or_else(|| value_error("%G requires %V and a weekday directive"))?;
+        let weekday = state
+            .weekday
+            .ok_or_else(|| value_error("%G requires %V and a weekday directive"))?;
+        let jan1 = crate::calendar::checked_ordinal(iso, 1, 1).map_err(overflow)?;
         let wd = (jan1 - 1).rem_euclid(7);
         let last = 52 + i64::from(wd == 3 || (wd == 2 && crate::calendar::leap(iso)));
         if week > last {
-            return Err(crate::error_context::value_error(
-                "invalid ISO week for this year",
-            ));
+            return Err(value_error("invalid ISO week for this year"));
         }
-        Some(
-            crate::calendar::iso_ordinal(iso, week, weekday + 1)
-                .map_err(crate::error_context::overflow)?,
-        )
+        Some(crate::calendar::iso_ordinal(iso, week, weekday + 1).map_err(overflow)?)
     } else if state.iso_week.is_some() {
-        return Err(crate::error_context::value_error(
-            "%V requires %G and a weekday directive",
-        ));
+        return Err(value_error("%V requires %G and a weekday directive"));
     } else if let Some(day) = state.doy {
         Some(
             crate::calendar::checked_ordinal(year, 1, 1)
-                .map_err(crate::error_context::overflow)?
+                .map_err(overflow)?
                 .checked_add(day - 1)
-                .ok_or_else(|| {
-                    crate::error_context::overflow(
-                        "formatted day-of-year exceeds calendar capacity",
-                    )
-                })?,
+                .ok_or_else(|| overflow("formatted day-of-year exceeds calendar capacity"))?,
         )
     } else if let (Some((week, monday)), Some(weekday)) = (state.week, state.weekday) {
-        let first =
-            crate::calendar::checked_ordinal(year, 1, 1).map_err(crate::error_context::overflow)?;
+        let first = crate::calendar::checked_ordinal(year, 1, 1).map_err(overflow)?;
         let mut first_weekday = (first - 1).rem_euclid(7);
         let mut weekday = weekday;
         if !monday {
@@ -503,29 +563,29 @@ fn finished(mut state: State) -> PyResult<Output> {
         } else {
             before + (week - 1) * 7 + weekday
         };
-        Some(first.checked_add(day).ok_or_else(|| {
-            crate::error_context::overflow("formatted week exceeds calendar capacity")
-        })?)
+        Some(
+            first
+                .checked_add(day)
+                .ok_or_else(|| overflow("formatted week exceeds calendar capacity"))?,
+        )
     } else {
         None
     };
     if let Some(ordinal) = ordinal {
-        ymd = crate::calendar::from_ordinal(ordinal).map_err(crate::error_context::overflow)?;
+        ymd = crate::calendar::from_ordinal(ordinal).map_err(overflow)?;
     }
     if !(1..=12).contains(&ymd[1])
         || !(1..=crate::calendar::days_in_month(ymd[0], ymd[1])).contains(&ymd[2])
     {
-        return Err(crate::error_context::value_error(
-            "day is out of range for month",
-        ));
+        return Err(value_error("day is out of range for month"));
     }
     if state.hour12 {
         state.hour = state.hour % 12 + if state.ampm == Some(1) { 12 } else { 0 };
     }
     if state.second > 59 {
-        return Err(crate::error_context::value_error("second must be in 0..59"));
+        return Err(value_error("second must be in 0..59"));
     }
-    Ok(Output {
+    Ok(NativeOutput {
         fields: [
             ymd[0],
             ymd[1],
@@ -537,27 +597,29 @@ fn finished(mut state: State) -> PyResult<Output> {
         ],
         tail: state.nanos % 1000,
         zone: match state.zone {
-            Some(region @ Zone::Object(_)) => region,
+            Some(region @ FormattedZone::Region(_)) => region,
             other => state
                 .numeric_offset
-                .map(Zone::Offset)
+                .map(FormattedZone::Offset)
                 .or(other)
-                .unwrap_or(Zone::Naive),
+                .unwrap_or(FormattedZone::Naive),
         },
     })
 }
 
 /// Read one exact format; no ordinary parser guessing, fallback or Python date.
-pub(crate) fn read(context: &Context<'_>, text: &Bound<'_, PyString>) -> PyResult<Output> {
-    let view = TextView::new(text)?;
-    let input = view.range(0, view.len());
+pub(crate) fn read_native<R: FormattedRules>(
+    format: &Format,
+    rules: &R,
+    input: &[u32],
+) -> Result<NativeOutput<R::Region>, FormatError> {
     let mut state = State::default();
     let mut pos = 0;
-    for step in &context.format.steps {
+    for step in &format.steps {
         match step {
             Step::Literal(value) => {
                 if !input[pos..].starts_with(value) {
-                    return Err(mismatch(text, &context.format.label));
+                    return Err(FormatError::Mismatch);
                 }
                 pos += value.len();
             }
@@ -570,22 +632,20 @@ pub(crate) fn read(context: &Context<'_>, text: &Bound<'_, PyString>) -> PyResul
                     pos += 1;
                 }
                 if begin == pos {
-                    return Err(mismatch(text, &context.format.label));
+                    return Err(FormatError::Mismatch);
                 }
             }
             Step::Composite(c) => {
-                return Err(crate::error_context::runtime(format!(
-                    "unexpanded locale directive %{c}"
-                )));
+                return Err(runtime(format!("unexpanded locale directive %{c}")));
             }
             Step::Field { code, system, tail } => {
                 let tail = *tail;
                 if numeric(*code) && *code != 'f' {
-                    let value = read_number(&input, &mut pos, *code, tail).map_err(|e| {
-                        if e.is_instance_of::<pyo3::exceptions::PyOverflowError>(text.py()) {
+                    let value = read_number(input, &mut pos, *code, tail).map_err(|e| {
+                        if matches!(e, FormatError::Overflow(_)) {
                             e
                         } else {
-                            mismatch(text, &context.format.label)
+                            FormatError::Mismatch
                         }
                     })?;
                     match code {
@@ -619,7 +679,7 @@ pub(crate) fn read(context: &Context<'_>, text: &Bound<'_, PyString>) -> PyResul
                         .count();
                     let count = run.saturating_sub(tail);
                     if count == 0 {
-                        return Err(mismatch(text, &context.format.label));
+                        return Err(FormatError::Mismatch);
                     }
                     let mut ns = 0;
                     for &c in &input[pos..pos + count.min(9)] {
@@ -637,11 +697,11 @@ pub(crate) fn read(context: &Context<'_>, text: &Bound<'_, PyString>) -> PyResul
                     };
                     if let Some(rule) = rule {
                         let (value, count) = if *system {
-                            system_word(context.format, *code, &input[pos..])
+                            system_word(format, *code, &input[pos..])
                         } else {
-                            context.rules.word(rule, &input[pos..])
+                            rules.word(rule, &input[pos..])
                         }
-                        .ok_or_else(|| mismatch(text, &context.format.label))?;
+                        .ok_or(FormatError::Mismatch)?;
                         pos += count;
                         match code {
                             'b' | 'B' => state.month = Some(i64::from(value)),
@@ -650,29 +710,29 @@ pub(crate) fn read(context: &Context<'_>, text: &Bound<'_, PyString>) -> PyResul
                             _ => {}
                         }
                     } else if *code == 'Z' {
-                        if let Some((registered, count)) = context.rules.region(&input[pos..]) {
-                            state.zone=Some(Zone::Object(registered.object.as_ref().ok_or_else(||crate::error_context::value_error("registered %Z region is unavailable; restore its timezone data"))?.clone_ref(text.py())));
+                        if let Some((registered, count)) = rules.region(&input[pos..]) {
+                            if !R::available(&registered) {
+                                return Err(value_error(
+                                    "registered %Z region is unavailable; restore its timezone data",
+                                ));
+                            }
+                            state.zone = Some(FormattedZone::Region(registered));
                             pos += count;
-                        } else if let Some((_, count)) =
-                            context.rules.word(Rule::Utc, &input[pos..])
-                        {
-                            state.zone = Some(Zone::Offset(0));
+                        } else if let Some((_, count)) = rules.word(Rule::Utc, &input[pos..]) {
+                            state.zone = Some(FormattedZone::Offset(0));
                             pos += count;
-                        } else if let Some((seconds, count)) =
-                            context.rules.word(Rule::Tz, &input[pos..])
-                        {
-                            state.zone = Some(Zone::Offset(i64::from(seconds) * 1_000_000));
+                        } else if let Some((seconds, count)) = rules.word(Rule::Tz, &input[pos..]) {
+                            state.zone =
+                                Some(FormattedZone::Offset(i64::from(seconds) * 1_000_000));
                             pos += count;
                         } else {
-                            return Err(crate::error_context::value_error(
+                            return Err(value_error(
                                 "%Z name is unknown; register it with Configs.add_tzone/add_tzoffset, or use %z for a numeric offset",
                             ));
                         }
                     } else if *code == 'z' {
-                        state.numeric_offset = Some(
-                            offset(&input, &mut pos)
-                                .map_err(|_| mismatch(text, &context.format.label))?,
-                        );
+                        state.numeric_offset =
+                            Some(offset(input, &mut pos).map_err(|_| FormatError::Mismatch)?);
                     }
                 }
             }
@@ -684,11 +744,46 @@ pub(crate) fn read(context: &Context<'_>, text: &Bound<'_, PyString>) -> PyResul
             .take(120)
             .map(|v| char::from_u32(*v).unwrap_or('\u{fffd}'))
             .collect();
-        return Err(crate::error_context::value_error(format!(
-            "unconverted data remains: {rest}"
-        )));
+        return Err(value_error(format!("unconverted data remains: {rest}")));
     }
     finished(state)
+}
+/// Read with the CPython character view and convert only the completed result
+/// and error at the existing public boundary. No worker calls this adapter.
+pub(crate) fn read(context: &Context<'_>, text: &Bound<'_, PyString>) -> PyResult<Output> {
+    let view = TextView::new(text)?;
+    let input = view.range(0, view.len());
+    let parsed = read_native(context.format, &context.rules, &input)
+        .map_err(|error| python_error(error, text, &context.format.label))?;
+    let zone = match parsed.zone {
+        FormattedZone::Naive => Zone::Naive,
+        FormattedZone::Offset(value) => Zone::Offset(value),
+        FormattedZone::Region(value) => Zone::Object(
+            value
+                .object
+                .as_ref()
+                .ok_or_else(|| {
+                    crate::error_context::value_error(
+                        "registered %Z region is unavailable; restore its timezone data",
+                    )
+                })?
+                .clone_ref(text.py()),
+        ),
+    };
+    Ok(Output {
+        fields: parsed.fields,
+        tail: parsed.tail,
+        zone,
+    })
+}
+
+fn python_error(error: FormatError, text: &Bound<'_, PyString>, format: &str) -> PyErr {
+    match error {
+        FormatError::Mismatch => mismatch(text, format),
+        FormatError::Value(message) => crate::error_context::value_error(message),
+        FormatError::Overflow(message) => crate::error_context::overflow(message),
+        FormatError::Runtime(message) => crate::error_context::runtime(message),
+    }
 }
 
 fn mismatch(text: &Bound<'_, PyString>, fmt: &str) -> PyErr {
@@ -701,7 +796,7 @@ fn mismatch(text: &Bound<'_, PyString>, fmt: &str) -> PyErr {
     }
 }
 
-fn offset(input: &[u32], pos: &mut usize) -> PyResult<i64> {
+fn offset(input: &[u32], pos: &mut usize) -> Result<i64, FormatError> {
     if input.get(*pos) == Some(&90) {
         *pos += 1;
         return Ok(0);
@@ -709,18 +804,18 @@ fn offset(input: &[u32], pos: &mut usize) -> PyResult<i64> {
     let negative = match input.get(*pos) {
         Some(45) => true,
         Some(43) => false,
-        _ => return Err(crate::error_context::value_error("invalid %z sign")),
+        _ => return Err(value_error("invalid %z sign")),
     };
     *pos += 1;
-    let pair = |position: &mut usize| -> PyResult<i64> {
+    let pair = |position: &mut usize| -> Result<i64, FormatError> {
         let a = input
             .get(*position)
             .and_then(|v| decimal(*v))
-            .ok_or_else(|| crate::error_context::value_error("incomplete %z offset"))?;
+            .ok_or_else(|| value_error("incomplete %z offset"))?;
         let b = input
             .get(*position + 1)
             .and_then(|v| decimal(*v))
-            .ok_or_else(|| crate::error_context::value_error("incomplete %z offset"))?;
+            .ok_or_else(|| value_error("incomplete %z offset"))?;
         *position += 2;
         Ok(a * 10 + b)
     };
@@ -746,14 +841,12 @@ fn offset(input: &[u32], pos: &mut usize) -> PyResult<i64> {
             *pos += 1;
         }
         if *pos == start {
-            return Err(crate::error_context::value_error("empty %z fraction"));
+            return Err(value_error("empty %z fraction"));
         }
         us *= 10_i64.pow((6 - (*pos - start)) as u32);
     }
     if h > 23 || m > 59 || s > 59 {
-        return Err(crate::error_context::value_error(
-            "%z offset outside one day",
-        ));
+        return Err(value_error("%z offset outside one day"));
     }
     let value = ((h * 60 + m) * 60 + s) * 1_000_000 + us;
     Ok(if negative { -value } else { value })
@@ -761,4 +854,111 @@ fn offset(input: &[u32], pos: &mut usize) -> PyResult<i64> {
 
 pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_strptime_compile, module)?)
+}
+
+#[cfg(test)]
+mod native_tests {
+    use super::*;
+    use crate::parser::config::NativeRules;
+    use std::collections::HashSet;
+
+    fn format(text: &str) -> Format {
+        let mut steps = Vec::new();
+        compile(text, &mut steps, &mut HashSet::new(), None, false, 0).unwrap();
+        for i in 0..steps.len() {
+            let tail = minimum_numeric_tail(&steps[i + 1..]);
+            if let Step::Field { tail: stored, .. } = &mut steps[i] {
+                *stored = tail;
+            }
+        }
+        Format {
+            steps,
+            label: text.into(),
+            locale: false,
+            system_words: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn formatted_workers_share_calendar_unicode_and_precision_without_python() {
+        fn send_sync<T: Send + Sync>() {}
+        send_sync::<Format>();
+        send_sync::<NativeRules>();
+        let rules = NativeRules::library();
+        for (fmt, text, fields, tail) in [
+            (
+                "%Y-%m-%d %H:%M:%S.%f",
+                "2024-01-02 12:34:56.123456789987",
+                [2024, 1, 2, 12, 34, 56, 123456],
+                789,
+            ),
+            ("%Y1-%m-%d", "20241-01-02", [2024, 1, 2, 0, 0, 0, 0], 0),
+            ("%Y-%m-%d", "٢٠٢٤-٠١-٠٢", [2024, 1, 2, 0, 0, 0, 0], 0),
+            ("%d %B %Y", "14 février 2024", [2024, 2, 14, 0, 0, 0, 0], 0),
+            ("%G-W%V-%u", "2020-W53-7", [2021, 1, 3, 0, 0, 0, 0], 0),
+            ("%Y-%m-%d", "0000-02-29", [0, 2, 29, 0, 0, 0, 0], 0),
+            ("%Y-%m-%d", "-0001-01-02", [-1, 1, 2, 0, 0, 0, 0], 0),
+        ] {
+            let result = read_native(
+                &format(fmt),
+                &rules,
+                &text.chars().map(u32::from).collect::<Vec<_>>(),
+            )
+            .unwrap();
+            assert_eq!(result.fields, fields, "{text}");
+            assert_eq!(result.tail, tail, "{text}");
+        }
+        let fmt = format("%Y-%m-%d %z");
+        let value = read_native(
+            &fmt,
+            &rules,
+            &"2024-01-02 +08:00"
+                .chars()
+                .map(u32::from)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        assert!(matches!(value.zone, FormattedZone::Offset(28_800_000_000)));
+    }
+
+    #[test]
+    fn formatted_native_errors_and_snapshot_are_not_python_fallbacks() {
+        let mut data = NativeRules::library().data();
+        data.tables[4] = Some(vec![("Jan".chars().map(u32::from).collect(), 2)]);
+        data.regions.push((
+            "Unavailable/Place".chars().map(u32::from).collect(),
+            crate::parser::config::NativeRegion {
+                key: "Unavailable/Place".into(),
+                available: false,
+                fixed_offset_us: None,
+            },
+        ));
+        let rules = NativeRules::from_data(data).unwrap();
+        let parsed = read_native(
+            &format("%d %b %Y"),
+            &rules,
+            &"14 Jan 2024".chars().map(u32::from).collect::<Vec<_>>(),
+        )
+        .unwrap();
+        assert_eq!(parsed.fields[1], 2);
+        for (fmt, text) in [
+            ("%Y-%m-%d", "2024-02-30"),
+            ("%Y-%m-%d", "2024-13-01"),
+            ("%Y-%m-%d %Z", "2024-01-01 Unknown"),
+            ("%Y-%m-%d %Z", "2024-01-01 Unavailable/Place"),
+        ] {
+            assert!(
+                read_native(
+                    &format(fmt),
+                    &rules,
+                    &text.chars().map(u32::from).collect::<Vec<_>>()
+                )
+                .is_err(),
+                "{text}"
+            );
+        }
+        let mut invalid = rules.data();
+        invalid.tables[4].as_mut().unwrap().push((vec![65], 99));
+        assert!(NativeRules::from_data(invalid).is_err());
+    }
 }

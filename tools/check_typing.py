@@ -14,8 +14,10 @@ def main():
     fixtures = (
         ("public_valid.py", set()),
         ("astra_configs_valid.py", set()),
+        ("pldt_valid.py", set()),
         ("public_invalid.py", set(range(2, 14)) | {15, 16}),
         ("astra_configs_invalid.py", set(range(9, 29))),
+        ("pldt_invalid.py", set(range(3, 17))),
     )
     rows = []
     for filename, expected in fixtures:

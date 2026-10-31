@@ -145,25 +145,7 @@ impl Rows {
 
 /// Fixed zones are prepared once per zone, never once per date.
 pub(super) fn fixed_offset(py: Python<'_>, zone: &Zone) -> PyResult<Option<i64>> {
-    match zone {
-        Zone::Naive => Ok(Some(0)),
-        Zone::Offset(us) => Ok(Some(*us)),
-        Zone::Object(value) => {
-            let zone = value.bind(py);
-            // SAFETY: datetime's initialized capsule owns its standard UTC object.
-            let fixed = unsafe {
-                ffi::Py_TYPE(zone.as_ptr()) == ffi::Py_TYPE((*ffi::PyDateTimeAPI()).TimeZone_UTC)
-            };
-            if fixed {
-                return crate::epoch::offset_us(
-                    &zone
-                        .call_method1("utcoffset", (py.None(),))
-                        .map_err(crate::error_context::external)?,
-                );
-            }
-            crate::pydt::fixed_zoneinfo_offset(zone)
-        }
-    }
+    crate::date_input::fixed_offset(py, zone)
 }
 
 pub(super) fn same_zone(py: Python<'_>, a: &Zone, b: &Zone) -> PyResult<bool> {
@@ -207,7 +189,11 @@ pub(super) fn pack<'py>(
         .checked_mul(8)
         .ok_or_else(|| crate::error_context::overflow("date array is too large"))?;
     PyBytes::new_with(py, size, |bytes| {
-        for (i, (value, out)) in values.iter().zip(bytes.chunks_exact_mut(8)).enumerate() {
+        for (i, (value, out)) in values
+            .iter()
+            .zip(bytes.as_chunks_mut::<8>().0.iter_mut())
+            .enumerate()
+        {
             let tick = if let Some(ns) = value {
                 if lossless && ns.rem_euclid(unit.nanos()) != 0 {
                     return Err(crate::error_context::location(

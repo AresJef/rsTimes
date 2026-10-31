@@ -1,9 +1,9 @@
 //! Integer calendar frequencies, independent of pandas versions and date objects.
-use super::common::NS_DAY;
+const NS_DAY: i128 = 86_400_000_000_000;
 const OVERFLOW: &str = "date_range calendar arithmetic overflow";
 
 #[derive(Clone)]
-pub(super) struct Business {
+pub(crate) struct Business {
     pub mask: [bool; 7],
     pub holidays: Vec<i64>,
 }
@@ -62,7 +62,7 @@ impl Business {
 }
 
 #[derive(Clone)]
-pub(super) enum Kind {
+pub(crate) enum Kind {
     Fixed(i128),
     Days,
     Week(Option<i64>),
@@ -85,7 +85,7 @@ pub(super) enum Kind {
 }
 
 #[derive(Clone)]
-pub(super) struct Frequency {
+pub(crate) struct Frequency {
     pub kind: Kind,
     pub n: i64,
     pub normalize: bool,
@@ -314,5 +314,42 @@ impl Frequency {
         } else {
             shifted
         })
+    }
+}
+
+use crate::epoch::Unit;
+use pyo3::prelude::*;
+#[pyclass(frozen, name = "_RangeFrequency")]
+pub(crate) struct Plan {
+    pub(crate) frequency: Frequency,
+    pub(crate) precision: Unit,
+}
+#[pymethods]
+impl Plan {
+    #[getter]
+    fn rounding_step(&self) -> Option<i128> {
+        match self.frequency.kind {
+            Kind::Fixed(value) => Some(value),
+            Kind::Days => Some(i128::from(self.frequency.n) * 86_400_000_000_000),
+            _ => None,
+        }
+    }
+    #[getter]
+    pub(crate) fn tick(&self) -> Option<i128> {
+        if let Kind::Fixed(value) = self.frequency.kind {
+            Some(value)
+        } else {
+            None
+        }
+    }
+}
+
+impl Plan {
+    pub(crate) fn required_unit(&self) -> Unit {
+        let fraction = match self.frequency.kind {
+            Kind::Fixed(value) => value,
+            _ => self.frequency.offset,
+        };
+        self.precision.max(crate::precision::quantum_unit(fraction))
     }
 }
