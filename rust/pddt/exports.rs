@@ -89,7 +89,7 @@ fn _pddt_export<'py>(
     entry: &str,
     utc: bool,
 ) -> PyResult<Output<'py>> {
-    if data.len() % 8 != 0 || kind > 5 {
+    if !data.len().is_multiple_of(8) || kind > 5 {
         return Err(crate::error_context::runtime("invalid export metadata"));
     }
     let unit = Unit::parse(unit)?;
@@ -107,14 +107,13 @@ fn _pddt_export<'py>(
     let mut local_zone = None;
     let packed = PyBytes::new_with(py, size, |out| {
         for (i, (raw, out)) in data
-            .chunks_exact(8)
+            .as_chunks::<8>()
+            .0
+            .iter()
             .zip(out.chunks_exact_mut(if kind >= 4 { 72 } else { 8 }))
             .enumerate()
         {
-            let tick = i64::from_ne_bytes(
-                raw.try_into()
-                    .map_err(|_| crate::error_context::runtime("invalid export tick"))?,
-            );
+            let tick = i64::from_ne_bytes(*raw);
             if tick == i64::MIN {
                 if kind == 0 || kind == 3 {
                     out.copy_from_slice(&f64::NAN.to_ne_bytes());
@@ -201,7 +200,7 @@ fn _pddt_export<'py>(
                         ordinal - start + 1,
                         dst,
                     ];
-                    for (cell, value) in out.chunks_exact_mut(8).zip(values) {
+                    for (cell, value) in out.as_chunks_mut::<8>().0.iter_mut().zip(values) {
                         cell.copy_from_slice(&value.to_ne_bytes());
                     }
                 }
@@ -232,11 +231,8 @@ fn objects<'py, const K: u8>(
 ) -> PyResult<Bound<'py, PyList>> {
     let out = PyList::empty(py);
     let mut fixed_name = None;
-    for (i, raw) in data.chunks_exact(8).enumerate() {
-        let tick = i64::from_ne_bytes(
-            raw.try_into()
-                .map_err(|_| crate::error_context::runtime("invalid object tick"))?,
-        );
+    for (i, raw) in data.as_chunks::<8>().0.iter().enumerate() {
+        let tick = i64::from_ne_bytes(*raw);
         if tick == i64::MIN {
             out.append(if K <= 3 {
                 super::prepare::nat(py)?
@@ -382,7 +378,7 @@ fn _pddt_objects<'py>(
     option: Option<&Bound<'py, PyAny>>,
     timespec: Option<&Bound<'py, PyAny>>,
 ) -> PyResult<Bound<'py, PyList>> {
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime(
             "invalid object export buffer",
         ));

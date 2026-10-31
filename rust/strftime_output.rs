@@ -80,7 +80,7 @@ fn _pddt_strftime<'py>(
     zone: &Bound<'py, PyAny>,
     context: PyRef<'_, Context>,
 ) -> PyResult<Bound<'py, PyList>> {
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime("invalid date output buffer"));
     }
     let timestamp = crate::interop::timestamp_class(py)?;
@@ -89,11 +89,8 @@ fn _pddt_strftime<'py>(
     kwargs.set_item("unit", unit)?;
     kwargs.set_item("tz", zone)?;
     let out = PyList::empty(py);
-    for (row, raw) in data.chunks_exact(8).enumerate() {
-        let tick = i64::from_ne_bytes(
-            raw.try_into()
-                .map_err(|_| crate::error_context::runtime("invalid tick"))?,
-        );
+    for (row, raw) in data.as_chunks::<8>().0.iter().enumerate() {
+        let tick = i64::from_ne_bytes(*raw);
         let result = (|| -> PyResult<()> {
             if tick == i64::MIN {
                 out.append(f64::NAN)?;

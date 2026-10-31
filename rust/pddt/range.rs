@@ -56,10 +56,8 @@ fn _pddt_frequency(kind: &str, n: i64, props: &Bound<'_, PyDict>) -> PyResult<Pl
         if bytes.len() % 8 != 0 {
             return Err(crate::error_context::runtime("invalid holiday snapshot"));
         }
-        for bytes in bytes.chunks_exact(8) {
-            let raw: [u8; 8] = bytes
-                .try_into()
-                .map_err(|_| crate::error_context::runtime("invalid holiday bytes"))?;
+        for bytes in bytes.as_chunks::<8>().0.iter() {
+            let raw: [u8; 8] = *bytes;
             let value = i64::from_ne_bytes(raw);
             if value != i64::MIN && mask[Business::weekday(i128::from(value))] {
                 holidays.push(value);
@@ -252,10 +250,10 @@ fn _pddt_range<'py>(
         py, start, end, &policy, unit, target, normalize, default, yearfirst, dayfirst, isoformat,
         strict, cfg, calendar, tick,
     )?;
-    if unit.is_none() {
-        if let Some(plan) = &plan {
-            inputs.unit = inputs.unit.max(plan.precision);
-        }
+    if unit.is_none()
+        && let Some(plan) = &plan
+    {
+        inputs.unit = inputs.unit.max(plan.precision);
     }
     let target = (!inputs.zone.bind(py).is_none()).then(|| inputs.zone.bind(py));
     _pddt_range_sequence(
@@ -640,7 +638,7 @@ fn _pddt_range_external<'py>(
             ));
         }
     };
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime(
             "invalid generated date buffer",
         ));
@@ -652,10 +650,8 @@ fn _pddt_range_external<'py>(
     rows.reserve(count)?;
     let mut first = None;
     let mut last = None;
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid generated date item"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let value = i64::from_ne_bytes(raw);
         if value == i64::MIN {
             rows.missing();

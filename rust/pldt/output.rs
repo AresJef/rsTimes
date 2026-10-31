@@ -498,10 +498,16 @@ fn _pldt_check_temporal(
             ));
         }
     };
-    // Both Series owners remain live while the GIL is released.
+    // The actual pandas result may expose ordinary writable storage. Read that
+    // host-owned representation while attached, then detach only with our own
+    // complete values/validity snapshot. Ownership alone does not freeze aliases.
+    let mut values = Vec::with_capacity(target.0.len());
+    super::input::visit_nanos(&target.0, |_, value| {
+        values.push(value);
+        Ok(())
+    })
+    .map_err(|e| e.python(py, "Pldt.to_pandas"))?;
     py.detach(||{
-        let mut values=Vec::with_capacity(target.0.len());
-        super::input::visit_nanos(&target.0,|_,v|{values.push(v);Ok(())})?;
         super::input::visit_nanos(&source.0,|row,value|{
             let actual=values[row];
             if value==actual||allow.0&&actual.is_none()&&value==Some(i128::from(i64::MIN)*quantum){return Ok(());}

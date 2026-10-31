@@ -288,17 +288,16 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
             + i128::from(microsecond) * 1000
             + result.nanos.rem_euclid(1000);
         result.zone = Zone::Naive;
-        if !opts.ignoretz {
-            if let Some(tz) = value.cast::<PyDateTime>()?.get_tzinfo() {
-                if let Some(offset) = offset_us(
-                    &value
-                        .call_method0("utcoffset")
-                        .map_err(crate::error_context::external)?,
-                )? {
-                    result.nanos -= i128::from(offset) * 1000;
-                    result.zone = Zone::Object(tz.into_any().unbind());
-                }
-            }
+        if !opts.ignoretz
+            && let Some(tz) = value.cast::<PyDateTime>()?.get_tzinfo()
+            && let Some(offset) = offset_us(
+                &value
+                    .call_method0("utcoffset")
+                    .map_err(crate::error_context::external)?,
+            )?
+        {
+            result.nanos -= i128::from(offset) * 1000;
+            result.zone = Zone::Object(tz.into_any().unbind());
         }
         return Ok(result);
     }
@@ -321,20 +320,21 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
                     + i128::from(ffi::PyDateTime_DATE_GET_SECOND(ptr)))
                     * 1_000_000_000
                     + i128::from(ffi::PyDateTime_DATE_GET_MICROSECOND(ptr)) * 1000;
-                if !opts.ignoretz && ffi::PyDateTime_DATE_GET_TZINFO(ptr) != ffi::Py_None() {
-                    if let Some(offset) = offset_us(
+                if !opts.ignoretz
+                    && ffi::PyDateTime_DATE_GET_TZINFO(ptr) != ffi::Py_None()
+                    && let Some(offset) = offset_us(
                         &value
                             .call_method0("utcoffset")
                             .map_err(crate::error_context::external)?,
-                    )? {
-                        ns -= i128::from(offset) * 1000;
-                        zone = Zone::Object(
-                            value
-                                .getattr("tzinfo")
-                                .map_err(crate::error_context::external)?
-                                .unbind(),
-                        );
-                    }
+                    )?
+                {
+                    ns -= i128::from(offset) * 1000;
+                    zone = Zone::Object(
+                        value
+                            .getattr("tzinfo")
+                            .map_err(crate::error_context::external)?
+                            .unbind(),
+                    );
                 }
             }
             return Ok(Parsed {

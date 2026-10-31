@@ -42,7 +42,7 @@ fn _pldt_core(py: Python<'_>, source: PySeries, sorted: u8) -> PyResult<Core<'_>
         for (row, (value, out)) in dates
             .physical()
             .iter()
-            .zip(bytes.chunks_exact_mut(8))
+            .zip(bytes.as_chunks_mut::<8>().0.iter_mut())
             .enumerate()
         {
             out.copy_from_slice(&value.unwrap_or(0).to_le_bytes());
@@ -116,7 +116,7 @@ fn _pldt_restore_core<'py>(
     target: &Bound<'py, PyAny>,
 ) -> PyResult<(Bound<'py, PyAny>, u8)> {
     let py = target.py();
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::value_error(
             "state.values length must be a multiple of eight bytes",
         ));
@@ -127,7 +127,7 @@ fn _pldt_restore_core<'py>(
             "state.validity length must match the date row count",
         ));
     }
-    if count % 8 != 0
+    if !count.is_multiple_of(8)
         && !validity.is_empty()
         && validity[validity.len() - 1] & !((1u8 << (count % 8)) - 1) != 0
     {
@@ -146,15 +146,20 @@ fn _pldt_restore_core<'py>(
         crate::temporal_zone::Zone::named(zone).map_err(crate::error_context::value_error)?;
     }
     let timezone = TimeZone::opt_try_new(zone).map_err(super::eager_error)?;
-    let values = data.chunks_exact(8).enumerate().map(|(row, raw)| {
-        if !validity.is_empty() && validity[row / 8] & (1 << (row % 8)) == 0 {
-            None
-        } else {
-            let mut bytes = [0; 8];
-            bytes.copy_from_slice(raw);
-            Some(i64::from_le_bytes(bytes))
-        }
-    });
+    let values = data
+        .as_chunks::<8>()
+        .0
+        .iter()
+        .enumerate()
+        .map(|(row, raw)| {
+            if !validity.is_empty() && validity[row / 8] & (1 << (row % 8)) == 0 {
+                None
+            } else {
+                let mut bytes = [0; 8];
+                bytes.copy_from_slice(raw);
+                Some(i64::from_le_bytes(bytes))
+            }
+        });
     let result = build(
         values,
         count,

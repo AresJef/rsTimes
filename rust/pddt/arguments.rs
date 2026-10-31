@@ -42,14 +42,12 @@ fn _pddt_integers(
             return Err(crate::error_context::runtime("invalid integer storage"));
         }
         let mut values = Vec::with_capacity(bytes.len() / 8);
-        for (i, bytes) in bytes.chunks_exact(8).enumerate() {
+        for (i, bytes) in bytes.as_chunks::<8>().0.iter().enumerate() {
             if mask.is_some_and(|m| m[i] != 0) {
                 values.push(None);
                 continue;
             }
-            let raw: [u8; 8] = bytes
-                .try_into()
-                .map_err(|_| crate::error_context::runtime("invalid integer bytes"))?;
+            let raw: [u8; 8] = *bytes;
             let result = match kind {
                 "i" => Some(i64::from_ne_bytes(raw)),
                 "u" => Some(i64::try_from(u64::from_ne_bytes(raw)).map_err(|_| {
@@ -198,7 +196,7 @@ fn _pddt_component(
             ));
         }
         let mut out = Vec::with_capacity(length);
-        for (i, bytes) in bytes.chunks_exact(8).enumerate() {
+        for (i, bytes) in bytes.as_chunks::<8>().0.iter().enumerate() {
             if mask.is_some_and(|m| m[i] != 0) {
                 return Err(crate::error_context::location(
                     py,
@@ -209,9 +207,7 @@ fn _pddt_component(
                     &format!("{parameter}[{i}]"),
                 ));
             }
-            let raw: [u8; 8] = bytes
-                .try_into()
-                .map_err(|_| crate::error_context::runtime("invalid component bytes"))?;
+            let raw: [u8; 8] = *bytes;
             let value = if kind == Some("i") {
                 i64::from_ne_bytes(raw)
             } else {

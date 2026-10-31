@@ -21,7 +21,7 @@ from packaging.version import Version
 
 ROOT = Path(__file__).resolve().parents[1]
 LICENSES = ("LICENSE", "NOTICE", "NOTICE-RUST-STDLIB.html", "NOTICE-CPYTHON.txt",
-            "NOTICE-UNICODE.txt", "NOTICE-IANA-TIME-ZONE.txt")
+            "NOTICE-UNICODE.txt", "NOTICE-IANA-TIME-ZONE.txt", "NOTICE-PLDT-DEPENDENCIES.txt")
 PLATFORM_IDS = {
     "macos-arm64", "macos-x86_64", "windows-x86_64", "windows-arm64",
     "linux-x86_64", "linux-musl-x86_64", "linux-arm64", "linux-musl-arm64",

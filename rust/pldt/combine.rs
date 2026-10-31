@@ -303,11 +303,12 @@ fn native_parts(
         }
         _ => None,
     };
-    if clock && keep_zone {
-        if let Some(zone) = &native_zone {
-            zones.push(SourceZone::Region(zone.clone()));
-            declared = Some(1);
-        }
+    if clock
+        && keep_zone
+        && let Some(zone) = &native_zone
+    {
+        zones.push(SourceZone::Region(zone.clone()));
+        declared = Some(1);
     }
     let source_id = declared.unwrap_or(0);
     let mut values = Vec::with_capacity(source.len());

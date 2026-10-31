@@ -2,10 +2,10 @@
 name = "rstimes"
 version = "0.2.0-beta.2"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.99"
 license = "MIT"
 publish = false
-include = ["Cargo.toml", "Cargo.lock", "build.rs", "rust/**", "src/rstimes/**", "LICENSE", "NOTICE", "NOTICE-RUST-STDLIB.html", "NOTICE-CPYTHON.txt", "NOTICE-UNICODE.txt", "NOTICE-IANA-TIME-ZONE.txt", "pyproject.toml", "rust-toolchain.toml", "README.md"]
+include = ["Cargo.toml", "Cargo.lock", "build.rs", "rust/**", "src/rstimes/**", "LICENSE", "NOTICE", "NOTICE-RUST-STDLIB.html", "NOTICE-CPYTHON.txt", "NOTICE-UNICODE.txt", "NOTICE-IANA-TIME-ZONE.txt", "NOTICE-PLDT-DEPENDENCIES.txt", "pyproject.toml", "rust-toolchain.toml", "README.md"]
 readme = "README.md"
 
 [lib]

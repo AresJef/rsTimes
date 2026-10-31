@@ -126,11 +126,18 @@ def recipe(value):
     return restore, (type(value), 'rstimes.pldt', 1, *core), state
 
 
-def copy_value(value, deep, memo=None):
+def copy_value(value, deep, memo=None, *, name=None, honor_copy=False):
     """Reuse standard reconstruction/memo and the actual reduction hooks."""
     cls = type(value)
     if deep and memo is None:
         memo = {}
+    hook = '__deepcopy__' if deep else '__copy__'
+    if honor_copy and definition(cls, hook) is not definition(_BASE, hook):
+        try:
+            result = getattr(value, hook)(memo) if deep else getattr(value, hook)()
+        except Exception as error:
+            raise _external_error(error)
+        return _named_result(value, result, name)
     custom = (definition(cls, '__reduce_ex__') is not _BASE.__reduce_ex__
               or definition(cls, '__reduce__') is not _BASE.__reduce__)
     if custom:
@@ -146,6 +153,20 @@ def copy_value(value, deep, memo=None):
         except Exception as error:
             raise _external_error(error)
         reduction = _restore_copy, (cls, core, deep, sorted), state
-    if isinstance(reduction, str):
-        return value
-    return _reconstruct(value, memo if deep else None, *reduction)
+    result = value if isinstance(reduction, str) else _reconstruct(value, memo if deep else None, *reduction)
+    return _named_result(value, result, name)
+
+
+def _named_result(source, result, name):
+    if name is not None:
+        if result is source and pl.Series.name.fget(source) != name:
+            raise _own_error(ValueError('the copy hook returned the original object; it cannot be renamed without changing the source'), 'name', name)
+        try:
+            if isinstance(result, pl.Series):
+                carrier = plain_series(result).rename(name)
+                object.__setattr__(result, '_s', carrier._s)
+            else:
+                result.name = name
+        except Exception as error:
+            raise _external_error(error)
+    return result

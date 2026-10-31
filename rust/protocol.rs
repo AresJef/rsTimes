@@ -538,26 +538,26 @@ unsafe fn compare_general(
     let result = catch_unwind(AssertUnwindSafe(|| -> PyResult<_> {
         let receiver = unsafe { Borrowed::from_ptr(py, receiver).cast_unchecked::<Delta>() };
         let other = unsafe { Borrowed::from_ptr(py, other) };
-        if matches!(operation, ffi::Py_EQ | ffi::Py_NE) && same_value_semantics(&receiver, &other)?
+        if matches!(operation, ffi::Py_EQ | ffi::Py_NE)
+            && same_value_semantics(&receiver, &other)?
+            && let Ok(right) = other.cast::<Delta>()
         {
-            if let Ok(right) = other.cast::<Delta>() {
-                let equal = receiver.get().native_eq(right.get());
-                return Ok(PyBool::new(
-                    py,
-                    if operation == ffi::Py_EQ {
-                        equal
-                    } else {
-                        !equal
-                    },
-                )
-                .to_owned()
-                .into_ptr());
-            }
+            let equal = receiver.get().native_eq(right.get());
+            return Ok(PyBool::new(
+                py,
+                if operation == ffi::Py_EQ {
+                    equal
+                } else {
+                    !equal
+                },
+            )
+            .to_owned()
+            .into_ptr());
         }
-        if operation == ffi::Py_NE {
-            if let Some(result) = inherited_inequality(&receiver, &other)? {
-                return Ok(result.into_ptr());
-            }
+        if operation == ffi::Py_NE
+            && let Some(result) = inherited_inequality(&receiver, &other)?
+        {
+            return Ok(result.into_ptr());
         }
         Ok(py.NotImplemented().into_ptr())
     }));
@@ -1402,17 +1402,17 @@ unsafe fn binary_foreign<'py, const SUBTRACT: bool>(
                 )
             };
         }
-    } else if unsafe { ffi::Py_TYPE(right.as_ptr()) } == class {
-        if let Some(fields) = crate::interop::exact_relative_fields(&left)? {
-            let delta = unsafe { right.cast_unchecked::<Delta>() };
-            return unsafe {
-                new_delta(
-                    py,
-                    delta.get().with_relative_fields(fields, SUBTRACT, true)?,
-                    class,
-                )
-            };
-        }
+    } else if unsafe { ffi::Py_TYPE(right.as_ptr()) } == class
+        && let Some(fields) = crate::interop::exact_relative_fields(&left)?
+    {
+        let delta = unsafe { right.cast_unchecked::<Delta>() };
+        return unsafe {
+            new_delta(
+                py,
+                delta.get().with_relative_fields(fields, SUBTRACT, true)?,
+                class,
+            )
+        };
     }
     let result = if unsafe { ffi::PyObject_TypeCheck(left.as_ptr(), class) } != 0 {
         let value = unsafe { left.cast_unchecked::<Delta>() };
@@ -1713,33 +1713,33 @@ pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
             .call0()
             .map_err(crate::error_context::external)?
             .extract::<bool>()?
+        && let Some(original) = unsafe { (*class_ptr).tp_alloc }
     {
-        if let Some(original) = unsafe { (*class_ptr).tp_alloc } {
-            // A byte budget bounds retained dead blocks and their pointer table;
-            // it is independent of benchmark case sizes and user input lengths.
-            let limit = (2 * 1024 * 1024)
-                / (unsafe { (*class_ptr).tp_basicsize as usize }
-                    + std::mem::size_of::<ptr::NonNull<c_void>>());
-            let cache = unsafe { &mut *ALLOCATION_CACHE.0.get() };
-            cache.blocks.try_reserve_exact(limit).map_err(|_| {
-                pyo3::exceptions::PyMemoryError::new_err("cannot allocate Delta cache")
-            })?;
-            cache.limit = limit;
-            module.add(
-                "_allocation_cache",
-                PyCapsule::new_with_value(
-                    py,
-                    CacheGuard { _ownership: 1 },
-                    c"rstimes._native._allocation_cache",
-                )?,
-            )?;
-            let _ = ORIGINAL_ALLOC.set(original);
-            EXACT_ALLOC_TYPE.store(class_ptr, Ordering::Relaxed);
-            unsafe {
-                (*class_ptr).tp_alloc = Some(allocate_exact);
-                (*class_ptr).tp_free = Some(free_exact);
-            };
-        }
+        // A byte budget bounds retained dead blocks and their pointer table;
+        // it is independent of benchmark case sizes and user input lengths.
+        let limit = (2 * 1024 * 1024)
+            / (unsafe { (*class_ptr).tp_basicsize as usize }
+                + std::mem::size_of::<ptr::NonNull<c_void>>());
+        let cache = unsafe { &mut *ALLOCATION_CACHE.0.get() };
+        cache
+            .blocks
+            .try_reserve_exact(limit)
+            .map_err(|_| pyo3::exceptions::PyMemoryError::new_err("cannot allocate Delta cache"))?;
+        cache.limit = limit;
+        module.add(
+            "_allocation_cache",
+            PyCapsule::new_with_value(
+                py,
+                CacheGuard { _ownership: 1 },
+                c"rstimes._native._allocation_cache",
+            )?,
+        )?;
+        let _ = ORIGINAL_ALLOC.set(original);
+        EXACT_ALLOC_TYPE.store(class_ptr, Ordering::Relaxed);
+        unsafe {
+            (*class_ptr).tp_alloc = Some(allocate_exact);
+            (*class_ptr).tp_free = Some(free_exact);
+        };
     }
     let original = unsafe { (*class_ptr).tp_new }
         .ok_or_else(|| crate::error_context::runtime("Delta allocator is missing"))?;

@@ -42,7 +42,7 @@ pub(crate) fn offset_text(offset: i64) -> String {
     let second = offset / 1_000_000;
     let micros = offset % 1_000_000;
     let mut result = format!("{sign}{:02}:{:02}", second / 3600, second / 60 % 60);
-    if second % 60 != 0 || micros != 0 {
+    if !second.is_multiple_of(60) || micros != 0 {
         result.push_str(&format!(":{:02}", second % 60));
     }
     if micros != 0 {

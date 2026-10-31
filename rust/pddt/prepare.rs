@@ -117,7 +117,7 @@ fn _pddt_dates<'py>(
             ));
         }
     };
-    if data.len() % 8 != 0 || multiplier < 1 {
+    if !data.len().is_multiple_of(8) || multiplier < 1 {
         return Err(crate::error_context::value_error(
             "invalid date buffer metadata",
         ));
@@ -131,7 +131,7 @@ fn _pddt_dates<'py>(
     let native_scale = (multiplier == 1 && source_zone.is_none() && (7..=10).contains(&code))
         .then_some(rows.unit.nanos());
     let mut raw = [0; 8];
-    for (index, bytes) in data.chunks_exact(8).enumerate() {
+    for (index, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
         raw.copy_from_slice(bytes);
         let ticks = i64::from_ne_bytes(raw);
         if validity.missing(index, ticks) {

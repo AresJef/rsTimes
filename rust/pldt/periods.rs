@@ -242,13 +242,13 @@ fn rounded(wall: i128, source: i128, step: i128, mode: u8, zone: &Zone) -> Resul
     let upper = (end.div_euclid(step) + i128::from(end.rem_euclid(step) != 0)) * step;
     let mut best = None;
     for wall in [lower, upper] {
-        if let Some(value) = select(zone.candidates(wall)?) {
-            if best.is_none_or(|previous: i128| {
+        if let Some(value) = select(zone.candidates(wall)?)
+            && best.is_none_or(|previous: i128| {
                 (value - source).abs() < (previous - source).abs()
                     || ((value - source).abs() == (previous - source).abs() && value > previous)
-            }) {
-                best = Some(value)
-            }
+            })
+        {
+            best = Some(value)
         }
     }
     best.ok_or_else(|| {
@@ -374,16 +374,18 @@ fn snapped(
                 best = Some(value)
             }
         }
-        if !expanded && spec.months == 0 && spec.step < DAY {
-            if let Candidates::Repeated(a, b) = zone.candidates(start)? {
-                expanded = true;
-                for offset in [start - a, start - b] {
-                    let projected = source + offset;
-                    let aligned = spec.period.bounds(projected)?.0;
-                    for value in [spec.shift(aligned, -1)?, aligned, spec.shift(aligned, 1)?] {
-                        if !starts.contains(&value) {
-                            starts.push(value)
-                        }
+        if !expanded
+            && spec.months == 0
+            && spec.step < DAY
+            && let Candidates::Repeated(a, b) = zone.candidates(start)?
+        {
+            expanded = true;
+            for offset in [start - a, start - b] {
+                let projected = source + offset;
+                let aligned = spec.period.bounds(projected)?.0;
+                for value in [spec.shift(aligned, -1)?, aligned, spec.shift(aligned, 1)?] {
+                    if !starts.contains(&value) {
+                        starts.push(value)
                     }
                 }
             }
@@ -549,13 +551,12 @@ fn execute(source: &Series, spec: &Spec) -> Result<Series, Failure> {
             mode,
             query: true,
         } = spec.operation
+            && mode < 2
         {
-            if mode < 2 {
-                let (lower, upper) = period.bounds(wall)?;
-                let day = (if mode % 2 == 1 { upper - 1 } else { lower }).div_euclid(DAY);
-                flags.append_value(day == wall.div_euclid(DAY));
-                return Ok(());
-            }
+            let (lower, upper) = period.bounds(wall)?;
+            let day = (if mode % 2 == 1 { upper - 1 } else { lower }).div_euclid(DAY);
+            flags.append_value(day == wall.div_euclid(DAY));
+            return Ok(());
         }
         let target = point(
             spec.operation,

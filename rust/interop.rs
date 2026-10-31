@@ -266,9 +266,25 @@ pub(crate) fn timestamp_local_fields(value: &Bound<'_, PyAny>) -> PyResult<[i64;
 
 /// Read a proven Timestamp's original numpy unit/ticks through its base property.
 pub(crate) fn timestamp_ticks(value: &Bound<'_, PyAny>) -> PyResult<crate::epoch::Parsed> {
-    let scalar = timestamp_properties(value.py())?.ticks.read(value)?;
-    crate::epoch::read_numpy(&scalar)?
-        .ok_or_else(|| crate::error_context::value_error("invalid pandas Timestamp ticks"))
+    let access = timestamp_properties(value.py())?;
+    let scalar = access.ticks.read(value)?;
+    let mut parsed = crate::epoch::read_numpy(&scalar)?
+        .ok_or_else(|| crate::error_context::value_error("invalid pandas Timestamp ticks"))?;
+    // pandas2 replace can retain coarse asm8 storage while setting a real
+    // sub-microsecond field. Read that base field before any shared arithmetic
+    // or parsing exit; ns asm8 already contains it and must not count it twice.
+    // The prepared pandas3 fast path needs no additional descriptor read.
+    if access.replace_needs_tail && parsed.unit < crate::epoch::Unit::Nanosecond {
+        let tail = access.nanos.read(value)?.extract::<i64>()?;
+        if tail != 0 {
+            parsed.nanos = parsed
+                .nanos
+                .checked_add(i128::from(tail))
+                .ok_or_else(|| crate::error_context::overflow("Timestamp nanosecond overflow"))?;
+            parsed.unit = crate::epoch::Unit::Nanosecond;
+        }
+    }
+    Ok(parsed)
 }
 
 /// Read datetime-operation fields and its stored timezone protocol.

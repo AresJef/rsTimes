@@ -91,33 +91,31 @@ impl<'py> Batch<'_, 'py> {
                 );
             }
         }
-        if self.native {
-            if let Some(numpy) = &self.numpy {
-                if let Some(source) = numpy.delta_scalar(value, true)? {
-                    match source {
-                        crate::numpy_scalar::DeltaScalar::Date { civil, coarse } => {
-                            return crate::numpy_scalar::apply_delta_date(
-                                self.slf.py(),
-                                self.fields,
-                                civil,
-                                1,
-                                coarse,
-                            );
-                        }
-                        crate::numpy_scalar::DeltaScalar::Duration {
-                            days,
-                            clock_ns,
-                            calendar_unit: false,
-                        } => {
-                            return self
-                                .allocate_delta(self.addition.add_fixed_parts(days, clock_ns)?);
-                        }
-                        crate::numpy_scalar::DeltaScalar::Duration {
-                            calendar_unit: true,
-                            ..
-                        } => {}
-                    }
+        if self.native
+            && let Some(numpy) = &self.numpy
+            && let Some(source) = numpy.delta_scalar(value, true)?
+        {
+            match source {
+                crate::numpy_scalar::DeltaScalar::Date { civil, coarse } => {
+                    return crate::numpy_scalar::apply_delta_date(
+                        self.slf.py(),
+                        self.fields,
+                        civil,
+                        1,
+                        coarse,
+                    );
                 }
+                crate::numpy_scalar::DeltaScalar::Duration {
+                    days,
+                    clock_ns,
+                    calendar_unit: false,
+                } => {
+                    return self.allocate_delta(self.addition.add_fixed_parts(days, clock_ns)?);
+                }
+                crate::numpy_scalar::DeltaScalar::Duration {
+                    calendar_unit: true,
+                    ..
+                } => {}
             }
         }
         self.add_foreign(value)

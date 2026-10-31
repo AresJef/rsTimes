@@ -562,12 +562,12 @@ impl Delta {
         let py = other.py();
         // Ordinary inherited values need only their existing semantic check.
         // Delegate to Python equality only when that native path does not apply.
-        if crate::protocol::same_value_semantics(slf, other)? {
-            if let Ok(rhs) = other.cast::<Self>() {
-                return Ok(PyBool::new(py, !slf.get().native_eq(rhs.get()))
-                    .to_owned()
-                    .into_any());
-            }
+        if crate::protocol::same_value_semantics(slf, other)?
+            && let Ok(rhs) = other.cast::<Self>()
+        {
+            return Ok(PyBool::new(py, !slf.get().native_eq(rhs.get()))
+                .to_owned()
+                .into_any());
         }
         if let Some(result) = crate::protocol::inherited_inequality(slf, other)? {
             return Ok(result);

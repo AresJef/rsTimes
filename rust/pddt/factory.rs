@@ -41,7 +41,7 @@ fn _pddt_now<'py>(
         .ok_or_else(|| crate::error_context::overflow("clock exceeds the requested unit"))?
         .to_ne_bytes();
     PyBytes::new_with(py, size, |out| {
-        for row in out.chunks_exact_mut(8) {
+        for row in out.as_chunks_mut::<8>().0.iter_mut() {
             row.copy_from_slice(&tick);
         }
         Ok(())
@@ -245,7 +245,7 @@ fn _pddt_number_buffer<'py>(
     local: Option<&Bound<'py, PyAny>>,
     entry: &str,
 ) -> PyResult<(Bound<'py, PyBytes>, &'static str, Py<PyAny>)> {
-    if data.len() % 8 != 0 || mask.is_some_and(|m| m.len() != data.len() / 8) {
+    if !data.len().is_multiple_of(8) || mask.is_some_and(|m| m.len() != data.len() / 8) {
         return Err(crate::error_context::value_error(
             "invalid numeric buffer or missing mask",
         ));
@@ -254,7 +254,7 @@ fn _pddt_number_buffer<'py>(
     let requested = unit.map(Unit::parse).transpose()?;
     let mut output = NumericRows::new(kind, local);
     let mut raw = [0; 8];
-    for (index, bytes) in data.chunks_exact(8).enumerate() {
+    for (index, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
         if mask.is_some_and(|m| m[index] != 0) {
             output.push(py, None)?;
             continue;

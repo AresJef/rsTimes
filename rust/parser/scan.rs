@@ -621,7 +621,7 @@ fn hms_known<P: Policy>(f: &mut Fields<P>, flag: i32, t: &[u32], k: i32) -> Pars
             } else {
                 0
             },
-            P::Fraction::NANO && fraction % 1000 != 0,
+            P::Fraction::NANO && !fraction.is_multiple_of(1000),
         )?;
     }
     Ok(true)

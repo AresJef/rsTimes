@@ -190,7 +190,7 @@ pub(crate) fn project_microseconds(mut value: CivilNs) -> Result<[i64; 7], &'sta
     let quotient = clock / 1000;
     let remainder = clock % 1000;
     let mut micros =
-        quotient + u64::from(remainder > 500 || (remainder == 500 && quotient % 2 != 0));
+        quotient + u64::from(remainder > 500 || (remainder == 500 && !quotient.is_multiple_of(2)));
     if micros == 86_400_000_000 {
         (value.year, value.month, value.day) = from_ordinal(
             ordinal(value.year, value.month, value.day)?

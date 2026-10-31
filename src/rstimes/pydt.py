@@ -3348,12 +3348,37 @@ class Pydt(_PydtBase):
         except Exception as error:
             _raise_argument_context(error, "Pydt.__repr__", "arguments", None)
 
-    def strftime(self, format):
+    def strftime(self, format: str) -> str:
         """Format with system directives and exact ``%f``/``%.0f``–``%.9f``.
 
         ``%f`` uses six digits. Explicit dot precision truncates or pads the
         stored microsecond value; ``%.0f`` emits nothing. Other system rules
         and real subclass ``__format__``/``strftime`` dispatch stay intact.
+
+        Parameters
+        ----------
+        format : str
+            System format, including an empty string. ``%.1f`` through
+            ``%.9f`` emit a decimal dot and that many fraction digits.
+
+        Returns
+        -------
+        str
+            Formatted text. Pydt has microsecond precision, so digits beyond
+            six are zero padding; this does not invent measured nanoseconds.
+
+        Raises
+        ------
+        TypeError
+            The format is not text.
+        ValueError
+            An explicit fractional format is invalid, or the platform rejects
+            another system directive. Actual external exceptions propagate.
+
+        Examples
+        --------
+        >>> Pydt(2024, 1, 1, microsecond=123456).strftime("%f|%.3f|%.9f|%.0f")
+        '123456|.123|.123456000|'
         """
         try:
             return _pydt_strftime(self, format)

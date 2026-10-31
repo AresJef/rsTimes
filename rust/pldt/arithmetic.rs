@@ -84,7 +84,7 @@ impl Operand {
                 ));
             };
             let mut bytes = [0u8; 136];
-            for (chunk, value) in bytes.chunks_exact_mut(8).zip(fields) {
+            for (chunk, value) in bytes.as_chunks_mut::<8>().0.iter_mut().zip(fields) {
                 chunk.copy_from_slice(&value.to_le_bytes());
             }
             output.append_value(bytes);
@@ -164,12 +164,11 @@ fn prepare(
             }
             selected = current;
         }
-        if !(scalar && reflected) {
-            if let Some(name) =
+        if !(scalar && reflected)
+            && let Some(name) =
                 temporal_operand::column_callback(item, &value, subtract, reflected, &bases)?
-            {
-                callbacks.push((row, item.clone().unbind(), name));
-            }
+        {
+            callbacks.push((row, item.clone().unbind(), name));
         }
         values.push(Wire::from_native(value));
         Ok(())
@@ -582,14 +581,14 @@ fn calculate(
     let mut output = Vec::with_capacity(source.len());
     for_source(source, |row, value| {
         let other = &values[if data.scalar { 0 } else { row }];
-        if let Value::Date(_, aware) = other {
-            if *aware != zone.is_some() {
-                return Err(Failure::new(
-                    Kind::Type,
-                    "date domains must have matching timezone awareness",
-                )
-                .at(row));
-            }
+        if let Value::Date(_, aware) = other
+            && *aware != zone.is_some()
+        {
+            return Err(Failure::new(
+                Kind::Type,
+                "date domains must have matching timezone awareness",
+            )
+            .at(row));
         }
         output.push(
             value
@@ -647,12 +646,8 @@ fn prepared_delta(kwargs: &Options, source: Option<&Series>) -> Result<Data, Fai
                 );
             }
             let mut fields = [0i64; 17];
-            for (field, bytes) in fields.iter_mut().zip(value.chunks_exact(8)) {
-                *field = i64::from_le_bytes(
-                    bytes
-                        .try_into()
-                        .map_err(|_| Failure::new(Kind::Runtime, "invalid Delta record"))?,
-                )
+            for (field, bytes) in fields.iter_mut().zip(value.as_chunks::<8>().0.iter()) {
+                *field = i64::from_le_bytes(*bytes)
             }
             values.push(Wire::Delta(fields));
         }

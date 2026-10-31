@@ -96,7 +96,7 @@ fn _pddt_transform<'py>(
     target: Option<&Bound<'py, PyAny>>,
     replace_zone: bool,
 ) -> PyResult<Output<'py>> {
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime("invalid date buffer"));
     }
     let unit = Unit::parse(unit)?;
@@ -142,10 +142,8 @@ fn _pddt_transform<'py>(
             pyo3::exceptions::PyMemoryError::new_err("cannot allocate date results")
         })?;
     }
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid date tick"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let tick = i64::from_ne_bytes(raw);
         if tick == i64::MIN {
             if policy.is_some() {

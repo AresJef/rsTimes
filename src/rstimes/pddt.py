@@ -3392,7 +3392,7 @@ class Pddt(pd.DatetimeIndex):
         except Exception as error:
             _raise_argument_context(error,"Pddt.isoformat","options",(sep,timespec))
 
-    def strftime(self,format):
+    def strftime(self,format: str) -> pd.Index:
         """Format with complete system rules and exact fractional directives.
 
         Parameters

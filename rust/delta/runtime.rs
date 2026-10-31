@@ -311,7 +311,7 @@ impl Delta {
         }
         let floor = self.value.clock_ns / 1000;
         let rem = self.value.clock_ns % 1000;
-        let micros = floor + u64::from(rem > 500 || (rem == 500 && floor % 2 != 0));
+        let micros = floor + u64::from(rem > 500 || (rem == 500 && !floor.is_multiple_of(2)));
         let days = self
             .value
             .days

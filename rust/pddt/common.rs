@@ -189,7 +189,11 @@ pub(super) fn pack<'py>(
         .checked_mul(8)
         .ok_or_else(|| crate::error_context::overflow("date array is too large"))?;
     PyBytes::new_with(py, size, |bytes| {
-        for (i, (value, out)) in values.iter().zip(bytes.chunks_exact_mut(8)).enumerate() {
+        for (i, (value, out)) in values
+            .iter()
+            .zip(bytes.as_chunks_mut::<8>().0.iter_mut())
+            .enumerate()
+        {
             let tick = if let Some(ns) = value {
                 if lossless && ns.rem_euclid(unit.nanos()) != 0 {
                     return Err(crate::error_context::location(

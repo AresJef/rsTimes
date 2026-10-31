@@ -1,4 +1,4 @@
-"""Apply the established AST/doctest checks to the six current public stubs."""
+"""Apply the established AST/doctest checks to all installed public stubs."""
 import ast
 import doctest
 import json
@@ -17,7 +17,7 @@ missing = []
 for path in sorted(SOURCE.glob('*.pyi')):
     tree = ast.parse(path.read_text(encoding='utf-8'))
     definitions = [node for node in ast.walk(tree) if isinstance(node, (ast.ClassDef, ast.FunctionDef))]
-    namespace = dict(vars(rstimes), Pddt=rstimes.Pddt, Pydt=rstimes.Pydt, date=date,
+    namespace = dict(vars(rstimes), Pddt=rstimes.Pddt, Pydt=rstimes.Pydt, Pldt=rstimes.Pldt, date=date,
                      datetime=datetime, time=time, timedelta=timedelta, timezone=timezone,
                      ZoneInfo=ZoneInfo)
     for node in tree.body:

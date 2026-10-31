@@ -2289,18 +2289,25 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def strftime(self, format: str) -> pd.Index:
-        """Format dates with the platform's complete strftime rules.
+        """Format with complete system rules and exact fractional directives.
         
         Parameters
         ----------
         format : str
-            System format string. An empty format string is valid.
+            An empty string is valid. %f emits nine digits for ns and six for
+            s/ms/us; %.1f through %.9f emit a dot and a truncated/padded fraction,
+            and %.0f emits nothing. Other system rules remain delegated.
         
         Returns
         -------
         pandas.Index
-            Formatted strings using pandas' mature formatter. Supported system
-            directives and wide-year limits depend on the platform.
+            Formatted strings with source name/missing positions. Supported
+            system directives and wide-year limits depend on the platform.
+
+        Examples
+        --------
+        >>> Pddt([123456789], unit="ns").strftime("%f|%.3f|%.0f").tolist()
+        ['123456789|.123|']
         """
         ...
 

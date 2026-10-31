@@ -1,5 +1,18 @@
 # Pydt 使用说明
 
+## 本地PLDT／Delta纳秒候选的共享扩展
+
+本节描述本轮本地候选，不冒称已公开的0.2.0b2包含这些新增功能。Pydt仍是真正的datetime子类，保留微秒精度和1—9999年容量。Delta现在保存规范纳秒，在Pydt出口最后一次投影到微秒；并未为Pydt增加不存在的纳秒字段。
+
+```python
+from rstimes import Delta, Pydt
+assert Pydt(2024, 1, 1) + Delta(nanoseconds=500) == Pydt(2024, 1, 1)
+assert (Pydt(2024, 1, 1) + Delta(nanoseconds=1500)).microsecond == 2
+assert Pydt(2024, 1, 1, microsecond=123456).strftime('%f|%.3f|%.9f|%.0f') == '123456|.123|.123456000|'
+```
+
+strftime的`%f`对Pydt输出6位，`%.1f`—`%.9f`输出小数点和指定截取／补零位数，`%.0f`为空；补零不是声称原值有纳秒精度。其他系统指令及实际子类格式协议不变。Pddt／Pldt原生ns输出9位，s／ms／us输出6位，共用同一准备与小数字段规则。
+
 Pydt 是 `datetime.datetime` 的真正子类，保留标准日期类型的使用方式，增加日历调整、周期边界、查询和时区便利方法。它保存微秒，年份范围仍是1—9999；不会因为 Pddt 支持纳秒和宽年份，就改变这个范围。
 
 ```python

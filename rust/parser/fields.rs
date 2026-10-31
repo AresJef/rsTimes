@@ -381,10 +381,10 @@ impl<P: Policy> Fields<P> {
         };
         if flag == 0 {
             self.finish_hour()?;
-            if self.clock_was_seen(flag) {
-                if let Some(state) = self.policy.tracking_mut() {
-                    state.pending_hour = previous;
-                }
+            if self.clock_was_seen(flag)
+                && let Some(state) = self.policy.tracking_mut()
+            {
+                state.pending_hour = previous;
             }
             self.hour_input = value;
             self.ampm = -1;
@@ -444,10 +444,10 @@ impl<P: Policy> Fields<P> {
     pub fn initial_fraction(&mut self, value: i32, tail: i32, nanos: bool) {
         self.microsecond = value;
         self.fraction.set(tail, nanos);
-        if self.strict() {
-            if let Some(state) = self.policy.tracking_mut() {
-                state.clock_seen |= 8;
-            }
+        if self.strict()
+            && let Some(state) = self.policy.tracking_mut()
+        {
+            state.clock_seen |= 8;
         }
     }
 

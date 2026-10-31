@@ -261,18 +261,18 @@ fn _pldt_date_objects<'py>(
     };
     let mut rows = Rows::new(Unit::Second);
     let mut read = |value: &Bound<'py, PyAny>| -> PyResult<()> {
-        if matches!(role, DateSource::Numpy) {
-            if let Some((ticks, code, multiplier)) = crate::numpy_scalar::datetime_ticks(value)? {
-                let unit = date_input::scalar_unit(code)?.max(Unit::Millisecond);
-                rows.include_unit(unit);
-                if ticks == i64::MIN {
-                    rows.missing();
-                    return Ok(());
-                }
-                let parsed = crate::epoch::native_datetime_ticks(ticks, code, multiplier)?;
-                rows.push(parsed.nanos, 0, false, unit);
+        if matches!(role, DateSource::Numpy)
+            && let Some((ticks, code, multiplier)) = crate::numpy_scalar::datetime_ticks(value)?
+        {
+            let unit = date_input::scalar_unit(code)?.max(Unit::Millisecond);
+            rows.include_unit(unit);
+            if ticks == i64::MIN {
+                rows.missing();
                 return Ok(());
             }
+            let parsed = crate::epoch::native_datetime_ticks(ticks, code, multiplier)?;
+            rows.push(parsed.nanos, 0, false, unit);
+            return Ok(());
         }
         let Some((parsed, instant)) = date_input::named_date(value, role, tz.is_some())? else {
             rows.missing();

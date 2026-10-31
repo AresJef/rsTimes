@@ -1,5 +1,22 @@
 # Pddt 与 parse_to_epoch
 
+## 本地PLDT／Delta纳秒候选同步
+
+当前指南包含本轮本地候选的共享修改，未冒称已公开0.2.0b2具有这些新增内容。日期字段替换统一写`x.pddt.replace(...)`；原生pandas的完整接口保留自身含义，不用双义参数兼容。Pldt对应写`x.pldt.replace(...)`，并保留Polars原生replace。
+
+Delta的相对nanoseconds和绝对nanosecond尾数已经纳入整列运算；已有Pddt保持当前unit，不能保存的非零纳秒结果会报精度错误，不自动改单位。用户可先主动`as_unit('ns')`。全部分量先合并，合法抵消不制造中间精度错误。
+
+```python
+from rstimes import Delta, Pddt
+x = Pddt([0], unit='ns')
+assert (x + Delta(nanoseconds=1)).asi8.tolist() == [1]
+assert x.strftime('%f|%.3f|%.0f').tolist() == ['000000000|.000|']
+```
+
+strftime的`%f`对ns输出9位，对s／ms／us输出6位；`%.1f`—`%.9f`输出小数点并截取或补零，`%.0f`为空。剩余系统指令完整沿成熟格式能力，不缩成Pldt Expr支持的子集。
+
+四个坐标函数的职责不变：`fromseconds`从日历坐标秒数构造，`frommicroseconds`从整数日历微秒构造；`toseconds(utc=False)`、`tomicroseconds(utc=False)`输出当地日历坐标，显式utc=True采用UTC坐标。它们不是把所有裸数字都当成Unix瞬间。真正的Unix瞬间使用fromtimestamp／utcfromtimestamp及timestamp。裸构造`Pddt([1], unit='ms')`表示1毫秒，`Pddt.fromseconds([1], unit='ms')`表示1000毫秒。
+
 Pddt 是真正的 pandas `DatetimeIndex` 子类，提供与 Pydt 对应的日历操作，并保留一列数据、缺失值和纳秒精度。使用 Pddt 需要安装 pandas；传入 Polars 列时才需要 Polars。Delta、Parser 和 Pydt 可单独使用，不要求这两个可选依赖。
 
 本轮重新设计了 Pddt，旧参数名、旧多位置构造写法和旧 Pddt pickle 格式不继续适配。构造和自有日期操作采用固定 pandas 3.0.6 所代表的默认规则，在已验证的 pandas 2.x 环境也保持这些规则。排序、切片、集合、比较、`take` 和 `repeat` 等完整继承的操作，继续使用实际安装的 pandas 行为。
@@ -82,7 +99,7 @@ assert regional.unit == "ns"
 |---|---|
 |无区字段加目标 tz|保钟表数字，在目标地区解释|
 |已有时刻加目标 tz／tz_convert(tz)|保真实时刻，换目标地区显示|
-|fromdatetime(..., tz=...)／replace(tzinfo=...)|保钟表数字，重新解释目标地区|
+|fromdatetime(..., tz=...)／x.pddt.replace(tzinfo=...)|保钟表数字，重新解释目标地区|
 |tz_localize(None)|去掉时区，保当地钟表|
 |tz_convert(None)|先转 UTC，再去时区；来源须有区|
 |tz_switch(None)|去区，保当地钟表|
@@ -112,8 +129,8 @@ x = Pddt(["2024-01-31 12:30", "2024-03-31 09:15"], unit="us")
 assert x.to_date(month=2, day=31).day.tolist() == [29, 29]
 assert x.to_date(day=[1, None]).day.tolist() == [1, 31]
 assert x.add(months=[1, 2]).month.tolist() == [2, 5]
-assert x.replace(day=28).day.tolist() == [28, 28]
-# x.replace(month=2)  # ValueError: 严格替换不生成2月31日
+assert x.pddt.replace(day=28).day.tolist() == [28, 28]
+# x.pddt.replace(month=2)  # ValueError: 严格替换不生成2月31日
 ```
 
 省略／None 表示保留可选修改字段；0 或负数不再表示“不改”。时钟零有效，Pddt 的零年和负年也是真实年份。`replace` 要求完整合法日期；便利 `to_date/to_datetime` 仍把合法 day=31 适配到目的月份月底。普通月份／星期选择保各自名称和范围规则。

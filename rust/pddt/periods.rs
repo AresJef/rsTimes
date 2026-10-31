@@ -119,7 +119,7 @@ fn _pddt_period<'py>(
     query: bool,
     entry: &str,
 ) -> PyResult<Output<'py>> {
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime("invalid date source buffer"));
     }
     let period = Period::parse(token, mode >= 2)?;
@@ -137,10 +137,8 @@ fn _pddt_period<'py>(
         values.reserve(data.len() / 8);
     }
     let mut changed = false;
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid date tick"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let tick = i64::from_ne_bytes(raw);
         if tick == i64::MIN {
             if query {
@@ -244,7 +242,7 @@ fn _pddt_fsp<'py>(
             "precision must be nonnegative",
         ));
     }
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime("invalid date source buffer"));
     }
     if precision >= 9 {
@@ -259,10 +257,8 @@ fn _pddt_fsp<'py>(
     )?;
     let mut values = Vec::with_capacity(data.len() / 8);
     let mut changed = false;
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid date tick"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let tick = i64::from_ne_bytes(raw);
         if tick == i64::MIN {
             values.push(None);
@@ -340,13 +336,13 @@ fn rounded(
     let upper = (first.div_euclid(step) + i128::from(first.rem_euclid(step) != 0)) * step;
     let mut best = None;
     for wall in [lower, upper] {
-        if let Some(value) = select(super::zones::candidates(wall, zone)?) {
-            if best.is_none_or(|previous: i128| {
+        if let Some(value) = select(super::zones::candidates(wall, zone)?)
+            && best.is_none_or(|previous: i128| {
                 (value - source).abs() < (previous - source).abs()
                     || ((value - source).abs() == (previous - source).abs() && value > previous)
-            }) {
-                best = Some(value);
-            }
+            })
+        {
+            best = Some(value);
         }
     }
     best.ok_or_else(|| {
@@ -366,7 +362,7 @@ fn _pddt_round<'py>(
     mode: u8,
     entry: &str,
 ) -> PyResult<Output<'py>> {
-    if data.len() % 8 != 0 || step <= 0 || mode > 2 {
+    if !data.len().is_multiple_of(8) || step <= 0 || mode > 2 {
         return Err(crate::error_context::value_error(
             "invalid rounding grid or mode",
         ));
@@ -379,10 +375,8 @@ fn _pddt_round<'py>(
     )?;
     let mut values = Vec::with_capacity(data.len() / 8);
     let mut changed = false;
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid date tick"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let ticks = i64::from_ne_bytes(raw);
         if ticks == i64::MIN {
             values.push(None);
@@ -518,7 +512,7 @@ fn _pddt_snap<'py>(
     token: &str,
     entry: &str,
 ) -> PyResult<Output<'py>> {
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime("invalid date source buffer"));
     }
     // Validate even empty/all-missing data; the actual alignment uses each row.
@@ -541,10 +535,8 @@ fn _pddt_snap<'py>(
     };
     let mut values = Vec::with_capacity(data.len() / 8);
     let mut changed = false;
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid date tick"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let ticks = i64::from_ne_bytes(raw);
         if ticks == i64::MIN {
             values.push(None);
@@ -597,18 +589,20 @@ fn _pddt_snap<'py>(
                         best = Some(value);
                     }
                 }
-                if !expanded && spec.months == 0 && spec.step < NS_DAY {
-                    if let Candidates::Repeated(a, b) = super::zones::candidates(start, zone)? {
-                        expanded = true;
-                        for offset in [start - a, start - b] {
-                            let projected = source + offset;
-                            let aligned = spec.period.bounds(projected)?.0;
-                            for candidate in
-                                [spec.shift(aligned, -1)?, aligned, spec.shift(aligned, 1)?]
-                            {
-                                if !starts.contains(&candidate) {
-                                    starts.push(candidate);
-                                }
+                if !expanded
+                    && spec.months == 0
+                    && spec.step < NS_DAY
+                    && let Candidates::Repeated(a, b) = super::zones::candidates(start, zone)?
+                {
+                    expanded = true;
+                    for offset in [start - a, start - b] {
+                        let projected = source + offset;
+                        let aligned = spec.period.bounds(projected)?.0;
+                        for candidate in
+                            [spec.shift(aligned, -1)?, aligned, spec.shift(aligned, 1)?]
+                        {
+                            if !starts.contains(&candidate) {
+                                starts.push(candidate);
                             }
                         }
                     }

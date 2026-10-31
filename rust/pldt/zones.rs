@@ -343,6 +343,23 @@ fn _pldt_tzdb_info() -> (&'static str, &'static str, usize) {
 }
 
 #[pyfunction]
+fn _pldt_available_zones() -> Vec<&'static str> {
+    static AVAILABLE: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+    AVAILABLE
+        .get_or_init(|| {
+            tzdb_data::TZ_NAMES
+                .iter()
+                .copied()
+                .filter(|key| {
+                    Zone::named(key).is_ok()
+                        && polars::prelude::TimeZone::opt_try_new(Some(*key)).is_ok()
+                })
+                .collect()
+        })
+        .clone()
+}
+
+#[pyfunction]
 #[pyo3(signature=(ambiguous,nonexistent,expression_mask=Truth(false)))]
 fn _pldt_policies(
     ambiguous: &Bound<'_, PyAny>,
@@ -476,6 +493,7 @@ pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_pldt_zone_context, module)?)?;
     module.add_function(wrap_pyfunction!(_pldt_named_zone_context, module)?)?;
     module.add_function(wrap_pyfunction!(_pldt_tzdb_info, module)?)?;
+    module.add_function(wrap_pyfunction!(_pldt_available_zones, module)?)?;
     module.add_function(wrap_pyfunction!(_pldt_policies, module)?)?;
     module.add_function(wrap_pyfunction!(_pldt_zone_probe, module)?)
 }

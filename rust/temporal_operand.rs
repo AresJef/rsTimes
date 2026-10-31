@@ -212,21 +212,20 @@ pub(crate) fn protocol_version(value: &Bound<'_, PyAny>, name: &str) -> PyResult
     if version == 0
         && unsafe { pyo3::ffi::Py_TYPE(actual.as_ptr()) }
             == std::ptr::addr_of_mut!(pyo3::ffi::PyType_Type)
+        && let Some(definition) = crate::protocol::method_definition(&actual, name)?
     {
-        if let Some(definition) = crate::protocol::method_definition(&actual, name)? {
-            let kind = unsafe { pyo3::ffi::Py_TYPE(definition.as_ptr()) };
-            if kind == std::ptr::addr_of_mut!(pyo3::ffi::PyMethodDescr_Type)
-                || kind == std::ptr::addr_of_mut!(pyo3::ffi::PyWrapperDescr_Type)
-                || unsafe { pyo3::ffi::PyFunction_Check(definition.as_ptr()) != 0 }
-            {
-                // Exact type's attribute machinery and these exact descriptor
-                // types perform no Python callback. A live class edit clears
-                // its version before the following input item can be read.
-                let _ = actual
-                    .getattr(name)
-                    .map_err(crate::error_context::external)?;
-                version = unsafe { (*actual.as_type_ptr()).tp_version_tag };
-            }
+        let kind = unsafe { pyo3::ffi::Py_TYPE(definition.as_ptr()) };
+        if kind == std::ptr::addr_of_mut!(pyo3::ffi::PyMethodDescr_Type)
+            || kind == std::ptr::addr_of_mut!(pyo3::ffi::PyWrapperDescr_Type)
+            || unsafe { pyo3::ffi::PyFunction_Check(definition.as_ptr()) != 0 }
+        {
+            // Exact type's attribute machinery and these exact descriptor
+            // types perform no Python callback. A live class edit clears
+            // its version before the following input item can be read.
+            let _ = actual
+                .getattr(name)
+                .map_err(crate::error_context::external)?;
+            version = unsafe { (*actual.as_type_ptr()).tp_version_tag };
         }
     }
     Ok(version)

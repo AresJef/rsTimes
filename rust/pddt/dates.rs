@@ -155,7 +155,7 @@ fn _pddt_date_buffer<'py>(
     entry: &str,
     mask: Option<&[u8]>,
 ) -> PyResult<(Bound<'py, PyBytes>, &'static str, Py<PyAny>)> {
-    if data.len() % 8 != 0 || multiplier < 1 {
+    if !data.len().is_multiple_of(8) || multiplier < 1 {
         return Err(crate::error_context::runtime(
             "invalid native date metadata",
         ));
@@ -172,10 +172,8 @@ fn _pddt_date_buffer<'py>(
         Some(0)
     };
     let replace = target.is_some_and(|t| !t.is_none());
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid date bytes"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let ticks = i64::from_ne_bytes(raw);
         if validity.missing(i, ticks) {
             rows.missing();

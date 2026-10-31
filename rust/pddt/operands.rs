@@ -75,10 +75,8 @@ fn _pddt_operand(
         let code = numpy_code(source.unwrap_or(""))?;
         unit = super::prepare::scalar_unit(code)?;
         let mut values = Vec::with_capacity(length);
-        for (i, bytes) in bytes.chunks_exact(8).enumerate() {
-            let raw: [u8; 8] = bytes
-                .try_into()
-                .map_err(|_| crate::error_context::runtime("invalid temporal operand tick"))?;
+        for (i, bytes) in bytes.as_chunks::<8>().0.iter().enumerate() {
+            let raw: [u8; 8] = *bytes;
             let ticks = i64::from_ne_bytes(raw);
             let value = if storage == Some("M") {
                 if validity.missing(i, ticks) {
@@ -326,7 +324,7 @@ fn binary<'py, const DYNAMIC: bool>(
     subtract: bool,
     entry: &str,
 ) -> PyResult<Output<'py>> {
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime("invalid date source buffer"));
     }
     if operand.kind == 3 && !subtract {
@@ -368,10 +366,8 @@ fn binary<'py, const DYNAMIC: bool>(
     let mut changed = selected != unit;
     let sign = if subtract { -1 } else { 1 };
     let mut callbacks = operand.callbacks.iter().peekable();
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid date tick"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let ticks = i64::from_ne_bytes(raw);
         let other = operand.get(i);
         let callback = if DYNAMIC && callbacks.peek().is_some_and(|v| v.0 == i) {
@@ -379,17 +375,17 @@ fn binary<'py, const DYNAMIC: bool>(
         } else {
             None
         };
-        if let Value::Date(_, aware) = other {
-            if *aware != zone.is_some() {
-                return Err(crate::error_context::location(
-                    py,
-                    crate::error_context::type_error(
-                        "cannot subtract timezone-aware and timezone-naive dates",
-                    ),
-                    entry,
-                    &format!("other[{i}]"),
-                ));
-            }
+        if let Value::Date(_, aware) = other
+            && *aware != zone.is_some()
+        {
+            return Err(crate::error_context::location(
+                py,
+                crate::error_context::type_error(
+                    "cannot subtract timezone-aware and timezone-naive dates",
+                ),
+                entry,
+                &format!("other[{i}]"),
+            ));
         }
         if ticks == i64::MIN || matches!(other, Value::Missing(_)) {
             changed |= ticks != i64::MIN;
@@ -397,14 +393,13 @@ fn binary<'py, const DYNAMIC: bool>(
             continue;
         }
         let source = i128::from(ticks) * unit.nanos();
-        if let Some(callback) = callback {
-            if let Some(result) = callback_date(py, callback, ticks, unit, zone)
+        if let Some(callback) = callback
+            && let Some(result) = callback_date(py, callback, ticks, unit, zone)
                 .map_err(|e| crate::error_context::location(py, e, entry, &format!("other[{i}]")))?
-            {
-                changed |= result != Some(source);
-                out.push(result);
-                continue;
-            }
+        {
+            changed |= result != Some(source);
+            out.push(result);
+            continue;
         }
         let value = (|| -> PyResult<i128> {
             match other {

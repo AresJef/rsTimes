@@ -1,18 +1,32 @@
 # 运行四个示范
 
+当前源码展示 PLDT／Delta 纳秒开发候选版。公开 `0.2.0b2` 是冻结对照，
+不包含本轮新增接口，不能用公开 b2 wheel 运行这些新示范。当前
+`demo/runtime.json` 明确选择本轮本地环境与实际候选 wheel 的校验清单；
+这不代表新版本已经发行或通过最终性能验收。
+
 示范不属于运行库依赖。Delta、Parser、Pydt 比较冻结的 cyTimes3.1.0，使用与它兼容的 pandas2 环境；Pddt 比较 pandas3，使用另一环境。不能把 cyTimes 的 pandas<3 依赖强装进 pandas3。
 
-从项目根目录准备下列环境。这里使用 CPython3.13，以取得冻结官方版本的现成 wheel；不限制 rsTimes 本身已经验证的 CPython3.12—3.15 支持。
+本轮已准备 `.local/pldt-72h-20261030/demo-oracle` 和
+`.local/pldt-72h-20261030/dev`。前三个示范使用前者，Pddt／Pldt 示范使用
+后者。两者安装同一候选 wheel；只有官方比较环境包含 cyTimes 和 Babel。
+
+需要在另一机器重建环境时，从项目根目录准备下列环境。这里使用
+CPython3.13，以取得冻结官方版本的现成 wheel。将 `CANDIDATE_WHEEL`
+替换成当前已验证候选 wheel 的实际路径，不能改为公开 b2：
 
 ```sh
-python3.13 -m venv .local/dateutil-optional-platforms-16h-20261028/oracle-env
-.local/dateutil-optional-platforms-16h-20261028/oracle-env/bin/python -m pip install -r requirements-oracle.txt "rsTimes==0.2.0b2"
-python3.13 -m venv .local/dateutil-optional-platforms-16h-20261028/published-pd3
-.local/dateutil-optional-platforms-16h-20261028/published-pd3/bin/python -m pip install -r requirements-test.txt "rsTimes==0.2.0b2"
-gh release download v0.2.0b2 --repo AresJef/rsTimes --pattern release-manifest.json --dir .local/dateutil-optional-platforms-16h-20261028/public-release
+python3.13 -m venv .local/pldt-72h-20261030/demo-oracle
+.local/pldt-72h-20261030/demo-oracle/bin/python -m pip install -r requirements-oracle.txt polars==2.0.0 CANDIDATE_WHEEL
+python3.13 -m venv .local/pldt-72h-20261030/dev
+.local/pldt-72h-20261030/dev/bin/python -m pip install -r requirements-test.txt polars==2.0.0 CANDIDATE_WHEEL
 ```
 
-Windows 的解释器位于环境的 `Scripts/python.exe`，相应替换上面的 `bin/python`。也可以自行选择目录，再修改 `demo/runtime.json` 的默认 `environment` 与 `environments.pddt`；它们必须分别指向这两套环境。`release_manifest` 指向本次实际 GitHub Release 的清单。
+Windows 的解释器位于环境的 `Scripts/python.exe`，相应替换上面的
+`bin/python`。也可以自行选择目录，再修改 `demo/runtime.json` 的默认
+`environment` 与 `environments.pddt`。`release_manifest` 是已安装候选
+wheel 的实际校验清单；当前指向 W25 的分发包验证结果，不能使用旧发行
+清单冒充新候选。最终采用后再同步到实际采用清单。
 
 随后执行：
 

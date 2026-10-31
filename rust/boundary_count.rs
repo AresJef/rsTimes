@@ -69,10 +69,10 @@ impl CalendarMemo {
         Self { kind, last: None }
     }
     fn index(&mut self, ordinal: i64) -> Result<i128, Error> {
-        if let Some((previous, index)) = self.last {
-            if previous == ordinal {
-                return Ok(index);
-            }
+        if let Some((previous, index)) = self.last
+            && previous == ordinal
+        {
+            return Ok(index);
         }
         let index = calendar_index(self.kind, ordinal)?;
         self.last = Some((ordinal, index));

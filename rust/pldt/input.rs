@@ -98,17 +98,16 @@ pub(super) fn column(
             &DataType::Datetime(resolution(chosen), output_zone),
         ));
     }
-    if let Ok(dates) = source.datetime() {
-        if options.target.is_none_or(|_| source_zone.is_some())
-            && chosen == original
-            && !options.copy
-        {
-            return Ok(dates
-                .physical()
-                .clone()
-                .into_datetime(resolution(chosen), output_zone)
-                .into_series());
-        }
+    if let Ok(dates) = source.datetime()
+        && options.target.is_none_or(|_| source_zone.is_some())
+        && chosen == original
+        && !options.copy
+    {
+        return Ok(dates
+            .physical()
+            .clone()
+            .into_datetime(resolution(chosen), output_zone)
+            .into_series());
     }
     let mut rows = Rows::new(chosen);
     match source.dtype() {

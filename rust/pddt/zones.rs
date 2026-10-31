@@ -273,13 +273,13 @@ fn _pddt_wall<'py>(
     entry: &str,
 ) -> PyResult<Bound<'py, PyBytes>> {
     let unit = Unit::parse(unit)?;
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::value_error("invalid date buffer"));
     }
     let object = crate::epoch::Zone::Object(zone.clone().unbind());
     let mut prepared = None;
     let mut values = Vec::with_capacity(data.len() / 8);
-    for (index, bytes) in data.chunks_exact(8).enumerate() {
+    for (index, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
         let mut raw = [0; 8];
         raw.copy_from_slice(bytes);
         let tick = i64::from_ne_bytes(raw);

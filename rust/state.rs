@@ -222,7 +222,7 @@ fn decode_bytes(value: &Bound<'_, PyBytes>) -> PyResult<[i64; 17]> {
         ));
     }
     let mut fields = [0_i64; 17];
-    for (index, chunk) in bytes[8..].chunks_exact(8).enumerate() {
+    for (index, chunk) in bytes[8..].as_chunks::<8>().0.iter().enumerate() {
         fields[index] = i64::from_le_bytes(std::array::from_fn(|offset| chunk[offset]));
     }
     validate_fields(&fields)?;
@@ -237,11 +237,11 @@ pub(crate) fn construction_value(args: &Bound<'_, PyTuple>) -> PyResult<Option<D
     // The caller checked a one-item tuple; it owns the borrowed item throughout.
     let value =
         unsafe { Borrowed::from_ptr(args.py(), pyo3::ffi::PyTuple_GET_ITEM(args.as_ptr(), 0)) };
-    if let Ok(bytes) = value.cast::<PyBytes>() {
-        if bytes.as_bytes().starts_with(&PAYLOAD_MARKER[..7]) {
-            let fields = decode_bytes(&bytes)?;
-            return Ok(Some(Delta::from_snapshot(fields)?));
-        }
+    if let Ok(bytes) = value.cast::<PyBytes>()
+        && bytes.as_bytes().starts_with(&PAYLOAD_MARKER[..7])
+    {
+        let fields = decode_bytes(&bytes)?;
+        return Ok(Some(Delta::from_snapshot(fields)?));
     }
     Ok(None)
 }

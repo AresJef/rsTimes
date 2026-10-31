@@ -44,7 +44,7 @@ fn _pddt_diff<'py>(
     target_mask: Option<&[u8]>,
 ) -> PyResult<(Bound<'py, PyBytes>, Option<Bound<'py, PyBytes>>)> {
     const ENTRY: &str = "Pddt.diff";
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime("invalid source date buffer"));
     }
     let source_unit = Unit::parse(source_unit)?;
@@ -118,14 +118,12 @@ fn _pddt_diff<'py>(
             count,
         )?;
         let mut values = vector(count)?;
-        for (i, bytes) in bytes.chunks_exact(8).enumerate() {
+        for (i, bytes) in bytes.as_chunks::<8>().0.iter().enumerate() {
             if storage != "M" && target_mask.is_some_and(|m| m[i] != 0) {
                 values.push(None);
                 continue;
             }
-            let raw: [u8; 8] = bytes
-                .try_into()
-                .map_err(|_| crate::error_context::runtime("invalid target tick"))?;
+            let raw: [u8; 8] = *bytes;
             let value = (|| {
                 let nanos = match storage {
                     "M" => {
@@ -250,15 +248,13 @@ fn pack_diff<'py, I: BoundaryIndex>(
     let mut mask = None;
     let packed = PyBytes::new_with(py, data.len(), |out| {
         for (i, (bytes, out)) in data
-            .chunks_exact(8)
-            .zip(out.chunks_exact_mut(8))
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .zip(out.as_chunks_mut::<8>().0.iter_mut())
             .enumerate()
         {
-            let tick = i64::from_ne_bytes(
-                bytes
-                    .try_into()
-                    .map_err(|_| crate::error_context::runtime("invalid source tick"))?,
-            );
+            let tick = i64::from_ne_bytes(*bytes);
             let target = targets.get(i);
             let result = if tick == i64::MIN || target.is_none() {
                 missing_mask(&mut mask, count, i)?;

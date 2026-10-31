@@ -49,13 +49,13 @@ fn loop_query<'py, const Q: u8>(
     // PyBytes::new_with zero-initializes and publishes only after this closure succeeds.
     let bytes = PyBytes::new_with(py, size, |out| {
         for (i, (bytes, cell)) in data
-            .chunks_exact(8)
+            .as_chunks::<8>()
+            .0
+            .iter()
             .zip(out.chunks_exact_mut(width))
             .enumerate()
         {
-            let raw: [u8; 8] = bytes
-                .try_into()
-                .map_err(|_| crate::error_context::runtime("invalid date tick"))?;
+            let raw: [u8; 8] = *bytes;
             let ticks = i64::from_ne_bytes(raw);
             let selected = target
                 .map(|t| {
@@ -181,15 +181,13 @@ fn iso_table<'py>(
     let mut mask = None;
     let packed = PyBytes::new_with(py, size, |out| {
         for (i, (bytes, row)) in data
-            .chunks_exact(8)
-            .zip(out.chunks_exact_mut(24))
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .zip(out.as_chunks_mut::<24>().0.iter_mut())
             .enumerate()
         {
-            let tick = i64::from_ne_bytes(
-                bytes
-                    .try_into()
-                    .map_err(|_| crate::error_context::runtime("invalid ISO source tick"))?,
-            );
+            let tick = i64::from_ne_bytes(*bytes);
             if tick == i64::MIN {
                 super::common::missing_mask(&mut mask, count, i)?;
                 continue;
@@ -224,7 +222,7 @@ fn iso_table<'py>(
             Ok(result)
         })()
         .map_err(|e| crate::error_context::location(py, e, entry, &format!("result[{i}]")))?;
-            for (cell, value) in row.chunks_exact_mut(8).zip(result) {
+            for (cell, value) in row.as_chunks_mut::<8>().0.iter_mut().zip(result) {
                 cell.copy_from_slice(&value.to_ne_bytes());
             }
         }
@@ -243,7 +241,7 @@ fn _pddt_query<'py>(
     entry: &str,
     target: Option<PyRef<'_, Integers>>,
 ) -> PyResult<Output<'py>> {
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime("invalid query source buffer"));
     }
     let unit = Unit::parse(unit)?;
@@ -251,12 +249,12 @@ fn _pddt_query<'py>(
     if query == 201 {
         return iso_table(py, data, unit, zone, entry);
     }
-    if let Some(target) = &target {
-        if target.0.len().is_some_and(|n| n != data.len() / 8) {
-            return Err(crate::error_context::value_error(
-                "query target length must equal source length",
-            ));
-        }
+    if let Some(target) = &target
+        && target.0.len().is_some_and(|n| n != data.len() / 8)
+    {
+        return Err(crate::error_context::value_error(
+            "query target length must equal source length",
+        ));
     }
     let target = target.as_deref();
     macro_rules! dispatch {($($id:literal),*)=>{match query {$($id=>loop_query::<$id>(py,data,unit,zone,target,entry),)*_=>Err(crate::error_context::runtime("unknown native query"))}};}

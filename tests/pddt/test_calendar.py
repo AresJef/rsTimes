@@ -100,8 +100,14 @@ def test_calendar_cache_is_correct_for_shuffled_and_repeated_days():
         pytest.skip('fixed official comparison environment')
     from cytimes import Pddt as Original
     y=Original(data.view('datetime64[ns]'))
-    for action in [lambda z:z.add(months=1,days=2,microseconds=-3),lambda z:z.pddt.replace(month=2,day=28,hour=9),lambda z:z.to_end_of('M')]:
-        np.testing.assert_array_equal(action(x).asi8,action(y).asi8)
+    # Only the new library moved date-field replacement to its namespace.
+    # The frozen original retains its public replace method.
+    for own, original in [
+        (lambda z:z.add(months=1,days=2,microseconds=-3), lambda z:z.add(months=1,days=2,microseconds=-3)),
+        (lambda z:z.pddt.replace(month=2,day=28,hour=9), lambda z:z.replace(month=2,day=28,hour=9)),
+        (lambda z:z.to_end_of('M'), lambda z:z.to_end_of('M')),
+    ]:
+        np.testing.assert_array_equal(own(x).asi8,original(y).asi8)
 
 def test_valid_nanosecond_lower_boundary_does_not_degrade_for_midnight_intermediate():
     source=np.array([np.iinfo('i8').min+1],dtype='i8').view('datetime64[ns]')

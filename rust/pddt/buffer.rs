@@ -19,7 +19,7 @@ fn _pddt_rescale<'py>(
 ) -> PyResult<Bound<'py, PyBytes>> {
     let source = Unit::parse(source_unit)?.nanos();
     let target = Unit::parse(target_unit)?.nanos();
-    if data.len() % 8 != 0 || multiplier < 1 {
+    if !data.len().is_multiple_of(8) || multiplier < 1 {
         return Err(crate::error_context::value_error(
             "invalid date buffer or dtype multiplier",
         ));
@@ -29,8 +29,10 @@ fn _pddt_rescale<'py>(
         .ok_or_else(|| crate::error_context::overflow("date unit multiplier is too large"))?;
     PyBytes::new_with(py, data.len(), |output| {
         for (index, (input, output)) in data
-            .chunks_exact(8)
-            .zip(output.chunks_exact_mut(8))
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .zip(output.as_chunks_mut::<8>().0.iter_mut())
             .enumerate()
         {
             let mut raw = [0; 8];

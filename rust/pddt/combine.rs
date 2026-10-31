@@ -65,10 +65,8 @@ fn _pddt_parts<'py>(
         };
         let fixed = super::common::fixed_offset(py, &reader.zones[id])?;
         let mut values = Vec::with_capacity(bytes.len() / 8);
-        for (i, bytes) in bytes.chunks_exact(8).enumerate() {
-            let raw: [u8; 8] = bytes
-                .try_into()
-                .map_err(|_| crate::error_context::runtime("invalid date component bytes"))?;
+        for (i, bytes) in bytes.as_chunks::<8>().0.iter().enumerate() {
+            let raw: [u8; 8] = *bytes;
             let ticks = i64::from_ne_bytes(raw);
             if validity.missing(i, ticks) {
                 values.push(None);
@@ -189,15 +187,15 @@ fn _pddt_combine<'py>(
     let mut today = None;
     let mut rows = Rows::new(Unit::Microsecond);
     rows.reserve(length)?;
-    if length == 0 {
-        if let Column::Scalar(Some(clock)) = &time.values {
-            if !replace {
-                rows.zones.push(clone_zone(py, &time.zones[clock.zone]));
-                rows.empty_zone = rows.zones.len() - 1;
-            }
-            if clock.value.rem_euclid(1000) != 0 {
-                rows.unit = Unit::Nanosecond;
-            }
+    if length == 0
+        && let Column::Scalar(Some(clock)) = &time.values
+    {
+        if !replace {
+            rows.zones.push(clone_zone(py, &time.zones[clock.zone]));
+            rows.empty_zone = rows.zones.len() - 1;
+        }
+        if clock.value.rem_euclid(1000) != 0 {
+            rows.unit = Unit::Nanosecond;
         }
     }
     for i in 0..length {
@@ -249,11 +247,12 @@ fn _pddt_combine<'py>(
     // No valid combined row may reach push (empty/all-null date or clock),
     // but a typed clock still declares a source zone. This O(1) fallback does
     // not rescan data or change the actual-precision default unit.
-    if !replace && rows.zones.len() == 1 {
-        if let Some(id) = time.declared_zone.filter(|&id| id != 0) {
-            rows.zones.push(clone_zone(py, &time.zones[id]));
-            rows.empty_zone = rows.zones.len() - 1;
-        }
+    if !replace
+        && rows.zones.len() == 1
+        && let Some(id) = time.declared_zone.filter(|&id| id != 0)
+    {
+        rows.zones.push(clone_zone(py, &time.zones[id]));
+        rows.empty_zone = rows.zones.len() - 1;
     }
     finish(py, rows, requested, target, entry, &policy)
 }

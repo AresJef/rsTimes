@@ -1,10 +1,11 @@
 {
-  "environment": ".local/dateutil-optional-platforms-16h-20261028/oracle-env",
+  "environment": ".local/pldt-72h-20261030/demo-oracle",
   "version": "0.2.0b2",
-  "release_manifest": ".local/dateutil-optional-platforms-16h-20261028/public-release/release-manifest.json",
-  "status": "Release demonstration; requires the verified published wheel and its manifest",
-  "selection": "published_release",
+  "release_manifest": "tasks/evidence/pldt-72h-20261030/W24/platform-ready-01-distribution-manifest.json",
+  "status": "Local development candidate; installed functional checks pass, full platform and performance acceptance pending",
+  "selection": "local_development_candidate",
   "environments": {
-    "pddt": ".local/dateutil-optional-platforms-16h-20261028/published-pd3"
-  }
+    "pddt": ".local/pldt-72h-20261030/dev"
+  },
+  "validation": "functional_pass_performance_incomplete"
 }
