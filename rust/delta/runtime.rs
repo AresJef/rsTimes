@@ -223,7 +223,7 @@ impl Delta {
     pub(crate) fn preserves_datetime_clock(&self, dt: &Bound<'_, PyDateTime>) -> bool {
         let value = self.value;
         let absolute = value.absolute;
-        if value.calendar_months() != 0 || value.fixed_ns() != 0 {
+        if value.years != 0 || value.months != 0 || value.days != 0 || value.clock_ns != 0 {
             return false;
         }
         if [Field::Year, Field::Month, Field::Day, Field::Weekday]

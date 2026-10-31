@@ -111,6 +111,11 @@ pub(super) fn read<P: Policy, T: CharacterRead, R: Recognition>(
     let mut fields = Fields::<P>::new();
     let mut region = None;
     let (start, _) = scan::prefix(input, &mut fields, ignoretz, isoformat)?;
+    if start == input.len() && fields.resolved {
+        // A complete ISO prefix has already resolved the date. Ordering flags
+        // and the two-digit-year reference cannot change these fields.
+        return Ok(Some(Parsed { fields, region }));
+    }
     if start != input.len() {
         if P::ISO_ONLY {
             return Err(ParseError::Value(

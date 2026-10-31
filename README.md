@@ -1,6 +1,6 @@
 # rsTimes
 
-**rsTimes 0.2.0b2** is a Python date and time library with a shared Rust core.
+**Published rsTimes 0.2.0b2** is a Python date and time library with a shared Rust core.
 It provides calendar deltas, configurable parsing, a real `datetime.datetime`
 subclass and a real `pandas.DatetimeIndex` subclass.
 
@@ -10,8 +10,26 @@ subclass and a real `pandas.DatetimeIndex` subclass.
 - **`Pydt`**: calendar, boundary, time zone and formatting methods on a standard datetime subclass.
 - **`Pddt`**: nanoseconds, explicit units, column operations and pandas index interoperability.
 
-The distribution name is `rsTimes`; import `rstimes`. PLDT has not been implemented.
-The optional Polars integration reads supported Series inputs.
+The distribution name is `rsTimes`; import `rstimes`. The published 0.2.0b2
+distribution does not include `Pldt` or the new `Delta` nanosecond parameters.
+Its optional Polars integration reads supported Series inputs.
+
+## Local Pldt and nanosecond development
+
+This checkout additionally implements `Pldt`, a real `polars.Series` subclass,
+and relative `Delta(nanoseconds=...)` / absolute `Delta(nanosecond=...)` fields.
+These changes are undergoing local acceptance and are not a new public release.
+Installing the published version above does not install these additions.
+
+The four core class names are **`Delta`, `Pydt`, `Pddt` and `Pldt`**. Polars
+Series and Expr expose the `.pldt` namespace; date-field replacement uses
+`.pldt.replace(...)` while native Polars value replacement keeps its meaning.
+The corresponding `Pddt` date-field entry is `.pddt.replace(...)` in this checkout.
+Shared Rust kernels preserve each container's precision, validity and capacity.
+See the [Pldt guide](docs/Pldt使用说明.md) and [Delta guide](docs/Delta使用说明.md).
+
+The current validation workflow uses `macos-15` for ARM64; the published beta
+matrix below records its original runner. Both retain the macOS 11.0 wheel baseline.
 
 ## Installation and dependencies
 
@@ -94,7 +112,7 @@ are `OverflowError`.
 
 One source tree supports ordinary GIL-enabled CPython 3.12,3.13,3.14 and3.15:
 
-| Platform | CPU | Wheel baseline | Native verification runner |
+| Platform | CPU | Wheel baseline | Published 0.2.0b2 verification runner |
 |---|---|---|---|
 | macOS | ARM64 | macOS11.0+ | macos-14 |
 | macOS | x86_64 | macOS11.0+ | macos-15-intel |
@@ -141,9 +159,10 @@ replace installed-wheel verification. On PowerShell, install wheels with
 
 The four `demo/*.py` scripts are interactive demonstrations. Delta, Parser and
 Pydt use the separate `requirements-oracle.txt` environment to compare cytimes;
-Pddt uses `requirements-test.txt` to compare pandas3. Both install the published
-wheel. `demo/runtime.json` selects environments and the GitHub Release manifest;
-the launcher checks version, installed location and native SHA256. It never
+Pddt uses `requirements-test.txt` to compare pandas3. In this development checkout,
+`demo/runtime.json` selects the verified local wheel and separate oracle
+environments. Public-release checkouts select their published wheel and manifest.
+The launcher checks version, installed location and native SHA256. It never
 silently loads another wheel or compiles a temporary replacement. See the
 [demo guide](demo/README.md). Do not force cytimes into the pandas3 environment.
 

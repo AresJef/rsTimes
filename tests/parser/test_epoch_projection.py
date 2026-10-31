@@ -29,3 +29,27 @@ def test_integer_epoch_exit_preserves_type_and_values_across_i64_boundary(second
     result = parse_to_epoch(seconds, unit=unit)
     assert type(result) is int
     assert result == seconds * 10**9 // scale
+
+
+@pytest.mark.parametrize("unit,scale", [("s", 10**9), ("ms", 10**6),
+                                       ("us", 1000), ("ns", 1)])
+@pytest.mark.parametrize("nanos", [
+    -(2**127), -(2**95) - 1, -(2**95), -(2**95) + 1,
+    -(2**64) - 1001, -(2**64), -(2**32) - 1, -1001, -1,
+    0, 1, 1001, 2**32 - 1, 2**64 + 1001,
+    2**95 - 1, 2**95, 2**95 + 1, 2**127 - 1,
+    ((2**63 - 1) // 24) << 10,
+    (((2**63 - 1) // 24) << 10) + 1023,
+    (((2**63 - 1) // 24) + 1) << 10,
+    ((((2**63 - 1) // 24) + 1) << 10) + 1023,
+    ((-(2**63)) // 24) << 10,
+    (((-(2**63)) // 24) << 10) + 1023,
+    (((-(2**63)) // 24) + 1) << 10,
+    ((((-(2**63)) // 24) + 1) << 10) + 1023,
+])
+def test_wide_integer_epoch_projection_uses_exact_floor_at_word_boundaries(nanos, unit, scale):
+    # Input ticks are explicit nanoseconds. Python's arbitrary-width // is an
+    # independent oracle for the native projection, including negative epochs.
+    result = parse_to_epoch(nanos, unit=unit, input_unit="ns")
+    assert type(result) is int
+    assert result == nanos // scale

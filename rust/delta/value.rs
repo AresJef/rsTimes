@@ -240,13 +240,15 @@ impl DeltaValue {
         })
     }
 
-    /// Full calendar quantity, without folding years into fixed days.
+    /// Full calendar quantity for independent canonical-value test checks.
+    #[cfg(test)]
     #[inline]
     pub(crate) fn calendar_months(self) -> i128 {
         i128::from(self.years) * 12 + i128::from(self.months)
     }
 
-    /// Full fixed quantity. Canonical signed64 days fit safely in i128 ns.
+    /// Full fixed quantity for canonical-value test checks, safe in i128.
+    #[cfg(test)]
     #[inline]
     pub(crate) fn fixed_ns(self) -> i128 {
         i128::from(self.days) * NS_PER_DAY + i128::from(self.clock_ns)

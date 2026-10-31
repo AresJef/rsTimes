@@ -2,10 +2,10 @@
 use crate::parser::Truth;
 use crate::parser::fields::{Fields, Iso, Lenient, Nano, Policy, Precision, Strict};
 
-use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
 use pyo3::types::{PyDateTime, PyTzInfoAccess};
+use pyo3::{Borrowed, ffi};
 
 static POLARS_ADAPTER: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 static POLARS_SERIES: PyOnceLock<Option<Py<PyType>>> = PyOnceLock::new();
@@ -82,6 +82,18 @@ impl Unit {
                 Self::Nanosecond => nanos,
             });
         }
+        if self == Self::Microsecond
+            && let Ok(high) = i64::try_from(nanos >> 10)
+            && let Some(correction) = high
+                .checked_mul(24)
+                .and_then(|value| value.checked_add((nanos & 1023) as i64))
+        {
+            // n = 1024*high + low = 1000*high + (24*high + low).
+            // This exact floor identity also holds for negative n. Ordinary
+            // wide calendar outputs need only one constant native division;
+            // failed intermediate checks retain the original full-width path.
+            return i128::from(high) + i128::from(correction.div_euclid(1000));
+        }
         nanos.div_euclid(self.nanos())
     }
     /// NumPy/pandas spelling for this resolution.
@@ -91,6 +103,74 @@ impl Unit {
             Self::Millisecond => "ms",
             Self::Microsecond => "us",
             Self::Nanosecond => "ns",
+        }
+    }
+}
+
+/// A prepared public unit, with unknown text deferred to the original value
+/// validation phase. Binding must finish checking all argument types first.
+#[derive(Clone, Copy)]
+enum EpochUnit<'a, 'py> {
+    Known(Unit),
+    Deferred(Borrowed<'a, 'py, PyString>),
+}
+
+impl<'a, 'py> FromPyObject<'a, 'py> for EpochUnit<'a, 'py> {
+    type Error = PyErr;
+
+    fn extract(value: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
+        let text = value.cast::<PyString>()?;
+        {
+            // SAFETY: ready CPython Unicode is immutable and the
+            // argument remains borrowed under the GIL. Kind1 and length1/2
+            // prove the complete byte span; no UTF8 encoding is required.
+            let recognized = unsafe {
+                let length = ffi::PyUnicode_GET_LENGTH(text.as_ptr());
+                if ffi::PyUnicode_KIND(text.as_ptr()) == ffi::PyUnicode_1BYTE_KIND
+                    && matches!(length, 1 | 2)
+                {
+                    match std::slice::from_raw_parts(
+                        ffi::PyUnicode_DATA(text.as_ptr()).cast::<u8>(),
+                        length as usize,
+                    ) {
+                        b"s" => Some(Unit::Second),
+                        b"ms" => Some(Unit::Millisecond),
+                        b"us" => Some(Unit::Microsecond),
+                        b"ns" => Some(Unit::Nanosecond),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            };
+            if let Some(unit) = recognized {
+                return Ok(Self::Known(unit));
+            }
+        }
+        // Match the former &str binding, including subclass/native-text
+        // semantics, type errors and Unicode encoding errors with their notes.
+        text.to_str()?;
+        Ok(Self::Deferred(text))
+    }
+}
+
+impl EpochUnit<'_, '_> {
+    #[inline]
+    fn resolve(self, py: Python<'_>, parameter: &str) -> PyResult<Unit> {
+        match self {
+            Self::Known(unit) => Ok(unit),
+            Self::Deferred(text) => {
+                let word = text.to_str()?;
+                Unit::parse(word).map_err(|error| {
+                    crate::error_context::argument(
+                        py,
+                        error,
+                        "parse_to_epoch",
+                        parameter,
+                        &PyString::new(py, word).into_any(),
+                    )
+                })
+            }
         }
     }
 }
@@ -640,10 +720,10 @@ fn foreign_offset_us(value: &Bound<'_, PyAny>) -> PyResult<Option<i64>> {
 /// True
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
-#[pyo3(signature=(dtobj,unit="us",default=None,yearfirst=None,dayfirst=None,ignoretz=Truth(false),isoformat=Truth(true),strict=Truth(false),cfg=None,*,input_unit="s"), text_signature="(dtobj, unit='us', default=None, yearfirst=None, dayfirst=None, ignoretz=False, isoformat=True, strict=False, cfg=None, *, input_unit='s')")]
+#[pyo3(signature=(dtobj,unit=EpochUnit::Known(Unit::Microsecond),default=None,yearfirst=None,dayfirst=None,ignoretz=Truth(false),isoformat=Truth(true),strict=Truth(false),cfg=None,*,input_unit=EpochUnit::Known(Unit::Second)), text_signature="(dtobj, unit='us', default=None, yearfirst=None, dayfirst=None, ignoretz=False, isoformat=True, strict=False, cfg=None, *, input_unit='s')")]
 fn parse_to_epoch(
     dtobj: &Bound<'_, PyAny>,
-    unit: &str,
+    unit: EpochUnit<'_, '_>,
     default: Option<&Bound<'_, PyAny>>,
     yearfirst: Option<Truth>,
     dayfirst: Option<Truth>,
@@ -651,17 +731,9 @@ fn parse_to_epoch(
     isoformat: Truth,
     strict: Truth,
     cfg: Option<&Bound<'_, PyAny>>,
-    input_unit: &str,
+    input_unit: EpochUnit<'_, '_>,
 ) -> PyResult<Py<PyInt>> {
-    let unit = Unit::parse(unit).map_err(|error| {
-        crate::error_context::argument(
-            dtobj.py(),
-            error,
-            "parse_to_epoch",
-            "unit",
-            &pyo3::types::PyString::new(dtobj.py(), unit).into_any(),
-        )
-    })?;
+    let unit = unit.resolve(dtobj.py(), "unit")?;
     let opts = Options {
         default,
         yearfirst: yearfirst.map(|flag| flag.0),
@@ -671,15 +743,7 @@ fn parse_to_epoch(
         strict: strict.0,
         iso_only: false,
         cfg,
-        input_unit: Unit::parse(input_unit).map_err(|error| {
-            crate::error_context::argument(
-                dtobj.py(),
-                error,
-                "parse_to_epoch",
-                "input_unit",
-                &PyString::new(dtobj.py(), input_unit).into_any(),
-            )
-        })?,
+        input_unit: input_unit.resolve(dtobj.py(), "input_unit")?,
     };
     let value = read(dtobj, &opts)
         .map(|result| unit.ticks(result.nanos))
@@ -740,6 +804,9 @@ mod tests {
             i128::from(i64::MIN) - 1,
             i128::from(i64::MIN),
             i128::from(i64::MIN) + 1,
+            -(1_i128 << 95) - 1,
+            -(1_i128 << 95),
+            -(1_i128 << 95) + 1,
             -1_000_000_001,
             -1001,
             -1000,
@@ -754,6 +821,9 @@ mod tests {
             i128::from(i64::MAX) - 1,
             i128::from(i64::MAX),
             i128::from(i64::MAX) + 1,
+            (1_i128 << 95) - 1,
+            1_i128 << 95,
+            (1_i128 << 95) + 1,
             i128::MAX,
         ];
         for unit in [

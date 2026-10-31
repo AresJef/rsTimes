@@ -1,11 +1,11 @@
 {
   "environment": ".local/pldt-72h-20261030/demo-oracle",
   "version": "0.2.0b2",
-  "release_manifest": "tasks/evidence/pldt-72h-20261030/W25/expr-error-boundary/distribution-manifest.json",
-  "status": "Local development candidate: full32 executable-source checks passed; documentation-only package verification and performance pending",
+  "release_manifest": "tasks/evidence/pldt-72h-20261030/W38/final-source-01/FINAL01-distribution-manifest.json",
+  "status": "Final-source01 local candidate: strict performance and same-source32CI acceptance pending",
   "selection": "local_development_candidate",
   "environments": {
     "pddt": ".local/pldt-72h-20261030/dev"
   },
-  "validation": "functional_pass_performance_incomplete"
+  "validation": "functional_candidate_not_adopted"
 }
