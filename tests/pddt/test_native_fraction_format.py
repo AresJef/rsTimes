@@ -80,7 +80,10 @@ def test_non_numeric_and_platform_forms_keep_the_full_mature_call(fmt, expanded)
 @pytest.mark.parametrize("zone", [timezone(timedelta(microseconds=1)),
                                   timezone(timedelta(hours=8), "时区"),
                                   timezone(timedelta(hours=8), "a\0b"),
-                                  timezone(timedelta(hours=1), "\ud800")])
+                                  timezone(timedelta(hours=1), "\ud800"),
+                                  timezone(timedelta(hours=8), "été"),
+                                  timezone(timedelta(hours=8), "🌏"),
+                                  timezone(timedelta(hours=8), "")])
 def test_unusual_fixed_offsets_and_names_keep_mature_formatting(zone):
     source = Pddt(["2024-01-02 03:04:05.123456"], tz=zone, unit="us")
     scalar = pd.Timestamp(source.asi8[0], unit="us", tz=source.tz)

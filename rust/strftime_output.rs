@@ -104,9 +104,19 @@ fn numeric_zone(
             None
         } else {
             let text = name.cast::<PyString>()?;
-            // SAFETY: a live typed PyString under the GIL proves the Unicode
-            // header. Non-ASCII names reach the host without UTF8 decoding.
-            if unsafe { pyo3::ffi::PyUnicode_IS_ASCII(text.as_ptr()) } == 0 {
+            // SAFETY: the live immutable PyString owns ready storage under the
+            // GIL. These kind/data/length APIs are also used by TextView on all
+            // supported Python versions. One-byte storage includes Latin1, so
+            // inspect its bytes before UTF8 decoding; wider names use the host.
+            let ascii = unsafe {
+                pyo3::ffi::PyUnicode_KIND(text.as_ptr()) == pyo3::ffi::PyUnicode_1BYTE_KIND
+                    && std::slice::from_raw_parts(
+                        pyo3::ffi::PyUnicode_DATA(text.as_ptr()).cast::<u8>(),
+                        pyo3::ffi::PyUnicode_GET_LENGTH(text.as_ptr()) as usize,
+                    )
+                    .is_ascii()
+            };
+            if !ascii {
                 return Ok(None);
             }
             let text = text.to_str()?;
