@@ -365,7 +365,7 @@ fn native_parts(
         }
         DataType::String => {
             let mut rules = NativeRules::library();
-            let mut scratch = Vec::new();
+            let mut scratch = native::Scratch::default();
             let mut offsets = std::collections::HashMap::new();
             let mut regions = std::collections::HashMap::new();
             for (row, value) in source

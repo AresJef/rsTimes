@@ -327,11 +327,6 @@ impl Rows {
 
 /// Already completed and validated civil fields; no temporary Python date.
 pub(super) fn fields_nanos(fields: [i64; 7], tail: i64) -> Result<i128, Failure> {
-    let [year, month, day, hour, minute, second, microsecond] = fields;
-    let ordinal = crate::calendar::checked_ordinal(year, month, day)
-        .map_err(|message| Failure::new(Kind::Capacity, message))?;
-    Ok((i128::from(ordinal) - 719_163) * 86_400_000_000_000
-        + ((i128::from(hour) * 60 + i128::from(minute)) * 60 + i128::from(second)) * 1_000_000_000
-        + i128::from(microsecond) * 1000
-        + i128::from(tail))
+    crate::civil::fields_nanos(fields, tail)
+        .map_err(|message| Failure::new(Kind::Capacity, message))
 }

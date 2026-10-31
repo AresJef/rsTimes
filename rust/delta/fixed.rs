@@ -12,6 +12,55 @@ const LIMBS: usize = 19;
 const FRACTION_BITS: usize = 1074;
 const SIGNED64_BOUND: f64 = 9_223_372_036_854_775_808.0;
 
+/// One exact dyadic term. Compact sums use checked alignment, with the same
+/// wide accumulator as fallback when exponent distance would lose any bit.
+#[derive(Clone, Copy)]
+pub(crate) struct BinaryTerm {
+    numerator: i128,
+    power: i32,
+}
+
+impl BinaryTerm {
+    pub(crate) fn scaled(value: f64, coefficient: u64) -> Result<Self, ValueError> {
+        let (product, power, negative) = scaled_parts(value, coefficient)?;
+        let number = product as i128; // validated product has at most103 bits
+        Ok(Self {
+            numerator: if negative { -number } else { number },
+            power,
+        })
+    }
+
+    pub(crate) fn combined(self, other: Self) -> Option<Self> {
+        if self.numerator == 0 {
+            return Some(other);
+        }
+        if other.numerator == 0 {
+            return Some(self);
+        }
+        let power = self.power.min(other.power);
+        let align = |term: Self| {
+            let shift = (term.power - power) as u32;
+            if shift >= 127 {
+                return None;
+            }
+            term.numerator.checked_mul(1_i128 << shift)
+        };
+        Some(Self {
+            numerator: align(self)?.checked_add(align(other)?)?,
+            power,
+        })
+    }
+
+    pub(crate) fn rounded(self, integer_ns: i128) -> Result<i128, ValueError> {
+        round_product(
+            self.numerator.unsigned_abs(),
+            self.power,
+            self.numerator < 0,
+            integer_ns,
+        )
+    }
+}
+
 /// Round one exact binary contribution with an integer base, without scratch.
 /// This is the same ns contract as the accumulator, specialized for one float.
 pub(crate) fn round_scaled(
@@ -20,6 +69,16 @@ pub(crate) fn round_scaled(
     integer_ns: i128,
 ) -> Result<i128, ValueError> {
     let (product, power, negative) = scaled_parts(value, coefficient)?;
+    round_product(product, power, negative, integer_ns)
+}
+
+#[inline]
+fn round_product(
+    product: u128,
+    power: i32,
+    negative: bool,
+    integer_ns: i128,
+) -> Result<i128, ValueError> {
     let (whole, above_half, exactly_half) = if power >= 0 {
         let shift = power as u32;
         if shift >= 127 || product > ((i128::MAX as u128) >> shift) {
@@ -29,8 +88,9 @@ pub(crate) fn round_scaled(
     } else {
         let shift = (-power) as u32;
         if shift >= 128 {
-            // The bounded product has at most103 bits, strictly below half.
-            (0, false, false)
+            // Compact signed sums can reach128 bits; preserve an exact half
+            // at scale2^-128 rather than assuming every such term is tiny.
+            (0, false, shift == 128 && product == (1_u128 << 127))
         } else {
             let remainder = product & ((1_u128 << shift) - 1);
             let half = 1_u128 << (shift - 1);
@@ -95,6 +155,19 @@ impl FixedNsAccumulator {
     /// Accumulate the actual binary value times its exact integer ns coefficient.
     pub(crate) fn add(&mut self, value: f64, coefficient: u64) -> Result<(), ValueError> {
         let (product, power, negative) = scaled_parts(value, coefficient)?;
+        self.add_product(product, power, negative)
+    }
+
+    /// Transfer an exact compact sum without converting it through f64.
+    pub(crate) fn add_term(&mut self, term: BinaryTerm) -> Result<(), ValueError> {
+        self.add_product(
+            term.numerator.unsigned_abs(),
+            term.power,
+            term.numerator < 0,
+        )
+    }
+
+    fn add_product(&mut self, product: u128, power: i32, negative: bool) -> Result<(), ValueError> {
         if product == 0 {
             return Ok(());
         }
@@ -202,6 +275,38 @@ impl FixedNsAccumulator {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn integral_fraction_detection_does_not_round_decimal_spelling() {
+        assert_eq!(BinaryTerm::scaled(0.5, 1000).unwrap().rounded(0), Ok(500));
+        assert_eq!(
+            BinaryTerm::scaled(-0.125, 86_400_000_000_000)
+                .unwrap()
+                .rounded(0),
+            Ok(-10_800_000_000_000)
+        );
+        assert_eq!(BinaryTerm::scaled(0.0, 1).unwrap().rounded(1), Ok(1));
+        assert_eq!(BinaryTerm::scaled(0.5, 1).unwrap().rounded(1), Ok(2));
+        // Real binary0.1 seconds is slightly above the decimal value. Adding
+        // half a ns must therefore round up, rather than become an even tie.
+        let decimal = BinaryTerm::scaled(0.1, 1_000_000_000).unwrap();
+        let half = BinaryTerm::scaled(0.5, 1).unwrap();
+        assert_eq!(decimal.combined(half).unwrap().rounded(0), Ok(100_000_001));
+        let tiny = BinaryTerm::scaled(f64::from_bits(1), 604_800_000_000_000).unwrap();
+        assert_eq!(tiny.rounded(0), Ok(0));
+        assert!(tiny.combined(half).is_none()); // exact wide fallback is needed
+    }
+
+    #[test]
+    fn compact_signed_128_half_keeps_the_integer_prefix_parity() {
+        let half = BinaryTerm {
+            numerator: i128::MIN,
+            power: -128,
+        };
+        assert_eq!(half.rounded(1), Ok(0));
+        assert_eq!(half.rounded(2), Ok(2));
+        assert_eq!(half.rounded(-1), Ok(-2));
+    }
 
     #[test]
     fn half_ties_include_complete_integer_parity() {

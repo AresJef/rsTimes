@@ -1,5 +1,6 @@
 """Full-precision public operand routes, independent of us carrier storage."""
 
+from calendar import monthrange
 from datetime import date, datetime, timedelta
 import subprocess
 import sys
@@ -153,6 +154,58 @@ def test_numpy_source_capacity_cannot_be_rescued_by_an_absolute_field():
         Delta(year=2024)+source
 
 
+@pytest.mark.parametrize("container", [list, tuple, iter])
+@pytest.mark.parametrize("text,kwargs,expected", [
+    ("2024-01-31T23:59:59.999999000", {"months":1,"days":3,"hours":2},
+     datetime(2024,3,4,1,59,59,999999)),
+    ("2024-01-31T23:59:59.999999500", {"months":1,"days":3,"hours":2},
+     datetime(2024,3,4,2)),
+    ("2024-01-31T23:59:59.999998500", {"months":1,"days":3,"hours":2},
+     datetime(2024,3,4,1,59,59,999998)),
+    ("2024-03-31T00:00:00.000000000", {"months":-1,"days":-3,"hours":-2},
+     datetime(2024,2,25,22)),
+    ("2024-01-31T23:59:59.999999000", {"months":1,"days":3,"hours":2,"hour":0},
+     datetime(2024,3,3,2,59,59,999999)),
+    ("2024-01-31T23:59:59.999999000", {"months":1,"days":3,"hours":2,"nanoseconds":1},
+     datetime(2024,3,4,1,59,59,999999)),
+])
+def test_native_batch_calendar_clock_keeps_ns_until_final_projection(container,text,kwargs,expected):
+    source=np.datetime64(text,"ns")
+    delta=Delta(**kwargs)
+    assert source+delta == expected
+    result=delta.apply_many(container([source]*3))
+    assert result == [expected]*3
+    assert all(type(value) is datetime for value in result)
+
+
+def test_native_batch_varied_microsecond_sources_use_independent_calendar_answers():
+    sources=[datetime(2024,1,31,23,59,59,999999)+timedelta(hours=i) for i in range(1024)]
+    # The independent standard-library answer selects the actual destination
+    # month before adding the fixed days/hours; no rsTimes parser/kernel is used.
+    expected=[]
+    for source in sources:
+        month=source.month+1
+        year=source.year+(month>12)
+        month=month%12 or 12
+        day=min(source.day,monthrange(year,month)[1])
+        expected.append(source.replace(year=year,month=month,day=day)+timedelta(days=3,hours=2))
+    delta=Delta(months=1,days=3,hours=2)
+    assert delta.apply_many(sources) == expected
+    assert delta.apply_many([np.datetime64(value,"us") for value in sources]) == expected
+    assert delta.apply_many([np.datetime64(value,"us") for value in sources[:1]]) == expected[:1]
+
+
+@pytest.mark.parametrize("unit", ["Y","M","W","D"])
+@pytest.mark.parametrize("hours", [-2,2])
+def test_native_batch_coarse_source_keeps_date_exit_with_whole_hours(unit,hours):
+    source=np.datetime64("2024-01-31",unit)
+    day=source.astype("datetime64[D]").item()
+    expected=day-timedelta(days=1) if hours<0 else day
+    result=Delta(hours=hours).apply_many([source,source])
+    assert result == [expected,expected]
+    assert all(type(value) is date for value in result)
+
+
 def test_numpy_ns_direct_methods_keep_their_separate_reflected_contract():
     delta=Delta(nanoseconds=500)
     duration=np.timedelta64(1500,"ns")
@@ -185,4 +238,51 @@ def test_ns_first_real_use_works_in_a_fresh_process_before_cache_warmup(expressi
         code+=f"assert result==Delta(nanoseconds={expected}), result\n"
     run=subprocess.run([sys.executable,"-I","-c",code],capture_output=True,text=True,timeout=20)
     assert run.returncode==0,run.stderr
+
+
+@pytest.mark.parametrize("unit,multiplier", [
+    (unit, multiplier)
+    for unit in SCALES
+    for multiplier in (1, 1000 if unit == "ns" else 3)
+])
+def test_exact_us_numpy_clocks_keep_all_calendar_routes_and_output_roles(unit, multiplier):
+    source = np.array(["2024-01-31T23:59:59.123456"],
+                      dtype=f"datetime64[{multiplier}{unit}]")[0]
+    original = int(source.astype(np.int64))
+    base = source.astype("datetime64[us]").item()
+    delta = Delta(months=1, days=3, hours=2)
+
+    def expected(sign):
+        year, month = divmod(base.year * 12 + base.month - 1 + sign, 12)
+        month += 1
+        day = min(base.day, monthrange(year, month)[1])
+        return base.replace(year=year, month=month, day=day) + timedelta(days=sign * 3,
+                                                                       hours=sign * 2)
+
+    forward, backward = expected(1), expected(-1)
+    result = delta + source
+    assert type(result) is datetime and result == forward
+    coarse = unit in ("Y", "M", "W", "D")
+    result_type = date if coarse else datetime
+    if coarse:
+        forward, backward = forward.date(), backward.date()
+    result = source + delta
+    assert type(result) is result_type and result == forward
+    result = source - delta
+    assert type(result) is result_type and result == backward
+    result = delta.apply_many([source])[0]
+    assert type(result) is result_type and result == forward
+    assert int(source.astype(np.int64)) == original
+
+
+@pytest.mark.parametrize("unit", ["us", "ns"])
+def test_exact_us_numpy_exit_preserves_absolute_calendar_and_weekday_order(unit):
+    source = np.datetime64("2024-01-31T23:59:59.999999", unit)
+    delta = Delta(year=2023, month=2, day=31, weekday=0, days=3, hours=2)
+    forward = datetime(2023, 2, 27, 1, 59, 59, 999999)
+    backward = datetime(2023, 2, 20, 21, 59, 59, 999999)
+    assert delta + source == forward
+    assert source + delta == forward
+    assert source - delta == backward
+    assert delta.apply_many([source]) == [forward]
 

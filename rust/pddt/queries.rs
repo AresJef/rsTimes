@@ -234,13 +234,14 @@ fn iso_table<'py>(
 #[pyo3(signature=(data,unit,zone,query,entry,target=None))]
 fn _pddt_query<'py>(
     py: Python<'py>,
-    data: &[u8],
+    data: super::buffer::InputBytes<'py>,
     unit: &str,
     zone: Option<&Bound<'py, PyAny>>,
     query: u8,
     entry: &str,
     target: Option<PyRef<'_, Integers>>,
 ) -> PyResult<Output<'py>> {
+    let data = data.as_slice()?;
     if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime("invalid query source buffer"));
     }

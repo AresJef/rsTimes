@@ -88,6 +88,16 @@ impl Plan {
     pub(crate) fn native(&self) -> bool {
         !self.nodes.iter().any(|v| matches!(v, Node::System(_)))
     }
+    /// Universally supported system numeric forms, without locale or platform
+    /// extensions. Small/wide years and unusual zone names are host concerns.
+    pub(crate) fn system_numeric(&self) -> bool {
+        self.nodes.iter().all(|node| match node {
+            Node::Literal(text) => text.is_ascii() && !text.contains('\0'),
+            Node::Field(code) => b"YymdHIMSjwUWzZ%".contains(code),
+            Node::Fraction { .. } => true,
+            Node::System(_) => false,
+        })
+    }
     pub(crate) fn modified(&self) -> bool {
         self.modified
     }
@@ -253,6 +263,20 @@ mod tests {
         assert!(!Plan::parse("%A %.9f").unwrap().native());
         for bad in ["%.10f", "%.-1f", "%.f", "%.3g"] {
             assert!(Plan::parse(bad).is_err());
+        }
+    }
+
+    #[test]
+    fn system_numeric_subset_does_not_capture_platform_locale_or_literal_nul() {
+        for format in [
+            "%Y-%m-%d %H:%M:%S.%f",
+            "%j %w %U %W %I %z %Z%.0f",
+            "%%f|%.9f",
+        ] {
+            assert!(Plan::parse(format).unwrap().system_numeric(), "{format}");
+        }
+        for format in ["%G %V %u %.3f", "%A %.9f", "%_d %f", "日期%f", "a\0%f"] {
+            assert!(!Plan::parse(format).unwrap().system_numeric(), "{format}");
         }
     }
 }

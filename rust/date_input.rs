@@ -13,6 +13,12 @@ use pyo3::types::{PyFloat, PyInt, PyString};
 const NS_DAY: i128 = 86_400_000_000_000;
 static MISSING: PyOnceLock<(Py<PyAny>, Py<PyAny>)> = PyOnceLock::new();
 
+/// Exact missing words for UTF8-backed columns; scalar strings retain their
+/// borrowed codepoint check rather than being encoded for this helper.
+pub(crate) fn missing_utf8(value: &str) -> bool {
+    matches!(value, "" | "NaT" | "NAT" | "nat" | "NaN" | "NAN" | "nan")
+}
+
 /// Cache actual optional pandas missing singletons once; no pandas import here.
 pub(crate) fn register_missing(py: Python<'_>, na: Py<PyAny>, nat: Py<PyAny>) {
     let _ = MISSING.set(py, (na, nat));
@@ -35,15 +41,23 @@ pub(crate) fn text_fields<P: Policy>(
         opts.isoformat,
         opts.cfg,
     )?;
-    let [y, m, d, h, minute, s, us] = crate::parser::complete(&parsed.fields, default)?;
-    let day = crate::calendar::checked_ordinal(i64::from(y), i64::from(m), i64::from(d))
-        .map_err(crate::error_context::overflow)?
-        - 719_163;
-    let nanos = i128::from(day) * NS_DAY
-        + ((i128::from(h) * 60 + i128::from(minute)) * 60 + i128::from(s)) * 1_000_000_000
-        + i128::from(us) * 1000
-        + i128::from(parsed.fields.fraction.tail());
-    let zone = if opts.ignoretz {
+    finish_text(py, parsed, opts.ignoretz)
+}
+
+/// Finish shared parsed fields without repeating recognition or building a date.
+#[inline]
+pub(crate) fn finish_text<P: Policy>(
+    py: Python<'_>,
+    parsed: crate::parser::ParsedFields<P>,
+    ignoretz: bool,
+) -> PyResult<Parsed> {
+    let [y, m, d, h, minute, s, us] = crate::parser::complete(&parsed.fields, parsed.default_date)?;
+    let nanos = crate::civil::fields_nanos(
+        [y, m, d, h, minute, s, us].map(i64::from),
+        i64::from(parsed.fields.fraction.tail()),
+    )
+    .map_err(crate::error_context::overflow)?;
+    let zone = if ignoretz {
         Zone::Naive
     } else if let Some(region) = parsed.region {
         let object = region.object.as_ref().ok_or_else(|| {

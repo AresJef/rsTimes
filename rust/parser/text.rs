@@ -313,6 +313,7 @@ pub(super) fn alpha(ch: u32) -> bool {
 
 /// Native normalized code points and token boundaries. A scan allocates the
 /// arena once instead of allocating and growing a separate Vec for each token.
+#[derive(Default)]
 pub(super) struct Tokens {
     arena: Vec<u32>,
     ranges: Vec<std::ops::Range<usize>>,
@@ -339,15 +340,22 @@ impl Tokens {
 }
 
 /// Frozen timelex state transitions, with native normalized token storage.
-pub(super) fn tokenize(input: &impl CharacterRead, mut pos: usize) -> Tokens {
+pub(super) fn tokenize(input: &impl CharacterRead, pos: usize) -> Tokens {
+    let mut tokens = Tokens::default();
+    tokenize_into(input, pos, &mut tokens);
+    tokens
+}
+
+/// Reuse only native storage for this call; no source reference survives a fill.
+pub(super) fn tokenize_into(input: &impl CharacterRead, mut pos: usize, tokens: &mut Tokens) {
     let remaining = input.len().saturating_sub(pos);
     // Normalization can only shorten the input. Each source code point is
     // written once; splitting records ranges within this immutable arena.
-    let mut tokens = Tokens {
-        arena: Vec::with_capacity(remaining),
-        ranges: Vec::with_capacity(remaining.min(32)),
-        region_candidate: false,
-    };
+    tokens.arena.clear();
+    tokens.ranges.clear();
+    tokens.region_candidate = false;
+    tokens.arena.reserve(remaining);
+    tokens.ranges.reserve(remaining.min(32));
     while pos < input.len() && space(input.get(pos)) {
         pos += 1;
     }
@@ -463,5 +471,4 @@ pub(super) fn tokenize(input: &impl CharacterRead, mut pos: usize) -> Tokens {
             tokens.ranges.push(start..end);
         }
     }
-    tokens
 }

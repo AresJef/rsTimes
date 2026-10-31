@@ -202,7 +202,7 @@ fn read_targets(
             }
             DataType::String => {
                 let mut rules = NativeRules::library();
-                let mut scratch = Vec::new();
+                let mut scratch = crate::parser::native::Scratch::default();
                 let prepared = crate::parser::native::Options {
                     default: None,
                     yearfirst: None,

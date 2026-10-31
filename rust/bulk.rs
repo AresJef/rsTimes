@@ -25,6 +25,7 @@ struct Batch<'a, 'py> {
     slf: &'a Bound<'py, Delta>,
     fields: &'a crate::delta::value::DeltaValue,
     empty: bool,
+    hours: Option<i64>,
     native: bool,
     types: &'a Types,
     addition: &'a PreparedAddition,
@@ -63,12 +64,13 @@ impl<'py> Batch<'_, 'py> {
                 );
             }
             if actual == self.types.datetime {
-                return crate::interop::apply_builtin_datetime_fields(
+                return crate::interop::apply_builtin_datetime_batch(
                     self.fields,
                     self.empty,
                     value,
                     unsafe { value.cast_unchecked::<PyDateTime>() },
                     1,
+                    self.hours,
                 )?
                 .ok_or_else(|| {
                     crate::error_context::runtime("Datetime kernel returned no result")
@@ -96,13 +98,14 @@ impl<'py> Batch<'_, 'py> {
             && let Some(source) = numpy.delta_scalar(value, true)?
         {
             match source {
-                crate::numpy_scalar::DeltaScalar::Date { civil, coarse } => {
-                    return crate::numpy_scalar::apply_delta_date(
+                crate::numpy_scalar::DeltaScalar::Date(source) => {
+                    return crate::numpy_scalar::apply_delta_date_batch(
                         self.slf.py(),
                         self.fields,
-                        civil,
+                        source,
                         1,
-                        coarse,
+                        source.coarse(),
+                        self.hours,
                     );
                 }
                 crate::numpy_scalar::DeltaScalar::Duration {
@@ -298,6 +301,7 @@ fn fill_arithmetic_list<'py, const REPLACE: bool>(
         slf,
         fields: &fields,
         empty: !slf.get().__bool__(),
+        hours: crate::calendar::batch_hours(&fields),
         native: true,
         types: &types,
         addition,
@@ -624,6 +628,11 @@ pub(crate) fn apply<'py>(
         slf,
         fields: &fields,
         empty,
+        hours: if native {
+            crate::calendar::batch_hours(&fields)
+        } else {
+            None
+        },
         native,
         types: &types,
         addition: &addition,

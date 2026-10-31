@@ -54,7 +54,7 @@ impl<'a, 'py> FromPyObject<'a, 'py> for Truth {
 
 #[cold]
 #[inline(never)]
-fn native_error(error: ParseError) -> PyErr {
+pub(crate) fn native_error(error: ParseError) -> PyErr {
     match error {
         ParseError::Value(message) => {
             Python::attach(|py| crate::error_context::domain(py, "ParseError", message))
@@ -686,6 +686,42 @@ pub(crate) fn read_fields_prepared<'py, P: Policy>(
     })
 }
 
+/// Read a callback-free collection element with its once-prepared rule owner.
+#[inline(always)]
+pub(crate) fn read_collection_fields<P: Policy>(
+    py: Python<'_>,
+    input: &Bound<'_, PyString>,
+    options: native::Options,
+    rules: &config::FormatRules,
+    scratch: &mut native::Scratch,
+) -> PyResult<ParsedFields<P>> {
+    let mut view = TextView::new(input)?;
+    let mut rules = rules.native_view();
+    let parsed = core::read::<P, _, _>(
+        &mut view,
+        &mut rules,
+        options.default,
+        options.yearfirst,
+        options.dayfirst,
+        false,
+        options.isoformat,
+        Some(&mut scratch.tokens),
+    )
+    .map_err(native_error)?
+    .ok_or_else(|| {
+        crate::error_context::domain(
+            py,
+            "ParseError",
+            "no date/time fields could be read; provide a recognizable date or time".to_owned(),
+        )
+    })?;
+    Ok(ParsedFields {
+        fields: parsed.fields,
+        region: parsed.region,
+        default_date: options.default,
+    })
+}
+
 /// Shared scan/resolution body; no result object or default conversion is made here.
 #[inline(always)]
 #[allow(clippy::too_many_arguments)]
@@ -717,6 +753,7 @@ fn scan_prepared<'py, P: Policy>(
             dayfirst,
             ignoretz,
             isoformat,
+            None,
         )
     } else {
         let mut rules = config::DefaultView;
@@ -728,6 +765,7 @@ fn scan_prepared<'py, P: Policy>(
             dayfirst,
             ignoretz,
             isoformat,
+            None,
         )
     }
     .map_err(native_error)?;

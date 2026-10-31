@@ -110,7 +110,7 @@ fn output_field(fields: &[Field], options: Options) -> PolarsResult<Field> {
 
 /// Only the approved exact missing markers. Bad text is never coerced to null.
 pub(super) fn missing(value: &str) -> bool {
-    matches!(value, "" | "NaT" | "NAT" | "nat" | "NaN" | "NAN" | "nan")
+    crate::date_input::missing_utf8(value)
 }
 
 fn region(rows: &mut Rows, value: &NativeRegion) -> Result<usize, Failure> {
@@ -167,7 +167,7 @@ fn parse_rows<P: Policy>(source: &Series, mut run: Run<'_>) -> Result<Series, Fa
     } else {
         Unit::Second
     });
-    let mut scratch = Vec::new();
+    let mut scratch = native::Scratch::default();
     for (row, value) in values.iter().enumerate() {
         let Some(value) = value.filter(|value| !missing(value)) else {
             rows.missing();
@@ -175,10 +175,11 @@ fn parse_rows<P: Policy>(source: &Series, mut run: Run<'_>) -> Result<Series, Fa
         };
         let mut read = || -> Result<(i128, usize, Unit), Failure> {
             if let Some(format) = run.format {
-                scratch.clear();
-                scratch.extend(value.chars().map(u32::from));
+                let points = scratch.codepoints();
+                points.clear();
+                points.extend(value.chars().map(u32::from));
                 let parsed =
-                    formatted::read_native(format, &run.rules, &scratch).map_err(format_error)?;
+                    formatted::read_native(format, &run.rules, points).map_err(format_error)?;
                 let zone = match parsed.zone {
                     FormattedZone::Naive => 0,
                     FormattedZone::Offset(offset) => rows.offset(offset)?,

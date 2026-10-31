@@ -43,6 +43,38 @@ Boolean, String, Date, Time, Struct and Duration results are ordinary Series;
 time tables are eager DataFrames or native Struct Exprs. Not every result is
 wrapped as Pldt, and a native scalar is not automatically Pydt.
 
+## Error boundaries
+
+Python option preparation and eager operations raise the documented builtin
+errors, such as TypeError, ValueError or OverflowError. An Expr does not inspect
+the future rows when it is created. Schema/data failures at select or collect
+use Polars exception classes, usually ComputeError; their message retains the
+PLDT entry, cause and reliable batch position. Catch PolarsError for that
+deferred boundary. The builtin categories in shared method documentation are
+the eager equivalents, not a promise to bypass Polars' native error protocol.
+
+```python
+import polars as pl
+from rstimes import Pldt
+
+try:
+    pl.col("seconds").pldt.fromseconds(unit="ps")
+except ValueError:
+    pass  # Invalid option: rejected while preparing the expression.
+else:
+    raise AssertionError("unsupported unit was accepted")
+
+try:
+    pl.DataFrame({"seconds": [9_223_372_037]}).select(
+        pl.col("seconds").pldt.fromseconds(unit="ns")
+    )
+except pl.exceptions.PolarsError as error:
+    assert "Pldt.fromseconds" in str(error)
+    assert "capacity" in str(error)
+else:
+    raise AssertionError("out-of-range row was accepted")
+```
+
 ## Input, units, missing data and ownership
 
 Construction requires one-dimensional ordered data: supported iterables,

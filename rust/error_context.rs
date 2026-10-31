@@ -204,6 +204,30 @@ pub(crate) fn text_preview(py: Python<'_>, value: &str) -> PyResult<String> {
     helper(py, 5)?.call1((fragment, length))?.extract()
 }
 
+/// Complete a native UTF8 row error without copying its whole text into Python.
+#[cold]
+#[inline(never)]
+pub(crate) fn text_item(
+    py: Python<'_>,
+    error: PyErr,
+    entry: &str,
+    index: usize,
+    value: &str,
+) -> PyErr {
+    match critical(py, &error) {
+        Ok(true) => return error,
+        Err(secondary) => return secondary,
+        Ok(false) => {}
+    }
+    let parameter = format!("data[{index}]");
+    match text_preview(py, value).and_then(|preview| {
+        helper(py, 2)?.call1((error.value(py), entry, parameter, py.None(), true, preview))
+    }) {
+        Ok(value) => PyErr::from_value(value),
+        Err(secondary) => secondary,
+    }
+}
+
 /// Known parameter binding failures need no fallible type-name fallback.
 #[cold]
 #[inline(never)]

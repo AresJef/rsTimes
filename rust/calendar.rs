@@ -156,8 +156,9 @@ fn year_add(left: i64, right: i64) -> Result<i64, &'static str> {
 
 /// Shift a normalized date by at most 27 days without an ordinal round trip.
 ///
-/// Month must be 1..=12 and offset must be -27..=27. Wide intermediate
-/// years retain Delta's checked year-carry behavior; callers enforce date bounds.
+/// Month must be1..=12, day1..=31 and offset-27..=27. Preserve the established
+/// high-day fit; days1..=28 require no month-length lookup. Wide years retain
+/// checked year carry; callers enforce final date bounds.
 /// # Errors
 /// Returns an error if crossing a year would overflow signed 64-bit storage.
 #[inline(always)]
@@ -167,7 +168,13 @@ pub(crate) fn shift_small_days(
     mut day: i64,
     offset: i64,
 ) -> Result<[i64; 3], &'static str> {
-    day = day.min(days_in_month(year, month)) + offset;
+    debug_assert!((1..=12).contains(&month));
+    debug_assert!((1..=31).contains(&day));
+    debug_assert!((-27..=27).contains(&offset));
+    if day > 28 {
+        day = day.min(days_in_month(year, month));
+    }
+    day += offset;
     if day < 1 {
         if month == 1 {
             year = year_add(year, -1)?;
@@ -176,7 +183,7 @@ pub(crate) fn shift_small_days(
             month -= 1;
         }
         day += days_in_month(year, month);
-    } else {
+    } else if day > 28 {
         let length = days_in_month(year, month);
         if day > length {
             day -= length;
@@ -204,7 +211,12 @@ pub(crate) fn move_date(
     let total = i128::from(date[0]) * 12 + i128::from(month.unwrap_or(date[1])) - 1 + months;
     let year = i64::try_from(total.div_euclid(12)).map_err(|_| OVERFLOW)?;
     let month = (total.rem_euclid(12) + 1) as i64;
-    let day = day.unwrap_or(date[2]).min(days_in_month(year, month));
+    let day = day.unwrap_or(date[2]);
+    let day = if day > 28 {
+        day.min(days_in_month(year, month))
+    } else {
+        day
+    };
     if days == 0 {
         return Ok([year, month, day]);
     }
@@ -255,6 +267,7 @@ pub(crate) fn calendar_gap_targets(wall: i128, gap: i128, forward: bool) -> [Opt
 /// # Preconditions
 /// Source fields are already valid: all four callers obtain them from real
 /// date/datetime native storage. NumPy sources use their own checked ns boundary.
+#[inline(always)]
 pub fn apply(
     value: &crate::delta::value::DeltaValue,
     input: [i64; 7],
@@ -272,6 +285,57 @@ pub fn apply(
         let date = shift_small_days(input[0], input[1], input[2], sign * value.days)?;
         let mut result = input;
         result[..3].copy_from_slice(&date);
+        return Ok((result, result == input));
+    }
+    if !value.absolute.replaces_clock() && value.clock_ns.is_multiple_of(3_600_000_000_000) {
+        return apply_hours(
+            value,
+            input,
+            sign,
+            datetime,
+            (value.clock_ns / 3_600_000_000_000) as i64,
+        );
+    }
+    if !value.absolute.replaces_clock() && value.clock_ns.is_multiple_of(1_000_000_000) {
+        // This ns value changes whole seconds only. Native source fields are
+        // already decoded; its microseconds survive exactly, so no ns clock
+        // assembly or final rounding is needed. Calendar resolution is shared.
+        let source = if datetime {
+            (input[3] * 3600 + input[4] * 60 + input[5]) as i32
+        } else {
+            0
+        };
+        let mut clock = source + sign as i32 * (value.clock_ns / 1_000_000_000) as i32;
+        let carry = if clock >= 86_400 {
+            clock -= 86_400;
+            1
+        } else if clock < 0 {
+            clock += 86_400;
+            -1
+        } else {
+            0
+        };
+        let (year, month, day) = crate::civil::apply_date(
+            value,
+            (i128::from(input[0]), input[1] as u8, input[2] as u8),
+            sign,
+            carry,
+        )?;
+        let mut result = [
+            i64::try_from(year).map_err(|_| OVERFLOW)?,
+            i64::from(month),
+            i64::from(day),
+            0,
+            0,
+            0,
+            0,
+        ];
+        if datetime {
+            result[3] = i64::from(clock / 3600);
+            result[4] = i64::from(clock / 60 % 60);
+            result[5] = i64::from(clock % 60);
+            result[6] = input[6];
+        }
         return Ok((result, result == input));
     }
     let clock_ns = if datetime {
@@ -299,6 +363,61 @@ pub fn apply(
             0,
         ]
     };
+    Ok((result, result == input))
+}
+
+/// Prepare the nonzero whole-hour component of an immutable batch snapshot.
+/// Zero keeps the existing pure-day shortcut; absolute clocks use the full core.
+pub(crate) fn batch_hours(value: &crate::delta::value::DeltaValue) -> Option<i64> {
+    if value.clock_ns != 0
+        && !value.absolute.replaces_clock()
+        && value.clock_ns.is_multiple_of(3_600_000_000_000)
+    {
+        Some((value.clock_ns / 3_600_000_000_000) as i64)
+    } else {
+        None
+    }
+}
+
+/// Apply a proven whole-hour clock without decoding the same Delta per row.
+/// # Preconditions
+/// `hours` is the canonical value's whole-hour clock, without absolute clocks;
+/// source fields are valid and sign is one of -1 or 1.
+/// # Errors
+/// Preserves checked calendar overflow; final object capacity belongs to callers.
+#[inline(always)]
+pub(crate) fn apply_hours(
+    value: &crate::delta::value::DeltaValue,
+    input: [i64; 7],
+    sign: i64,
+    datetime: bool,
+    hours: i64,
+) -> Result<([i64; 7], bool), &'static str> {
+    // Whole hours leave all lower fields unchanged. Use the same wide date
+    // resolver; no coarser stored model or early precision projection is used.
+    let mut hour = if datetime { input[3] } else { 0 } + sign * hours;
+    let carry = if hour >= 24 {
+        hour -= 24;
+        1
+    } else if hour < 0 {
+        hour += 24;
+        -1
+    } else {
+        0
+    };
+    let (year, month, day) = crate::civil::apply_date(
+        value,
+        (i128::from(input[0]), input[1] as u8, input[2] as u8),
+        sign,
+        carry,
+    )?;
+    let mut result = input;
+    result[0] = i64::try_from(year).map_err(|_| OVERFLOW)?;
+    result[1] = i64::from(month);
+    result[2] = i64::from(day);
+    if datetime {
+        result[3] = hour;
+    }
     Ok((result, result == input))
 }
 
@@ -372,5 +491,115 @@ mod tests {
                 .0,
             [2023, 3, 1, 0, 0, 0, 0]
         );
+    }
+    #[test]
+    fn whole_second_adapter_matches_independent_wide_tick_calendar() {
+        use crate::delta::value::{AbsoluteField as F, AbsoluteFields, DeltaValue, NS_PER_DAY};
+        for year in [-1, 0, 1, 2024, 9999, 1_000_000] {
+            for month in [1, 2, 12] {
+                for day in [1, days_in_month(year, month)] {
+                    for source_second in [0_i64, 86_399] {
+                        for micros in [0, 999_999] {
+                            for seconds in [-86_401_i64, -7_200, -1, 0, 1, 7_200, 86_401] {
+                                for months in [-13_i128, 0, 13] {
+                                    for sign in [-1_i64, 1] {
+                                        for choice in 0..4 {
+                                            let mut absolute = AbsoluteFields::EMPTY;
+                                            match choice {
+                                                1 => {
+                                                    absolute.set(F::Month, Some(2)).unwrap();
+                                                    absolute.set(F::Day, Some(31)).unwrap();
+                                                }
+                                                2 => {
+                                                    absolute.set(F::Year, Some(1)).unwrap();
+                                                }
+                                                3 => {
+                                                    absolute.set(F::Weekday, Some(6)).unwrap();
+                                                }
+                                                _ => {}
+                                            }
+                                            let delta = DeltaValue::from_totals(
+                                                months,
+                                                i128::from(seconds) * 1_000_000_000,
+                                                absolute,
+                                            )
+                                            .unwrap();
+                                            for datetime in [false, true] {
+                                                let input = [
+                                                    year,
+                                                    month,
+                                                    day,
+                                                    if datetime { source_second / 3600 } else { 0 },
+                                                    if datetime {
+                                                        source_second / 60 % 60
+                                                    } else {
+                                                        0
+                                                    },
+                                                    if datetime { source_second % 60 } else { 0 },
+                                                    if datetime { micros } else { 0 },
+                                                ];
+                                                let source_year =
+                                                    absolute.get(F::Year).unwrap_or(year);
+                                                let source_month =
+                                                    absolute.get(F::Month).unwrap_or(month);
+                                                let selected_day =
+                                                    absolute.get(F::Day).unwrap_or(day);
+                                                let total_months = i128::from(source_year) * 12
+                                                    + i128::from(source_month)
+                                                    - 1
+                                                    + i128::from(sign) * months;
+                                                let expected_year =
+                                                    total_months.div_euclid(12) as i64;
+                                                let expected_month =
+                                                    (total_months.rem_euclid(12) + 1) as i64;
+                                                let source_ns = if datetime {
+                                                    i128::from(source_second) * 1_000_000_000
+                                                        + i128::from(micros) * 1000
+                                                } else {
+                                                    0
+                                                };
+                                                let total_ns = source_ns
+                                                    + i128::from(sign)
+                                                        * i128::from(seconds)
+                                                        * 1_000_000_000;
+                                                let mut number = i128::from(ordinal(
+                                                    expected_year,
+                                                    expected_month,
+                                                    selected_day,
+                                                )) + total_ns
+                                                    .div_euclid(NS_PER_DAY);
+                                                if let Some(weekday) = absolute.get(F::Weekday) {
+                                                    number += i128::from(weekday)
+                                                        - (number - 1).rem_euclid(7);
+                                                }
+                                                let [y, m, d] =
+                                                    from_ordinal(number as i64).unwrap();
+                                                let second = (total_ns.rem_euclid(NS_PER_DAY)
+                                                    / 1_000_000_000)
+                                                    as i64;
+                                                let expected = [
+                                                    y,
+                                                    m,
+                                                    d,
+                                                    if datetime { second / 3600 } else { 0 },
+                                                    if datetime { second / 60 % 60 } else { 0 },
+                                                    if datetime { second % 60 } else { 0 },
+                                                    if datetime { micros } else { 0 },
+                                                ];
+                                                assert_eq!(
+                                                    apply(&delta, input, sign, datetime).unwrap().0,
+                                                    expected,
+                                                    "source={input:?} seconds={seconds} months={months} sign={sign} selection={choice}"
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

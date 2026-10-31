@@ -57,6 +57,7 @@ impl RepresentationCache {
 ///
 /// Other interpreter versions and pointer widths retain Python's tuple hash.
 pub(crate) fn configure_hash(py: Python<'_>) {
+    prepare::configure_names(py);
     let version = py.version_info();
     NATIVE_TUPLE_HASH.store(
         cfg!(target_pointer_width = "64") && version.major == 3 && version.minor == 13,

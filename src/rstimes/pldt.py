@@ -1260,6 +1260,11 @@ class _OutputMethods:
     """Native numerical, date, clock and text outputs without Python row objects."""
     def toseconds(self, utc: _Boolean=False) -> pl.Series | pl.Expr:
         """Return Float64 seconds in local coordinates, or UTC when requested.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -1293,6 +1298,11 @@ class _OutputMethods:
 
     def tomicroseconds(self, utc: _Boolean=False) -> pl.Series | pl.Expr:
         """Return Int64 microseconds, flooring only at this explicit output.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -1323,6 +1333,11 @@ class _OutputMethods:
 
     def toordinal(self) -> pl.Series | pl.Expr:
         """Return Int64 proleptic Gregorian day ordinals; missing stays null.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1342,6 +1357,11 @@ class _OutputMethods:
 
     def timestamp(self) -> pl.Series | pl.Expr:
         """Return Float64 UTC seconds; naive dates use the process local zone.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1367,6 +1387,11 @@ class _OutputMethods:
     @property
     def values_naive(self) -> pl.Series | pl.Expr:
         """Return a plain native Datetime column of local wall coordinates.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1387,6 +1412,11 @@ class _OutputMethods:
     @property
     def date(self) -> pl.Series | pl.Expr:
         """Return a native Date column, checked against its signed32-day range.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1407,6 +1437,11 @@ class _OutputMethods:
     @property
     def time(self) -> pl.Series | pl.Expr:
         """Return a native Time column retaining the full time-of-day nanoseconds.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1426,6 +1461,11 @@ class _OutputMethods:
 
     def isoformat(self, sep: str='T', timespec: str='auto') -> pl.Series | pl.Expr:
         """Return ISO strings with explicit precision and colon-separated offsets.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -1453,6 +1493,11 @@ class _OutputMethods:
 
     def strftime(self, format: str) -> pl.Series | pl.Expr:
         """Return strings using native numeric/fraction fields or an eager system adapter.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -1484,6 +1529,11 @@ class _OutputMethods:
 
     def ctime(self) -> pl.Series | pl.Expr:
         """Return English ctime strings, independent of the process locale.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1503,6 +1553,11 @@ class _OutputMethods:
 
     def month_name(self, locale: str | None=None) -> pl.Series | pl.Expr:
         """Return compiled CLDR month names; the default language is English.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -1528,6 +1583,11 @@ class _OutputMethods:
 
     def weekday_name(self, locale: str | None=None) -> pl.Series | pl.Expr:
         """Return compiled CLDR weekday names; the default language is English.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -1553,6 +1613,11 @@ class _OutputMethods:
 
     def tzname(self) -> pl.Series | pl.Expr:
         """Return the native zone abbreviation at each instant, or null if naive.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1576,6 +1641,11 @@ class _QueryMethods:
     @property
     def year(self) -> pl.Series | pl.Expr:
         """Signed calendar year as a nullable Int64 column.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1596,6 +1666,11 @@ class _QueryMethods:
     @property
     def month(self) -> pl.Series | pl.Expr:
         """One-based month as a nullable Int64 column.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1616,6 +1691,11 @@ class _QueryMethods:
     @property
     def day(self) -> pl.Series | pl.Expr:
         """One-based day as a nullable Int64 column.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1636,6 +1716,11 @@ class _QueryMethods:
     @property
     def hour(self) -> pl.Series | pl.Expr:
         """Hour within the local day as nullable Int64.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1656,6 +1741,11 @@ class _QueryMethods:
     @property
     def minute(self) -> pl.Series | pl.Expr:
         """Minute within the hour as nullable Int64.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1676,6 +1766,11 @@ class _QueryMethods:
     @property
     def second(self) -> pl.Series | pl.Expr:
         """Second within the minute as nullable Int64.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1696,6 +1791,11 @@ class _QueryMethods:
     @property
     def microsecond(self) -> pl.Series | pl.Expr:
         """Microsecond within the second as nullable Int64.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1716,6 +1816,11 @@ class _QueryMethods:
     @property
     def nanosecond(self) -> pl.Series | pl.Expr:
         """Additional nanosecond tail, 0 through999, as nullable Int64.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1736,6 +1841,11 @@ class _QueryMethods:
     @property
     def weekday(self) -> pl.Series | pl.Expr:
         """Weekday with Monday0, as nullable Int64.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1756,6 +1866,11 @@ class _QueryMethods:
     @property
     def day_of_year(self) -> pl.Series | pl.Expr:
         """One-based day within the local calendar year.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1776,6 +1891,11 @@ class _QueryMethods:
     @property
     def days_in_month(self) -> pl.Series | pl.Expr:
         """Number of days in the local calendar month.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1796,6 +1916,11 @@ class _QueryMethods:
     @property
     def quarter(self) -> pl.Series | pl.Expr:
         """One-based calendar quarter as nullable Int64.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1816,6 +1941,11 @@ class _QueryMethods:
     @property
     def millisecond(self) -> pl.Series | pl.Expr:
         """Millisecond within the second, from0 through999.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1836,6 +1966,11 @@ class _QueryMethods:
     @property
     def is_leap_year(self) -> pl.Series | pl.Expr:
         """Whether the local year is leap; source null is False.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1855,6 +1990,11 @@ class _QueryMethods:
 
     def isoyear(self) -> pl.Series | pl.Expr:
         """Signed ISO week year, independently of UInt32 table capacity.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1874,6 +2014,11 @@ class _QueryMethods:
 
     def isoweek(self) -> pl.Series | pl.Expr:
         """One-based ISO week number.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1893,6 +2038,11 @@ class _QueryMethods:
 
     def isoweekday(self) -> pl.Series | pl.Expr:
         """ISO weekday with Monday1.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1912,6 +2062,11 @@ class _QueryMethods:
 
     def days_in_year(self) -> pl.Series | pl.Expr:
         """Number of days in the local calendar year.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1931,6 +2086,11 @@ class _QueryMethods:
 
     def days_bf_year(self) -> pl.Series | pl.Expr:
         """Days before this calendar year, relative to0001-01-01.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1950,6 +2110,11 @@ class _QueryMethods:
 
     def days_in_quarter(self) -> pl.Series | pl.Expr:
         """Number of calendar days in this quarter.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1969,6 +2134,11 @@ class _QueryMethods:
 
     def days_bf_quarter(self) -> pl.Series | pl.Expr:
         """Days in this year before the current quarter.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -1988,6 +2158,11 @@ class _QueryMethods:
 
     def day_of_quarter(self) -> pl.Series | pl.Expr:
         """One-based day in this calendar quarter.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -2007,6 +2182,11 @@ class _QueryMethods:
 
     def days_bf_month(self) -> pl.Series | pl.Expr:
         """Days in this year before the current month.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -2026,6 +2206,11 @@ class _QueryMethods:
 
     def day_of_month(self) -> pl.Series | pl.Expr:
         """One-based local day of month.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -2045,6 +2230,11 @@ class _QueryMethods:
 
     def is_year(self, year: _ExprIntegerInput) -> pl.Series | pl.Expr:
         """Match scalar or equal-length integer year targets.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2075,6 +2265,11 @@ class _QueryMethods:
 
     def is_quarter(self, quarter: _ExprIntegerInput) -> pl.Series | pl.Expr:
         """Match scalar or equal-length integer quarter targets.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2100,6 +2295,11 @@ class _QueryMethods:
 
     def is_month(self, month: _ExprQuerySelection) -> pl.Series | pl.Expr:
         """Match integer or saved month names, by position; null is False.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2130,6 +2330,11 @@ class _QueryMethods:
 
     def is_weekday(self, weekday: _ExprQuerySelection) -> pl.Series | pl.Expr:
         """Match integer or saved weekday names, with Monday0.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2155,6 +2360,11 @@ class _QueryMethods:
 
     def is_day(self, day: _ExprIntegerInput) -> pl.Series | pl.Expr:
         """Match scalar or equal-length integer day targets.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2185,6 +2395,11 @@ class _QueryMethods:
 
     def is_long_year(self) -> pl.Series | pl.Expr:
         """Whether the calendar year has53 ISO weeks; null is False.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -2204,6 +2419,11 @@ class _QueryMethods:
 
     def leap_bt_year(self, year: _ExprIntegerInput) -> pl.Series | pl.Expr:
         """Count leap years between row years and targets, lower inclusive.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2234,6 +2454,11 @@ class _QueryMethods:
 
     def is_dst(self) -> pl.Series | pl.Expr:
         """Whether the native zone has nonzero DST; naive/null is False.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -2253,6 +2478,11 @@ class _QueryMethods:
 
     def utcoffset_seconds(self) -> pl.Series | pl.Expr:
         """Actual integer UTC offset; naive and missing rows are null.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -2272,6 +2502,11 @@ class _QueryMethods:
 
     def is_past(self) -> pl.Series | pl.Expr:
         """Strictly before one captured reference; Expr captures on creation.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -2291,6 +2526,11 @@ class _QueryMethods:
 
     def is_future(self) -> pl.Series | pl.Expr:
         """Strictly after one captured reference; Expr captures on creation.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -2310,6 +2550,11 @@ class _QueryMethods:
 
     def isocalendar(self) -> pl.Series | pl.Expr:
         """Return year/week/day as a native Struct with UInt32 fields.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -2334,6 +2579,11 @@ class _QueryMethods:
 
     def timedf(self) -> pl.DataFrame | pl.Expr:
         """Return local time fields as an eager DataFrame or native Struct Expr.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -2353,6 +2603,11 @@ class _QueryMethods:
 
     def utctimedf(self) -> pl.DataFrame | pl.Expr:
         """Return UTC time fields; naive fields do not move and DST is zero.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -2375,6 +2630,11 @@ class _PeriodMethods:
     """Shared date boundaries and names, distinct from native numerical methods."""
     def to_first_of(self, unit: str) -> Pldt | pl.Expr:
         """Select a calendar boundary while preserving date unit and timezone.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2399,6 +2659,11 @@ class _PeriodMethods:
 
     def is_first_of(self, unit: str) -> pl.Series | pl.Expr:
         """Query the actual calendar boundary; missing source dates are False.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2423,6 +2688,11 @@ class _PeriodMethods:
 
     def to_last_of(self, unit: str) -> Pldt | pl.Expr:
         """Select a calendar boundary while preserving date unit and timezone.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2447,6 +2717,11 @@ class _PeriodMethods:
 
     def is_last_of(self, unit: str) -> pl.Series | pl.Expr:
         """Query the actual calendar boundary; missing source dates are False.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2471,6 +2746,11 @@ class _PeriodMethods:
 
     def to_start_of(self, unit: str) -> Pldt | pl.Expr:
         """Select a calendar boundary while preserving date unit and timezone.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2495,6 +2775,11 @@ class _PeriodMethods:
 
     def is_start_of(self, unit: str) -> pl.Series | pl.Expr:
         """Query the actual calendar boundary; missing source dates are False.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2519,6 +2804,11 @@ class _PeriodMethods:
 
     def to_end_of(self, unit: str) -> Pldt | pl.Expr:
         """Select a calendar boundary while preserving date unit and timezone.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2543,6 +2833,11 @@ class _PeriodMethods:
 
     def is_end_of(self, unit: str) -> pl.Series | pl.Expr:
         """Query the actual calendar boundary; missing source dates are False.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2567,6 +2862,11 @@ class _PeriodMethods:
 
     def normalize(self) -> Pldt | pl.Expr:
         """Return the real start of this local day, staying within the day.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -2586,6 +2886,11 @@ class _PeriodMethods:
 
     def snap(self, unit: str='s') -> Pldt | pl.Expr:
         """Select the nearest real period start; equal distances select later.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2616,6 +2921,11 @@ class _PeriodMethods:
 
     def fsp(self, precision: SupportsIndex) -> Pldt | pl.Expr:
         """Truncate the fractional second, preserving the current storage unit.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2644,6 +2954,11 @@ class _TransformMethods:
     """Date operations shared by Pldt and the two native namespaces."""
     def to_datetime(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Merge legal fields once; fit a legal day intent to the final month.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2702,6 +3017,11 @@ class _TransformMethods:
 
     def to_date(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Merge legal fields once; fit a legal day intent to the final month.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2740,6 +3060,11 @@ class _TransformMethods:
 
     def to_time(self, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Merge legal fields once; fit a legal day intent to the final month.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2786,6 +3111,11 @@ class _TransformMethods:
 
     def to_year(self, offset: _ExprIntegerInput, month: _ExprSelection=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Move local calendar periods, retaining precision and fitting month end.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2823,6 +3153,11 @@ class _TransformMethods:
 
     def to_quarter(self, offset: _ExprIntegerInput, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Move local calendar periods, retaining precision and fitting month end.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2860,6 +3195,11 @@ class _TransformMethods:
 
     def to_month(self, offset: _ExprIntegerInput, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Move local calendar periods, retaining precision and fitting month end.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2893,6 +3233,11 @@ class _TransformMethods:
 
     def to_weekday(self, offset: _ExprIntegerInput, weekday: _ExprSelection=None) -> Pldt | pl.Expr:
         """Move local calendar periods, retaining precision and fitting month end.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2925,6 +3270,11 @@ class _TransformMethods:
 
     def to_day(self, offset: _ExprIntegerInput) -> Pldt | pl.Expr:
         """Move local calendar periods, retaining precision and fitting month end.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2954,6 +3304,11 @@ class _TransformMethods:
 
     def to_curr_year(self, month: _ExprSelection=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Select the calendar period directly through the shared native kernel.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -2988,6 +3343,11 @@ class _TransformMethods:
 
     def to_prev_year(self, month: _ExprSelection=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Select the calendar period directly through the shared native kernel.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -3022,6 +3382,11 @@ class _TransformMethods:
 
     def to_next_year(self, month: _ExprSelection=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Select the calendar period directly through the shared native kernel.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -3056,6 +3421,11 @@ class _TransformMethods:
 
     def to_curr_quarter(self, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Select the calendar period directly through the shared native kernel.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -3090,6 +3460,11 @@ class _TransformMethods:
 
     def to_prev_quarter(self, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Select the calendar period directly through the shared native kernel.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -3124,6 +3499,11 @@ class _TransformMethods:
 
     def to_next_quarter(self, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Select the calendar period directly through the shared native kernel.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -3158,6 +3538,11 @@ class _TransformMethods:
 
     def to_curr_month(self, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Select the calendar period directly through the shared native kernel.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -3188,6 +3573,11 @@ class _TransformMethods:
 
     def to_prev_month(self, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Select the calendar period directly through the shared native kernel.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -3218,6 +3608,11 @@ class _TransformMethods:
 
     def to_next_month(self, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
         """Select the calendar period directly through the shared native kernel.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -3248,6 +3643,11 @@ class _TransformMethods:
 
     def to_curr_weekday(self, weekday: _ExprSelection=None) -> Pldt | pl.Expr:
         """Select the calendar period directly through the shared native kernel.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -3273,6 +3673,11 @@ class _TransformMethods:
 
     def to_prev_weekday(self, weekday: _ExprSelection=None) -> Pldt | pl.Expr:
         """Select the calendar period directly through the shared native kernel.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -3298,6 +3703,11 @@ class _TransformMethods:
 
     def to_next_weekday(self, weekday: _ExprSelection=None) -> Pldt | pl.Expr:
         """Select the calendar period directly through the shared native kernel.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -3323,6 +3733,11 @@ class _TransformMethods:
 
     def to_monday(self) -> Pldt | pl.Expr:
         """Select this week's monday, using Monday as day zero.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -3342,6 +3757,11 @@ class _TransformMethods:
 
     def to_tuesday(self) -> Pldt | pl.Expr:
         """Select this week's tuesday, using Monday as day zero.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -3361,6 +3781,11 @@ class _TransformMethods:
 
     def to_wednesday(self) -> Pldt | pl.Expr:
         """Select this week's wednesday, using Monday as day zero.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -3380,6 +3805,11 @@ class _TransformMethods:
 
     def to_thursday(self) -> Pldt | pl.Expr:
         """Select this week's thursday, using Monday as day zero.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -3399,6 +3829,11 @@ class _TransformMethods:
 
     def to_friday(self) -> Pldt | pl.Expr:
         """Select this week's friday, using Monday as day zero.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -3418,6 +3853,11 @@ class _TransformMethods:
 
     def to_saturday(self) -> Pldt | pl.Expr:
         """Select this week's saturday, using Monday as day zero.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -3437,6 +3877,11 @@ class _TransformMethods:
 
     def to_sunday(self) -> Pldt | pl.Expr:
         """Select this week's sunday, using Monday as day zero.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -3456,6 +3901,11 @@ class _TransformMethods:
 
     def to_yesterday(self) -> Pldt | pl.Expr:
         """Move one local calendar day, retaining clock and nanoseconds.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -3475,6 +3925,11 @@ class _TransformMethods:
 
     def to_tomorrow(self) -> Pldt | pl.Expr:
         """Move one local calendar day, retaining clock and nanoseconds.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Returns
         -------
@@ -3494,6 +3949,11 @@ class _TransformMethods:
 
     def add(self, years: _ExprIntegerInput=0, quarters: _ExprIntegerInput=0, months: _ExprIntegerInput=0, weeks: _ExprIntegerInput=0, days: _ExprIntegerInput=0, hours: _ExprIntegerInput=0, minutes: _ExprIntegerInput=0, seconds: _ExprIntegerInput=0, milliseconds: _ExprIntegerInput=0, microseconds: _ExprIntegerInput=0, nanoseconds: _ExprIntegerInput=0) -> Pldt | pl.Expr:
         """Combine integer calendar increments before final precision/capacity checks.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -3558,6 +4018,11 @@ class _TransformMethods:
 
     def sub(self, years: _ExprIntegerInput=0, quarters: _ExprIntegerInput=0, months: _ExprIntegerInput=0, weeks: _ExprIntegerInput=0, days: _ExprIntegerInput=0, hours: _ExprIntegerInput=0, minutes: _ExprIntegerInput=0, seconds: _ExprIntegerInput=0, milliseconds: _ExprIntegerInput=0, microseconds: _ExprIntegerInput=0, nanoseconds: _ExprIntegerInput=0) -> Pldt | pl.Expr:
         """Combine integer calendar increments before final precision/capacity checks.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6390,6 +6855,11 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
 class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods):
     def diff(self, dtobj: _DiffInput | pl.Expr, unit: str, absolute: _Boolean=False, inclusive: str='one') -> pl.Series | pl.Expr:
         """Return native Int64 boundary counts in the logical row domain.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6427,6 +6897,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def round(self, freq: str='s') -> pl.Expr:
         """Date rounding on a positive fixed grid; preserves current storage unit.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6452,6 +6927,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def ceil(self, freq: str='s') -> pl.Expr:
         """Date rounding on a positive fixed grid; preserves current storage unit.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6477,6 +6957,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def floor(self, freq: str='s') -> pl.Expr:
         """Date rounding on a positive fixed grid; preserves current storage unit.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6502,6 +6987,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def add_delta(self, delta: _DeltaInput) -> pl.Expr:
         """Build a native Expr from concrete ordinary Delta snapshots.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6527,6 +7017,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def sub_delta(self, delta: _DeltaInput) -> pl.Expr:
         """Build a native Expr reversing only relative Delta quantities.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6552,6 +7047,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def replace(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None, tzinfo: _Zone=_UNCHANGED_ZONE, *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Strictly merge date fields; omitted tzinfo retains, None removes the zone.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6650,6 +7150,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def fromisoformat(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Parse a strict ISO String Expr with a fixed unit/timezone schema.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6685,6 +7190,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def combine(self, time: _CombineTime | pl.Expr=None, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Compose a date Expr with a native clock, keeping a fixed schema.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6724,6 +7234,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def fromordinal(self, *, tz: _Zone=None, unit: _Unit | None='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Resolve positional calendar components with a fixed output schema.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6760,6 +7275,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def fromisocalendar(self, week: _ExprCalendarInput, weekday: _ExprCalendarInput, *, tz: _Zone=None, unit: _Unit | None='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Resolve positional calendar components with a fixed output schema.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6803,6 +7323,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def fromdayofyear(self, doy: _ExprCalendarInput, *, tz: _Zone=None, unit: _Unit | None='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Resolve positional calendar components with a fixed output schema.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6843,6 +7368,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def parse(self, *, unit: _Unit | None=None, tz: _Zone=None, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Freeze shared String parsing rules and a static output schema.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6903,6 +7433,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def strptime(self, fmt: str, *, tz: _Zone=None, unit: _Unit | None=None, cfg: Configs | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Freeze an explicit format; %f needs unit and timezone steps need tz.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6951,6 +7486,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def fromseconds(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Read the numeric column using fixed quantity and timezone semantics.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -6992,6 +7532,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def frommicroseconds(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Read the numeric column using fixed quantity and timezone semantics.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -7032,6 +7577,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def fromtimestamp(self, *, tz: _Zone=None, unit: _Unit | None=None) -> pl.Expr:
         """Read the numeric column using fixed quantity and timezone semantics.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -7067,6 +7617,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def utcfromtimestamp(self, *, unit: _Unit | None=None) -> pl.Expr:
         """Read the numeric column using fixed quantity and timezone semantics.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -7093,6 +7648,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def fromdate(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Use the real native date schema, without parsing text or numeric data.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -7129,6 +7689,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def fromdatetime(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Use the real native date schema, without parsing text or numeric data.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -7165,6 +7730,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def as_unit(self, unit: _Unit, round_ok: _Boolean=True) -> pl.Expr:
         """Return an Expr with statically selected ms/us/ns resolution.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -7201,6 +7771,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def tz_localize(self, tz: _Zone, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Interpret naive clocks, or remove a timezone while keeping clocks.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -7233,6 +7808,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def tz_convert(self, tz: _Zone) -> pl.Expr:
         """Preserve actual instants; None removes the UTC timezone metadata.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -7259,6 +7839,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def astimezone(self, tz: _Zone=None, *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Convert to the target; naive input uses the process-local timezone.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------
@@ -7291,6 +7876,11 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
     def tz_switch(self, targ_tz: _Zone, base_tz: _Zone=None, naive: _Boolean=False, *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Convert with an explicit naive source zone, optionally removing target metadata.
+
+        For Expr receivers, errors depending on schema or row values are deferred
+        to select/collect and use Polars exception classes (usually ComputeError).
+        The builtin errors below describe Python option preparation and eager
+        equivalents; deferred errors retain the entry and cause in their message.
         
         Parameters
         ----------

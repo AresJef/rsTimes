@@ -94,6 +94,10 @@ fn suffix<T: CharacterRead, R: Recognition>(
 /// Completion and output capacity are separate, so NoMatch stays distinct from
 /// malformed or overflowing fields. Callers control public error construction.
 #[inline(always)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Shared grammar keeps explicit policy and optional borrowed lexical storage"
+)]
 pub(super) fn read<P: Policy, T: CharacterRead, R: Recognition>(
     input: &mut T,
     rules: &mut R,
@@ -102,6 +106,7 @@ pub(super) fn read<P: Policy, T: CharacterRead, R: Recognition>(
     dayfirst: Option<bool>,
     ignoretz: bool,
     isoformat: bool,
+    scratch: Option<&mut text::Tokens>,
 ) -> ParseResult<Option<Parsed<P, R::Region>>> {
     let mut fields = Fields::<P>::new();
     let mut region = None;
@@ -112,20 +117,26 @@ pub(super) fn read<P: Policy, T: CharacterRead, R: Recognition>(
                 "expected a complete ISO date/time string".into(),
             ));
         }
-        let configured = rules.has_regions();
-        let mut tokens = if configured {
-            None
-        } else {
-            Some(text::tokenize(input, start))
+        // Complete ISO input needs no lexical storage. Batch callers retain
+        // their own arena; scalar fallback owns it only for this branch.
+        let mut owned;
+        let tokens = match scratch {
+            Some(tokens) => tokens,
+            None => {
+                owned = text::Tokens::default();
+                &mut owned
+            }
         };
-        if configured || tokens.as_ref().is_some_and(|value| value.region_candidate) {
-            region = suffix(input, rules, ignoretz, fields.strict())?;
-            tokens = Some(text::tokenize(input, start));
+        let configured = rules.has_regions();
+        if !configured {
+            text::tokenize_into(input, start, tokens);
         }
-        let tokens =
-            tokens.ok_or_else(|| ParseError::Assertion("missing parser token view".into()))?;
+        if configured || tokens.region_candidate {
+            region = suffix(input, rules, ignoretz, fields.strict())?;
+            text::tokenize_into(input, start, tokens);
+        }
         scan::process_tokens(
-            &tokens,
+            tokens,
             &mut fields,
             rules,
             ignoretz || region.is_some(),

@@ -23,6 +23,39 @@ pub(crate) struct TextContext {
     custom_rules: bool,
 }
 
+impl TextContext {
+    /// Prepare one immediate native batch after its real default conversion.
+    /// Callers validate cfg before entering; the result retains no Python owner.
+    pub(crate) fn eager(
+        py: Python<'_>,
+        cfg: Option<&Bound<'_, PyAny>>,
+        default: Option<&Bound<'_, PyAny>>,
+        yearfirst: Option<bool>,
+        dayfirst: Option<bool>,
+        isoformat: bool,
+        strict: bool,
+    ) -> PyResult<Self> {
+        let cfg = cfg.filter(|value| !value.is_none());
+        let default =
+            super::prepare_default(py, default, yearfirst, dayfirst, isoformat, cfg, strict)?;
+        let rules = match cfg {
+            Some(value) => value.cast::<Configs>()?.borrow().native_snapshot(),
+            None => NativeRules::library(),
+        };
+        Ok(Self {
+            rules,
+            options: native::Options {
+                default,
+                yearfirst,
+                dayfirst,
+                isoformat,
+            },
+            strict,
+            custom_rules: cfg.is_some(),
+        })
+    }
+}
+
 #[pymethods]
 impl TextContext {
     /// Return immutable values for one versioned plugin preparation.
@@ -72,30 +105,15 @@ fn _pldt_prepare_text(
     let selected = frozen.as_ref().map(|value| value.bind(py).as_any()).or(cfg);
     let yearfirst = yearfirst.map(|value| value.0);
     let dayfirst = dayfirst.map(|value| value.0);
-    let default = super::prepare_default(
+    TextContext::eager(
         py,
+        selected,
         default,
         yearfirst,
         dayfirst,
         isoformat.0,
-        selected,
         strict.0,
-    )?;
-    let rules = match selected {
-        Some(value) => value.cast::<Configs>()?.borrow().native_snapshot(),
-        None => NativeRules::library(),
-    };
-    Ok(TextContext {
-        rules,
-        options: native::Options {
-            default,
-            yearfirst,
-            dayfirst,
-            isoformat: isoformat.0,
-        },
-        strict: strict.0,
-        custom_rules: cfg.is_some(),
-    })
+    )
 }
 
 pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {

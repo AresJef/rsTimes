@@ -121,8 +121,32 @@ pub(crate) struct Snap {
     pub(crate) width: i128,
 }
 
+/// An exact, positive regular lattice in the caller's native storage unit.
+/// Missingness and final int64 capacity belong to the respective output adapter.
+#[derive(Clone, Copy)]
+pub(crate) struct SnapGrid {
+    anchor: i64,
+    step: i64,
+}
+impl SnapGrid {
+    pub(crate) fn nearest(self, tick: i64) -> i128 {
+        let remainder = match tick.checked_sub(self.anchor) {
+            Some(relative) => i128::from(relative.rem_euclid(self.step)),
+            None => (i128::from(tick) - i128::from(self.anchor)).rem_euclid(i128::from(self.step)),
+        };
+        // The remainder is at most one prepared week. Both candidates are
+        // therefore within one week of int64 and cannot overflow int128.
+        let lower = i128::from(tick) - remainder;
+        if remainder < i128::from(self.step) - remainder {
+            lower
+        } else {
+            lower + i128::from(self.step)
+        }
+    }
+}
+
 impl Snap {
-    pub(crate) fn prepare(period: Period, wall: i128) -> Result<(Self, i128), Error> {
+    pub(crate) const fn new(period: Period) -> Self {
         let (months, step, width_months, width) = match period {
             Period::Year => (12, 0, 12, 0),
             Period::Quarter => (3, 0, 3, 0),
@@ -133,18 +157,43 @@ impl Snap {
             Period::Day => (0, NS_DAY, 0, NS_DAY),
             Period::Tick(step) => (0, step, 0, step),
         };
-        let spec = Self {
+        Self {
             period,
             months,
             step,
             width_months,
             width,
-        };
-        let mut lower = period.bounds(wall)?.0;
-        if lower > wall {
-            lower = spec.shift(lower, -1)?;
         }
-        Ok((spec, lower))
+    }
+    pub(crate) fn lower(self, wall: i128) -> Result<i128, Error> {
+        let mut lower = self.period.bounds(wall)?.0;
+        if lower > wall {
+            lower = self.shift(lower, -1)?;
+        }
+        Ok(lower)
+    }
+    pub(crate) fn grid(self, offset_ns: i128, quantum: i128) -> Result<Option<SnapGrid>, Error> {
+        if quantum <= 0 || self.step <= 0 || self.step > 7 * NS_DAY || self.step % quantum != 0 {
+            return Ok(None);
+        }
+        let anchor = match self.period {
+            Period::Week => -3 * NS_DAY,
+            Period::NamedWeekday(day) if (0..=6).contains(&day) => (i128::from(day) - 3) * NS_DAY,
+            Period::Day | Period::Tick(_) => 0,
+            _ => return Ok(None),
+        };
+        let anchor = anchor
+            .checked_sub(offset_ns)
+            .ok_or(Error::Capacity("Snap grid overflow"))?;
+        let anchor = anchor
+            .div_euclid(quantum)
+            .checked_add(i128::from(anchor.rem_euclid(quantum) != 0))
+            .ok_or(Error::Capacity("Snap grid overflow"))?;
+        Ok(Some(SnapGrid {
+            anchor: i64::try_from(anchor).map_err(|_| Error::Capacity("Snap grid overflow"))?,
+            step: i64::try_from(self.step / quantum)
+                .map_err(|_| Error::Capacity("Snap grid overflow"))?,
+        }))
     }
     pub(crate) fn shift(self, start: i128, direction: i64) -> Result<i128, Error> {
         if self.months != 0 {
@@ -212,7 +261,8 @@ mod tests {
             let zero_year = crate::date_transform::nanos([0, 2, 15, 1, 2, 3, 4, 5]).unwrap();
             let (begin, end) = Period::Month.bounds(zero_year).unwrap();
             assert_eq!(end - begin, 29 * NS_DAY);
-            let (snap, start) = Snap::prepare(Period::Month, zero_year).unwrap();
+            let snap = Snap::new(Period::Month);
+            let start = snap.lower(zero_year).unwrap();
             assert_eq!(snap.shift(start, 1).unwrap(), end);
             assert_eq!(rounded(500, 1000, 0).unwrap(), 0);
             assert_eq!(rounded(1500, 1000, 0).unwrap(), 2000);
@@ -225,5 +275,84 @@ mod tests {
         })
         .join()
         .unwrap();
+    }
+
+    #[test]
+    fn one_prepared_snap_template_serves_independent_wall_dates() {
+        std::thread::spawn(|| {
+            let monday = Snap::new(Period::NamedWeekday(0));
+            let october = Snap::new(Period::NamedMonth(10));
+            for (input, week, month) in [
+                ([2024, 1, 2], [2024, 1, 1], [2023, 10, 1]),
+                ([2024, 7, 8], [2024, 7, 8], [2023, 10, 1]),
+                ([2024, 12, 31], [2024, 12, 30], [2024, 10, 1]),
+            ] {
+                let wall =
+                    crate::date_transform::nanos([input[0], input[1], input[2], 12, 0, 0, 0, 0])
+                        .unwrap();
+                for (template, want) in [(monday, week), (october, month)] {
+                    let fields =
+                        crate::date_transform::fields(template.lower(wall).unwrap()).unwrap();
+                    assert_eq!(fields[..3], want);
+                }
+            }
+        })
+        .join()
+        .unwrap();
+    }
+
+    #[test]
+    fn regular_snap_grid_keeps_ties_signed_extremes_and_original_lattice_alignment() {
+        let monday = Snap::new(Period::NamedWeekday(0));
+        let grid = monday.grid(0, 1_000_000).unwrap().unwrap();
+        assert_eq!(grid.nearest(0), -259_200_000);
+        assert_eq!(grid.nearest(43_200_000), 345_600_000);
+        assert_eq!(
+            monday
+                .grid(28_800_000_000_000, 1_000_000)
+                .unwrap()
+                .unwrap()
+                .nearest(14_400_000),
+            316_800_000
+        );
+        assert!(Snap::new(Period::Month).grid(0, 1).unwrap().is_none());
+        assert!(Snap::new(Period::Tick(1)).grid(0, 1000).unwrap().is_none());
+        for offset in [
+            0,
+            1000,
+            123_456_789,
+            28_800_000_000_000,
+            -18_030_000_000_000,
+        ] {
+            for quantum in [1, 1000, 1_000_000, 1_000_000_000] {
+                for period in [
+                    Period::Week,
+                    Period::NamedWeekday(0),
+                    Period::NamedWeekday(4),
+                    Period::Day,
+                    Period::Tick(3_600_000_000_000),
+                    Period::Tick(1_000_000_000),
+                    Period::Tick(1_000_000),
+                ] {
+                    let spec = Snap::new(period);
+                    let Some(grid) = spec.grid(offset, quantum).unwrap() else {
+                        continue;
+                    };
+                    for tick in [i64::MIN, i64::MIN + 1, -1, 0, 1, i64::MAX - 1, i64::MAX] {
+                        let source = i128::from(tick) * quantum;
+                        let lower = spec.lower(source + offset).unwrap();
+                        let upper = spec.shift(lower, 1).unwrap();
+                        let a = align(lower - offset, quantum, false).unwrap();
+                        let b = align(upper - offset, quantum, false).unwrap();
+                        let want = if (source - a).abs() < (b - source).abs() {
+                            a
+                        } else {
+                            b
+                        };
+                        assert_eq!(grid.nearest(tick), want / quantum);
+                    }
+                }
+            }
+        }
     }
 }

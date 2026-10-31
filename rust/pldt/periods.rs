@@ -265,6 +265,7 @@ struct Choice {
     values: [Option<i128>; 2],
 }
 struct SnapCache {
+    prepared: Option<Snap>,
     choices: [Option<Choice>; 2],
     next: usize,
 }
@@ -329,14 +330,16 @@ fn snap_candidates(
     ))
 }
 fn snapped(
-    period: Period,
     wall: i128,
     source: i128,
     zone: Option<&Zone>,
     unit: Unit,
     cache: &mut SnapCache,
 ) -> Result<i128, Failure> {
-    let (spec, lower) = Snap::prepare(period, wall)?;
+    let spec = cache
+        .prepared
+        .ok_or_else(|| Failure::new(Kind::Runtime, "Snap preparation was lost"))?;
+    let lower = spec.lower(wall)?;
     let upper = spec.shift(lower, 1)?;
     if let Some(offset) = zone.map_or(Some(0), Zone::fixed_seconds) {
         let offset = i128::from(offset) * 1_000_000_000;
@@ -467,7 +470,7 @@ fn point(
                 }
             })
         }
-        Operation::Snap(period) => Some(snapped(period, wall, source, zone, unit, cache)?),
+        Operation::Snap(_) => Some(snapped(wall, source, zone, unit, cache)?),
         // Every supported IANA/fixed offset is an integer number of seconds.
         // Truncating within this real second needs no civil/DST conversion.
         Operation::Fsp(precision) => {
@@ -489,6 +492,59 @@ fn no_op(operation: Operation, unit: Unit) -> bool {
         Operation::Fsp(precision) => fine(10i128.pow((9 - precision) as u32)),
         _ => false,
     }
+}
+
+fn finish_dates(dates: Int64Chunked, field: Field) -> Result<Series, Failure> {
+    let DataType::Datetime(resolution, zone) = field.dtype else {
+        return Err(Failure::new(Kind::Runtime, "invalid period output schema"));
+    };
+    Ok(dates.into_datetime(resolution, zone).into_series())
+}
+
+fn snap_grid(
+    source: &Series,
+    grid: crate::period::SnapGrid,
+    field: Field,
+) -> Result<Series, Failure> {
+    let mut dates = PrimitiveChunkedBuilder::<Int64Type>::new(source.name().clone(), source.len());
+    let mut push = |row, tick: Option<i64>| -> Result<(), Failure> {
+        let target = tick
+            .map(|tick| {
+                i64::try_from(grid.nearest(tick)).map_err(|_| {
+                    Failure::new(
+                        Kind::Capacity,
+                        "Snap result exceeds the current unit capacity; use as_unit explicitly",
+                    )
+                    .at(row)
+                })
+            })
+            .transpose()?;
+        dates.append_option(target);
+        Ok(())
+    };
+    if source.dtype() == &DataType::Date {
+        for (row, value) in source
+            .date()
+            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
+            .physical()
+            .iter()
+            .enumerate()
+        {
+            // Every signed32 day times milliseconds/day fits signed64.
+            push(row, value.map(|day| i64::from(day) * 86_400_000))?;
+        }
+    } else {
+        for (row, value) in source
+            .datetime()
+            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
+            .physical()
+            .iter()
+            .enumerate()
+        {
+            push(row, value)?;
+        }
+    }
+    finish_dates(dates.finish(), field)
 }
 fn execute(source: &Series, spec: &Spec) -> Result<Series, Failure> {
     let field = meta(
@@ -512,6 +568,13 @@ fn execute(source: &Series, spec: &Spec) -> Result<Series, Failure> {
             .transpose()
             .map_err(|m| Failure::new(Kind::Value, m))?
     };
+    if let Operation::Snap(period) = spec.operation
+        && let Some(offset) = zone.as_ref().map_or(Some(0), Zone::fixed_seconds)
+        && let Some(grid) =
+            Snap::new(period).grid(i128::from(offset) * 1_000_000_000, unit.nanos())?
+    {
+        return snap_grid(source, grid, field);
+    }
     let mut dates = PrimitiveChunkedBuilder::<Int64Type>::new(
         source.name().clone(),
         if query { 0 } else { source.len() },
@@ -519,6 +582,10 @@ fn execute(source: &Series, spec: &Spec) -> Result<Series, Failure> {
     let mut flags =
         BooleanChunkedBuilder::new(source.name().clone(), if query { source.len() } else { 0 });
     let mut cache = SnapCache {
+        prepared: match spec.operation {
+            Operation::Snap(period) => Some(Snap::new(period)),
+            _ => None,
+        },
         choices: [None, None],
         next: 0,
     };
@@ -621,10 +688,7 @@ fn execute(source: &Series, spec: &Spec) -> Result<Series, Failure> {
     if query {
         Ok(flags.finish().into_series())
     } else {
-        let DataType::Datetime(resolution, zone) = field.dtype else {
-            return Err(Failure::new(Kind::Runtime, "invalid period output schema"));
-        };
-        Ok(dates.finish().into_datetime(resolution, zone).into_series())
+        finish_dates(dates.finish(), field)
     }
 }
 #[derive(Deserialize)]

@@ -69,9 +69,70 @@ fn _pydt_strftime<'py>(
         .call1((value, prepared))
         .map_err(crate::error_context::external)
 }
-/// Pddt retains pandas scalar formatting for all nonfraction platform rules.
-/// The native loop prepares our fraction nodes before the mature call; it does
-/// not post-process formatted strings or construct temporary date indexes.
+struct NumericZone {
+    wall_offset: i128,
+    offset: Option<i32>,
+    name: Option<String>,
+}
+
+/// Only proved date-independent zones and platform-independent numeric forms
+/// can bypass the mature host formatter. Custom and dynamic protocols stay there.
+fn numeric_zone(
+    py: Python<'_>,
+    zone: &Bound<'_, PyAny>,
+    plan: &Plan,
+) -> PyResult<Option<NumericZone>> {
+    if !plan.system_numeric() {
+        return Ok(None);
+    }
+    let source = if zone.is_none() {
+        crate::epoch::Zone::Naive
+    } else {
+        crate::epoch::Zone::Object(zone.clone().unbind())
+    };
+    let Some(offset) = crate::date_input::fixed_offset(py, &source)? else {
+        return Ok(None);
+    };
+    if offset % 1_000_000 != 0 {
+        return Ok(None);
+    }
+    let name = if plan.needs_name() && !zone.is_none() {
+        let name = zone
+            .call_method1("tzname", (py.None(),))
+            .map_err(crate::error_context::external)?;
+        if name.is_none() {
+            None
+        } else {
+            let text = name.cast::<PyString>()?;
+            // SAFETY: a live typed PyString under the GIL proves the Unicode
+            // header. Non-ASCII names reach the host without UTF8 decoding.
+            if unsafe { pyo3::ffi::PyUnicode_IS_ASCII(text.as_ptr()) } == 0 {
+                return Ok(None);
+            }
+            let text = text.to_str()?;
+            if text.contains('\0') {
+                return Ok(None);
+            }
+            Some(text.to_owned())
+        }
+    } else {
+        None
+    };
+    Ok(Some(NumericZone {
+        wall_offset: i128::from(offset) * 1000,
+        offset: if zone.is_none() {
+            None
+        } else {
+            Some(i32::try_from(offset / 1_000_000).map_err(|_| {
+                crate::error_context::overflow("fixed timezone exceeds integer seconds")
+            })?)
+        },
+        name,
+    }))
+}
+
+/// Ordinary numeric fractional output shares the native plan. Every system
+/// extension, dynamic zone and small/wide year retains mature pandas formatting.
 #[pyfunction]
 fn _pddt_strftime<'py>(
     py: Python<'py>,
@@ -88,6 +149,10 @@ fn _pddt_strftime<'py>(
     let kwargs = PyDict::new(py);
     kwargs.set_item("unit", unit)?;
     kwargs.set_item("tz", zone)?;
+    let numeric = numeric_zone(py, zone, &context.plan)?;
+    let lower = i128::from(crate::calendar::ordinal(1000, 1, 1) - 719_163) * 86_400_000_000_000;
+    let upper = i128::from(crate::calendar::ordinal(10000, 1, 1) - 719_163) * 86_400_000_000_000;
+    let digits = if unit == "ns" { 9 } else { 6 };
     let out = PyList::empty(py);
     for (row, raw) in data.as_chunks::<8>().0.iter().enumerate() {
         let tick = i64::from_ne_bytes(*raw);
@@ -95,6 +160,24 @@ fn _pddt_strftime<'py>(
             if tick == i64::MIN {
                 out.append(f64::NAN)?;
                 return Ok(());
+            }
+            if let Some(zone) = &numeric {
+                let wall = i128::from(tick) * quantum + zone.wall_offset;
+                if (lower..upper).contains(&wall) {
+                    let text = context
+                        .plan
+                        .render(wall, digits, zone.offset, zone.name.as_deref())
+                        .map_err(|error| match error {
+                            crate::calendar_query::Error::Capacity(message) => {
+                                crate::error_context::overflow(message)
+                            }
+                            crate::calendar_query::Error::Internal(message) => {
+                                crate::error_context::runtime(message)
+                            }
+                        })?;
+                    out.append(text)?;
+                    return Ok(());
+                }
             }
             let value = timestamp
                 .call((tick,), Some(&kwargs))
@@ -106,9 +189,7 @@ fn _pddt_strftime<'py>(
             } else {
                 0
             };
-            let format = context
-                .plan
-                .system_format(fraction, if unit == "ns" { 9 } else { 6 });
+            let format = context.plan.system_format(fraction, digits);
             out.append(
                 value
                     .call_method1("strftime", (format,))

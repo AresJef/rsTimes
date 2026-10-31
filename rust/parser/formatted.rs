@@ -924,11 +924,7 @@ mod native_tests {
     #[test]
     fn formatted_native_errors_and_snapshot_are_not_python_fallbacks() {
         let mut data = NativeRules::library().data();
-        for (key, value) in &mut data.tables[4] {
-            if key == &"Jan".chars().map(u32::from).collect::<Vec<_>>() {
-                *value = 2;
-            }
-        }
+        data.tables[4] = Some(vec![("Jan".chars().map(u32::from).collect(), 2)]);
         data.regions.push((
             "Unavailable/Place".chars().map(u32::from).collect(),
             crate::parser::config::NativeRegion {
@@ -962,7 +958,7 @@ mod native_tests {
             );
         }
         let mut invalid = rules.data();
-        invalid.tables[4].push((vec![65], 99));
+        invalid.tables[4].as_mut().unwrap().push((vec![65], 99));
         assert!(NativeRules::from_data(invalid).is_err());
     }
 }

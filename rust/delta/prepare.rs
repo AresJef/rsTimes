@@ -1,8 +1,9 @@
 //! One-time public/source numeric preparation for the exact Delta value.
 
-use super::fixed::{FixedNsAccumulator, round_scaled};
+use super::fixed::{BinaryTerm, FixedNsAccumulator, round_scaled};
 use super::value::{AbsoluteField, AbsoluteFields, DeltaValue, NS_PER_DAY, ValueError};
 use pyo3::prelude::*;
+use pyo3::sync::PyOnceLock;
 use pyo3::types::{PyDict, PyFloat, PyInt, PyString, PyTuple};
 
 pub(crate) const NAMES: [&str; 21] = [
@@ -28,6 +29,17 @@ pub(crate) const NAMES: [&str; 21] = [
     "nanoseconds",
     "nanosecond",
 ];
+
+static KEYWORD_NAMES: PyOnceLock<[Py<PyString>; 21]> = PyOnceLock::new();
+
+/// Prepare module-owned keyword identities once, retaining full text fallback.
+pub(crate) fn configure_names(py: Python<'_>) {
+    let _ = keyword_names(py);
+}
+
+fn keyword_names(py: Python<'_>) -> &[Py<PyString>; 21] {
+    KEYWORD_NAMES.get_or_init(py, || NAMES.map(|name| PyString::intern(py, name).unbind()))
+}
 
 const FIXED: [(usize, u64); 8] = [
     (3, 604_800_000_000_000),
@@ -68,40 +80,74 @@ fn parameter_index(name: &str) -> Option<usize> {
     })
 }
 
-/// Lazily prepared fractional contributions. One float uses no heap scratch;
-/// multiple actual fractional contributions share one bounded exact accumulator.
+/// Common dyadic sums stay compact; widely separated exponents retain the
+/// bounded exact accumulator. Both representations round only once at finish.
 #[derive(Default)]
 pub(crate) struct FixedFractions {
-    single: Option<(f64, u64)>,
-    multiple: Option<Box<FixedNsAccumulator>>,
+    state: FractionState,
+}
+
+#[derive(Default)]
+enum FractionState {
+    #[default]
+    Empty,
+    Single(f64, u64),
+    Compact(BinaryTerm),
+    Wide(Box<FixedNsAccumulator>),
+}
+
+impl FractionState {
+    #[inline]
+    fn combine(left: BinaryTerm, right: BinaryTerm) -> Result<Self, ValueError> {
+        if let Some(sum) = left.combined(right) {
+            Ok(Self::Compact(sum))
+        } else {
+            Self::wide_pair(left, right)
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn wide_pair(left: BinaryTerm, right: BinaryTerm) -> Result<Self, ValueError> {
+        let mut wide = Box::new(FixedNsAccumulator::new());
+        wide.add_term(left)?;
+        wide.add_term(right)?;
+        Ok(Self::Wide(wide))
+    }
 }
 
 impl FixedFractions {
+    #[inline]
     fn add(&mut self, number: f64, coefficient: u64) -> Result<(), ValueError> {
         if number == 0.0 {
             return Ok(());
         }
-        if let Some(multiple) = self.multiple.as_mut() {
-            return multiple.add(number, coefficient);
-        }
-        if let Some((old, old_coefficient)) = self.single.take() {
-            let mut multiple = Box::new(FixedNsAccumulator::new());
-            multiple.add(old, old_coefficient)?;
-            multiple.add(number, coefficient)?;
-            self.multiple = Some(multiple);
-        } else {
-            self.single = Some((number, coefficient));
+        match &mut self.state {
+            FractionState::Empty => self.state = FractionState::Single(number, coefficient),
+            FractionState::Single(old, old_coefficient) => {
+                self.state = FractionState::combine(
+                    BinaryTerm::scaled(*old, *old_coefficient)?,
+                    BinaryTerm::scaled(number, coefficient)?,
+                )?;
+            }
+            FractionState::Compact(old) => {
+                self.state =
+                    FractionState::combine(*old, BinaryTerm::scaled(number, coefficient)?)?;
+            }
+            FractionState::Wide(wide) => wide.add(number, coefficient)?,
         }
         Ok(())
     }
 
+    #[inline]
     fn finish(self, integer_ns: i128) -> Result<i128, ValueError> {
-        if let Some(multiple) = self.multiple {
-            multiple.rounded(integer_ns)
-        } else if let Some((number, coefficient)) = self.single {
-            round_scaled(number, coefficient, integer_ns)
-        } else {
-            Ok(integer_ns)
+        match self.state {
+            FractionState::Empty => Ok(integer_ns),
+            FractionState::Single(number, coefficient) => {
+                round_scaled(number, coefficient, integer_ns)
+            }
+            FractionState::Compact(term) => term.rounded(integer_ns),
+            FractionState::Wide(wide) => wide.rounded(integer_ns),
         }
     }
 }
@@ -294,38 +340,187 @@ fn single_primitive(value: &Bound<'_, PyAny>, index: usize) -> Option<PyResult<D
     None
 }
 
-fn normalize(whole: [i64; 21], fraction: FixedFractions) -> PyResult<DeltaValue> {
-    let months = i128::from(whole[0]) * 12 + i128::from(whole[1]) * 3 + i128::from(whole[2]);
-    let fixed_ns = FIXED
-        .iter()
-        .map(|&(index, coefficient)| i128::from(whole[index]) * i128::from(coefficient))
-        .sum();
-    let fixed_ns = fraction.finish(fixed_ns).map_err(python_error)?;
-    let mut absolute = AbsoluteFields::EMPTY;
-    for (index, field) in AbsoluteField::ALL[..7].iter().copied().enumerate() {
-        let number = whole[index + 10];
-        absolute
-            .set(field, (number != -1).then_some(number))
-            .map_err(python_error)?;
+/// Finish a single captured argument without rebinding a full parameter table.
+/// The primitive path remains first; actual protocols still run exactly once
+/// while the caller owns this value, with the same field-specific completion.
+fn single_input(value: &Bound<'_, PyAny>, index: usize) -> PyResult<DeltaValue> {
+    if let Some(result) = single_primitive(value, index) {
+        return result;
     }
-    let microsecond = if whole[17] == -1 {
-        whole[18]
+    if crate::numeric::is_bool(value) {
+        return Err(crate::error_context::type_error(
+            "boolean values are not accepted as numeric fields",
+        ));
+    }
+    let mut fraction = FixedFractions::default();
+    let number = if index < 10 || index == 19 {
+        relative_input(value, index, &mut fraction)?
     } else {
-        whole[17] * 1000 + if whole[18] == -1 { 0 } else { whole[18] % 1000 }
+        absolute_input(value, index)?
     };
-    absolute
-        .set(
-            AbsoluteField::Microsecond,
-            (microsecond != -1).then_some(microsecond),
-        )
-        .map_err(python_error)?;
-    absolute
-        .set(
-            AbsoluteField::Nanosecond,
-            (whole[20] != -1).then_some(whole[20]),
-        )
-        .map_err(python_error)?;
-    DeltaValue::from_totals(months, fixed_ns, absolute).map_err(python_error)
+    if index >= 10 && index != 19 && number == -1 {
+        return Ok(DeltaValue::ZERO);
+    }
+    if matches!(fraction.state, FractionState::Empty) {
+        return single_integer(index, number);
+    }
+    let mut components = Components::default();
+    components.add(index, number).map_err(python_error)?;
+    components.finish(fraction).map_err(python_error)
+}
+
+/// Accumulate each already-read role directly. Eight signed64 fixed inputs and
+/// their bounded unit factors fit i128; final group bounds remain in DeltaValue.
+/// The paired fractional-second aliases need only their two native option values.
+#[derive(Default)]
+struct Components {
+    months: i128,
+    fixed_ns: i128,
+    absolute: AbsoluteFields,
+    millisecond: Option<i64>,
+    microsecond: Option<i64>,
+}
+
+impl Components {
+    #[inline]
+    fn add(&mut self, index: usize, number: i64) -> Result<(), ValueError> {
+        match index {
+            0 => self.months += i128::from(number) * 12,
+            1 => self.months += i128::from(number) * 3,
+            2 => self.months += i128::from(number),
+            3..=9 | 19 => {
+                let factor = if index == 19 { 1 } else { FIXED[index - 3].1 };
+                self.fixed_ns += i128::from(number) * i128::from(factor);
+            }
+            17 => self.millisecond = (number != -1).then_some(number),
+            18 => self.microsecond = (number != -1).then_some(number),
+            10..=16 | 20 => {
+                if number != -1 {
+                    let field = if index == 20 {
+                        AbsoluteField::Nanosecond
+                    } else {
+                        AbsoluteField::ALL[index - 10]
+                    };
+                    self.absolute.set(field, Some(number))?;
+                }
+            }
+            _ => unreachable!("validated public or relativedelta role"),
+        }
+        Ok(())
+    }
+
+    #[inline]
+    fn finish(mut self, fraction: FixedFractions) -> Result<DeltaValue, ValueError> {
+        let microsecond = self.millisecond.map_or(self.microsecond, |ms| {
+            Some(ms * 1000 + self.microsecond.map_or(0, |us| us % 1000))
+        });
+        if microsecond.is_some() {
+            self.absolute.set(AbsoluteField::Microsecond, microsecond)?;
+        }
+        if self.months == 0 && self.fixed_ns == 0 && matches!(fraction.state, FractionState::Empty)
+        {
+            // The lanes are validated above; no relative quantity remains to
+            // normalize. Explicit zero absolute clock selections stay present.
+            return Ok(DeltaValue {
+                absolute: self.absolute,
+                ..DeltaValue::ZERO
+            });
+        }
+        DeltaValue::from_totals(self.months, fraction.finish(self.fixed_ns)?, self.absolute)
+    }
+}
+
+/// Reuse the proven S0 public-dictionary borrow for a callback-free primitive
+/// keyword set. All names/types are captured before declared-order conversion;
+/// arbitrary numeric protocols, bool and None use the owned binding instead.
+fn small_keywords<const COUNT: usize>(kwargs: &Bound<'_, PyDict>) -> Option<PyResult<DeltaValue>> {
+    let py = kwargs.py();
+    let names = keyword_names(py);
+    let mut entries = [(0usize, std::ptr::null_mut(), false); COUNT];
+    let mut position = 0;
+    let mut key = std::ptr::null_mut();
+    let mut value = std::ptr::null_mut();
+    for entry in &mut entries {
+        // SAFETY: the caller proved exact COUNT while holding the ordinary GIL.
+        // Qualification invokes no Python callbacks; kwargs owns every entry.
+        if unsafe { pyo3::ffi::PyDict_Next(kwargs.as_ptr(), &mut position, &mut key, &mut value) }
+            != 1
+        {
+            return None;
+        }
+        let index = if let Some(index) = names.iter().position(|name| name.as_ptr() == key) {
+            index
+        } else {
+            let key = unsafe { Borrowed::from_ptr(py, key) };
+            let text = match key.cast::<PyString>() {
+                Ok(text) => text,
+                Err(error) => return Some(Err(error.into())),
+            };
+            let text = match text.to_str() {
+                Ok(text) => text,
+                Err(error) => return Some(Err(error)),
+            };
+            let Some(index) = parameter_index(text) else {
+                return Some(Err(crate::error_context::type_error(format!(
+                    "Delta() got an unexpected keyword argument '{text}'"
+                ))));
+            };
+            index
+        };
+        let floating = unsafe {
+            if pyo3::ffi::Py_TYPE(value) == std::ptr::addr_of_mut!(pyo3::ffi::PyLong_Type) {
+                false
+            } else if pyo3::ffi::PyLong_Check(value) != 0 {
+                if pyo3::ffi::PyBool_Check(value) != 0 {
+                    return None;
+                }
+                false
+            } else {
+                true
+            }
+        };
+        if floating
+            && (coefficient(index).is_none() || unsafe { pyo3::ffi::PyFloat_Check(value) } == 0)
+        {
+            return None;
+        }
+        *entry = (index, value, floating);
+    }
+    entries.sort_unstable_by_key(|entry| entry.0);
+    if let Some(pair) = entries.windows(2).find(|pair| pair[0].0 == pair[1].0) {
+        return Some(Err(crate::error_context::type_error(format!(
+            "Delta() got multiple values for keyword argument '{}'",
+            NAMES[pair[0].0]
+        ))));
+    }
+    Some((|| {
+        let mut components = Components::default();
+        let mut fraction = FixedFractions::default();
+        for (index, value, floating) in entries {
+            // SAFETY: kwargs still owns each qualified primitive. Hold this
+            // current value across fallible conversion/error formatting: a cold
+            // error can allocate or run user repr. On error we return without
+            // reading later borrowed entries; successful primitive reads have
+            // no Python callback. Arbitrary protocols use the fully owned path.
+            let value = unsafe { Borrowed::from_ptr(py, value) }.to_owned();
+            let read = if floating {
+                relative_input(&value, index, &mut fraction)
+            } else {
+                super::converted_integer(&value).and_then(|number| {
+                    if index < 10 || index == 19 {
+                        Ok(number)
+                    } else {
+                        absolute_number(number, index)
+                    }
+                })
+            };
+            let number = read.map_err(|error| {
+                crate::error_context::argument(py, error, "Delta", NAMES[index], &value)
+            })?;
+            components.add(index, number).map_err(python_error)?;
+        }
+        components.finish(fraction).map_err(python_error)
+    })())
 }
 
 /// Bind all names before conversion, then read each provided argument in its
@@ -334,13 +529,15 @@ pub(crate) fn construct(
     args: &Bound<'_, PyTuple>,
     kwargs: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<DeltaValue> {
+    if args.is_empty() && kwargs.is_none_or(|values| values.is_empty()) {
+        return Ok(DeltaValue::ZERO);
+    }
     if args.is_empty()
         && let Some(kwargs) = kwargs.filter(|values| values.len() == 1)
         && let Some((key, value)) = kwargs.iter().next()
         && let Some(index) = parameter_index(key.cast::<PyString>()?.to_str()?)
-        && let Some(result) = single_primitive(&value, index)
     {
-        return result.map_err(|error| {
+        return single_input(&value, index).map_err(|error| {
             crate::error_context::argument(args.py(), error, "Delta", NAMES[index], &value)
         });
     }
@@ -349,6 +546,18 @@ pub(crate) fn construct(
             "Delta() takes at most 19 positional arguments ({} given)",
             args.len()
         )));
+    }
+    if args.is_empty()
+        && let Some(kwargs) = kwargs.filter(|values| (2..=4).contains(&values.len()))
+    {
+        let result = match kwargs.len() {
+            2 => small_keywords::<2>(kwargs),
+            3 => small_keywords::<3>(kwargs),
+            _ => small_keywords::<4>(kwargs),
+        };
+        if let Some(result) = result {
+            return result;
+        }
     }
     let mut values: [Option<Bound<'_, PyAny>>; 21] = std::array::from_fn(|_| None);
     for (index, value) in args.iter().enumerate() {
@@ -370,9 +579,7 @@ pub(crate) fn construct(
             values[index] = Some(value);
         }
     }
-    let mut whole = [0; 21];
-    whole[10..19].fill(-1);
-    whole[20] = -1;
+    let mut components = Components::default();
     let mut fraction = FixedFractions::default();
     for (index, value) in values.iter().enumerate() {
         let Some(value) = value else {
@@ -390,11 +597,12 @@ pub(crate) fn construct(
                 absolute_input(value, index)
             }
         };
-        whole[index] = read().map_err(|error| {
+        let number = read().map_err(|error| {
             crate::error_context::argument(value.py(), error, "Delta", NAMES[index], value)
         })?;
+        components.add(index, number).map_err(python_error)?;
     }
-    normalize(whole, fraction)
+    components.finish(fraction).map_err(python_error)
 }
 
 /// Interpret dateutil's fifteen source fields into the new Delta value. This is
@@ -403,17 +611,25 @@ pub(crate) fn normalize_relative_fields(
     fields: [i64; 15],
     fraction: FixedFractions,
 ) -> PyResult<RelativeFields> {
-    let mut whole = [0; 21];
-    whole[10..19].fill(-1);
-    whole[20] = -1;
-    for (field, parameter) in [0, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 18]
-        .into_iter()
-        .enumerate()
-    {
-        whole[parameter] = fields[field];
+    // Source roles and all actual Python callbacks were already resolved.
+    // Fold their fixed units directly, rather than redispatching fifteen public
+    // constructor roles. Seven signed64 fields at these factors fit i128.
+    let months = i128::from(fields[0]) * 12 + i128::from(fields[1]);
+    let fixed_ns =
+        (((i128::from(fields[2]) * 24 + i128::from(fields[3])) * 60 + i128::from(fields[4])) * 60
+            + i128::from(fields[5]))
+            * 1_000_000_000
+            + i128::from(fields[6]) * 1000;
+    let mut absolute = AbsoluteFields::EMPTY;
+    for (field, &number) in AbsoluteField::ALL[..8].iter().zip(&fields[7..]) {
+        if number != -1 {
+            absolute.set(*field, Some(number)).map_err(python_error)?;
+        }
     }
-    // Source adaptation has already validated its distinct absolute semantics.
-    normalize(whole, fraction).map(RelativeFields)
+    let fixed_ns = fraction.finish(fixed_ns).map_err(python_error)?;
+    DeltaValue::from_totals(months, fixed_ns, absolute)
+        .map(RelativeFields)
+        .map_err(python_error)
 }
 
 /// Prepare an integer-only fixed span without a public Python constructor.
@@ -428,11 +644,43 @@ pub(crate) fn fixed_duration(days: i64, seconds: i64, microseconds: i64) -> PyRe
 mod tests {
     use super::*;
 
+    fn normalize(fields: [i64; 21], fraction: FixedFractions) -> Result<DeltaValue, ValueError> {
+        let mut components = Components::default();
+        for (index, number) in fields.into_iter().enumerate() {
+            components.add(index, number)?;
+        }
+        components.finish(fraction)
+    }
+
     fn defaults() -> [i64; 21] {
         let mut fields = [0; 21];
         fields[10..19].fill(-1);
         fields[20] = -1;
         fields
+    }
+
+    #[test]
+    fn mixed_fraction_shortcuts_keep_exact_sum_and_final_parity() {
+        let fractions = [0.5, -0.5, 0.25, -0.125, 0.1, -0.1, f64::from_bits(1)];
+        for a in fractions {
+            for b in fractions {
+                for c in fractions {
+                    for base in [-1001, -1, 0, 1, 1001] {
+                        let mut prepared = FixedFractions::default();
+                        let mut exact = FixedNsAccumulator::new();
+                        for (number, coefficient) in [(a, 1_000_000_000), (b, 1000), (c, 1)] {
+                            prepared.add(number, coefficient).unwrap();
+                            exact.add(number, coefficient).unwrap();
+                        }
+                        assert_eq!(
+                            prepared.finish(base),
+                            exact.rounded(base),
+                            "{a} {b} {c} base={base}"
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]

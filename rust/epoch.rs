@@ -22,7 +22,7 @@ pub(crate) fn prepare_polars_type(series: &Bound<'_, PyAny>) -> PyResult<()> {
 }
 
 /// Test the real cached Series ancestry without imports or name-based hints.
-fn is_polars_series(value: &Bound<'_, PyAny>) -> bool {
+pub(crate) fn is_polars_series(value: &Bound<'_, PyAny>) -> bool {
     let Some(Some(series)) = POLARS_SERIES.get(value.py()) else {
         return false;
     };
@@ -65,6 +65,24 @@ impl Unit {
             Self::Microsecond => 1000,
             Self::Nanosecond => 1,
         }
+    }
+    /// Project an exact coordinate once, flooring toward the earlier tick.
+    /// A checked narrow coordinate needs no wide division; wide dates retain
+    /// the full integer path and are never constrained to an int64 container.
+    #[inline]
+    fn ticks(self, nanos: i128) -> i128 {
+        if self == Self::Nanosecond {
+            return nanos;
+        }
+        if let Ok(nanos) = i64::try_from(nanos) {
+            return i128::from(match self {
+                Self::Second => nanos.div_euclid(1_000_000_000),
+                Self::Millisecond => nanos.div_euclid(1_000_000),
+                Self::Microsecond => nanos.div_euclid(1000),
+                Self::Nanosecond => nanos,
+            });
+        }
+        nanos.div_euclid(self.nanos())
     }
     /// NumPy/pandas spelling for this resolution.
     pub(crate) fn name(self) -> &'static str {
@@ -227,15 +245,17 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
         ));
     }
     if let Ok(text) = value.cast::<PyString>() {
+        let converted;
         let text = if value.is_exact_instance_of::<PyString>() {
-            text.clone()
+            text
         } else {
-            value.str().map_err(crate::error_context::external)?
+            converted = value.str().map_err(crate::error_context::external)?;
+            &converted
         };
         return if opts.iso_only {
             let f = crate::parser::read_fields::<Iso<Nano<Strict>>>(
                 py,
-                &text,
+                text,
                 opts.default,
                 opts.yearfirst,
                 opts.dayfirst,
@@ -247,7 +267,7 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
         } else if opts.strict {
             let f = crate::parser::read_fields::<Nano<Strict>>(
                 py,
-                &text,
+                text,
                 opts.default,
                 opts.yearfirst,
                 opts.dayfirst,
@@ -259,7 +279,7 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
         } else {
             let f = crate::parser::read_fields::<Nano<Lenient>>(
                 py,
-                &text,
+                text,
                 opts.default,
                 opts.yearfirst,
                 opts.dayfirst,
@@ -632,7 +652,7 @@ fn parse_to_epoch(
     strict: Truth,
     cfg: Option<&Bound<'_, PyAny>>,
     input_unit: &str,
-) -> PyResult<i128> {
+) -> PyResult<Py<PyInt>> {
     let unit = Unit::parse(unit).map_err(|error| {
         crate::error_context::argument(
             dtobj.py(),
@@ -661,11 +681,17 @@ fn parse_to_epoch(
             )
         })?,
     };
-    read(dtobj, &opts)
-        .map(|result| result.nanos.div_euclid(unit.nanos()))
+    let value = read(dtobj, &opts)
+        .map(|result| unit.ticks(result.nanos))
         .map_err(|error| {
             crate::parser::entry_error(dtobj.py(), "parse_to_epoch", "dtobj", dtobj, error)
-        })
+        })?;
+    // Only the final Python constructor changes. Larger coordinates retain
+    // the full-width conversion, including values beyond native containers.
+    if let Ok(narrow) = i32::try_from(value) {
+        return Ok(narrow.into_pyobject(dtobj.py())?.unbind());
+    }
+    Ok(value.into_pyobject(dtobj.py())?.unbind())
 }
 
 /// Register the scalar epoch API beside the existing datetime parser APIs.
@@ -698,6 +724,47 @@ pub(crate) fn zone_object(py: Python<'_>, zone: &Zone) -> PyResult<Py<PyAny>> {
             };
             unsafe { Bound::from_owned_ptr_or_err(py, ffi::PyTimeZone_FromOffset(delta.as_ptr())) }
                 .map(Bound::unbind)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Unit;
+
+    #[test]
+    fn integer_projection_keeps_negative_floor_and_both_sides_of_the_narrow_boundary() {
+        let values = [
+            i128::MIN,
+            i128::MIN + 1,
+            i128::from(i64::MIN) - 1,
+            i128::from(i64::MIN),
+            i128::from(i64::MIN) + 1,
+            -1_000_000_001,
+            -1001,
+            -1000,
+            -999,
+            -1,
+            0,
+            1,
+            999,
+            1000,
+            1001,
+            1_000_000_001,
+            i128::from(i64::MAX) - 1,
+            i128::from(i64::MAX),
+            i128::from(i64::MAX) + 1,
+            i128::MAX,
+        ];
+        for unit in [
+            Unit::Second,
+            Unit::Millisecond,
+            Unit::Microsecond,
+            Unit::Nanosecond,
+        ] {
+            for value in values {
+                assert_eq!(unit.ticks(value), value.div_euclid(unit.nanos()));
+            }
         }
     }
 }

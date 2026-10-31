@@ -710,9 +710,9 @@ pub(crate) fn apply_datetime_fields<'py>(
     // The public vector call preserves the same keyword order and callbacks,
     // while avoiding a temporary keyword dictionary for datetime subclasses.
     if other.is_exact_instance_of::<PyDateTime>() {
-        apply_datetime_fields_impl::<true, true>(fields, empty, other, dt, sign)
+        apply_datetime_fields_impl::<true, true>(fields, empty, other, dt, sign, None)
     } else {
-        apply_datetime_fields_impl::<true, false>(fields, empty, other, dt, sign)
+        apply_datetime_fields_impl::<true, false>(fields, empty, other, dt, sign, None)
     }
 }
 
@@ -729,7 +729,22 @@ pub(crate) fn apply_builtin_datetime_fields<'py>(
     dt: &Bound<'py, PyDateTime>,
     sign: i64,
 ) -> PyResult<Option<Bound<'py, PyAny>>> {
-    apply_datetime_fields_impl::<true, true>(fields, empty, other, dt, sign)
+    apply_datetime_fields_impl::<true, true>(fields, empty, other, dt, sign, None)
+}
+
+/// Apply a proven builtin datetime with the immutable batch's prepared clock.
+/// # Errors
+/// Preserves the same checked calendar, bounds and builtin allocation errors.
+#[inline(always)]
+pub(crate) fn apply_builtin_datetime_batch<'py>(
+    fields: &crate::delta::value::DeltaValue,
+    empty: bool,
+    other: &Bound<'py, PyAny>,
+    dt: &Bound<'py, PyDateTime>,
+    sign: i64,
+    hours: Option<i64>,
+) -> PyResult<Option<Bound<'py, PyAny>>> {
+    apply_datetime_fields_impl::<true, true>(fields, empty, other, dt, sign, hours)
 }
 
 /// Apply prepared datetime fields using public keyword vectorcall for subtypes.
@@ -742,7 +757,7 @@ pub(crate) fn apply_datetime_fields_vector<'py>(
     dt: &Bound<'py, PyDateTime>,
     sign: i64,
 ) -> PyResult<Option<Bound<'py, PyAny>>> {
-    apply_datetime_fields_impl::<true, false>(fields, empty, other, dt, sign)
+    apply_datetime_fields_impl::<true, false>(fields, empty, other, dt, sign, None)
 }
 
 /// Run the same checked calendar work with a fixed constructor calling convention.
@@ -755,6 +770,7 @@ fn apply_datetime_fields_impl<'py, const VECTOR: bool, const BUILTIN: bool>(
     other: &Bound<'py, PyAny>,
     dt: &Bound<'py, PyDateTime>,
     sign: i64,
+    hours: Option<i64>,
 ) -> PyResult<Option<Bound<'py, PyAny>>> {
     let py = other.py();
     if !BUILTIN && dt.get_year() == 1 {
@@ -778,8 +794,11 @@ fn apply_datetime_fields_impl<'py, const VECTOR: bool, const BUILTIN: bool>(
         i64::from(dt.get_microsecond()),
     ];
     // Finish calendar work before any Python constructor callback.
-    let (result, unchanged) = crate::calendar::apply(fields, parts, sign, true)
-        .map_err(crate::error_context::overflow)?;
+    let (result, unchanged) = match hours {
+        Some(hours) => crate::calendar::apply_hours(fields, parts, sign, true, hours),
+        None => crate::calendar::apply(fields, parts, sign, true),
+    }
+    .map_err(crate::error_context::overflow)?;
     if unchanged {
         return Ok(Some(other.clone()));
     }

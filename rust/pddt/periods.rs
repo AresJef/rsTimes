@@ -528,6 +528,36 @@ fn _pddt_snap<'py>(
         py,
         &zone.map_or(Zone::Naive, |z| Zone::Object(z.clone().unbind())),
     )?;
+    let spec = Snap::new(period);
+    if let Some(offset) = fixed
+        && let Some(grid) = spec.grid(i128::from(offset) * 1000, unit.nanos())?
+    {
+        let mut changed = false;
+        let output = PyBytes::new_with(py, data.len(), |output| {
+            for (row, (input, output)) in data
+                .as_chunks::<8>()
+                .0
+                .iter()
+                .zip(output.as_chunks_mut::<8>().0.iter_mut())
+                .enumerate()
+            {
+                let tick = i64::from_ne_bytes(*input);
+                let value = if tick == i64::MIN {
+                    tick
+                } else {
+                    let candidate = grid.nearest(tick);
+                    i64::try_from(candidate).ok().filter(|value| *value != i64::MIN).ok_or_else(|| {
+                        crate::error_context::location(py, crate::error_context::overflow(
+                            "date is outside the requested unit; explicitly choose a coarser unit"), entry, &format!("result[{row}]"))
+                    })?
+                };
+                changed |= value != tick;
+                output.copy_from_slice(&value.to_ne_bytes());
+            }
+            Ok(())
+        })?;
+        return Ok((output, changed));
+    }
     let mut cache = SnapCache {
         enabled: fixed.is_none() && zone.is_some_and(crate::pydt::is_exact_zoneinfo),
         choices: [None; 2],
@@ -552,7 +582,7 @@ fn _pddt_snap<'py>(
                 None,
             )?
         };
-        let (spec, lower) = Snap::prepare(period, wall)?;
+        let lower = spec.lower(wall)?;
         let upper = spec.shift(lower, 1)?;
         let value = (|| -> PyResult<i128> {
             if let Some(offset) = fixed {

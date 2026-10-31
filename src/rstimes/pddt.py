@@ -5,7 +5,7 @@ from zoneinfo import available_timezones
 import numpy as np
 from ._optional import PANDAS as pd, POLARS as pl
 from ._polars import plain_series as _plain_series
-from ._native import (_bool_option, _pddt_result_type, _pddt_rescale, _pddt_prepare, _pddt_dates,
+from ._native import (_bool_option, _pddt_result_type, _pddt_rescale, _pddt_data, _pddt_prepare, _pddt_strings, _pddt_dates,
                       _pddt_check_native_dates, _pddt_register, _pddt_policies, _pddt_check_policies, _pddt_wall, _pddt_now, _integer_arg, _pddt_numbers, _pddt_number_buffer,
                       _pddt_integers, _pddt_calendar, _pddt_date_objects, _pddt_date_buffer,
                       _pddt_parts, _pddt_combine, _pddt_strptime, _pddt_component, _pddt_transform, _pddt_operand, _pddt_binary, _pddt_period, _pddt_fsp, _pddt_round, _pddt_snap, _pddt_query, _pddt_diff, _pddt_export, _pddt_objects, _pddt_range, _pddt_range_endpoints, _pddt_range_external)
@@ -195,8 +195,15 @@ def _prepare(data, unit, target, copy, default, yearfirst, dayfirst,
         packed, selected, zone = _pddt_dates(values.tobytes(), policy, source, multiplier,
             unit, source_zone, target, entry, validity)
     else:
-        packed, selected, zone = _pddt_prepare(values, policy, unit, hint, default,
-            yearfirst, dayfirst, isoformat, strict, cfg, target, entry)
+        native = None
+        if pl is not None and type(values) is pl.Series and values.dtype == pl.String:
+            native = _pddt_strings(values, policy, unit, default,
+                yearfirst, dayfirst, isoformat, strict, cfg, target, entry)
+        if native is None:
+            packed, selected, zone = _pddt_prepare(values, policy, unit, hint, default,
+                yearfirst, dayfirst, isoformat, strict, cfg, target, entry)
+        else:
+            packed, selected, zone = native
     return np.frombuffer(packed, dtype=f"datetime64[{selected}]"), zone, name
 
 
@@ -535,7 +542,7 @@ def _rounded(self, freq, mode, entry):
 
 def _calendar_query(self, code, entry, target=_UNSET, parameter=None, names=0):
     prepared=None if target is _UNSET else _component(target,len(self),entry,parameter,False,names)
-    packed,mask=_pddt_query(self.asi8.tobytes(),self.unit,self.tz,code,entry,prepared)
+    packed,mask=_pddt_query(_pddt_data(self.asi8),self.unit,self.tz,code,entry,prepared)
     if 100<=code<200:
         return pd.Index(np.frombuffer(packed,dtype="bool"),name=entry.rsplit(".",1)[-1])
     values=np.frombuffer(packed,dtype="int64")
@@ -901,7 +908,7 @@ class Pddt(pd.DatetimeIndex):
             array = self._data
             if unit == array.unit:
                 return self
-            packed = _pddt_rescale(array.asi8.tobytes(), array.unit, unit,
+            packed = _pddt_rescale(_pddt_data(array.asi8), array.unit, unit,
                                   round_ok, "Pddt.as_unit")
             values = np.frombuffer(packed, dtype=f"datetime64[{unit}]")
             return _finish(type(self), values, zone=array.tz, name=self.name)

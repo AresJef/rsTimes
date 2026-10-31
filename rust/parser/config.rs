@@ -88,7 +88,10 @@ pub(crate) struct NativeRules {
 /// objects. This representation is rebuilt once per invocation, never per row.
 #[derive(Clone, serde::Serialize, serde::Deserialize, pyo3::IntoPyObject)]
 pub(crate) struct NativeRulesData {
-    pub(crate) tables: [Vec<(Token, i32)>; 8],
+    pub(crate) version: u8,
+    // None names the immutable table built into this same native version.
+    // Some(empty) is an explicit empty table, never a request for defaults.
+    pub(crate) tables: [Option<Vec<(Token, i32)>>; 8],
     pub(crate) regions: Vec<(Token, NativeRegion)>,
     pub(crate) flags: (bool, bool),
 }
@@ -105,13 +108,16 @@ impl NativeRules {
     /// Capture deterministic values for the official serde plugin boundary.
     pub(crate) fn data(&self) -> NativeRulesData {
         let tables = std::array::from_fn(|i| {
+            if Arc::ptr_eq(&self.owners[i].0, &defaults()[i].0) {
+                return None;
+            }
             let mut table: Vec<_> = self.owners[i]
                 .ext
                 .iter()
                 .map(|(key, value)| (key.clone(), *value))
                 .collect();
             table.sort_unstable_by(|a, b| a.0.cmp(&b.0));
-            table
+            Some(table)
         });
         let mut regions: Vec<_> = self
             .regions
@@ -120,6 +126,7 @@ impl NativeRules {
             .collect();
         regions.sort_unstable_by(|a, b| a.0.cmp(&b.0));
         NativeRulesData {
+            version: 2,
             tables,
             regions,
             flags: self.flags,
@@ -127,8 +134,17 @@ impl NativeRules {
     }
     /// Validate raw kwargs before native recognition can observe their values.
     pub(crate) fn from_data(data: NativeRulesData) -> ParseResult<Self> {
-        let mut owners = empty_owners();
+        if data.version != 2 {
+            return Err(super::fields::ParseError::Value(
+                "native parser vocabulary snapshot version must be 2".into(),
+            ));
+        }
+        let mut owners = defaults().clone();
         for (i, table) in data.tables.into_iter().enumerate() {
+            let Some(table) = table else {
+                continue;
+            };
+            owners[i] = Namespace::default();
             let bounds = match i {
                 3 => (-86399, 86399),
                 4 => (1, 12),
@@ -253,8 +269,30 @@ impl FormattedRules for NativeRules {
 pub(crate) struct FormatRules {
     owners: [Owner; 8],
     zones: Arc<ZoneMap>,
+    flags: (bool, bool),
 }
 impl FormatRules {
+    /// Reuse one owned batch snapshot with the ordinary codepoint grammar.
+    pub(crate) fn native_view(&self) -> NativeView<'_> {
+        NativeView {
+            owners: &self.owners,
+            zones: &self.zones,
+            flags: self.flags,
+        }
+    }
+
+    /// Retain the original registered Python zone for a native parsed IANA key.
+    /// The caller's scratch is reused only after its parsed fields are owned.
+    pub(crate) fn region_key(
+        &self,
+        key: &str,
+        scratch: &mut Vec<u32>,
+    ) -> Option<Arc<RegisteredZone>> {
+        scratch.clear();
+        scratch.extend(key.chars().map(u32::from));
+        self.zones.get(scratch.as_slice()).cloned()
+    }
+
     /// Capture one effective set without copying any complete vocabulary table.
     pub(crate) fn prepare(value: Option<&Bound<'_, PyAny>>) -> PyResult<Self> {
         if let Some(value) = value.filter(|v| !v.is_none()) {
@@ -267,11 +305,13 @@ impl FormatRules {
             Ok(Self {
                 owners: cfg.owners.clone(),
                 zones: cfg.zones.clone(),
+                flags: cfg.flags(),
             })
         } else {
             Ok(Self {
                 owners: defaults().clone(),
                 zones: Arc::new(ZoneMap::new()),
+                flags: (true, false),
             })
         }
     }

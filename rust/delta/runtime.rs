@@ -113,16 +113,16 @@ impl Delta {
         coarse_date: bool,
     ) -> PyResult<Bound<'py, PyAny>> {
         match input {
-            crate::numpy_scalar::DeltaScalar::Date { civil, coarse } => {
+            crate::numpy_scalar::DeltaScalar::Date(source) => {
                 if subtract && !reverse {
                     return Ok(py.NotImplemented().into_bound(py));
                 }
                 crate::numpy_scalar::apply_delta_date(
                     py,
                     &self.value,
-                    civil,
+                    source,
                     if subtract { -1 } else { 1 },
-                    coarse_date && coarse,
+                    coarse_date && source.coarse(),
                 )
             }
             crate::numpy_scalar::DeltaScalar::Duration { days, clock_ns, .. } => Bound::new(

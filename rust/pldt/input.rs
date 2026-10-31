@@ -59,6 +59,22 @@ fn native_error(error: PolarsError) -> PyErr {
     super::eager_error(error)
 }
 
+/// NumPy sentinel detection is separate from a fast owned contiguous copy.
+/// Existing validity or chunks retain the complete missing-aware builder.
+fn copy_numpy_ticks(values: &Int64Chunked) -> Int64Chunked {
+    if let Ok(slice) = values.cont_slice()
+        && !slice.contains(&i64::MIN)
+    {
+        return Int64Chunked::from_slice(values.name().clone(), slice);
+    }
+    Int64Chunked::from_iter_options(
+        values.name().clone(),
+        values
+            .iter()
+            .map(|value| value.filter(|tick| *tick != i64::MIN)),
+    )
+}
+
 /// Pure typed Polars preparation, shared by eager construction and Expr.
 pub(super) struct NativeOptions<'a> {
     pub(super) requested: Option<Unit>,
@@ -101,11 +117,13 @@ pub(super) fn column(
     if let Ok(dates) = source.datetime()
         && options.target.is_none_or(|_| source_zone.is_some())
         && chosen == original
-        && !options.copy
     {
-        return Ok(dates
-            .physical()
-            .clone()
+        let values = if options.copy {
+            Int64Chunked::from_iter_options(source.name().clone(), dates.physical().iter())
+        } else {
+            dates.physical().clone()
+        };
+        return Ok(values
             .into_datetime(resolution(chosen), output_zone)
             .into_series());
     }
@@ -149,25 +167,17 @@ pub(super) fn column(
                 .strict_cast(&DataType::Int64)
                 .map_err(|_| Failure::new(Kind::Capacity, "numeric date tick exceeds signed64"))?;
             // Raw numbers are already ticks in the explicitly chosen/default unit.
-            if !options.copy {
-                return Ok(values
-                    .i64()
-                    .map_err(|error| Failure::new(Kind::Type, error.to_string()))?
-                    .clone()
-                    .into_datetime(resolution(chosen), output_zone)
-                    .into_series());
-            }
-            for value in values
+            let values = values
                 .i64()
-                .map_err(|error| Failure::new(Kind::Type, error.to_string()))?
-                .iter()
-            {
-                if let Some(value) = value {
-                    rows.push(i128::from(value) * chosen.nanos(), 0, true, chosen)
-                } else {
-                    rows.missing()
-                }
-            }
+                .map_err(|error| Failure::new(Kind::Type, error.to_string()))?;
+            let values = if options.copy {
+                Int64Chunked::from_iter_options(source.name().clone(), values.iter())
+            } else {
+                values.clone()
+            };
+            return Ok(values
+                .into_datetime(resolution(chosen), output_zone)
+                .into_series());
         }
         DataType::Float32 | DataType::Float64 => {
             let values = source
@@ -286,32 +296,36 @@ fn _pldt_native<'py>(
         return super::export(py, &result, target);
     }
     let result = if let Some((code, multiplier)) = numpy_date {
-        let chosen =
-            requested.unwrap_or(crate::date_input::scalar_unit(code)?.max(Unit::Millisecond));
+        let original = crate::date_input::scalar_unit(code)?;
+        let chosen = requested.unwrap_or(original.max(Unit::Millisecond));
         if multiplier < 1 {
             return Err(crate::error_context::value_error(
                 "invalid NumPy date multiplier",
             ));
         }
         let values = source.i64().map_err(native_error)?;
-        let mut output =
-            PrimitiveChunkedBuilder::<Int64Type>::new(source.name().clone(), source.len());
-        for (row, value) in values.iter().enumerate() {
-            let result = match value.filter(|value| *value != i64::MIN) {
-                None => None,
-                Some(value) => Some(
-                    scale(
-                        crate::epoch::native_datetime_ticks(value, code, multiplier)?.nanos,
-                        chosen,
-                        false,
-                    )
-                    .map_err(|error| scale_error(error, row))?,
-                ),
-            };
-            output.append_option(result);
-        }
+        let output = if multiplier == 1 && (8..=10).contains(&code) && chosen == original {
+            copy_numpy_ticks(values)
+        } else {
+            let mut output =
+                PrimitiveChunkedBuilder::<Int64Type>::new(source.name().clone(), source.len());
+            for (row, value) in values.iter().enumerate() {
+                let result = match value.filter(|value| *value != i64::MIN) {
+                    None => None,
+                    Some(value) => Some(
+                        scale(
+                            crate::epoch::native_datetime_ticks(value, code, multiplier)?.nanos,
+                            chosen,
+                            false,
+                        )
+                        .map_err(|error| scale_error(error, row))?,
+                    ),
+                };
+                output.append_option(result);
+            }
+            output.finish()
+        };
         output
-            .finish()
             .into_datetime(
                 resolution(chosen),
                 TimeZone::opt_try_new(numpy_zone).map_err(native_error)?,
@@ -587,4 +601,39 @@ pub(super) fn visit_nanos(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn same_unit_numpy_copy_handles_owned_values_sentinel_nulls_and_chunks() {
+        std::thread::spawn(|| {
+            let values = Int64Chunked::from_slice("time".into(), &[-1, 0, i64::MAX]);
+            let copied = copy_numpy_ticks(&values);
+            assert_eq!(
+                copied.iter().collect::<Vec<_>>(),
+                [Some(-1), Some(0), Some(i64::MAX)]
+            );
+            assert_ne!(
+                values.cont_slice().unwrap().as_ptr(),
+                copied.cont_slice().unwrap().as_ptr()
+            );
+
+            let mut mixed = Int64Chunked::from_slice_options("time".into(), &[Some(0), None]);
+            mixed
+                .append(&Int64Chunked::from_slice("time".into(), &[i64::MIN, -1]))
+                .unwrap();
+            assert_eq!(mixed.chunks().len(), 2);
+            let copied = copy_numpy_ticks(&mixed);
+            assert_eq!(copied.name(), "time");
+            assert_eq!(
+                copied.iter().collect::<Vec<_>>(),
+                [Some(0), None, None, Some(-1)]
+            );
+        })
+        .join()
+        .unwrap();
+    }
 }

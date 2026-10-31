@@ -16,6 +16,18 @@ pub(crate) struct CivilNs {
     pub(crate) clock_ns: u64,
 }
 
+/// Assemble validated civil fields into a wide epoch coordinate. No Python
+/// capacity, timezone interpretation or final-unit rounding belongs here.
+#[inline]
+pub(crate) fn fields_nanos(fields: [i64; 7], tail: i64) -> Result<i128, &'static str> {
+    let [year, month, day, hour, minute, second, microsecond] = fields;
+    let ordinal = crate::calendar::checked_ordinal(year, month, day)?;
+    Ok((i128::from(ordinal) - 719_163) * NS_PER_DAY
+        + ((i128::from(hour) * 60 + i128::from(minute)) * 60 + i128::from(second)) * 1_000_000_000
+        + i128::from(microsecond) * 1000
+        + i128::from(tail))
+}
+
 /// Month length on a wide Gregorian year. Month is already validated1..=12.
 fn month_length(year: i128, month: u8) -> u8 {
     match month {
@@ -67,6 +79,76 @@ pub(crate) fn from_ordinal(ordinal: i128) -> Result<(i128, u8, u8), &'static str
     Ok((year, month as u8, day as u8))
 }
 
+/// Resolve the date portion once for every precision-specific adapter.
+/// Input fields and direction have already passed the caller's invariants;
+/// clock_carry is the exact bounded day carry from that adapter's clock.
+#[inline(always)]
+pub(crate) fn apply_date(
+    value: &DeltaValue,
+    input: (i128, u8, u8),
+    sign: i64,
+    clock_carry: i64,
+) -> Result<(i128, u8, u8), &'static str> {
+    let absolute = value.absolute;
+    let (mut year, mut month, day, weekday) = if absolute.is_empty() {
+        (input.0, i64::from(input.1), input.2, None)
+    } else {
+        (
+            absolute.get(Field::Year).map_or(input.0, i128::from),
+            absolute.get(Field::Month).unwrap_or(i64::from(input.1)),
+            absolute.get(Field::Day).map_or(input.2, |day| day as u8),
+            absolute.get(Field::Weekday),
+        )
+    };
+    year = year
+        .checked_add(i128::from(sign) * i128::from(value.years))
+        .ok_or(OVERFLOW)?;
+    month += sign * i64::from(value.months);
+    if month > 12 {
+        month -= 12;
+        year = year.checked_add(1).ok_or(OVERFLOW)?;
+    } else if month < 1 {
+        month += 12;
+        year = year.checked_sub(1).ok_or(OVERFLOW)?;
+    }
+    let month = month as u8;
+    let day = if day > 28 {
+        day.min(month_length(year, month))
+    } else {
+        day
+    };
+
+    let days = i128::from(sign) * i128::from(value.days) + i128::from(clock_carry);
+    let small = if days != 0 && (-27..=27).contains(&days) && weekday.is_none() {
+        i64::try_from(year).ok().and_then(|year| {
+            crate::calendar::shift_small_days(year, i64::from(month), i64::from(day), days as i64)
+                .ok()
+                .map(|[year, month, day]| (i128::from(year), month as u8, day as u8))
+        })
+    } else {
+        None
+    };
+    let (year, month, day) = if days == 0 && weekday.is_none() {
+        (year, month, day)
+    } else if let Some(date) = small {
+        date
+    } else {
+        let number = ordinal(year, month, day)?
+            .checked_add(days)
+            .ok_or(OVERFLOW)?;
+        let number = if let Some(weekday) = weekday {
+            let actual = number.checked_sub(1).ok_or(OVERFLOW)?.rem_euclid(7);
+            number
+                .checked_add(i128::from(weekday) - actual)
+                .ok_or(OVERFLOW)?
+        } else {
+            number
+        };
+        from_ordinal(number)?
+    };
+    Ok((year, month, day))
+}
+
 /// Apply one canonical Delta, preserving ns until a separate final projection.
 pub(crate) fn apply(
     value: &DeltaValue,
@@ -99,82 +181,39 @@ pub(crate) fn apply(
             clock_ns: input.clock_ns,
         });
     }
-    let mut year = i128::from(absolute.get(Field::Year).unwrap_or(0));
-    if absolute.get(Field::Year).is_none() {
-        year = input.year;
-    }
-    year = year
-        .checked_add(i128::from(sign) * i128::from(value.years))
-        .ok_or(OVERFLOW)?;
-    let mut month = absolute.get(Field::Month).unwrap_or(i64::from(input.month))
-        + sign * i64::from(value.months);
-    if month > 12 {
-        month -= 12;
-        year = year.checked_add(1).ok_or(OVERFLOW)?;
-    } else if month < 1 {
-        month += 12;
-        year = year.checked_sub(1).ok_or(OVERFLOW)?;
-    }
-    let month = month as u8;
-    let day = (absolute.get(Field::Day).unwrap_or(i64::from(input.day)) as u8)
-        .min(month_length(year, month));
-
     // Both canonical clocks are below a day. The signed combination and one
     // carry fit i64; the large day group remains wide until the target exit.
     let original = input.clock_ns;
-    let hour = absolute
-        .get(Field::Hour)
-        .unwrap_or((original / 3_600_000_000_000) as i64);
-    let minute = absolute
-        .get(Field::Minute)
-        .unwrap_or((original / 60_000_000_000 % 60) as i64);
-    let second = absolute
-        .get(Field::Second)
-        .unwrap_or((original / 1_000_000_000 % 60) as i64);
-    let fraction = if let Some(microsecond) = absolute.get(Field::Microsecond) {
-        microsecond * 1000 + absolute.get(Field::Nanosecond).unwrap_or(0)
-    } else {
-        (original / 1000 % 1_000_000) as i64 * 1000
-            + absolute
-                .get(Field::Nanosecond)
-                .unwrap_or((original % 1000) as i64)
-    };
-    let clock = hour * 3_600_000_000_000
-        + minute * 60_000_000_000
-        + second * 1_000_000_000
-        + fraction
-        + sign * value.clock_ns as i64;
-    let days =
-        i128::from(sign) * i128::from(value.days) + i128::from(clock.div_euclid(NS_PER_DAY as i64));
-    let clock_ns = clock.rem_euclid(NS_PER_DAY as i64) as u64;
-    let small = if days != 0 && (-27..=27).contains(&days) && absolute.get(Field::Weekday).is_none()
-    {
-        i64::try_from(year).ok().and_then(|year| {
-            crate::calendar::shift_small_days(year, i64::from(month), i64::from(day), days as i64)
-                .ok()
-                .map(|[year, month, day]| (i128::from(year), month as u8, day as u8))
-        })
-    } else {
-        None
-    };
-    let (year, month, day) = if days == 0 && absolute.get(Field::Weekday).is_none() {
-        (year, month, day)
-    } else if let Some(date) = small {
-        date
-    } else {
-        let number = ordinal(year, month, day)?
-            .checked_add(days)
-            .ok_or(OVERFLOW)?;
-        let number = if let Some(weekday) = absolute.get(Field::Weekday) {
-            let actual = number.checked_sub(1).ok_or(OVERFLOW)?.rem_euclid(7);
-            number
-                .checked_add(i128::from(weekday) - actual)
-                .ok_or(OVERFLOW)?
+    let replaced_clock = if absolute.replaces_clock() {
+        let hour = absolute
+            .get(Field::Hour)
+            .unwrap_or((original / 3_600_000_000_000) as i64);
+        let minute = absolute
+            .get(Field::Minute)
+            .unwrap_or((original / 60_000_000_000 % 60) as i64);
+        let second = absolute
+            .get(Field::Second)
+            .unwrap_or((original / 1_000_000_000 % 60) as i64);
+        let fraction = if let Some(microsecond) = absolute.get(Field::Microsecond) {
+            microsecond * 1000 + absolute.get(Field::Nanosecond).unwrap_or(0)
         } else {
-            number
+            (original / 1000 % 1_000_000) as i64 * 1000
+                + absolute
+                    .get(Field::Nanosecond)
+                    .unwrap_or((original % 1000) as i64)
         };
-        from_ordinal(number)?
+        hour * 3_600_000_000_000 + minute * 60_000_000_000 + second * 1_000_000_000 + fraction
+    } else {
+        original as i64
     };
+    let clock = replaced_clock + sign * value.clock_ns as i64;
+    let clock_ns = clock.rem_euclid(NS_PER_DAY as i64) as u64;
+    let (year, month, day) = apply_date(
+        value,
+        (input.year, input.month, input.day),
+        sign,
+        clock.div_euclid(NS_PER_DAY as i64),
+    )?;
     Ok(CivilNs {
         year,
         month,
