@@ -71,8 +71,11 @@ impl BaseProperty {
 }
 struct TimestampProperties {
     ticks: BaseProperty,
+    unit: BaseProperty,
     year: BaseProperty,
     nanos: BaseProperty,
+    standard_replace: Option<Py<PyAny>>,
+    bound_method_type: Py<PyType>,
     add: Py<PyAny>,
     subtract: Py<PyAny>,
     reflected_subtract: Py<PyAny>,
@@ -108,10 +111,30 @@ pub(crate) fn _configure_optional(
     let types = [timestamp?, duration?, nat?];
     if let Some(kind) = &types[0] {
         let class = kind.bind(py);
+        let replace = class
+            .getattr("replace")
+            .map_err(crate::error_context::external)?;
+        let as_unit = class
+            .getattr("as_unit")
+            .map_err(crate::error_context::external)?;
+        // The actual compiled callable class is shared by pandas' two public
+        // methods. Python replacements remain external callbacks even when
+        // installed before this adapter is initialized; no name-based gate.
+        // SAFETY: the owned callable is live under the GIL; this only checks
+        // its public CPython type and never assumes a Cython object layout.
+        let standard_replace = (!unsafe { ffi::PyFunction_Check(replace.as_ptr()) != 0 }
+            && replace.get_type().is(as_unit.get_type()))
+        .then(|| replace.unbind());
         let properties = TimestampProperties {
             ticks: BaseProperty::prepare(class, "asm8")?,
+            unit: BaseProperty::prepare(class, "unit")?,
             year: BaseProperty::prepare(class, "year")?,
             nanos: BaseProperty::prepare(class, "nanosecond")?,
+            standard_replace,
+            bound_method_type: pyo3::types::PyModule::import(py, "types")?
+                .getattr("MethodType")?
+                .cast_into::<PyType>()?
+                .unbind(),
             add: class
                 .getattr("__add__")
                 .map_err(crate::error_context::external)?
@@ -893,8 +916,88 @@ fn replace_timestamp<'py>(
         kwargs.set_item("nanosecond", nanos)?;
     }
     kwargs.set_item("fold", i64::from(fold))?;
+    let access = timestamp_properties(value.py())?;
+    if access.replace_needs_tail
+        && nanos.is_some_and(|tail| tail != 0)
+        && access.unit.read(value)?.cast::<PyString>()?.to_str()? != "ns"
+    {
+        // Preserve the actual bound method once. A real custom replace or
+        // attribute hook keeps its exact return/exception instead of being
+        // rewritten by our compatibility handling.
+        let replace = value
+            .getattr("replace")
+            .map_err(crate::error_context::external)?;
+        // Exact stdlib MethodType cannot spoof these public binding fields.
+        // Keep both owners alive; no CPython/Cython method layout is assumed.
+        let standard = if let Some(expected) = &access.standard_replace {
+            replace
+                .get_type()
+                .is(access.bound_method_type.bind(value.py()))
+                && replace.getattr("__func__")?.is(expected.bind(value.py()))
+                && replace.getattr("__self__")?.is(value)
+        } else {
+            false
+        };
+        let result = replace
+            .call((), Some(&kwargs))
+            .map_err(crate::error_context::external)?;
+        if standard
+            && timestamp_type(value.py())
+                .is_some_and(|base| result.get_type().as_type_ptr() == base)
+            && access.unit.read(&result)?.cast::<PyString>()?.to_str()? != "ns"
+        {
+            return coherent_timestamp_tail(&result);
+        }
+        return Ok(result);
+    }
     value
         .call_method("replace", (), Some(&kwargs))
+        .map_err(crate::error_context::external)
+}
+
+/// Repair only a proven native pandas2 replacement's coarse-storage remainder.
+/// The real replace has already run once. Its exact Timestamp result supplies
+/// fields/tz/fold; custom returns never enter this adapter. A datetime carrier
+/// is necessary for pandas' public constructor to retain pytz and fold together.
+fn coherent_timestamp_tail<'py>(value: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+    let py = value.py();
+    let tail = timestamp_properties(py)?
+        .nanos
+        .read(value)?
+        .extract::<i64>()?;
+    if tail == 0 {
+        return Ok(value.clone());
+    }
+    let ticks = timestamp_ticks(value)?.nanos;
+    if i64::try_from(ticks).is_err() || ticks == i128::from(i64::MIN) {
+        return Err(crate::error_context::overflow(
+            "Timestamp result with nanoseconds exceeds its ns storage capacity",
+        ));
+    }
+    let [year, month, day, hour, minute, second, microsecond] = timestamp_local_fields(value)?;
+    let dt = value.cast::<PyDateTime>()?;
+    let tz = dt.get_tzinfo();
+    // A checked representable ns instant and a valid datetime offset bound the
+    // local year to datetime's range; its public constructor still validates.
+    let year = i32::try_from(year).map_err(|_| {
+        crate::error_context::overflow("Timestamp carrier year exceeds datetime capacity")
+    })?;
+    let carrier = PyDateTime::new_with_fold(
+        py,
+        year,
+        month as u8,
+        day as u8,
+        hour as u8,
+        minute as u8,
+        second as u8,
+        microsecond as u32,
+        tz.as_ref(),
+        dt.get_fold(),
+    )?;
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("nanosecond", tail)?;
+    timestamp_class(py)?
+        .call((carrier,), Some(&kwargs))
         .map_err(crate::error_context::external)
 }
 

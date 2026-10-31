@@ -1,5 +1,6 @@
 """Preserve real Timestamp sub-microsecond data across pandas2 and pandas3."""
-from datetime import timedelta
+from datetime import timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -85,3 +86,89 @@ def test_coarse_wide_timestamp_tail_does_not_force_an_int64_ns_intermediate():
 def test_timestamp_span_rounding_keeps_new_tail_until_standard_timedelta(change, expected_us):
     source = pd.Timestamp("2024-01-01 00:00:00.000001")
     assert Delta(nanoseconds=change).to_timedelta(source) == timedelta(microseconds=expected_us)
+
+
+@pytest.mark.parametrize("unit", ["s", "us", "ns"])
+@pytest.mark.parametrize("change", [1, 500, 1500])
+@pytest.mark.parametrize("direction", ["left", "right", "subtract", "many"])
+def test_timestamp_delta_result_has_coherent_public_ticks_and_comparison(unit, change, direction):
+    source = pd.Timestamp("1970-01-02 00:00:01").as_unit(unit)
+    delta = Delta(nanoseconds=change)
+    result = (delta + source if direction == "left" else source + delta if direction == "right"
+              else source - delta if direction == "subtract" else delta.apply_many([source])[0])
+    expected_ticks = 86_401_000_000_000 + (-change if direction == "subtract" else change)
+    assert type(result) is pd.Timestamp
+    assert result.value == expected_ticks
+    assert result == pd.Timestamp(expected_ticks, unit="ns")
+    assert int(result.asm8.astype("int64")) == expected_ticks and str(result.asm8.dtype) == "datetime64[ns]"
+
+
+@pytest.mark.parametrize("zone", [None, timezone.utc, ZoneInfo("America/New_York")])
+@pytest.mark.parametrize("fold", [0, 1])
+def test_timestamp_result_keeps_zone_and_fold_when_coarse_storage_gains_a_tail(zone, fold):
+    source = pd.Timestamp(year=2024, month=11, day=3, hour=1, minute=30, tzinfo=zone, fold=fold).as_unit("us")
+    result = source + Delta(nanoseconds=500)
+    expected = pd.Timestamp(year=2024, month=11, day=3, hour=1, minute=30,
+                            nanosecond=500, tzinfo=zone, fold=fold)
+    assert result.value == expected.value and result == expected
+    assert result.tzinfo is source.tzinfo and result.fold == fold
+
+
+def test_inherited_timestamp_native_replace_returns_a_coherent_base_result():
+    source = pd.Timestamp("1970-01-01").as_unit("us")
+    source.__class__ = HiddenTail
+    result = Delta(nanoseconds=1) + source
+    assert type(result) is pd.Timestamp and result.value == 1
+
+
+def test_custom_timestamp_replace_still_controls_its_exact_return_and_error():
+    calls = []
+    marker = object()
+    class Custom(pd.Timestamp):
+        def replace(self, **kwargs):
+            calls.append(kwargs)
+            return marker
+    source = pd.Timestamp("1970-01-01").as_unit("us")
+    source.__class__ = Custom
+    assert Delta(nanoseconds=1) + source is marker
+    assert len(calls) == 1 and calls[0]["nanosecond"] == 1
+    error = ValueError("external replace failure")
+    class Broken(pd.Timestamp):
+        def replace(self, **kwargs):
+            raise error
+    source.__class__ = Broken
+    with pytest.raises(ValueError) as caught:
+        Delta(nanoseconds=1) + source
+    assert caught.value is error
+
+
+def test_dynamic_timestamp_attribute_binding_keeps_the_original_protocol():
+    calls = []
+    marker = object()
+    class Dynamic(pd.Timestamp):
+        def __getattribute__(self, name):
+            if name == "replace":
+                def replacement(**kwargs):
+                    calls.append(kwargs)
+                    return marker
+                return replacement
+            return super().__getattribute__(name)
+    source = pd.Timestamp("1970-01-01").as_unit("us")
+    source.__class__ = Dynamic
+    assert Delta(nanoseconds=1) + source is marker
+    assert len(calls) == 1
+
+
+def test_timestamp_nanosecond_borrow_has_coherent_negative_epoch_ticks():
+    source = pd.Timestamp("1970-01-01").as_unit("us")
+    result = source - Delta(nanoseconds=1)
+    assert result.value == -1 and result == pd.Timestamp(-1, unit="ns")
+
+
+def test_wide_timestamp_final_capacity_is_checked_after_absolute_year_change():
+    source = pd.Timestamp(np.datetime64("12024-01-01", "us"))
+    result = source + Delta(year=2024, nanoseconds=1)
+    assert result == pd.Timestamp("2024-01-01 00:00:00.000000001")
+    assert result.unit == "ns"
+    with pytest.raises((OverflowError, pd.errors.OutOfBoundsDatetime)):
+        source + Delta(nanoseconds=1)

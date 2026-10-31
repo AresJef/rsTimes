@@ -86,15 +86,15 @@ NumPy的datetime64/timedelta64两类NaT均报ValueError。已支持的单位、�
 
 ## 不可变值、复制和保存
 
-字段只读，重复调用__init__不改变既有值。copy/deepcopy和pickle保留本包值及正常子类字典/可写slots；恢复错误哈希缓存会丢弃后按真实字段重新计算。当前状态为("rstimes.delta",2,core17,metadata)，固定17字段小端核心为144字节；旧version1／旧bytes及cyTimes状态均明确拒绝，不提供迁移或兼容别名。pickle仅用于可信数据。
+字段只读，重复调用__init__不改变既有值。copy/deepcopy和pickle保留本包值及正常子类字典/可写slots。当前状态为("rstimes.delta",2,core17,metadata)，不保存哈希缓存；恢复后按真实字段计算哈希。固定17字段小端核心为144字节；旧version1／旧bytes及cyTimes状态均明确拒绝，不提供迁移或兼容别名。pickle仅用于可信数据。
 
 直接数值参数拒绝Python／NumPy布尔。公开None仅表达参数含义；Delta内部仍使用紧凑整数表示，不把Python对象带进普通运算内核。本轮CPython3.13／macOS ARM64实测基础对象由冻结起点64字节增至80字节，纳秒及额外字段的存储成本明确保留；不将该单环境观察冒称全部平台大小，整数构造、既有主要运算与相关批量路径仍受逐项5%性能保护。
 
 ## NumPy 和状态恢复的本轮修正
 
-NumPy dtype 的倍数会计入日期或时长，例如 `datetime64(1, "10D")` 是纪元后的第10天。转换到微秒时，负数小于微秒的余数仍向下取整；两类 NaT 均报 ValueError。
+NumPy dtype 的倍数会计入日期或时长，例如 `datetime64(1, "10D")` 是纪元后的第10天。原始刻度和纳秒先进入同一内核；返回datetime时仅在最终微秒出口取偶舍入，不提前截尾。两类NaT均报ValueError，ps/fs/as及generic不扩成新支持。
 
-`apply_many(values)` 的每项结果与普通 `value + delta` 保持一致，包括返回类型与错误。NumPy 某些日期单位会返回 `date`，另一些单位可能不支持普通相加；批量入口同样遵守这些结果。
+`apply_many(values)` 的每项结果与普通 `value + delta` 保持一致，包括返回类型与错误。datetime64的Y/M/W/D单位在普通左侧`value +/- delta`及批量中返回date；h/m/s/ms/us/ns返回datetime。`delta + value`及显式反向方法保留各自datetime合同。timedelta64的W/D/h/m/s/ms/us/ns普通标量正反方向均返回Delta并保留真实纳秒；Y/M仅保留Delta在左的既定支持，普通NumPy左方向及对应批量仍报错。不扩成任意ndarray广播或显式np.add/np.subtract的通用ufunc承诺。
 
 带槽位的子类恢复属性时，按恢复开始时的条目处理。用户 setter 后来改动输入字典，不会使正在执行的恢复崩溃，也不会改变 Delta 的不可变字段和哈希。详见[本次发行说明](releases/v0.2.0b2.md)。
 
@@ -102,6 +102,24 @@ NumPy dtype 的倍数会计入日期或时长，例如 `datetime64(1, "10D")` �
 ## Pandas values and subclass operations
 
 With pandas installed, Delta uses the actual Timestamp date and Timedelta duration. Calendar arithmetic keeps a representable Timestamp result, including years beyond the standard datetime range. A duration does not become zero merely because it exceeds the standard timedelta range. A requested output that cannot hold the result raises an overflow or range error.
+
+A nonzero nanosecond in an ordinary Timestamp result is encoded in actual ns
+storage: its displayed fraction, `value`, `asm8` and native comparisons agree.
+This includes pandas2 coarse inputs. Only a proven inherited native replacement
+uses the necessary compatibility carrier; custom replacement returns and errors
+remain authoritative. Coarse wide dates with no nanosecond tail keep their unit.
+A final nonzero tail must fit Timestamp's actual ns capacity; capacity is checked
+after calendar changes, so a wide source can still be moved into a valid year.
+
+```python
+import pandas as pd
+from rstimes import Delta
+
+coarse = pd.Timestamp("1970-01-01").as_unit("us")
+fine = coarse + Delta(nanoseconds=1)
+assert fine.value == 1 and fine.unit == "ns"
+assert fine == pd.Timestamp(1, unit="ns")
+```
 
 ```python
 import numpy as np

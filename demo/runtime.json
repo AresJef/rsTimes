@@ -1,7 +1,7 @@
 {
   "environment": ".local/pldt-72h-20261030/demo-oracle",
   "version": "0.2.0b2",
-  "release_manifest": "tasks/evidence/pldt-72h-20261030/W24/platform-ready-01-distribution-manifest.json",
+  "release_manifest": "tasks/evidence/pldt-72h-20261030/W24/platform-ready-02-distribution-manifest.json",
   "status": "Local development candidate; installed functional checks pass, full platform and performance acceptance pending",
   "selection": "local_development_candidate",
   "environments": {

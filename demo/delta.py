@@ -903,9 +903,11 @@ def native_nanosecond_upgrade_demo() -> None:
     assert (DeltaR(nanoseconds=1) + np.timedelta64(500, 'ns')) == DeltaR(nanoseconds=501)
     assert (np.timedelta64(500, 'ns') + DeltaR(nanoseconds=1)) == DeltaR(nanoseconds=501)
     assert (start + DeltaR(nanosecond=0)).nanosecond == 0
+    coarse_result = pd.Timestamp('1970-01-01').as_unit('us') + DeltaR(nanoseconds=1)
+    assert coarse_result.value == 1 and coarse_result.unit == 'ns'
     assert (datetime(2024, 1, 1) + DeltaR(nanoseconds=500)) == datetime(2024, 1, 1)
     assert (datetime(2024, 1, 1) + DeltaR(nanoseconds=1500)) == datetime(2024, 1, 1, microsecond=2)
-    print('Native ns upgrade: 12 independent value/field/NumPy/exit checks; not old-version paired timings.')
+    print('Native ns upgrade: 13 independent value/field/NumPy/exit checks; not old-version paired timings.')
 
 
 if __name__ == "__main__":
