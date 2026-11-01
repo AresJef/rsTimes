@@ -13,9 +13,21 @@ use pyo3::types::{PyBytes, PyDict, PyInt, PyString, PyTuple};
 static DEFAULT_STATE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 static DELTA_STATE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 static DELTA_REDUCE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+static STATE_MARKER: PyOnceLock<Py<PyString>> = PyOnceLock::new();
+
+/// Reuse only the immutable format name, never instance fields or metadata.
+/// Normal module preparation initializes it; the existing reentry-safe cache
+/// helper also permits a legitimate state request during partial import.
+#[inline]
+fn state_marker(py: Python<'_>) -> PyResult<&'static Py<PyString>> {
+    crate::python_cache::get_or_prepare(&STATE_MARKER, py, || {
+        Ok(PyString::new(py, "rstimes.delta").unbind())
+    })
+}
 
 /// Retain the original native definitions before the class is exposed to users.
 pub(crate) fn configure(py: Python<'_>) -> PyResult<()> {
+    let _ = state_marker(py)?;
     let class = py.get_type::<Delta>();
     for (name, cache) in [
         ("__getstate__", &DELTA_STATE),
@@ -106,7 +118,8 @@ pub fn capture<'py>(slf: &Bound<'py, Delta>) -> PyResult<Bound<'py, PyAny>> {
     let py = slf.py();
     let fields = PyTuple::new(py, slf.get().snapshot())?;
     let metadata = capture_metadata(slf)?;
-    Ok(("rstimes.delta", 2, fields, metadata)
+    let marker = state_marker(py)?;
+    Ok((marker.bind(py), 2, fields, metadata)
         .into_pyobject(py)?
         .into_any())
 }

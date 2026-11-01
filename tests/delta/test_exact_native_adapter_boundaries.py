@@ -122,3 +122,22 @@ def test_empty_absolute_state_still_captures_real_child_business_metadata():
     state = value.__getstate__()
     assert state[2] == (0, 0, 1, 0, 0, 0, 0, 0) + (-1,) * 9
     assert state[3] == {"note": "business"}
+
+
+def test_repeated_present_zero_state_keeps_live_metadata_and_independent_snapshots():
+    class Child(Delta):
+        pass
+
+    value = Child(nanoseconds=1, nanosecond=0)
+    value.note = "first"
+    first = value.__getstate__()
+    value.note = "second"
+    second = value.__getstate__()
+    fields = (0, 0, 0, 0, 0, 0, 0, 1) + (-1,) * 8 + (0,)
+    assert first[:3] == ("rstimes.delta", 2, fields)
+    assert second[:3] == ("rstimes.delta", 2, fields)
+    assert first[3] == {"note": "first"}
+    assert second[3] == {"note": "second"}
+    first[3]["extra"] = "not live"
+    assert value.__dict__ == {"note": "second"}
+    assert second[3] == {"note": "second"}
