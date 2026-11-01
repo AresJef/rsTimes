@@ -26,6 +26,7 @@ struct Batch<'a, 'py> {
     fields: &'a crate::delta::value::DeltaValue,
     empty: bool,
     hours: Option<i64>,
+    relative_date: Option<crate::civil::RelativeDateMove>,
     native: bool,
     types: &'a Types,
     addition: &'a PreparedAddition,
@@ -71,6 +72,7 @@ impl<'py> Batch<'_, 'py> {
                     unsafe { value.cast_unchecked::<PyDateTime>() },
                     1,
                     self.hours,
+                    self.relative_date,
                 )?
                 .ok_or_else(|| {
                     crate::error_context::runtime("Datetime kernel returned no result")
@@ -302,6 +304,11 @@ fn fill_arithmetic_list<'py, const REPLACE: bool>(
         fields: &fields,
         empty: !slf.get().__bool__(),
         hours: crate::calendar::batch_hours(&fields),
+        relative_date: fields
+            .absolute()
+            .is_empty()
+            .then(|| crate::civil::RelativeDateMove::prepare(&fields, 1))
+            .flatten(),
         native: true,
         types: &types,
         addition,
@@ -630,6 +637,11 @@ pub(crate) fn apply<'py>(
         empty,
         hours: if native {
             crate::calendar::batch_hours(&fields)
+        } else {
+            None
+        },
+        relative_date: if native && fields.absolute().is_empty() {
+            crate::civil::RelativeDateMove::prepare(&fields, 1)
         } else {
             None
         },

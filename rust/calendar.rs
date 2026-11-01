@@ -401,6 +401,32 @@ pub(crate) fn batch_hours(value: &crate::delta::value::DeltaValue) -> Option<i64
     }
 }
 
+/// Apply a batch's prepared relative date and whole-hour clock. Only proven
+/// ordinary dates take this path; the full checked kernel remains authoritative
+/// for every unproved intermediate or wide cancellation.
+#[inline(always)]
+pub(crate) fn apply_prepared_relative_hours(
+    value: &crate::delta::value::DeltaValue,
+    input: [i64; 7],
+    hours: i64,
+    movement: crate::civil::RelativeDateMove,
+) -> Result<([i64; 7], bool), &'static str> {
+    let mut hour = input[3] + hours;
+    let carry = if hour >= 24 {
+        hour -= 24;
+        1
+    } else {
+        0
+    };
+    if let Some(date) = movement.apply([input[0], input[1], input[2]], carry) {
+        let mut result = input;
+        result[..3].copy_from_slice(&date);
+        result[3] = hour;
+        return Ok((result, result == input));
+    }
+    apply_hours(value, input, 1, true, hours)
+}
+
 /// Apply a proven whole-hour clock without decoding the same Delta per row.
 /// # Preconditions
 /// `hours` is the canonical value's whole-hour clock, without absolute clocks;

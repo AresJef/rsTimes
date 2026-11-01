@@ -642,13 +642,14 @@ impl<'py> IntoPyObject<'py> for EpochInteger {
 
     #[inline]
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        if let Ok(narrow) = i32::try_from(self.0) {
-            narrow.into_pyobject(py)
-        } else if let Ok(native) = i64::try_from(self.0) {
-            // Ordinary epoch ns/us coordinates fit64 bits. Use PyO3's native
-            // integer constructor instead of its128-bit byte-array conversion;
-            // wider coordinates retain the original full-width exit below.
-            native.into_pyobject(py)
+        if let Ok(native) = i64::try_from(self.0) {
+            // Qualify native width once. A wide Python integer should not
+            // first fail32bits and then repeat the128bit bound check for64.
+            if let Ok(narrow) = i32::try_from(native) {
+                narrow.into_pyobject(py)
+            } else {
+                native.into_pyobject(py)
+            }
         } else {
             self.0.into_pyobject(py)
         }

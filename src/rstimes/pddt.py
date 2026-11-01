@@ -542,7 +542,13 @@ def _rounded(self, freq, mode, entry):
 
 def _calendar_query(self, code, entry, target=_UNSET, parameter=None, names=0):
     prepared=None if target is _UNSET else _component(target,len(self),entry,parameter,False,names)
-    packed,mask=_pddt_query(_pddt_data(self.asi8),self.unit,self.tz,code,entry,prepared)
+    # Copy at most one cache line for an exact tiny ndarray; its complete
+    # immutable-buffer proof costs more than this snapshot. Read the actual
+    # source once; ndarray subclasses and larger columns keep the old protocol.
+    data=self.asi8
+    source=data.tobytes() if type(data) is np.ndarray and data.size<=8 else _pddt_data(data)
+    unit=self.unit
+    packed,mask=_pddt_query(source,unit,self.tz,code,entry,prepared)
     if 100<=code<200:
         return pd.Index(np.frombuffer(packed,dtype="bool"),name=entry.rsplit(".",1)[-1])
     values=np.frombuffer(packed,dtype="int64")
@@ -559,7 +565,10 @@ def _calendar_query(self, code, entry, target=_UNSET, parameter=None, names=0):
     if code==200:
         if missing is not None:
             values=values.astype("float64");values[missing]=np.nan
-        elif len(values)==0 or (values.min()>=-2**31 and values.max()<2**31):
+        elif (unit!="s" if type(unit) is str else str.__eq__(unit,"s") is False) or len(values)==0 or (values.min()>=-2**31 and values.max()<2**31):
+            # All signed64 ms/us/ns dates have years inside int32; only second
+            # storage needs actual range reductions. The missing branch above
+            # still chooses standard float64/NaN results.
             values=values.astype("int32")
         return pd.Index(values,name=self.name)
     array=pd.array(values,dtype="Int64",copy=True)

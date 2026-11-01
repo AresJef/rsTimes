@@ -79,37 +79,62 @@ pub(crate) fn from_ordinal(ordinal: i128) -> Result<(i128, u8, u8), &'static str
     Ok((year, month as u8, day as u8))
 }
 
-/// Prove a small relative-only date move in the native integer width.
-/// Any unproved intermediate returns None; the wide resolver remains the
-/// authority for that input, including large values that later cancel.
-#[inline]
+/// Signed relative fields prepared once for a scalar or immutable batch.
+/// Callers prove that no absolute fields are set. A failed narrow proof still
+/// delegates to the original wide resolver, including cancelling large values.
+#[derive(Clone, Copy)]
+pub(crate) struct RelativeDateMove {
+    years: i64,
+    months: i64,
+    days: i64,
+}
+
+impl RelativeDateMove {
+    pub(crate) fn prepare(value: &DeltaValue, sign: i64) -> Option<Self> {
+        debug_assert!(matches!(sign, -1 | 1));
+        Some(Self {
+            years: value.years.checked_mul(sign)?,
+            months: i64::from(value.months()) * sign,
+            days: value.days.checked_mul(sign)?,
+        })
+    }
+
+    /// Resolve a valid source date and bounded clock carry without wide casts.
+    #[inline(always)]
+    pub(crate) fn apply(self, input: [i64; 3], clock_carry: i64) -> Option<[i64; 3]> {
+        let mut year = input[0].checked_add(self.years)?;
+        let mut month = input[1] + self.months;
+        if month > 12 {
+            month -= 12;
+            year = year.checked_add(1)?;
+        } else if month < 1 {
+            month += 12;
+            year = year.checked_sub(1)?;
+        }
+        let days = self.days.checked_add(clock_carry)?;
+        if !(-27..=27).contains(&days) {
+            return None;
+        }
+        // shift_small_days already fits the original high day to this month.
+        // Fitting here too would repeat the same month-length calculation.
+        crate::calendar::shift_small_days(year, month, input[2], days).ok()
+    }
+}
+
+#[inline(always)]
 fn small_relative_date(
     value: &DeltaValue,
     input: (i128, u8, u8),
     sign: i64,
     clock_carry: i64,
 ) -> Option<(i128, u8, u8)> {
-    let mut year = i64::try_from(input.0)
-        .ok()?
-        .checked_add(value.years.checked_mul(sign)?)?;
-    let mut month = i64::from(input.1) + sign * i64::from(value.months());
-    if month > 12 {
-        month -= 12;
-        year = year.checked_add(1)?;
-    } else if month < 1 {
-        month += 12;
-        year = year.checked_sub(1)?;
-    }
-    let days = value.days.checked_mul(sign)?.checked_add(clock_carry)?;
-    if !(-27..=27).contains(&days) {
-        return None;
-    }
-    let day = if input.2 > 28 {
-        i64::from(input.2).min(crate::calendar::days_in_month(year, month))
-    } else {
-        i64::from(input.2)
-    };
-    let [year, month, day] = crate::calendar::shift_small_days(year, month, day, days).ok()?;
+    let movement = RelativeDateMove::prepare(value, sign)?;
+    let input = [
+        i64::try_from(input.0).ok()?,
+        i64::from(input.1),
+        i64::from(input.2),
+    ];
+    let [year, month, day] = movement.apply(input, clock_carry)?;
     Some((i128::from(year), month as u8, day as u8))
 }
 

@@ -30,6 +30,34 @@ pub(crate) fn integral_fraction(value: f64, coefficient: u64) -> Option<i64> {
     Some((value * coefficient as f64) as i64)
 }
 
+/// Classify the first already-admitted fractional source from one bit decode.
+/// Integral products keep their small exact f64 multiply; a genuine fraction
+/// carries the same significand forward instead of decomposing it again.
+#[inline]
+pub(crate) fn first_fraction(value: f64, coefficient: u64) -> (BinaryTerm, bool) {
+    debug_assert!(value.is_finite() && value.abs() < 1.0 && value != 0.0);
+    debug_assert!((1..=604_800_000_000_000).contains(&coefficient));
+    let bits = value.to_bits();
+    let exponent = ((bits >> 52) & 0x7ff) as u32;
+    let significand = (bits & ((1_u64 << 52) - 1)) | if exponent == 0 { 0 } else { 1_u64 << 52 };
+    let denominator = if exponent == 0 { 1074 } else { 1075 - exponent };
+    if denominator <= significand.trailing_zeros() + coefficient.trailing_zeros() {
+        return (
+            BinaryTerm::integer((value * coefficient as f64) as i64),
+            true,
+        );
+    }
+    // A53-bit significand times the bounded50-bit coefficient fits signed128.
+    let product = (u128::from(significand) * u128::from(coefficient)) as i128;
+    (
+        BinaryTerm {
+            numerator: if bits >> 63 == 0 { product } else { -product },
+            power: -(denominator as i32),
+        },
+        false,
+    )
+}
+
 /// One exact dyadic term. Compact sums use checked alignment, with the same
 /// wide accumulator as fallback when exponent distance would lose any bit.
 #[derive(Clone, Copy)]
@@ -100,6 +128,7 @@ impl BinaryTerm {
 
 /// Round one exact binary contribution with an integer base, without scratch.
 /// This is the same ns contract as the accumulator, specialized for one float.
+#[cfg(test)]
 pub(crate) fn round_scaled(
     value: f64,
     coefficient: u64,

@@ -1,6 +1,6 @@
 //! One-time public/source numeric preparation for the exact Delta value.
 
-use super::fixed::{BinaryTerm, FixedNsAccumulator, integral_fraction, round_scaled};
+use super::fixed::{BinaryTerm, FixedNsAccumulator, first_fraction, integral_fraction};
 use super::value::{AbsoluteField, AbsoluteFields, DeltaValue, NS_PER_DAY, ValueError};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
@@ -91,7 +91,7 @@ pub(crate) struct FixedFractions {
 enum FractionState {
     #[default]
     Empty,
-    Single(f64, u64),
+    Single(BinaryTerm),
     Compact(BinaryTerm),
     Wide(Box<FixedNsAccumulator>),
 }
@@ -130,20 +130,18 @@ impl FixedFractions {
         };
         match &mut self.state {
             FractionState::Empty => {
-                self.state = if let Some(value) = integral_fraction(number, coefficient) {
-                    FractionState::Compact(BinaryTerm::integer(value))
+                let (term, integral) = first_fraction(number, coefficient);
+                self.state = if integral {
+                    FractionState::Compact(term)
                 } else {
-                    FractionState::Single(number, coefficient)
+                    FractionState::Single(term)
                 };
             }
-            FractionState::Single(old, old_coefficient) => {
-                // One actual nonintegral source already requires exact binary
-                // combination. Decompose the next source once, without first
-                // trying a second integral-product fast-path qualification.
-                self.state = FractionState::combine(
-                    BinaryTerm::scaled(*old, *old_coefficient)?,
-                    BinaryTerm::scaled(number, coefficient)?,
-                )?;
+            FractionState::Single(old) => {
+                // The first source was decoded once at admission. A second
+                // nonintegral term uses the same checked compact/wide sum.
+                self.state =
+                    FractionState::combine(*old, BinaryTerm::scaled(number, coefficient)?)?;
             }
             FractionState::Compact(old) => {
                 self.state = FractionState::combine(*old, term()?)?;
@@ -163,9 +161,7 @@ impl FixedFractions {
     fn finish(self, integer_ns: i128) -> Result<i128, ValueError> {
         match self.state {
             FractionState::Empty => Ok(integer_ns),
-            FractionState::Single(number, coefficient) => {
-                round_scaled(number, coefficient, integer_ns)
-            }
+            FractionState::Single(term) => term.rounded(integer_ns),
             FractionState::Compact(term) => term.rounded(integer_ns),
             FractionState::Wide(wide) => wide.rounded(integer_ns),
         }
