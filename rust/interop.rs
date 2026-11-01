@@ -636,7 +636,7 @@ pub(crate) fn builtin_span<'py>(
     if !(1..=9999).contains(&result[0]) {
         return Ok(None);
     }
-    let days = if result[..3] == input[..3] {
+    let mut days = if result[..3] == input[..3] {
         0
     } else {
         crate::calendar::ordinal(result[0], result[1], result[2])
@@ -646,14 +646,26 @@ pub(crate) fn builtin_span<'py>(
     // equal-tzinfo datetimes by wall time, without offset or fold adjustments.
     // Valid builtin years bound days to ±3652058; canonical clock differences
     // bound seconds to ±86399 and microseconds to ±999999, so narrowing is exact.
-    let seconds =
+    let mut seconds =
         (result[3] - input[3]) * 3600 + (result[4] - input[4]) * 60 + result[5] - input[5];
+    let mut micros = result[6] - input[6];
+    if micros < 0 {
+        micros += 1_000_000;
+        seconds -= 1;
+    }
+    if seconds < 0 {
+        seconds += 86_400;
+        days -= 1;
+    }
+    // These differences need at most one borrow per component. They now meet
+    // timedelta's canonical invariants, so its constructor need not normalize
+    // the same values again. The day difference still fits the proven bounds.
     PyDelta::new(
         start.py(),
         days as i32,
         seconds as i32,
-        (result[6] - input[6]) as i32,
-        true,
+        micros as i32,
+        false,
     )
     .map(Some)
 }

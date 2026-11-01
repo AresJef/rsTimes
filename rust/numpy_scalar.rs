@@ -239,15 +239,31 @@ pub(crate) fn delta_scalar(
     value: &Bound<'_, PyAny>,
     allow_date: bool,
 ) -> PyResult<Option<DeltaScalar>> {
-    let (date, duration) = scalar_types(value.py())?;
-    let actual = value.get_type();
-    if actual.is_subclass(date.bind(value.py()))? {
+    let py = value.py();
+    let (date, duration) = scalar_types(py)?;
+    // The retained real types and source are live under the GIL. Exact native
+    // scalars need no owned type wrapper or subtype walk; genuine subclasses
+    // retain the same ancestry-authorized decoder below.
+    let actual = unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) };
+    let date = date.bind(py).as_type_ptr();
+    let duration = duration.bind(py).as_type_ptr();
+    if actual == date {
+        return if allow_date {
+            decode_delta_scalar(value, true).map(Some)
+        } else {
+            Ok(None)
+        };
+    }
+    if actual == duration {
+        return decode_delta_scalar(value, false).map(Some);
+    }
+    if unsafe { pyo3::ffi::PyType_IsSubtype(actual, date) != 0 } {
         if allow_date {
             decode_delta_scalar(value, true).map(Some)
         } else {
             Ok(None)
         }
-    } else if actual.is_subclass(duration.bind(value.py()))? {
+    } else if unsafe { pyo3::ffi::PyType_IsSubtype(actual, duration) != 0 } {
         decode_delta_scalar(value, false).map(Some)
     } else {
         Ok(None)

@@ -2048,18 +2048,26 @@ fn _pydt_lookup_optional(token: &str, weekday: bool) -> Option<i32> {
 }
 
 /// Share the immutable vocabulary lookup without creating an exception for a miss.
+#[inline]
 fn with_default_token<R>(token: &str, lookup: impl FnOnce(&[u32]) -> R) -> R {
     // Common names fit in a small stack buffer; longer names retain the same
     // complete Unicode lookup without truncation or a new token-length limit.
     let mut inline = [0u32; 16];
     let owned;
     let token = if token.len() <= inline.len() {
-        let mut count = 0;
-        for character in token.chars() {
-            inline[count] = u32::from(character);
-            count += 1;
+        if token.is_ascii() {
+            for (slot, byte) in inline.iter_mut().zip(token.bytes()) {
+                *slot = u32::from(byte);
+            }
+            &inline[..token.len()]
+        } else {
+            let mut count = 0;
+            for character in token.chars() {
+                inline[count] = u32::from(character);
+                count += 1;
+            }
+            &inline[..count]
         }
-        &inline[..count]
     } else {
         owned = token.chars().map(u32::from).collect::<Vec<_>>();
         owned.as_slice()
@@ -2068,6 +2076,7 @@ fn with_default_token<R>(token: &str, lookup: impl FnOnce(&[u32]) -> R) -> R {
 }
 
 /// Query one default name using shared inline storage for common words.
+#[inline]
 pub(crate) fn lookup_default_name(token: &str, weekday: bool) -> i32 {
     let rule = if weekday {
         crate::parser::fields::Rule::Weekday

@@ -23,6 +23,7 @@ pub fn leap(year: i64) -> bool {
 /// # Preconditions
 /// Callers validate month before entering this internal helper; other values
 /// fall through to 31 and are not an alternate input validation interface.
+#[inline]
 pub fn days_in_month(year: i64, month: i64) -> i64 {
     match month {
         2 => {

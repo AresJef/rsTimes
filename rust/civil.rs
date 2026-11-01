@@ -100,9 +100,11 @@ pub(crate) fn apply_date(
             absolute.get(Field::Weekday),
         )
     };
-    year = year
-        .checked_add(i128::from(sign) * i128::from(value.years))
-        .ok_or(OVERFLOW)?;
+    if value.years != 0 {
+        year = year
+            .checked_add(i128::from(sign) * i128::from(value.years))
+            .ok_or(OVERFLOW)?;
+    }
     month += sign * i64::from(value.months());
     if month > 12 {
         month -= 12;

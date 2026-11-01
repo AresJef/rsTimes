@@ -342,6 +342,7 @@ impl DeltaValue {
 
     /// Combine a wide fixed source after its own safe day/clock split. Calendar
     /// months and independent absolute fields still belong to this Delta.
+    #[inline]
     pub(crate) fn with_fixed_parts(
         self,
         days: i128,
@@ -350,6 +351,24 @@ impl DeltaValue {
         reverse: bool,
     ) -> Result<Self, ValueError> {
         debug_assert!(clock_ns < NS_PER_DAY as u64);
+        if !subtract {
+            // Fixed addition leaves the already canonical calendar group alone.
+            // The two clocks fit below two days; retain wide source days until
+            // their one possible carry and the final signed64 capacity check.
+            let clock = self.clock_ns() + clock_ns;
+            let carry = u64::from(clock >= NS_PER_DAY as u64);
+            let days = days
+                .checked_add(i128::from(self.days))
+                .and_then(|days| days.checked_add(i128::from(carry)))
+                .ok_or(ValueError::Overflow)?;
+            return Ok(Self::from_canonical(
+                self.years,
+                self.months(),
+                i64::try_from(days).map_err(|_| ValueError::Overflow)?,
+                clock - carry * NS_PER_DAY as u64,
+                self.absolute(),
+            ));
+        }
         let (left_days, left_clock, right_days, right_clock) = if reverse {
             (
                 days,
