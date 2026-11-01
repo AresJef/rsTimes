@@ -152,6 +152,28 @@ fn execute<const K: u8>(source: &Series, options: &Options) -> Result<Series, Fa
     } else {
         None
     };
+    // No wall shift is requested on these native integer exports. Keep the
+    // original unit/null buffers or divide signed ns directly; every ns tick
+    // has a representable us result, including the complete signed64 domain.
+    if K == 1
+        && (utc
+            || !aware
+            || zone
+                .as_ref()
+                .is_some_and(|zone| zone.fixed_seconds() == Some(0)))
+        && let Ok(dates) = source.datetime()
+    {
+        match unit {
+            Unit::Microsecond => return Ok(dates.physical().clone().into_series()),
+            Unit::Nanosecond => {
+                return Ok(dates
+                    .physical()
+                    .apply_values(|tick| tick.div_euclid(1000))
+                    .into_series());
+            }
+            _ => {}
+        }
+    }
     let mut floats = PrimitiveChunkedBuilder::<Float64Type>::new(
         source.name().clone(),
         if K == 0 || K == 3 { source.len() } else { 0 },

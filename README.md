@@ -18,7 +18,7 @@ Its optional Polars integration reads supported Series inputs.
 
 This checkout additionally implements `Pldt`, a real `polars.Series` subclass,
 and relative `Delta(nanoseconds=...)` / absolute `Delta(nanosecond=...)` fields.
-These changes are undergoing local acceptance and are not a new public release.
+These checkout additions are separate from the published distribution.
 Installing the published version above does not install these additions.
 
 The four core class names are **`Delta`, `Pydt`, `Pddt` and `Pldt`**. Polars

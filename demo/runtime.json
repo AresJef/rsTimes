@@ -1,11 +1,11 @@
 {
-  "environment": ".local/pldt-72h-20261030/demo-oracle",
+  "environment": ".local/pldt-72h-20261030/final02-oracle",
   "version": "0.2.0b2",
-  "release_manifest": "tasks/evidence/pldt-72h-20261030/W38/final-source-01/FINAL01-distribution-manifest.json",
-  "status": "Final-source01 local candidate: strict performance and same-source32CI acceptance pending",
+  "release_manifest": "tasks/evidence/pldt-72h-20261030/W38/final-source-02/FINAL02-distribution-manifest.json",
+  "status": "Final-source02 local qualification: strict performance and same-source32CI acceptance pending",
   "selection": "local_development_candidate",
   "environments": {
-    "pddt": ".local/pldt-72h-20261030/dev"
+    "pddt": ".local/pldt-72h-20261030/final02-main"
   },
   "validation": "functional_candidate_not_adopted"
 }

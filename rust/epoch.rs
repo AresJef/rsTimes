@@ -631,6 +631,24 @@ fn foreign_offset_us(value: &Bound<'_, PyAny>) -> PyResult<Option<i64>> {
     native_offset_us(td)
 }
 
+/// Allocate the final Python integer after the native parsing frame completes.
+struct EpochInteger(i128);
+
+impl<'py> IntoPyObject<'py> for EpochInteger {
+    type Target = PyInt;
+    type Output = Bound<'py, PyInt>;
+    type Error = std::convert::Infallible;
+
+    #[inline]
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        if let Ok(narrow) = i32::try_from(self.0) {
+            narrow.into_pyobject(py)
+        } else {
+            self.0.into_pyobject(py)
+        }
+    }
+}
+
 /// Convert one supported date/time value to integer epoch ticks.
 ///
 /// Returns a Python int directly, without selecting a datetime result class. Regional wall times use their timezone offset and fold without repairing or rejecting missing local times. A datetime default supplies its stored fold; otherwise fold=0. Explicit invalid fields follow strict. The integer result is not limited by datetime years or NumPy integer storage; actual arithmetic and timezone-conversion limits still raise errors.
@@ -732,7 +750,7 @@ fn parse_to_epoch(
     strict: Truth,
     cfg: Option<&Bound<'_, PyAny>>,
     input_unit: EpochUnit<'_, '_>,
-) -> PyResult<Py<PyInt>> {
+) -> PyResult<EpochInteger> {
     let unit = unit.resolve(dtobj.py(), "unit")?;
     let opts = Options {
         default,
@@ -750,12 +768,7 @@ fn parse_to_epoch(
         .map_err(|error| {
             crate::parser::entry_error(dtobj.py(), "parse_to_epoch", "dtobj", dtobj, error)
         })?;
-    // Only the final Python constructor changes. Larger coordinates retain
-    // the full-width conversion, including values beyond native containers.
-    if let Ok(narrow) = i32::try_from(value) {
-        return Ok(narrow.into_pyobject(dtobj.py())?.unbind());
-    }
-    Ok(value.into_pyobject(dtobj.py())?.unbind())
+    Ok(EpochInteger(value))
 }
 
 /// Register the scalar epoch API beside the existing datetime parser APIs.

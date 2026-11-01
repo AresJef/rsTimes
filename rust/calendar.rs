@@ -275,10 +275,10 @@ pub fn apply(
     sign: i64,
     datetime: bool,
 ) -> Result<([i64; 7], bool), &'static str> {
-    if value.absolute.is_empty()
+    if value.absolute().is_empty()
         && value.years == 0
-        && value.months == 0
-        && value.clock_ns == 0
+        && value.months() == 0
+        && value.clock_ns() == 0
         && (-27..=27).contains(&value.days)
     {
         // A pure integral-day move leaves the exact ns clock unchanged. Reuse
@@ -288,16 +288,16 @@ pub fn apply(
         result[..3].copy_from_slice(&date);
         return Ok((result, result == input));
     }
-    if !value.absolute.replaces_clock() && value.clock_ns.is_multiple_of(3_600_000_000_000) {
+    if !value.absolute().replaces_clock() && value.clock_ns().is_multiple_of(3_600_000_000_000) {
         return apply_hours(
             value,
             input,
             sign,
             datetime,
-            (value.clock_ns / 3_600_000_000_000) as i64,
+            (value.clock_ns() / 3_600_000_000_000) as i64,
         );
     }
-    if !value.absolute.replaces_clock() && value.clock_ns.is_multiple_of(1_000_000_000) {
+    if !value.absolute().replaces_clock() && value.clock_ns().is_multiple_of(1_000_000_000) {
         // This ns value changes whole seconds only. Native source fields are
         // already decoded; its microseconds survive exactly, so no ns clock
         // assembly or final rounding is needed. Calendar resolution is shared.
@@ -306,7 +306,7 @@ pub fn apply(
         } else {
             0
         };
-        let mut clock = source + sign as i32 * (value.clock_ns / 1_000_000_000) as i32;
+        let mut clock = source + sign as i32 * (value.clock_ns() / 1_000_000_000) as i32;
         let carry = if clock >= 86_400 {
             clock -= 86_400;
             1
@@ -370,11 +370,11 @@ pub fn apply(
 /// Prepare the nonzero whole-hour component of an immutable batch snapshot.
 /// Zero keeps the existing pure-day shortcut; absolute clocks use the full core.
 pub(crate) fn batch_hours(value: &crate::delta::value::DeltaValue) -> Option<i64> {
-    if value.clock_ns != 0
-        && !value.absolute.replaces_clock()
-        && value.clock_ns.is_multiple_of(3_600_000_000_000)
+    if value.clock_ns() != 0
+        && !value.absolute().replaces_clock()
+        && value.clock_ns().is_multiple_of(3_600_000_000_000)
     {
-        Some((value.clock_ns / 3_600_000_000_000) as i64)
+        Some((value.clock_ns() / 3_600_000_000_000) as i64)
     } else {
         None
     }
@@ -549,7 +549,9 @@ mod tests {
         assert!(apply(&fields, [i64::MIN, 1, 1, 0, 0, 0, 0], 1, false).is_err());
         // Absolute day31 first clamps to February's last valid day.
         fields.days = 1;
-        fields.absolute.set(AbsoluteField::Day, Some(31)).unwrap();
+        fields
+            .set_absolute_field(AbsoluteField::Day, Some(31))
+            .unwrap();
         assert_eq!(
             apply(&fields, [2023, 2, 10, 0, 0, 0, 0], 1, false)
                 .unwrap()

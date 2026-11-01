@@ -568,6 +568,30 @@ fn execute(source: &Series, spec: &Spec) -> Result<Series, Failure> {
             .transpose()
             .map_err(|m| Failure::new(Kind::Value, m))?
     };
+    if let Operation::Fsp(precision) = spec.operation
+        && matches!(source.dtype(), DataType::Datetime(_, _))
+    {
+        let step = (10_i128.pow((9 - precision) as u32) / unit.nanos()) as i64;
+        // Finer/equal requests already returned through no_op above.
+        debug_assert!(step > 0);
+        let mut dates =
+            PrimitiveChunkedBuilder::<Int64Type>::new(source.name().clone(), source.len());
+        super::input::visit_ticks(source, |row, value| {
+            let value = value
+                .map(|tick| {
+                    tick.checked_sub(tick.rem_euclid(step)).ok_or_else(|| {
+                        Failure::new(
+                    Kind::Capacity,
+                    "period result exceeds the current unit capacity; use as_unit explicitly",
+                ).at(row)
+                    })
+                })
+                .transpose()?;
+            dates.append_option(value);
+            Ok(())
+        })?;
+        return finish_dates(dates.finish(), field);
+    }
     if let Operation::Snap(period) = spec.operation
         && let Some(offset) = zone.as_ref().map_or(Some(0), Zone::fixed_seconds)
         && let Some(grid) =
@@ -661,30 +685,7 @@ fn execute(source: &Series, spec: &Spec) -> Result<Series, Failure> {
         }
         Ok(())
     };
-    match source.dtype() {
-        DataType::Date => {
-            for (row, value) in source
-                .date()
-                .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-                .physical()
-                .iter()
-                .enumerate()
-            {
-                push(row, value.map(|value| i128::from(value) * DAY))?
-            }
-        }
-        _ => {
-            for (row, value) in source
-                .datetime()
-                .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-                .physical()
-                .iter()
-                .enumerate()
-            {
-                push(row, value.map(|value| i128::from(value) * unit.nanos()))?
-            }
-        }
-    }
+    super::input::visit_nanos(source, &mut push)?;
     if query {
         Ok(flags.finish().into_series())
     } else {

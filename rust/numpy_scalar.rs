@@ -372,8 +372,8 @@ fn apply_delta_date_impl<'py, const BATCH: bool>(
         crate::calendar::apply_hours(fields, parts, sign, !date_only, hours)
             .map_err(crate::error_context::overflow)?
             .0
-    } else if !fields.absolute.replaces_clock()
-        && fields.clock_ns.is_multiple_of(1_000_000_000)
+    } else if !fields.absolute().replaces_clock()
+        && fields.clock_ns().is_multiple_of(1_000_000_000)
         && tail == 0
     {
         crate::calendar::apply(fields, parts, sign, !date_only)

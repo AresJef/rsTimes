@@ -1,6 +1,6 @@
 //! One-time public/source numeric preparation for the exact Delta value.
 
-use super::fixed::{BinaryTerm, FixedNsAccumulator, round_scaled};
+use super::fixed::{BinaryTerm, FixedNsAccumulator, integral_fraction, round_scaled};
 use super::value::{AbsoluteField, AbsoluteFields, DeltaValue, NS_PER_DAY, ValueError};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
@@ -122,19 +122,35 @@ impl FixedFractions {
         if number == 0.0 {
             return Ok(());
         }
+        let integer = integral_fraction(number, coefficient);
+        let term = || {
+            integer.map_or_else(
+                || BinaryTerm::scaled(number, coefficient),
+                |value| Ok(BinaryTerm::integer(value)),
+            )
+        };
         match &mut self.state {
-            FractionState::Empty => self.state = FractionState::Single(number, coefficient),
+            FractionState::Empty => {
+                self.state = if let Some(value) = integer {
+                    FractionState::Compact(BinaryTerm::integer(value))
+                } else {
+                    FractionState::Single(number, coefficient)
+                };
+            }
             FractionState::Single(old, old_coefficient) => {
-                self.state = FractionState::combine(
-                    BinaryTerm::scaled(*old, *old_coefficient)?,
-                    BinaryTerm::scaled(number, coefficient)?,
-                )?;
+                self.state =
+                    FractionState::combine(BinaryTerm::scaled(*old, *old_coefficient)?, term()?)?;
             }
             FractionState::Compact(old) => {
-                self.state =
-                    FractionState::combine(*old, BinaryTerm::scaled(number, coefficient)?)?;
+                self.state = FractionState::combine(*old, term()?)?;
             }
-            FractionState::Wide(wide) => wide.add(number, coefficient)?,
+            FractionState::Wide(wide) => {
+                if let Some(value) = integer {
+                    wide.add_term(BinaryTerm::integer(value))?;
+                } else {
+                    wide.add(number, coefficient)?;
+                }
+            }
         }
         Ok(())
     }
@@ -184,6 +200,24 @@ fn coefficient(index: usize) -> Option<u64> {
 
 /// Read relative input once. Source adapters retain their meaningful bool role;
 /// the public constructor rejects bool before calling this helper.
+#[inline]
+fn floating_input(number: f64, coefficient: u64, fraction: &mut FixedFractions) -> PyResult<i64> {
+    if number.is_nan() {
+        return Err(python_error(ValueError::NotANumber));
+    }
+    if !number.is_finite()
+        || !(-9_223_372_036_854_775_808.0..9_223_372_036_854_775_808.0).contains(&number)
+    {
+        return Err(python_error(ValueError::Overflow));
+    }
+    let whole = number.trunc();
+    fraction
+        .add(number - whole, coefficient)
+        .map_err(python_error)?;
+    Ok(whole as i64)
+}
+
+/// Qualify foreign numeric types before the shared primitive float reader.
 pub(crate) fn relative_input(
     value: &Bound<'_, PyAny>,
     index: usize,
@@ -200,19 +234,7 @@ pub(crate) fn relative_input(
         } else {
             crate::numeric::float_value(value)?
         };
-        if number.is_nan() {
-            return Err(python_error(ValueError::NotANumber));
-        }
-        if !number.is_finite()
-            || !(-9_223_372_036_854_775_808.0..9_223_372_036_854_775_808.0).contains(&number)
-        {
-            return Err(python_error(ValueError::Overflow));
-        }
-        let whole = number.trunc();
-        fraction
-            .add(number - whole, coefficient)
-            .map_err(python_error)?;
-        return Ok(whole as i64);
+        return floating_input(number, coefficient, fraction);
     }
     super::index_integer(value)
 }
@@ -272,11 +294,11 @@ fn single_integer(index: usize, number: i64) -> PyResult<DeltaValue> {
         0 => value.years = number,
         1 => {
             value.years = number.div_euclid(4);
-            value.months = (number.rem_euclid(4) * 3) as u8;
+            value.set_months((number.rem_euclid(4) * 3) as u8);
         }
         2 => {
             value.years = number.div_euclid(12);
-            value.months = number.rem_euclid(12) as u8;
+            value.set_months(number.rem_euclid(12) as u8);
         }
         3 => {
             value.days = number
@@ -294,7 +316,7 @@ fn single_integer(index: usize, number: i64) -> PyResult<DeltaValue> {
                 _ => 86_400_000_000_000,
             };
             value.days = number.div_euclid(per_day);
-            value.clock_ns = number.rem_euclid(per_day) as u64 * coefficient(index).unwrap();
+            value.set_clock_ns(number.rem_euclid(per_day) as u64 * coefficient(index).unwrap());
         }
         10..=18 | 20 => {
             let number = absolute_number(number, index)?;
@@ -305,8 +327,7 @@ fn single_integer(index: usize, number: i64) -> PyResult<DeltaValue> {
                 _ => (AbsoluteField::ALL[index - 10], number),
             };
             value
-                .absolute
-                .set(field, Some(number))
+                .set_absolute_field(field, Some(number))
                 .map_err(python_error)?;
         }
         _ => unreachable!("validated public parameter role"),
@@ -327,7 +348,12 @@ fn single_primitive(value: &Bound<'_, PyAny>, index: usize) -> Option<PyResult<D
     {
         return Some((|| {
             let mut fraction = FixedFractions::default();
-            let number = relative_input(value, index, &mut fraction)?;
+            // SAFETY: the primitive branch just proved real PyFloat ancestry.
+            let number = floating_input(
+                unsafe { value.cast_unchecked::<PyFloat>() }.value(),
+                coefficient(index).unwrap(),
+                &mut fraction,
+            )?;
             let ns = fraction
                 .finish(i128::from(number) * i128::from(coefficient(index).unwrap()))
                 .map_err(python_error)?;
@@ -421,10 +447,7 @@ impl Components {
         {
             // The lanes are validated above; no relative quantity remains to
             // normalize. Explicit zero absolute clock selections stay present.
-            return Ok(DeltaValue {
-                absolute: self.absolute,
-                ..DeltaValue::ZERO
-            });
+            return Ok(DeltaValue::ZERO.with_absolute(self.absolute));
         }
         DeltaValue::from_totals(self.months, fraction.finish(self.fixed_ns)?, self.absolute)
     }
@@ -504,7 +527,13 @@ fn small_keywords<const COUNT: usize>(kwargs: &Bound<'_, PyDict>) -> Option<PyRe
             // no Python callback. Arbitrary protocols use the fully owned path.
             let value = unsafe { Borrowed::from_ptr(py, value) }.to_owned();
             let read = if floating {
-                relative_input(&value, index, &mut fraction)
+                // SAFETY: qualification proved PyFloat_Check for this owned
+                // value; successful preceding primitives invoke no Python.
+                floating_input(
+                    unsafe { value.cast_unchecked::<PyFloat>() }.value(),
+                    coefficient(index).unwrap(),
+                    &mut fraction,
+                )
             } else {
                 super::converted_integer(&value).and_then(|number| {
                     if index < 10 || index == 19 {
@@ -713,8 +742,8 @@ mod tests {
         fields[17] = 2;
         fields[18] = 123_456;
         let value = normalize(fields, FixedFractions::default()).unwrap();
-        assert_eq!(value.absolute.get(AbsoluteField::Microsecond), Some(2456));
-        assert_eq!(value.absolute.get(AbsoluteField::Nanosecond), None);
+        assert_eq!(value.absolute().get(AbsoluteField::Microsecond), Some(2456));
+        assert_eq!(value.absolute().get(AbsoluteField::Nanosecond), None);
     }
 
     #[test]
@@ -726,7 +755,7 @@ mod tests {
         let expected_ns = (i128::from(i64::MAX) * 1000 + i128::from(i64::MIN)) * 1000;
         assert_eq!(i128::from(result.days), expected_ns.div_euclid(NS_PER_DAY));
         assert_eq!(
-            i128::from(result.clock_ns),
+            i128::from(result.clock_ns()),
             expected_ns.rem_euclid(NS_PER_DAY)
         );
         assert!(

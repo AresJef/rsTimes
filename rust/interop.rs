@@ -678,12 +678,12 @@ pub(crate) fn apply_datetime<'py>(
     if delta.preserves_datetime_clock(dt)
         && ((delta
             .native_value()
-            .absolute
+            .absolute()
             .get(crate::delta::value::AbsoluteField::Microsecond)
             .is_none()
             && delta
                 .native_value()
-                .absolute
+                .absolute()
                 .get(crate::delta::value::AbsoluteField::Nanosecond)
                 .is_none())
             || timestamp_nanoseconds(other)?.unwrap_or(0) == 0)

@@ -194,36 +194,46 @@ impl Delta {
     /// Read one named state's canonical component without allocating a snapshot.
     #[inline]
     pub(crate) fn relative(&self, index: usize) -> i64 {
-        let clock = self.value.clock_ns;
+        let clock = self.value.clock_ns();
         match index {
             0 => self.value.years,
-            1 => i64::from(self.value.months),
+            1 => i64::from(self.value.months()),
             2 => self.value.days,
             3 => (clock / 3_600_000_000_000) as i64,
             4 => (clock / 60_000_000_000 % 60) as i64,
             5 => (clock / 1_000_000_000 % 60) as i64,
-            6 => (clock / 1000 % 1_000_000) as i64,
+            6 => i64::from((clock % 1_000_000_000) as u32 / 1000),
             7 => (clock % 1000) as i64,
-            8..=16 => self.value.absolute.get(Field::ALL[index - 8]).unwrap_or(-1),
+            8..=16 => self
+                .value
+                .absolute()
+                .get(Field::ALL[index - 8])
+                .unwrap_or(-1),
             _ => unreachable!("validated native Delta field index"),
         }
     }
 
     pub(super) fn absolute(&self, index: usize) -> Option<i64> {
-        self.value.absolute.get(Field::ALL[index - 8])
+        self.value.absolute().get(Field::ALL[index - 8])
     }
 
     /// Compare the complete immutable value, including nanosecond presence.
     #[inline]
     pub(crate) fn native_eq(&self, other: &Self) -> bool {
-        self.value == other.value
+        // The immutable native fast path compares every semantic field. Avoid
+        // branches between these cheap comparisons; never compare padding.
+        (self.value.years == other.value.years)
+            & (self.value.months() == other.value.months())
+            & (self.value.days == other.value.days)
+            & (self.value.clock_ns() == other.value.clock_ns())
+            & (self.value.absolute() == other.value.absolute())
     }
 
     /// Recognize exactly preserved builtin clocks without invoking callbacks.
     pub(crate) fn preserves_datetime_clock(&self, dt: &Bound<'_, PyDateTime>) -> bool {
         let value = self.value;
-        let absolute = value.absolute;
-        if value.years != 0 || value.months != 0 || value.days != 0 || value.clock_ns != 0 {
+        let absolute = value.absolute();
+        if value.years != 0 || value.months() != 0 || value.days != 0 || value.clock_ns() != 0 {
             return false;
         }
         if [Field::Year, Field::Month, Field::Day, Field::Weekday]
@@ -304,13 +314,13 @@ impl Delta {
 
     /// Project a pure fixed Delta to standard timedelta only at this exit.
     pub(crate) fn fixed_timedelta<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDelta>> {
-        if self.value.years != 0 || self.value.months != 0 || !self.value.absolute.is_empty() {
+        if self.value.years != 0 || self.value.months() != 0 || !self.value.absolute().is_empty() {
             return Err(crate::error_context::value_error(
                 "start is required for years, months or absolute fields",
             ));
         }
-        let floor = self.value.clock_ns / 1000;
-        let rem = self.value.clock_ns % 1000;
+        let floor = self.value.clock_ns() / 1000;
+        let rem = self.value.clock_ns() % 1000;
         let micros = floor + u64::from(rem > 500 || (rem == 500 && !floor.is_multiple_of(2)));
         let days = self
             .value
@@ -344,7 +354,7 @@ impl PreparedAddition {
     }
     /// Whether the right operand contains an actual absolute setting.
     pub(crate) fn has_absolute(&self) -> bool {
-        !self.value.absolute.is_empty()
+        !self.value.absolute().is_empty()
     }
     /// Combine an ordinary left Delta with the prepared right value.
     pub(crate) fn add_delta(&self, left: &Delta) -> PyResult<Delta> {

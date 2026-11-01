@@ -242,6 +242,9 @@ fn table(source: &Series, options: &Options) -> Result<Series, Failure> {
         .iter()
         .map(|name| PrimitiveChunkedBuilder::<Int64Type>::new((*name).into(), source.len()))
         .collect();
+    // Consecutive instants often share a local day. Cache only its requested
+    // calendar facts; clock fields and DST remain specific to each instant.
+    let mut cached_day: Option<(i64, [i64; 3], i64)> = None;
     visit(source, |row, value| {
         let Some(instant) = value else {
             for builder in &mut builders {
@@ -253,24 +256,37 @@ fn table(source: &Series, options: &Options) -> Result<Series, Failure> {
             let wall = zone
                 .as_ref()
                 .map_or(Ok(instant), |zone| zone.wall(instant))?;
-            let fields = crate::date_transform::fields(wall)
-                .map_err(|e| Failure::from(crate::period::Error::from(e)))?;
             let ordinal = i64::try_from(wall.div_euclid(DAY) + 719_163)
                 .map_err(|_| Failure::new(Kind::Capacity, "calendar day overflow"))?;
-            if iso {
-                let values = crate::calendar_query::iso_at(fields[0], ordinal)?;
-                if !(0..=i64::from(u32::MAX)).contains(&values[0]) {
-                    return Err(Failure::new(
-                        Kind::Capacity,
-                        "ISO year is outside the UInt32 range; use isoyear() for signed calendar years",
-                    ));
+            let (day_fields, first) = match cached_day {
+                Some((day, fields, first)) if day == ordinal => (fields, first),
+                _ => {
+                    let date = crate::calendar::from_ordinal(ordinal)
+                        .map_err(|e| Failure::new(Kind::Capacity, e))?;
+                    let (fields, first) = if iso {
+                        let values = crate::calendar_query::iso_at(date[0], ordinal)?;
+                        if !(0..=i64::from(u32::MAX)).contains(&values[0]) {
+                            return Err(Failure::new(
+                                Kind::Capacity,
+                                "ISO year is outside the UInt32 range; use isoyear() for signed calendar years",
+                            ));
+                        }
+                        (values, 0)
+                    } else {
+                        let first = crate::calendar::checked_ordinal(date[0], 1, 1)
+                            .map_err(|e| Failure::new(Kind::Capacity, e))?;
+                        (date, first)
+                    };
+                    cached_day = Some((ordinal, fields, first));
+                    (fields, first)
                 }
-                for (builder, value) in builders.iter_mut().zip(values) {
+            };
+            if iso {
+                for (builder, value) in builders.iter_mut().zip(day_fields) {
                     builder.append_value(value);
                 }
             } else {
-                let first = crate::calendar::checked_ordinal(fields[0], 1, 1)
-                    .map_err(|e| Failure::new(Kind::Capacity, e))?;
+                let clock = wall.rem_euclid(DAY);
                 let dst = if utc {
                     0
                 } else if let Some(zone) = &zone {
@@ -283,12 +299,12 @@ fn table(source: &Series, options: &Options) -> Result<Series, Failure> {
                     -1
                 };
                 let values = [
-                    fields[0],
-                    fields[1],
-                    fields[2],
-                    fields[3],
-                    fields[4],
-                    fields[5],
+                    day_fields[0],
+                    day_fields[1],
+                    day_fields[2],
+                    (clock / 3_600_000_000_000) as i64,
+                    (clock / 60_000_000_000 % 60) as i64,
+                    (clock / 1_000_000_000 % 60) as i64,
                     (ordinal - 1).rem_euclid(7),
                     ordinal - first + 1,
                     dst,

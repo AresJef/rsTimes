@@ -265,35 +265,54 @@ impl FormattedRules for NativeRules {
     }
 }
 
-/// Cheap immutable rule ownership for one formatted batch; edits detach normally.
+/// One formatted call's immutable rules. Defaults borrow process-owned tables;
+/// explicit Configs retain their own snapshot so later edits detach normally.
 pub(crate) struct FormatRules {
-    owners: [Owner; 8],
-    zones: Arc<ZoneMap>,
+    owners: Option<[Owner; 8]>,
+    zones: Option<Arc<ZoneMap>>,
     flags: (bool, bool),
 }
+
+fn empty_formatted_zones() -> &'static Arc<ZoneMap> {
+    static EMPTY: std::sync::OnceLock<Arc<ZoneMap>> = std::sync::OnceLock::new();
+    EMPTY.get_or_init(|| Arc::new(ZoneMap::new()))
+}
+
 impl FormatRules {
-    /// Reuse one owned batch snapshot with the ordinary codepoint grammar.
+    #[inline]
+    fn owners(&self) -> &[Owner; 8] {
+        self.owners.as_ref().unwrap_or_else(|| defaults())
+    }
+
+    #[inline]
+    fn zones(&self) -> &Arc<ZoneMap> {
+        self.zones
+            .as_ref()
+            .unwrap_or_else(|| empty_formatted_zones())
+    }
+
+    /// Reuse the original native-view contract without cloning default owners.
     pub(crate) fn native_view(&self) -> NativeView<'_> {
         NativeView {
-            owners: &self.owners,
-            zones: &self.zones,
+            owners: self.owners(),
+            zones: self.zones(),
             flags: self.flags,
         }
     }
 
-    /// Retain the original registered Python zone for a native parsed IANA key.
-    /// The caller's scratch is reused only after its parsed fields are owned.
+    /// Retain an explicit Configs region owner. Defaults contain no regions.
     pub(crate) fn region_key(
         &self,
         key: &str,
         scratch: &mut Vec<u32>,
     ) -> Option<Arc<RegisteredZone>> {
+        let zones = self.zones.as_ref()?;
         scratch.clear();
         scratch.extend(key.chars().map(u32::from));
-        self.zones.get(scratch.as_slice()).cloned()
+        zones.get(scratch.as_slice()).cloned()
     }
 
-    /// Capture one effective set without copying any complete vocabulary table.
+    /// Validate Configs as before; only the immutable default path is borrowed.
     pub(crate) fn prepare(value: Option<&Bound<'_, PyAny>>) -> PyResult<Self> {
         if let Some(value) = value.filter(|v| !v.is_none()) {
             let cfg = value
@@ -303,14 +322,14 @@ impl FormatRules {
                 })?
                 .borrow();
             Ok(Self {
-                owners: cfg.owners.clone(),
-                zones: cfg.zones.clone(),
+                owners: Some(cfg.owners.clone()),
+                zones: Some(cfg.zones.clone()),
                 flags: cfg.flags(),
             })
         } else {
             Ok(Self {
-                owners: defaults().clone(),
-                zones: Arc::new(ZoneMap::new()),
+                owners: None,
+                zones: None,
                 flags: (true, false),
             })
         }
@@ -319,10 +338,11 @@ impl FormatRules {
 impl FormattedRules for FormatRules {
     type Region = Arc<RegisteredZone>;
     fn word(&self, rule: Rule, input: &[u32]) -> Option<(i32, usize)> {
-        longest_word(&self.owners, rule, input)
+        longest_word(self.owners(), rule, input)
     }
     fn region(&self, input: &[u32]) -> Option<(Self::Region, usize)> {
         self.zones
+            .as_ref()?
             .iter()
             .filter(|(key, _)| input.starts_with(key.as_slice()))
             .max_by_key(|(key, _)| key.len())

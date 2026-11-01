@@ -315,6 +315,81 @@ fn callback_date(
     }
 }
 
+/// A scalar whole-hour calendar shift preserves every finer source tick.
+/// Fixed offsets cancel in the final difference, including fractional seconds.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Prepared scalar calendar data and fixed-offset output boundary, without a new mode structure"
+)]
+fn fixed_hours<'py>(
+    py: Python<'py>,
+    data: &[u8],
+    unit: Unit,
+    offset: i64,
+    fields: &crate::delta::value::DeltaValue,
+    hours: i64,
+    sign: i64,
+    entry: &str,
+) -> PyResult<(Bound<'py, PyBytes>, bool)> {
+    let mut changed = false;
+    let result = PyBytes::new_with(py, data.len(), |output| {
+        for (i, (input, out)) in data
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .zip(output.as_chunks_mut::<8>().0.iter_mut())
+            .enumerate()
+        {
+            let tick = i64::from_ne_bytes(*input);
+            let value = if tick == i64::MIN {
+                tick
+            } else {
+                (|| {
+                    let wall = i128::from(tick) * unit.nanos() + i128::from(offset) * 1000;
+                    let source_day = wall.div_euclid(NS_DAY);
+                    let ordinal = i64::try_from(source_day + 719_163)
+                        .map_err(|_| crate::error_context::overflow("calendar day overflow"))?;
+                    let date = crate::calendar::from_ordinal(ordinal)
+                        .map_err(crate::error_context::overflow)?;
+                    let hour = (wall.rem_euclid(NS_DAY) / 3_600_000_000_000) as i64;
+                    let (output, _) = crate::calendar::apply_hours(
+                        fields,
+                        [date[0], date[1], date[2], hour, 0, 0, 0],
+                        sign,
+                        true,
+                        hours,
+                    )
+                    .map_err(crate::error_context::overflow)?;
+                    let day = crate::civil::ordinal(
+                        i128::from(output[0]),
+                        output[1] as u8,
+                        output[2] as u8,
+                    )
+                    .map_err(crate::error_context::overflow)? - 719_163;
+                    let movement = ((day - source_day) * 24 + i128::from(output[3] - hour))
+                        .checked_mul(3_600_000_000_000 / unit.nanos())
+                        .and_then(|delta| i128::from(tick).checked_add(delta));
+                    movement
+                        .and_then(|value| i64::try_from(value).ok())
+                        .filter(|value| *value != i64::MIN)
+                        .ok_or_else(|| {
+                            crate::error_context::overflow(
+                                "date is outside the requested unit; explicitly choose a coarser unit",
+                            )
+                        })
+                })()
+                .map_err(|e| {
+                    crate::error_context::location(py, e, entry, &format!("result[{i}]"))
+                })?
+            };
+            changed |= value != tick;
+            out.copy_from_slice(&value.to_ne_bytes());
+        }
+        Ok(())
+    })?;
+    Ok((result, changed))
+}
+
 fn binary<'py, const DYNAMIC: bool>(
     py: Python<'py>,
     data: &[u8],
@@ -362,9 +437,23 @@ fn binary<'py, const DYNAMIC: bool>(
             "operand length must equal source dates",
         ));
     }
+    let sign = if subtract { -1 } else { 1 };
+    // A scalar's canonical Delta never changes across rows. Per-row operands
+    // and real callback results retain their complete generic path.
+    let scalar_hours = match &operand.values {
+        Column::Scalar(Value::Delta(value)) => crate::calendar::batch_hours(value),
+        _ => None,
+    };
+    if let (Some(offset), Some(hours), Column::Scalar(Value::Delta(fields))) =
+        (fixed, scalar_hours, &operand.values)
+        && operand.callbacks.is_empty()
+    {
+        let (packed, changed) =
+            fixed_hours(py, data, unit, offset, fields, hours, sign as i64, entry)?;
+        return Ok((packed, unit.name(), false, changed));
+    }
     let mut out = Vec::with_capacity(count);
     let mut changed = selected != unit;
-    let sign = if subtract { -1 } else { 1 };
     let mut callbacks = operand.callbacks.iter().peekable();
     for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
         let raw: [u8; 8] = *bytes;
@@ -429,16 +518,42 @@ fn binary<'py, const DYNAMIC: bool>(
                         )?
                     };
                     let input = super::operations::fields(wall)?;
-                    let civil = crate::civil::CivilNs {
-                        year: i128::from(input[0]),
-                        month: input[1] as u8,
-                        day: input[2] as u8,
-                        clock_ns: ((input[3] * 3600 + input[4] * 60 + input[5]) * 1_000_000_000
-                            + input[6] * 1000
-                            + input[7]) as u64,
-                    };
-                    let civil = crate::civil::apply(fields, civil, sign as i64)
+                    let civil = if let Some(hours) = scalar_hours {
+                        let (output, _) = crate::calendar::apply_hours(
+                            fields,
+                            [
+                                input[0], input[1], input[2], input[3], input[4], input[5],
+                                input[6],
+                            ],
+                            sign as i64,
+                            true,
+                            hours,
+                        )
                         .map_err(crate::error_context::overflow)?;
+                        // Whole-hour movement preserves the exact lower clock;
+                        // the source nanosecond tail remains independent of the
+                        // microsecond-oriented field helper, with no projection.
+                        crate::civil::CivilNs {
+                            year: i128::from(output[0]),
+                            month: output[1] as u8,
+                            day: output[2] as u8,
+                            clock_ns: ((output[3] * 3600 + output[4] * 60 + output[5])
+                                * 1_000_000_000
+                                + output[6] * 1000
+                                + input[7]) as u64,
+                        }
+                    } else {
+                        let civil = crate::civil::CivilNs {
+                            year: i128::from(input[0]),
+                            month: input[1] as u8,
+                            day: input[2] as u8,
+                            clock_ns: ((input[3] * 3600 + input[4] * 60 + input[5]) * 1_000_000_000
+                                + input[6] * 1000
+                                + input[7]) as u64,
+                        };
+                        crate::civil::apply(fields, civil, sign as i64)
+                            .map_err(crate::error_context::overflow)?
+                    };
                     let ordinal = crate::civil::ordinal(civil.year, civil.month, civil.day)
                         .map_err(crate::error_context::overflow)?;
                     let changed = (ordinal - 719_163)

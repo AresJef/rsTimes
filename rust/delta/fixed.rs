@@ -12,6 +12,24 @@ const LIMBS: usize = 19;
 const FRACTION_BITS: usize = 1074;
 const SIGNED64_BOUND: f64 = 9_223_372_036_854_775_808.0;
 
+/// A proven integer contribution from an already admitted fractional float.
+/// The binary denominator must divide the significand times the coefficient.
+/// An integral product has magnitude below2^50, so the final f64 multiplication
+/// is exact; a rounded-looking product alone never qualifies this path.
+#[inline]
+pub(crate) fn integral_fraction(value: f64, coefficient: u64) -> Option<i64> {
+    debug_assert!(value.is_finite() && value.abs() < 1.0);
+    debug_assert!((1..=604_800_000_000_000).contains(&coefficient));
+    let bits = value.to_bits();
+    let exponent = ((bits >> 52) & 0x7ff) as u32;
+    let significand = (bits & ((1_u64 << 52) - 1)) | if exponent == 0 { 0 } else { 1_u64 << 52 };
+    let denominator = if exponent == 0 { 1074 } else { 1075 - exponent };
+    if denominator > significand.trailing_zeros() + coefficient.trailing_zeros() {
+        return None;
+    }
+    Some((value * coefficient as f64) as i64)
+}
+
 /// One exact dyadic term. Compact sums use checked alignment, with the same
 /// wide accumulator as fallback when exponent distance would lose any bit.
 #[derive(Clone, Copy)]
@@ -21,6 +39,14 @@ pub(crate) struct BinaryTerm {
 }
 
 impl BinaryTerm {
+    #[inline]
+    pub(crate) fn integer(value: i64) -> Self {
+        Self {
+            numerator: i128::from(value),
+            power: 0,
+        }
+    }
+
     pub(crate) fn scaled(value: f64, coefficient: u64) -> Result<Self, ValueError> {
         let (product, power, negative) = scaled_parts(value, coefficient)?;
         let number = product as i128; // validated product has at most103 bits
@@ -31,6 +57,12 @@ impl BinaryTerm {
     }
 
     pub(crate) fn combined(self, other: Self) -> Option<Self> {
+        if self.power == other.power {
+            return Some(Self {
+                numerator: self.numerator.checked_add(other.numerator)?,
+                power: self.power,
+            });
+        }
         if self.numerator == 0 {
             return Some(other);
         }
@@ -52,6 +84,11 @@ impl BinaryTerm {
     }
 
     pub(crate) fn rounded(self, integer_ns: i128) -> Result<i128, ValueError> {
+        if self.power == 0 {
+            return integer_ns
+                .checked_add(self.numerator)
+                .ok_or(ValueError::Overflow);
+        }
         round_product(
             self.numerator.unsigned_abs(),
             self.power,
@@ -275,6 +312,22 @@ impl FixedNsAccumulator {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn integral_fraction_requires_exact_binary_divisibility() {
+        assert_eq!(integral_fraction(0.5, 1_000_000_000), Some(500_000_000));
+        assert_eq!(integral_fraction(-0.125, 1000), Some(-125));
+        assert_eq!(integral_fraction(0.5, 1), None);
+        assert_eq!(integral_fraction(0.1, 1_000_000_000), None);
+        assert_eq!(
+            integral_fraction(f64::from_bits(0.5_f64.to_bits() + 1), 1_000_000_000),
+            None
+        );
+        assert_eq!(
+            integral_fraction(f64::from_bits(1), 604_800_000_000_000),
+            None
+        );
+    }
 
     #[test]
     fn integral_fraction_detection_does_not_round_decimal_spelling() {

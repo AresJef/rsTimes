@@ -88,7 +88,9 @@ fn _pddt_data<'py>(data: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     {
         return snapshot();
     }
-    let mut owner = data.clone();
+    // The exact ndarray type was proved above. Start at its real base rather
+    // than cloning and testing the same array again; retain the full proof.
+    let mut owner = data.getattr(pyo3::intern!(py, "base"))?;
     while owner.get_type().is(kind) {
         owner = owner.getattr(pyo3::intern!(py, "base"))?;
     }

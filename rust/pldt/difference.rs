@@ -356,27 +356,7 @@ fn calculate<I: BoundaryIndex>(
         output.append_option(value);
         Ok(())
     };
-    if source.dtype() == &DataType::Date {
-        for (row, value) in source
-            .date()
-            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-            .physical()
-            .iter()
-            .enumerate()
-        {
-            push(row, value.map(|v| i64::from(v) * 86_400_000))?;
-        }
-    } else {
-        for (row, value) in source
-            .datetime()
-            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-            .physical()
-            .iter()
-            .enumerate()
-        {
-            push(row, value)?;
-        }
-    }
+    super::input::visit_ticks(source, &mut push)?;
     Ok(output.finish().into_series())
 }
 fn execute(inputs: &[Series], options: &Options) -> Result<Series, Failure> {

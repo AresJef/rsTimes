@@ -89,7 +89,7 @@ pub(crate) fn apply_date(
     sign: i64,
     clock_carry: i64,
 ) -> Result<(i128, u8, u8), &'static str> {
-    let absolute = value.absolute;
+    let absolute = value.absolute();
     let (mut year, mut month, day, weekday) = if absolute.is_empty() {
         (input.0, i64::from(input.1), input.2, None)
     } else {
@@ -103,7 +103,7 @@ pub(crate) fn apply_date(
     year = year
         .checked_add(i128::from(sign) * i128::from(value.years))
         .ok_or(OVERFLOW)?;
-    month += sign * i64::from(value.months);
+    month += sign * i64::from(value.months());
     if month > 12 {
         month -= 12;
         year = year.checked_add(1).ok_or(OVERFLOW)?;
@@ -158,11 +158,11 @@ pub(crate) fn apply(
     if !matches!(sign, -1 | 1) {
         return Err(OVERFLOW);
     }
-    let absolute = value.absolute;
+    let absolute = value.absolute();
     if absolute.is_empty()
         && value.years == 0
-        && value.months == 0
-        && value.clock_ns == 0
+        && value.months() == 0
+        && value.clock_ns() == 0
         && (-27..=27).contains(&value.days)
         && let Ok(year) = i64::try_from(input.year)
         && let Ok([year, month, day]) = crate::calendar::shift_small_days(
@@ -206,7 +206,7 @@ pub(crate) fn apply(
     } else {
         original as i64
     };
-    let clock = replaced_clock + sign * value.clock_ns as i64;
+    let clock = replaced_clock + sign * value.clock_ns() as i64;
     let clock_ns = clock.rem_euclid(NS_PER_DAY as i64) as u64;
     let (year, month, day) = apply_date(
         value,
@@ -327,9 +327,13 @@ mod tests {
             clock_ns: 123_456_789,
         };
         let mut delta = DeltaValue::ZERO;
-        delta.absolute.set(Field::Microsecond, Some(1)).unwrap();
+        delta
+            .set_absolute_field(Field::Microsecond, Some(1))
+            .unwrap();
         assert_eq!(apply(&delta, input, 1).unwrap().clock_ns, 1000);
-        delta.absolute.set(Field::Nanosecond, Some(2)).unwrap();
+        delta
+            .set_absolute_field(Field::Nanosecond, Some(2))
+            .unwrap();
         assert_eq!(apply(&delta, input, 1).unwrap().clock_ns, 1002);
     }
 }

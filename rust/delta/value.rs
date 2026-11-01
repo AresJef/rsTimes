@@ -81,6 +81,7 @@ impl AbsoluteFields {
     }
 
     /// Set a validated absolute field; convenience clamping belongs at input.
+    #[inline]
     pub(crate) fn set(
         &mut self,
         field: AbsoluteField,
@@ -145,23 +146,87 @@ impl AbsoluteFields {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct DeltaValue {
     pub(crate) years: i64,
-    pub(crate) months: u8,
+    months: u8,
     pub(crate) days: i64,
-    pub(crate) clock_ns: u64,
-    pub(crate) absolute: AbsoluteFields,
+    clock_ns: u64,
+    absolute: AbsoluteFields,
 }
 
 impl DeltaValue {
     /// Empty Delta; no relative quantity and no absolute setting.
-    pub(crate) const ZERO: Self = Self {
-        years: 0,
-        months: 0,
-        days: 0,
-        clock_ns: 0,
-        absolute: AbsoluteFields::EMPTY,
-    };
+    pub(crate) const ZERO: Self = Self::from_canonical(0, 0, 0, 0, AbsoluteFields::EMPTY);
+
+    /// Store already validated canonical groups. Normalization and public
+    /// range checks happen before this private representation boundary.
+    #[inline]
+    pub(crate) const fn from_canonical(
+        years: i64,
+        months: u8,
+        days: i64,
+        clock_ns: u64,
+        absolute: AbsoluteFields,
+    ) -> Self {
+        debug_assert!(months < 12);
+        debug_assert!(clock_ns < NS_PER_DAY as u64);
+        debug_assert!(absolute.0 >> 74 == 0);
+        Self {
+            years,
+            months,
+            days,
+            clock_ns,
+            absolute,
+        }
+    }
+
+    /// The only canonical relative clock, in nanoseconds within its day.
+    #[inline]
+    pub(crate) const fn clock_ns(&self) -> u64 {
+        self.clock_ns
+    }
+
+    /// Calendar-month remainder, independent of fixed days and clock.
+    #[inline]
+    pub(crate) const fn months(&self) -> u8 {
+        self.months
+    }
+
+    /// Return the independently present absolute fields without re-encoding.
+    #[inline]
+    pub(crate) const fn absolute(&self) -> AbsoluteFields {
+        self.absolute
+    }
+
+    #[inline]
+    pub(crate) fn set_months(&mut self, months: u8) {
+        debug_assert!(months < 12);
+        self.months = months;
+    }
+
+    #[inline]
+    pub(crate) fn set_clock_ns(&mut self, clock_ns: u64) {
+        debug_assert!(clock_ns < NS_PER_DAY as u64);
+        self.clock_ns = clock_ns;
+    }
+
+    #[inline]
+    pub(crate) const fn with_absolute(mut self, absolute: AbsoluteFields) -> Self {
+        debug_assert!(absolute.0 >> 74 == 0);
+        self.absolute = absolute;
+        self
+    }
+
+    /// Update one validated lane, keeping representation changes local.
+    #[inline]
+    pub(crate) fn set_absolute_field(
+        &mut self,
+        field: AbsoluteField,
+        value: Option<i64>,
+    ) -> Result<(), ValueError> {
+        self.absolute.set(field, value)
+    }
 
     /// Normalize sufficiently wide totals, then check final signed64 groups.
+    #[inline]
     pub(crate) fn from_totals(
         calendar_months: i128,
         fixed_ns: i128,
@@ -197,19 +262,16 @@ impl DeltaValue {
                 fixed_ns.rem_euclid(NS_PER_DAY) as u64,
             )
         };
-        Ok(Self {
-            years,
-            months,
-            days,
-            clock_ns,
-            absolute,
-        })
+        Ok(Self::from_canonical(
+            years, months, days, clock_ns, absolute,
+        ))
     }
 
     /// Combine already canonical groups using at most one carry per group.
     /// Inputs arise only from adding, subtracting or negating canonical values:
     /// months are in -11..=22 and clock is strictly between -day and 2*day.
     /// Keep years/days wide until the carry, so boundary cancellation is valid.
+    #[inline]
     fn from_near_canonical(
         years: i128,
         months: i64,
@@ -231,27 +293,27 @@ impl DeltaValue {
         };
         let years = years.checked_add(year_carry).ok_or(ValueError::Overflow)?;
         let days = days.checked_add(day_carry).ok_or(ValueError::Overflow)?;
-        Ok(Self {
-            years: i64::try_from(years).map_err(|_| ValueError::Overflow)?,
-            months: (months - year_carry as i64 * 12) as u8,
-            days: i64::try_from(days).map_err(|_| ValueError::Overflow)?,
-            clock_ns: (clock_ns - day_carry as i64 * NS_PER_DAY as i64) as u64,
+        Ok(Self::from_canonical(
+            i64::try_from(years).map_err(|_| ValueError::Overflow)?,
+            (months - year_carry as i64 * 12) as u8,
+            i64::try_from(days).map_err(|_| ValueError::Overflow)?,
+            (clock_ns - day_carry as i64 * NS_PER_DAY as i64) as u64,
             absolute,
-        })
+        ))
     }
 
     /// Full calendar quantity for independent canonical-value test checks.
     #[cfg(test)]
     #[inline]
     pub(crate) fn calendar_months(self) -> i128 {
-        i128::from(self.years) * 12 + i128::from(self.months)
+        i128::from(self.years) * 12 + i128::from(self.months())
     }
 
     /// Full fixed quantity for canonical-value test checks, safe in i128.
     #[cfg(test)]
     #[inline]
     pub(crate) fn fixed_ns(self) -> i128 {
-        i128::from(self.days) * NS_PER_DAY + i128::from(self.clock_ns)
+        i128::from(self.days) * NS_PER_DAY + i128::from(self.clock_ns())
     }
 
     /// Combine a wide fixed source after its own safe day/clock split. Calendar
@@ -263,37 +325,37 @@ impl DeltaValue {
         subtract: bool,
         reverse: bool,
     ) -> Result<Self, ValueError> {
+        debug_assert!(clock_ns < NS_PER_DAY as u64);
         let (left_days, left_clock, right_days, right_clock) = if reverse {
             (
                 days,
-                i128::from(clock_ns),
+                clock_ns as i64,
                 i128::from(self.days),
-                i128::from(self.clock_ns),
+                self.clock_ns() as i64,
             )
         } else {
             (
                 i128::from(self.days),
-                i128::from(self.clock_ns),
+                self.clock_ns() as i64,
                 days,
-                i128::from(clock_ns),
+                clock_ns as i64,
             )
         };
         let direction = if subtract { -1 } else { 1 };
-        let clock = left_clock + direction * right_clock;
+        let clock = left_clock + direction as i64 * right_clock;
         let right_days = right_days
             .checked_mul(direction)
             .ok_or(ValueError::Overflow)?;
         let days = left_days
             .checked_add(right_days)
-            .and_then(|number| number.checked_add(clock.div_euclid(NS_PER_DAY)))
             .ok_or(ValueError::Overflow)?;
         let calendar_sign = if reverse && subtract { -1 } else { 1 };
         Self::from_near_canonical(
             i128::from(self.years) * calendar_sign,
-            i64::from(self.months) * calendar_sign as i64,
+            i64::from(self.months()) * calendar_sign as i64,
             days,
-            clock.rem_euclid(NS_PER_DAY) as i64,
-            self.absolute,
+            clock,
+            self.absolute(),
         )
     }
 
@@ -302,10 +364,10 @@ impl DeltaValue {
         let sign = if subtract { -1 } else { 1 };
         Self::from_near_canonical(
             i128::from(self.years) + i128::from(sign) * i128::from(other.years),
-            i64::from(self.months) + sign * i64::from(other.months),
+            i64::from(self.months()) + sign * i64::from(other.months()),
             i128::from(self.days) + i128::from(sign) * i128::from(other.days),
-            self.clock_ns as i64 + sign * other.clock_ns as i64,
-            self.absolute.merge(other.absolute, subtract),
+            self.clock_ns() as i64 + sign * other.clock_ns() as i64,
+            self.absolute().merge(other.absolute(), subtract),
         )
     }
 
@@ -313,23 +375,26 @@ impl DeltaValue {
     pub(crate) fn negated(self) -> Result<Self, ValueError> {
         Self::from_near_canonical(
             -i128::from(self.years),
-            -i64::from(self.months),
+            -i64::from(self.months()),
             -i128::from(self.days),
-            -(self.clock_ns as i64),
-            self.absolute,
+            -(self.clock_ns() as i64),
+            self.absolute(),
         )
     }
 
     /// Absolute magnitude by calendar and fixed groups, preserving replacements.
     pub(crate) fn magnitude(self) -> Result<Self, ValueError> {
+        if self.years >= 0 && self.days >= 0 {
+            return Ok(self);
+        }
         let calendar_sign = if self.years < 0 { -1 } else { 1 };
         let fixed_sign = if self.days < 0 { -1 } else { 1 };
         Self::from_near_canonical(
             i128::from(self.years) * i128::from(calendar_sign),
-            i64::from(self.months) * calendar_sign,
+            i64::from(self.months()) * calendar_sign,
             i128::from(self.days) * i128::from(fixed_sign),
-            self.clock_ns as i64 * fixed_sign,
-            self.absolute,
+            self.clock_ns() as i64 * fixed_sign,
+            self.absolute(),
         )
     }
 
@@ -344,11 +409,13 @@ impl DeltaValue {
     }
 
     /// Expand only at the explicit version-two state/representation boundary.
-    pub(crate) fn core17(self) -> [i64; 17] {
-        let clock = self.clock_ns;
+    #[inline]
+    pub(crate) fn core17(&self) -> [i64; 17] {
+        let clock = self.clock_ns();
+        let absolute = self.absolute();
         let mut fields = [
             self.years,
-            i64::from(self.months),
+            i64::from(self.months()),
             self.days,
             (clock / 3_600_000_000_000) as i64,
             (clock / 60_000_000_000 % 60) as i64,
@@ -366,7 +433,7 @@ impl DeltaValue {
             -1,
         ];
         for (index, field) in AbsoluteField::ALL.into_iter().enumerate() {
-            fields[index + 8] = self.absolute.get(field).unwrap_or(-1);
+            fields[index + 8] = absolute.get(field).unwrap_or(-1);
         }
         fields
     }
@@ -385,17 +452,17 @@ impl DeltaValue {
             let value = fields[index + 8];
             absolute.set(field, if value == -1 { None } else { Some(value) })?;
         }
-        Ok(Self {
-            years: fields[0],
-            months: fields[1] as u8,
-            days: fields[2],
-            clock_ns: (fields[3] * 3_600_000_000_000
+        Ok(Self::from_canonical(
+            fields[0],
+            fields[1] as u8,
+            fields[2],
+            (fields[3] * 3_600_000_000_000
                 + fields[4] * 60_000_000_000
                 + fields[5] * 1_000_000_000
                 + fields[6] * 1000
                 + fields[7]) as u64,
             absolute,
-        })
+        ))
     }
 }
 
@@ -442,13 +509,13 @@ mod tests {
                 match (year, day) {
                     (Ok(years), Ok(days)) => assert_eq!(
                         actual.unwrap(),
-                        DeltaValue {
+                        DeltaValue::from_canonical(
                             years,
-                            months: calendar.rem_euclid(12) as u8,
+                            calendar.rem_euclid(12) as u8,
                             days,
-                            clock_ns: ns.rem_euclid(NS_PER_DAY) as u64,
-                            absolute: AbsoluteFields::EMPTY,
-                        }
+                            ns.rem_euclid(NS_PER_DAY) as u64,
+                            AbsoluteFields::EMPTY,
+                        )
                     ),
                     _ => assert_eq!(actual, Err(ValueError::Overflow)),
                 }
@@ -460,7 +527,7 @@ mod tests {
     fn negative_one_ns_borrows_a_day() {
         let value = DeltaValue::from_totals(0, -1, AbsoluteFields::EMPTY).unwrap();
         assert_eq!(value.days, -1);
-        assert_eq!(value.clock_ns, 86_399_999_999_999);
+        assert_eq!(value.clock_ns(), 86_399_999_999_999);
         assert_eq!(&value.core17()[3..8], &[23, 59, 59, 999_999, 999]);
         assert_eq!(value.fixed_ns(), -1);
     }
@@ -480,30 +547,27 @@ mod tests {
     fn independent_absolute_fields_merge_without_clearing_ns() {
         let mut first = DeltaValue::ZERO;
         first
-            .absolute
-            .set(AbsoluteField::Nanosecond, Some(2))
+            .set_absolute_field(AbsoluteField::Nanosecond, Some(2))
             .unwrap();
         let mut second = DeltaValue::ZERO;
         second
-            .absolute
-            .set(AbsoluteField::Microsecond, Some(1))
+            .set_absolute_field(AbsoluteField::Microsecond, Some(1))
             .unwrap();
         for result in [
             first.combine(second, false).unwrap(),
             second.combine(first, false).unwrap(),
         ] {
-            assert_eq!(result.absolute.get(AbsoluteField::Microsecond), Some(1));
-            assert_eq!(result.absolute.get(AbsoluteField::Nanosecond), Some(2));
+            assert_eq!(result.absolute().get(AbsoluteField::Microsecond), Some(1));
+            assert_eq!(result.absolute().get(AbsoluteField::Nanosecond), Some(2));
         }
-        assert_eq!(second.absolute.get(AbsoluteField::Nanosecond), None);
+        assert_eq!(second.absolute().get(AbsoluteField::Nanosecond), None);
     }
 
     #[test]
     fn explicit_absolute_zero_is_not_unset() {
         let mut value = DeltaValue::ZERO;
         value
-            .absolute
-            .set(AbsoluteField::Nanosecond, Some(0))
+            .set_absolute_field(AbsoluteField::Nanosecond, Some(0))
             .unwrap();
         assert!(value.is_nonzero());
         assert_ne!(value, DeltaValue::ZERO);
@@ -512,21 +576,14 @@ mod tests {
 
     #[test]
     fn minimum_days_can_be_negated_after_clock_carry() {
-        let value = DeltaValue {
-            days: i64::MIN,
-            clock_ns: 1,
-            ..DeltaValue::ZERO
-        };
+        let value = DeltaValue::from_canonical(0, 0, i64::MIN, 1, AbsoluteFields::EMPTY);
         let opposite = value.negated().unwrap();
         assert_eq!(opposite.days, i64::MAX);
-        assert_eq!(opposite.clock_ns, 86_399_999_999_999);
+        assert_eq!(opposite.clock_ns(), 86_399_999_999_999);
         assert!(
-            DeltaValue {
-                days: i64::MIN,
-                ..DeltaValue::ZERO
-            }
-            .negated()
-            .is_err()
+            DeltaValue::from_canonical(0, 0, i64::MIN, 0, AbsoluteFields::EMPTY)
+                .negated()
+                .is_err()
         );
         assert_eq!(value.magnitude().unwrap(), opposite);
     }
@@ -539,21 +596,21 @@ mod tests {
             for &months in &[0, 1, 11] {
                 for &days in &groups {
                     for &clock_ns in &clocks {
-                        let a = DeltaValue {
+                        let a = DeltaValue::from_canonical(
                             years,
                             months,
                             days,
                             clock_ns,
-                            absolute: AbsoluteFields::EMPTY,
-                        };
+                            AbsoluteFields::EMPTY,
+                        );
                         for &other_years in &groups {
-                            let b = DeltaValue {
-                                years: other_years,
-                                months: 11 - months,
-                                days: groups[(index + 3) % groups.len()],
-                                clock_ns: clocks[(index + 1) % clocks.len()],
-                                absolute: AbsoluteFields::EMPTY,
-                            };
+                            let b = DeltaValue::from_canonical(
+                                other_years,
+                                11 - months,
+                                groups[(index + 3) % groups.len()],
+                                clocks[(index + 1) % clocks.len()],
+                                AbsoluteFields::EMPTY,
+                            );
                             for subtract in [false, true] {
                                 let sign = if subtract { -1 } else { 1 };
                                 let expected = DeltaValue::from_totals(
@@ -573,7 +630,7 @@ mod tests {
                             DeltaValue::from_totals(
                                 -a.calendar_months(),
                                 -a.fixed_ns(),
-                                a.absolute
+                                a.absolute()
                             )
                         );
                         assert_eq!(
@@ -581,7 +638,7 @@ mod tests {
                             DeltaValue::from_totals(
                                 a.calendar_months().abs(),
                                 a.fixed_ns().abs(),
-                                a.absolute
+                                a.absolute()
                             )
                         );
                     }
@@ -613,10 +670,7 @@ mod tests {
         for field in AbsoluteField::ALL {
             assert_eq!(absolute.get(field), Some(field.bounds().1));
         }
-        let value = DeltaValue {
-            absolute,
-            ..DeltaValue::ZERO
-        };
+        let value = DeltaValue::ZERO.with_absolute(absolute);
         assert_eq!(DeltaValue::from_core17(value.core17()).unwrap(), value);
         assert!(absolute.set(AbsoluteField::Nanosecond, Some(1000)).is_err());
         assert!(absolute.set(AbsoluteField::Nanosecond, Some(-1)).is_err());
@@ -625,18 +679,16 @@ mod tests {
     #[test]
     fn subtraction_keeps_left_absolute() {
         let mut left = DeltaValue::ZERO;
-        left.absolute
-            .set(AbsoluteField::Nanosecond, Some(0))
+        left.set_absolute_field(AbsoluteField::Nanosecond, Some(0))
             .unwrap();
         let mut right = DeltaValue::ZERO;
         right
-            .absolute
-            .set(AbsoluteField::Nanosecond, Some(999))
+            .set_absolute_field(AbsoluteField::Nanosecond, Some(999))
             .unwrap();
         assert_eq!(
             left.combine(right, true)
                 .unwrap()
-                .absolute
+                .absolute()
                 .get(AbsoluteField::Nanosecond),
             Some(0)
         );

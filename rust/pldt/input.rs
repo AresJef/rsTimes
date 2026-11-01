@@ -567,40 +567,60 @@ pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_pldt_register_missing, module)?)
 }
 
-fn output_source_quantum(source: &Series) -> Result<i128, Failure> {
-    match source.dtype() {
-        DataType::Date => Ok(86_400_000_000_000),
-        DataType::Datetime(unit, _) => Ok(super::input::epoch_unit(*unit).nanos()),
-        _ => Err(Failure::new(Kind::Type, "requires a temporal source")),
+/// Visit physical ticks without intermediate date objects. Datetime retains
+/// its native unit; Date days are represented as millisecond ticks, matching
+/// the existing boundary/counting adapters. Native null metadata is read once.
+#[inline]
+pub(super) fn visit_ticks(
+    source: &Series,
+    mut push: impl FnMut(usize, Option<i64>) -> Result<(), Failure>,
+) -> Result<(), Failure> {
+    if source.dtype() == &DataType::Date {
+        let values = source
+            .date()
+            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
+            .physical();
+        if values.null_count() == 0 {
+            for (row, value) in values.into_no_null_iter().enumerate() {
+                // Every signed32 day times milliseconds/day fits signed64.
+                push(row, Some(i64::from(value) * 86_400_000))?;
+            }
+        } else {
+            for (row, value) in values.iter().enumerate() {
+                push(row, value.map(|value| i64::from(value) * 86_400_000))?;
+            }
+        }
+    } else {
+        let values = source
+            .datetime()
+            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
+            .physical();
+        if values.null_count() == 0 {
+            for (row, value) in values.into_no_null_iter().enumerate() {
+                push(row, Some(value))?;
+            }
+        } else {
+            for (row, value) in values.iter().enumerate() {
+                push(row, value)?;
+            }
+        }
     }
+    Ok(())
 }
+
+#[inline]
 pub(super) fn visit_nanos(
     source: &Series,
     mut push: impl FnMut(usize, Option<i128>) -> Result<(), Failure>,
 ) -> Result<(), Failure> {
-    let quantum = output_source_quantum(source)?;
-    if source.dtype() == &DataType::Date {
-        for (row, value) in source
-            .date()
-            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-            .physical()
-            .iter()
-            .enumerate()
-        {
-            push(row, value.map(|v| i128::from(v) * quantum))?;
-        }
-    } else {
-        for (row, value) in source
-            .datetime()
-            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-            .physical()
-            .iter()
-            .enumerate()
-        {
-            push(row, value.map(|v| i128::from(v) * quantum))?;
-        }
-    }
-    Ok(())
+    let quantum = match source.dtype() {
+        DataType::Date => 1_000_000,
+        DataType::Datetime(unit, _) => epoch_unit(*unit).nanos(),
+        _ => return Err(Failure::new(Kind::Type, "requires a temporal source")),
+    };
+    visit_ticks(source, |row, value| {
+        push(row, value.map(|value| i128::from(value) * quantum))
+    })
 }
 
 #[cfg(test)]
