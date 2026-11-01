@@ -96,3 +96,29 @@ def test_exact_numpy_date_and_foreign_type_boundary():
         __module__ = "numpy"
 
     assert Delta().__add__(datetime64()) is NotImplemented
+
+
+@pytest.mark.parametrize(
+    "changes,expected",
+    [
+        ({}, (0,) * 8 + (-1,) * 9),
+        (dict(nanosecond=0), (0,) * 8 + (-1,) * 8 + (0,)),
+        (dict(microsecond=0), (0,) * 8 + (-1,) * 7 + (0, -1)),
+        (dict(days=-1, nanoseconds=1), (0, 0, -1, 0, 0, 0, 0, 1) + (-1,) * 9),
+    ],
+)
+def test_state_shortcut_preserves_all_seventeen_fields_and_explicit_zero(changes, expected):
+    state = Delta(**changes).__getstate__()
+    assert state[:3] == ("rstimes.delta", 2, expected)
+    assert all(type(field) is int for field in state[2])
+
+
+def test_empty_absolute_state_still_captures_real_child_business_metadata():
+    class Child(Delta):
+        pass
+
+    value = Child(days=1)
+    value.note = "business"
+    state = value.__getstate__()
+    assert state[2] == (0, 0, 1, 0, 0, 0, 0, 0) + (-1,) * 9
+    assert state[3] == {"note": "business"}

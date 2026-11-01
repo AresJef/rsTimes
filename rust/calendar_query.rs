@@ -135,7 +135,7 @@ pub(crate) fn fact<const Q: u8>(
         .map_err(|_| Error::Capacity("leap count overflow"))?,
         20 | 200 => year,
         21 => month,
-        29 => ordinal - start()? + 1,
+        29 => crate::calendar::day_of_year(year, month, day),
         30 => crate::calendar::days_in_month(year, month),
         31 => (month - 1) / 3 + 1,
         100 => i64::from(Some(year) == target),

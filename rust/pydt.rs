@@ -2214,11 +2214,11 @@ fn _pydt_day_of_year(value: &Bound<'_, PyAny>) -> PyResult<i64> {
         )
     })?;
     let year = i64::from(date.get_year());
-    Ok(
-        crate::calendar::ordinal(year, i64::from(date.get_month()), i64::from(date.get_day()))
-            - crate::calendar::ordinal(year, 1, 1)
-            + 1,
-    )
+    Ok(crate::calendar::day_of_year(
+        year,
+        i64::from(date.get_month()),
+        i64::from(date.get_day()),
+    ))
 }
 
 /// Read month capacity without a Python property function frame.

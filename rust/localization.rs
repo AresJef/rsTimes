@@ -1,8 +1,6 @@
 //! Independent Gregorian names and native system timezone discovery.
 //! CLDR is compiled data; neither service imports date classes from this library.
 
-use std::borrow::Cow;
-
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
@@ -129,23 +127,35 @@ pub(crate) fn name_group(py: Python<'_>, locale: Option<&Bound<'_, PyAny>>) -> P
             data::ENGLISH
         } else {
             let code = text.split(['.', '@']).next().unwrap_or("");
-            let code = if code
+            let mut inline = [0u8; 32];
+            let owned;
+            let key = if code
                 .bytes()
                 .any(|byte| byte == b'_' || byte.is_ascii_uppercase())
             {
-                let mut canonical = String::with_capacity(code.len());
-                canonical.extend(code.chars().map(|value| {
-                    if value == '_' {
-                        '-'
+                // ASCII normalization cannot change the length or any UTF8
+                // multibyte codepoint. Compare bytes directly: str ordering is
+                // the same byte ordering. Long identifiers remain complete.
+                let normalize = |byte: u8| {
+                    if byte == b'_' {
+                        b'-'
                     } else {
-                        value.to_ascii_lowercase()
+                        byte.to_ascii_lowercase()
                     }
-                }));
-                Cow::Owned(canonical)
+                };
+                if code.len() <= inline.len() {
+                    for (slot, byte) in inline.iter_mut().zip(code.bytes().map(normalize)) {
+                        *slot = byte;
+                    }
+                    &inline[..code.len()]
+                } else {
+                    owned = code.bytes().map(normalize).collect::<Vec<_>>();
+                    owned.as_slice()
+                }
             } else {
-                Cow::Borrowed(code)
+                code.as_bytes()
             };
-            match data::LOCALES.binary_search_by_key(&code.as_ref(), |entry| entry.0) {
+            match data::LOCALES.binary_search_by(|entry| entry.0.as_bytes().cmp(key)) {
                 Ok(index) => data::LOCALES[index].1,
                 Err(_) => {
                     return Err(crate::error_context::value_error(format!(

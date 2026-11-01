@@ -475,8 +475,10 @@ impl DeltaValue {
             -1,
             -1,
         ];
-        for (index, field) in AbsoluteField::ALL.into_iter().enumerate() {
-            fields[index + 8] = absolute.get(field).unwrap_or(-1);
+        if !absolute.is_empty() {
+            for (index, field) in AbsoluteField::ALL.into_iter().enumerate() {
+                fields[index + 8] = absolute.get(field).unwrap_or(-1);
+            }
         }
         fields
     }

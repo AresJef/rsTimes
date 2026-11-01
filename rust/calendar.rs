@@ -38,6 +38,14 @@ pub fn days_in_month(year: i64, month: i64) -> i64 {
     }
 }
 
+/// Read the one-based year position from already valid Gregorian fields.
+/// Month is1..=12 and day is valid in that month; target capacity stays with
+/// the caller. Scalar and column queries need no whole-year ordinal round trip.
+#[inline]
+pub(crate) fn day_of_year(year: i64, month: i64, day: i64) -> i64 {
+    MONTH_STARTS[(month - 1) as usize] + day + i64::from(month > 2 && leap(year))
+}
+
 /// Convert year, month and day to a day number where 0001-01-01 is 1.
 ///
 /// Day is clamped to 1..=days_in_month(year, month), preserving Delta's
@@ -438,6 +446,40 @@ pub(crate) fn apply_hours(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn direct_year_position_matches_independent_month_totals() {
+        for (year, leap_year) in [
+            (0, true),
+            (-4, true),
+            (-1, false),
+            (1900, false),
+            (2000, true),
+            (2100, false),
+        ] {
+            let lengths = [
+                31,
+                28 + i64::from(leap_year),
+                31,
+                30,
+                31,
+                30,
+                31,
+                31,
+                30,
+                31,
+                30,
+                31,
+            ];
+            let mut before = 0;
+            for (index, length) in lengths.into_iter().enumerate() {
+                assert_eq!(day_of_year(year, index as i64 + 1, 1), before + 1);
+                assert_eq!(day_of_year(year, index as i64 + 1, length), before + length);
+                before += length;
+            }
+            assert_eq!(before, if leap_year { 366 } else { 365 });
+        }
+    }
+
     #[test]
     fn gregorian_centuries_and_known_ordinals() {
         assert!(!leap(1900));

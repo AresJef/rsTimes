@@ -28,3 +28,23 @@ def test_month_property_reads_real_stored_calendar_fields(year, expected):
     value = Child(year, 2, 1)
     assert value.days_in_month == expected
     assert Pydt.days_in_month.fget(datetime(year, 2, 1)) == expected
+
+
+@pytest.mark.parametrize("year", [1900, 2000, 2024, 2100])
+@pytest.mark.parametrize("month", range(1, 13))
+def test_direct_year_position_matches_the_standard_library(year, month):
+    source = datetime(year, month, 1)
+    assert Pydt(year, month, 1).day_of_year == source.timetuple().tm_yday
+
+
+@pytest.mark.parametrize("locale", ["fr", "fr_FR", "fr-fr", "FR_fr", "fr_FR.UTF-8", "fr_FR@calendar=gregorian"])
+def test_locale_stack_key_preserves_existing_alias_encoding_and_modifier_rules(locale):
+    value = Pydt(2024, 5, 7)
+    assert value.month_name(locale) == "mai"
+    assert value.weekday_name(locale) == "mardi"
+
+
+@pytest.mark.parametrize("locale", ["", "FR" * 40, "fŕ_FR", "fr_FR_invalid"])
+def test_unknown_locale_is_not_accepted_by_a_short_key(locale):
+    with pytest.raises(ValueError, match="Pydt.month_name"):
+        Pydt(2024, 5, 7).month_name(locale)
