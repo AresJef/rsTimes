@@ -23,7 +23,30 @@ pub(crate) fn iso_at(year: i64, ordinal: i64) -> Result<[i64; 3], Error> {
     }
     Ok([iso_year, week, weekday])
 }
+const fn long_year_cycle() -> [bool; 400] {
+    let mut result = [false; 400];
+    let mut year = 0;
+    while year < 400 {
+        let previous = year as i64 - 1;
+        let before = previous * 365 + previous.div_euclid(4) - previous.div_euclid(100)
+            + previous.div_euclid(400);
+        let weekday = before.rem_euclid(7);
+        let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+        result[year] = weekday == 3 || (weekday == 2 && leap);
+        year += 1;
+    }
+    result
+}
+
+const LONG_YEAR_CYCLE: [bool; 400] = long_year_cycle();
+
 pub(crate) fn long_year(year: i64) -> Result<bool, Error> {
+    if let Ok(bounded) = i32::try_from(year) {
+        // The Gregorian400-year cycle also repeats weekdays. This range's
+        // January1 always fits the existing ordinal type; preserve the original
+        // checked calculation and errors for wider temporary calendar years.
+        return Ok(LONG_YEAR_CYCLE[bounded.rem_euclid(400) as usize]);
+    }
     let start = crate::calendar::checked_ordinal(year, 1, 1).map_err(Error::Capacity)?;
     let weekday = (start - 1).rem_euclid(7);
     Ok(weekday == 3 || (weekday == 2 && crate::calendar::leap(year)))
@@ -32,10 +55,20 @@ fn leap_count(year: i64) -> i128 {
     let before = i128::from(year) - 1;
     before.div_euclid(4) - before.div_euclid(100) + before.div_euclid(400)
 }
+
+/// One resolved local day and its last expensive, target-independent fact.
+/// Clock and external timezone/DST work happen before this cache is consulted.
+#[derive(Clone, Copy)]
+pub(crate) struct DayFactCache {
+    ordinal: i64,
+    fields: [i64; 3],
+    result: Option<(u8, i64)>,
+}
+
 pub(crate) fn fact<const Q: u8>(
     wall: i128,
     target: Option<i64>,
-    cached: &mut Option<(i64, [i64; 3])>,
+    cached: &mut Option<DayFactCache>,
 ) -> Result<i64, Error> {
     // Scalar clock and weekday requests need no full calendar decomposition.
     let clock = wall.rem_euclid(DAY);
@@ -56,11 +89,26 @@ pub(crate) fn fact<const Q: u8>(
     if Q == 103 {
         return Ok(i64::from(Some((ordinal - 1).rem_euclid(7)) == target));
     }
-    let [year, month, day] = match *cached {
-        Some((previous, fields)) if previous == ordinal => fields,
+    // The query is fixed in ordinary column loops, while formatted output may
+    // reuse the day across different queries. Keep that identity explicit.
+    let cache_result = matches!(Q, 0 | 1 | 3..=8 | 29..=31 | 105 | 109);
+    let [year, month, day] = match cached.as_ref() {
+        Some(previous) if previous.ordinal == ordinal => {
+            if cache_result
+                && let Some((query, result)) = previous.result
+                && query == Q
+            {
+                return Ok(result);
+            }
+            previous.fields
+        }
         _ => {
             let fields = crate::calendar::from_ordinal(ordinal).map_err(Error::Capacity)?;
-            *cached = Some((ordinal, fields));
+            *cached = Some(DayFactCache {
+                ordinal,
+                fields,
+                result: None,
+            });
             fields
         }
     };
@@ -69,7 +117,7 @@ pub(crate) fn fact<const Q: u8>(
     let month_start = || crate::calendar::checked_ordinal(year, month, 1).map_err(Error::Capacity);
     let quarter_start =
         || crate::calendar::checked_ordinal(year, quarter, 1).map_err(Error::Capacity);
-    Ok(match Q {
+    let result = match Q {
         0..=2 => iso_at(year, ordinal)?[usize::from(Q)],
         3 => 365 + i64::from(crate::calendar::leap(year)),
         4 => start()? - 1,
@@ -97,7 +145,11 @@ pub(crate) fn fact<const Q: u8>(
         105 => i64::from(long_year(year)?),
         109 => i64::from(crate::calendar::leap(year)),
         _ => return Err(Error::Internal("unknown calendar fact")),
-    })
+    };
+    if cache_result && let Some(previous) = cached.as_mut() {
+        previous.result = Some((Q, result));
+    }
+    Ok(result)
 }
 
 #[cfg(test)]

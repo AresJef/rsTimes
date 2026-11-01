@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicIsize, Ordering};
 
 impl Delta {
     /// Construct a fully prepared immutable value, with an empty display cache.
+    #[inline]
     pub(crate) fn from_value(value: DeltaValue) -> Self {
         Self {
             value,
@@ -18,6 +19,7 @@ impl Delta {
     }
 
     /// Validate public binding and source values before exposing an instance.
+    #[inline]
     pub(crate) fn construct(
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,

@@ -122,30 +122,34 @@ impl FixedFractions {
         if number == 0.0 {
             return Ok(());
         }
-        let integer = integral_fraction(number, coefficient);
         let term = || {
-            integer.map_or_else(
+            integral_fraction(number, coefficient).map_or_else(
                 || BinaryTerm::scaled(number, coefficient),
                 |value| Ok(BinaryTerm::integer(value)),
             )
         };
         match &mut self.state {
             FractionState::Empty => {
-                self.state = if let Some(value) = integer {
+                self.state = if let Some(value) = integral_fraction(number, coefficient) {
                     FractionState::Compact(BinaryTerm::integer(value))
                 } else {
                     FractionState::Single(number, coefficient)
                 };
             }
             FractionState::Single(old, old_coefficient) => {
-                self.state =
-                    FractionState::combine(BinaryTerm::scaled(*old, *old_coefficient)?, term()?)?;
+                // One actual nonintegral source already requires exact binary
+                // combination. Decompose the next source once, without first
+                // trying a second integral-product fast-path qualification.
+                self.state = FractionState::combine(
+                    BinaryTerm::scaled(*old, *old_coefficient)?,
+                    BinaryTerm::scaled(number, coefficient)?,
+                )?;
             }
             FractionState::Compact(old) => {
                 self.state = FractionState::combine(*old, term()?)?;
             }
             FractionState::Wide(wide) => {
-                if let Some(value) = integer {
+                if let Some(value) = integral_fraction(number, coefficient) {
                     wide.add_term(BinaryTerm::integer(value))?;
                 } else {
                     wide.add(number, coefficient)?;
@@ -427,7 +431,9 @@ impl Components {
                     } else {
                         AbsoluteField::ALL[index - 10]
                     };
-                    self.absolute.set(field, Some(number))?;
+                    // Binding proved each public role unique. These lanes have
+                    // never been written; microsecond aliases finish together.
+                    self.absolute.insert(field, number)?;
                 }
             }
             _ => unreachable!("validated public or relativedelta role"),
@@ -440,8 +446,9 @@ impl Components {
         let microsecond = self.millisecond.map_or(self.microsecond, |ms| {
             Some(ms * 1000 + self.microsecond.map_or(0, |us| us % 1000))
         });
-        if microsecond.is_some() {
-            self.absolute.set(AbsoluteField::Microsecond, microsecond)?;
+        if let Some(microsecond) = microsecond {
+            self.absolute
+                .insert(AbsoluteField::Microsecond, microsecond)?;
         }
         if self.months == 0 && self.fixed_ns == 0 && matches!(fraction.state, FractionState::Empty)
         {
@@ -509,11 +516,25 @@ fn small_keywords<const COUNT: usize>(kwargs: &Bound<'_, PyDict>) -> Option<PyRe
         }
         *entry = (index, value, floating);
     }
-    entries.sort_unstable_by_key(|entry| entry.0);
-    if let Some(pair) = entries.windows(2).find(|pair| pair[0].0 == pair[1].0) {
+    let duplicate = if COUNT == 2 {
+        if entries[0].0 == entries[1].0 {
+            Some(entries[0].0)
+        } else {
+            if entries[1].0 < entries[0].0 {
+                entries.swap(0, 1);
+            }
+            None
+        }
+    } else {
+        entries.sort_unstable_by_key(|entry| entry.0);
+        entries
+            .windows(2)
+            .find_map(|pair| (pair[0].0 == pair[1].0).then_some(pair[0].0))
+    };
+    if let Some(index) = duplicate {
         return Some(Err(crate::error_context::type_error(format!(
             "Delta() got multiple values for keyword argument '{}'",
-            NAMES[pair[0].0]
+            NAMES[index]
         ))));
     }
     Some((|| {
@@ -554,6 +575,7 @@ fn small_keywords<const COUNT: usize>(kwargs: &Bound<'_, PyDict>) -> Option<PyRe
 
 /// Bind all names before conversion, then read each provided argument in its
 /// established declaration order, retaining its owner across actual callbacks.
+#[inline]
 pub(crate) fn construct(
     args: &Bound<'_, PyTuple>,
     kwargs: Option<&Bound<'_, PyDict>>,
@@ -588,6 +610,15 @@ pub(crate) fn construct(
             return result;
         }
     }
+    construct_owned(args, kwargs)
+}
+
+/// Keep the callback-safe, larger argument frame off the qualified small path.
+#[inline(never)]
+fn construct_owned(
+    args: &Bound<'_, PyTuple>,
+    kwargs: Option<&Bound<'_, PyDict>>,
+) -> PyResult<DeltaValue> {
     let mut values: [Option<Bound<'_, PyAny>>; 21] = std::array::from_fn(|_| None);
     for (index, value) in args.iter().enumerate() {
         values[index] = Some(value);

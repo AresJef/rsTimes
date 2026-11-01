@@ -221,11 +221,12 @@ fn from_fields<P: Policy>(
         ));
     }
     let days = crate::calendar::ordinal(i64::from(y), i64::from(m), i64::from(d)) - 719_163;
-    let mut ns = (((i128::from(days) * 24 + i128::from(h)) * 60 + i128::from(minute)) * 60
-        + i128::from(s))
-        * 1_000_000_000
-        + i128::from(us) * 1000
-        + i128::from(f.fraction.tail());
+    // Completed years are signed32, so even the widest Gregorian date uses
+    // fewer than7e16 whole seconds. Keep that exact calendar work native-width,
+    // and widen only once for ns; this does not impose an int64 tick capacity.
+    let seconds = days * 86_400 + i64::from(h) * 3600 + i64::from(minute) * 60 + i64::from(s);
+    let mut ns = i128::from(seconds) * 1_000_000_000
+        + i128::from(i64::from(us) * 1000 + i64::from(f.fraction.tail()));
     let zone = if let Some(region) = region {
         // Only a configuration-time proof reaches this branch. Retain the
         // actual zone identity for array consumers, without a date carrier.
@@ -643,6 +644,11 @@ impl<'py> IntoPyObject<'py> for EpochInteger {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         if let Ok(narrow) = i32::try_from(self.0) {
             narrow.into_pyobject(py)
+        } else if let Ok(native) = i64::try_from(self.0) {
+            // Ordinary epoch ns/us coordinates fit64 bits. Use PyO3's native
+            // integer constructor instead of its128-bit byte-array conversion;
+            // wider coordinates retain the original full-width exit below.
+            native.into_pyobject(py)
         } else {
             self.0.into_pyobject(py)
         }

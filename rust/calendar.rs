@@ -10,7 +10,11 @@ const MONTH_STARTS: [i64; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 30
 /// Return whether year is a leap year in the proleptic Gregorian calendar.
 ///
 /// The same divisibility rules apply to temporary years outside Python's range.
+#[inline]
 pub fn leap(year: i64) -> bool {
+    if let Ok(year) = u32::try_from(year) {
+        return year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400));
+    }
     year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 }
 
@@ -41,10 +45,18 @@ pub fn days_in_month(year: i64, month: i64) -> i64 {
 /// # Preconditions
 /// Month must be in 1..=12 and year must fit the checked calendar path's i32
 /// range. These invariants keep indexing and year arithmetic within bounds.
+#[inline]
 pub fn ordinal(year: i64, month: i64, day: i64) -> i64 {
     let previous = year - 1;
-    previous * 365 + previous.div_euclid(4) - previous.div_euclid(100)
-        + previous.div_euclid(400)
+    // Ordinary positive years need no signed Euclidean correction. Widen the
+    // product first; even u32::MAX previous years fit this native64 day count.
+    let before = if let Ok(previous) = u32::try_from(previous) {
+        i64::from(previous) * 365 + i64::from(previous / 4 - previous / 100 + previous / 400)
+    } else {
+        previous * 365 + previous.div_euclid(4) - previous.div_euclid(100)
+            + previous.div_euclid(400)
+    };
+    before
         + MONTH_STARTS[(month - 1) as usize]
         + i64::from(month > 2 && leap(year))
         + if day > 28 {

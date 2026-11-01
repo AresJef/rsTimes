@@ -318,6 +318,92 @@ fn exact_representation<'py>(
     Ok(unsafe { value.cast_into_unchecked::<PyString>() })
 }
 
+/// Format only after the exact immutable display cache missed. Keep its larger
+/// snapshot/name/formatting frame out of the ordinary cached repr call.
+#[cold]
+#[inline(never)]
+fn uncached_representation<'py>(
+    slf: &Bound<'py, Delta>,
+    cached_exact: bool,
+) -> PyResult<Bound<'py, PyString>> {
+    let py = slf.py();
+    let exact = cached_exact || slf.is_exact_instance_of::<Delta>();
+    let fields = slf.get().snapshot();
+    let names = [
+        "years",
+        "months",
+        "days",
+        "hours",
+        "minutes",
+        "seconds",
+        "microseconds",
+        "nanoseconds",
+        "year",
+        "month",
+        "day",
+        "weekday",
+        "hour",
+        "minute",
+        "second",
+        "microsecond",
+        "nanosecond",
+    ];
+    if exact {
+        // Only the immutable base caches its own display. Subclasses keep
+        // their observable name lookups. A Python string has no back-edge
+        // to this value; PyO3 drops the owned reference before storage reuse.
+        // Compute before claiming the one-time cell. This avoids detaching
+        // for uncontended first formatting and permits safe reentrant lookup.
+        // A reentrant winner has the same immutable fields; set() then drops
+        // the unused owned string without replacing the saved one.
+        let text = exact_representation(py, &fields, &names)?.unbind();
+        // Formatting can reenter or destroy the cache owner. Recheck its
+        // GIL qualification before touching the cell; otherwise return the
+        // complete string through the standard SDK ownership path.
+        if !unsafe { crate::protocol::is_cached_exact_delta(slf.as_ptr()) } {
+            return Ok(text.into_bound(py));
+        }
+        // SAFETY: the refreshed qualification and live slf prove the GIL
+        // contract. Neither cell operation retains a borrow across callbacks.
+        unsafe { slf.get().representation.set(py, text) };
+        return unsafe { slf.get().representation.get(py) }.ok_or_else(|| {
+            crate::error_context::runtime("Delta representation was not initialized")
+        });
+    }
+    // Subclasses retain observable class/name lookup and Unicode conversion.
+    let class_name = slf
+        .as_any()
+        .getattr(pyo3::intern!(py, "__class__"))
+        .map_err(crate::error_context::external)?
+        .getattr(pyo3::intern!(py, "__name__"))
+        .map_err(crate::error_context::external)?;
+    let class = class_name.extract::<Cow<'_, str>>()?;
+    let mut text = String::with_capacity(256);
+    text.push_str("<'");
+    text.push_str(&class);
+    text.push_str("' (");
+    let mut separated = false;
+    for (index, (&name, &value)) in names.iter().zip(&fields).enumerate() {
+        if (index < 8 && value == 0) || (index >= 8 && value == -1) {
+            continue;
+        }
+        if separated {
+            text.push_str(", ");
+        }
+        separated = true;
+        if index == 11 {
+            text.push_str("weekday=");
+            text.push_str(["MO", "TU", "WE", "TH", "FR", "SA", "SU"][value as usize]);
+        } else {
+            text.push_str(name);
+            text.push('=');
+            append_integer(&mut text, value);
+        }
+    }
+    text.push_str(")>");
+    Ok(PyString::new(py, &text))
+}
+
 #[pymethods]
 impl Delta {
     /// Keep NumPy scalar operands intact until reflected Delta dispatch.
@@ -748,84 +834,10 @@ impl Delta {
         // SAFETY: slf owns a live instance. A registered cache type proves the
         // conventional GIL path; SDK exact-type fallback never grants cell access.
         let cached_exact = unsafe { crate::protocol::is_cached_exact_delta(slf.as_ptr()) };
-        let exact = cached_exact || slf.is_exact_instance_of::<Self>();
         if cached_exact && let Some(text) = unsafe { slf.get().representation.get(py) } {
             return Ok(text);
         }
-        let fields = slf.get().snapshot();
-        let names = [
-            "years",
-            "months",
-            "days",
-            "hours",
-            "minutes",
-            "seconds",
-            "microseconds",
-            "nanoseconds",
-            "year",
-            "month",
-            "day",
-            "weekday",
-            "hour",
-            "minute",
-            "second",
-            "microsecond",
-            "nanosecond",
-        ];
-        if exact {
-            // Only the immutable base caches its own display. Subclasses keep
-            // their observable name lookups. A Python string has no back-edge
-            // to this value; PyO3 drops the owned reference before storage reuse.
-            // Compute before claiming the one-time cell. This avoids detaching
-            // for uncontended first formatting and permits safe reentrant lookup.
-            // A reentrant winner has the same immutable fields; set() then drops
-            // the unused owned string without replacing the saved one.
-            let text = exact_representation(py, &fields, &names)?.unbind();
-            // Formatting can reenter or destroy the cache owner. Recheck its
-            // GIL qualification before touching the cell; otherwise return the
-            // complete string through the standard SDK ownership path.
-            if !unsafe { crate::protocol::is_cached_exact_delta(slf.as_ptr()) } {
-                return Ok(text.into_bound(py));
-            }
-            // SAFETY: the refreshed qualification and live slf prove the GIL
-            // contract. Neither cell operation retains a borrow across callbacks.
-            unsafe { slf.get().representation.set(py, text) };
-            return unsafe { slf.get().representation.get(py) }.ok_or_else(|| {
-                crate::error_context::runtime("Delta representation was not initialized")
-            });
-        }
-        // Subclasses retain observable class/name lookup and Unicode conversion.
-        let class_name = slf
-            .as_any()
-            .getattr(pyo3::intern!(py, "__class__"))
-            .map_err(crate::error_context::external)?
-            .getattr(pyo3::intern!(py, "__name__"))
-            .map_err(crate::error_context::external)?;
-        let class = class_name.extract::<Cow<'_, str>>()?;
-        let mut text = String::with_capacity(256);
-        text.push_str("<'");
-        text.push_str(&class);
-        text.push_str("' (");
-        let mut separated = false;
-        for (index, (&name, &value)) in names.iter().zip(&fields).enumerate() {
-            if (index < 8 && value == 0) || (index >= 8 && value == -1) {
-                continue;
-            }
-            if separated {
-                text.push_str(", ");
-            }
-            separated = true;
-            if index == 11 {
-                text.push_str("weekday=");
-                text.push_str(["MO", "TU", "WE", "TH", "FR", "SA", "SU"][value as usize]);
-            } else {
-                text.push_str(name);
-                text.push('=');
-                append_integer(&mut text, value);
-            }
-        }
-        text.push_str(")>");
-        Ok(PyString::new(py, &text))
+        uncached_representation(slf, cached_exact)
     }
 
     /// Add a Delta, timedelta, relativedelta, date/datetime or NumPy scalar.

@@ -76,7 +76,12 @@ impl AbsoluteFields {
     #[inline]
     pub(crate) fn get(self, field: AbsoluteField) -> Option<i64> {
         let index = field as usize;
-        let lane = (self.0 >> SHIFTS[index]) & ((1_u128 << WIDTHS[index]) - 1);
+        let lane = if field == AbsoluteField::Nanosecond {
+            (self.0 >> 64) as u64 & 1023
+        } else {
+            // Every other lane is wholly in the low native word.
+            (self.0 as u64 >> SHIFTS[index]) & ((1_u64 << WIDTHS[index]) - 1)
+        };
         (lane != 0).then_some(lane as i64 - 1)
     }
 
@@ -99,6 +104,25 @@ impl AbsoluteFields {
         };
         let mask = ((1_u128 << WIDTHS[index]) - 1) << SHIFTS[index];
         self.0 = (self.0 & !mask) | (encoded << SHIFTS[index]);
+        Ok(())
+    }
+
+    /// Insert a bounded constructor selection into an unset lane.
+    /// Binding rejects duplicate roles before conversion; aliases are combined
+    /// before this call. Existing-value replacements continue to use `set`.
+    #[inline]
+    pub(crate) fn insert(&mut self, field: AbsoluteField, value: i64) -> Result<(), ValueError> {
+        debug_assert!(self.get(field).is_none());
+        let (minimum, maximum) = field.bounds();
+        if !(minimum..=maximum).contains(&value) {
+            return Err(ValueError::AbsoluteRange(field));
+        }
+        if field == AbsoluteField::Nanosecond {
+            self.0 |= ((value + 1) as u128) << 64;
+        } else {
+            let low = self.0 as u64 | ((value + 1) as u64) << SHIFTS[field as usize];
+            self.0 = (self.0 & !(u64::MAX as u128)) | u128::from(low);
+        }
         Ok(())
     }
 
