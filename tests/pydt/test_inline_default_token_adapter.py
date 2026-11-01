@@ -4,7 +4,27 @@ from datetime import datetime
 
 import pytest
 
-from rstimes import Pydt
+from rstimes import Configs, Pydt
+
+
+@pytest.mark.parametrize("word,month", [("May", 5), ("五月", 5), ("haziran", 6)])
+def test_default_calendar_view_preserves_literal_language_meanings(word, month):
+    assert Pydt(2024, month, 7).is_month(word) is True
+    assert Pydt(2024, month % 12 + 1, 7).is_month(word) is False
+
+
+@pytest.mark.parametrize("word", ["monday", "Monday", "MONDAY"])
+def test_default_weekday_view_preserves_saved_spellings(word):
+    assert Pydt(2024, 5, 6).is_weekday(word) is True
+    assert Pydt(2024, 5, 7).is_weekday(word) is False
+
+
+def test_individual_configs_cannot_extend_default_calendar_queries():
+    cfg = Configs()
+    cfg.add_month("certainlycustommonth", 5)
+    assert cfg.get_month("certainlycustommonth") == 5
+    with pytest.raises(ValueError, match="Pydt.is_month"):
+        Pydt(2024, 5, 7).is_month("certainlycustommonth")
 
 
 def test_real_unicode_subclass_does_not_use_its_displayed_class():

@@ -2047,52 +2047,22 @@ fn _pydt_lookup_optional(token: &str, weekday: bool) -> Option<i32> {
     (found >= 0).then_some(found)
 }
 
-/// Share the immutable vocabulary lookup without creating an exception for a miss.
-fn with_default_token<R>(token: &str, lookup: impl FnOnce(&[u32]) -> R) -> R {
-    // Common names fit in a small stack buffer; longer names retain the same
-    // complete Unicode lookup without truncation or a new token-length limit.
-    let mut inline = [0u32; 16];
-    let owned;
-    let token = if token.len() <= inline.len() {
-        let mut count = 0;
-        for character in token.chars() {
-            inline[count] = u32::from(character);
-            count += 1;
-        }
-        &inline[..count]
-    } else {
-        owned = token.chars().map(u32::from).collect::<Vec<_>>();
-        owned.as_slice()
-    };
-    lookup(token)
-}
-
-/// Query one default name using shared inline storage for common words.
+/// Query the shared immutable default vocabulary without converting each name.
 pub(crate) fn lookup_default_name(token: &str, weekday: bool) -> i32 {
-    let rule = if weekday {
-        crate::parser::fields::Rule::Weekday
-    } else {
-        crate::parser::fields::Rule::Month
-    };
-    with_default_token(token, |token| {
-        crate::parser::config::default_lookup(rule, token)
-    })
+    crate::parser::config::default_calendar_name(token, weekday)
 }
 
 /// Prepare a boundary name once, keeping month-before-weekday precedence.
 pub(crate) fn boundary_names(token: &str) -> (i32, i32) {
-    with_default_token(token, |token| {
-        let month =
-            crate::parser::config::default_lookup(crate::parser::fields::Rule::Month, token);
-        (
-            month,
-            if month >= 1 {
-                -1
-            } else {
-                crate::parser::config::default_lookup(crate::parser::fields::Rule::Weekday, token)
-            },
-        )
-    })
+    let month = lookup_default_name(token, false);
+    (
+        month,
+        if month >= 1 {
+            -1
+        } else {
+            lookup_default_name(token, true)
+        },
+    )
 }
 
 /// Match a real Unicode name or integer selector against stored calendar fields.

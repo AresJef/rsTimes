@@ -381,20 +381,17 @@ fn apply_delta_date_impl<'py, const BATCH: bool>(
     hours: Option<i64>,
 ) -> PyResult<Bound<'py, PyAny>> {
     let (parts, tail) = input.parts()?;
-    let parts = if BATCH
-        && tail == 0
-        && let Some(hours) = hours
-    {
-        crate::calendar::apply_hours(fields, parts, sign, !date_only, hours)
-            .map_err(crate::error_context::overflow)?
-            .0
-    } else if !fields.absolute().replaces_clock()
-        && fields.clock_ns().is_multiple_of(1_000_000_000)
-        && tail == 0
-    {
-        crate::calendar::apply(fields, parts, sign, !date_only)
-            .map_err(crate::error_context::overflow)?
-            .0
+    let parts = if tail == 0 {
+        // The complete calendar adapter already handles every Delta, including
+        // subsecond values and absolute clock replacements. A source without
+        // an ns tail needs no duplicate clock-kind checks before that dispatch.
+        let result = match hours {
+            Some(hours) if BATCH => {
+                crate::calendar::apply_hours(fields, parts, sign, !date_only, hours)
+            }
+            _ => crate::calendar::apply(fields, parts, sign, !date_only),
+        };
+        result.map_err(crate::error_context::overflow)?.0
     } else {
         let clock = ((parts[3] * 3600 + parts[4] * 60 + parts[5]) * 1_000_000_000 + parts[6] * 1000)
             as u64

@@ -392,6 +392,89 @@ pub(crate) fn default_lookup(rule: Rule, token: &[u32]) -> i32 {
     namespace_value(&defaults()[rule_namespace(rule)], rule, token)
 }
 
+/// Borrow UTF-8 names directly, deriving this immutable view from the same
+/// canonical Unicode rules once. User Configs edits detach their own maps and
+/// never change the library defaults. This cache owns Rust data only.
+pub(crate) fn default_calendar_name(token: &str, weekday: bool) -> i32 {
+    static NAMES: std::sync::OnceLock<[HashMap<String, i32>; 2]> = std::sync::OnceLock::new();
+    let names = NAMES.get_or_init(|| {
+        std::array::from_fn(|index| {
+            let rule = if index == 0 {
+                Rule::Month
+            } else {
+                Rule::Weekday
+            };
+            defaults()[rule_namespace(rule)]
+                .ext
+                .iter()
+                .map(|(word, &value)| {
+                    // Defaults are created exclusively from Rust string chars;
+                    // their u32 values are therefore Unicode scalars by construction.
+                    let text = word
+                        .iter()
+                        .map(|&unit| {
+                            char::from_u32(unit)
+                                .expect("library default word contains Unicode scalars")
+                        })
+                        .collect::<String>();
+                    (text, value)
+                })
+                .collect()
+        })
+    });
+    names[usize::from(weekday)]
+        .get(token)
+        .copied()
+        .unwrap_or(-1)
+}
+
+#[cfg(test)]
+mod calendar_name_tests {
+    use super::*;
+
+    #[test]
+    fn utf8_names_preserve_every_original_unicode_rule() {
+        for (rule, weekday) in [(Rule::Month, false), (Rule::Weekday, true)] {
+            for (word, &expected) in &defaults()[rule_namespace(rule)].ext {
+                let text: String = word
+                    .iter()
+                    .map(|&unit| char::from_u32(unit).unwrap())
+                    .collect();
+                assert_eq!(default_calendar_name(&text, weekday), expected);
+                assert_eq!(default_lookup(rule, word), expected);
+            }
+            for unknown in ["", "certainly_not_a_stored_calendar_name", "mAy"] {
+                assert_eq!(default_calendar_name(unknown, weekday), -1);
+            }
+        }
+        assert_eq!(default_calendar_name("May", false), 5);
+        assert_eq!(default_calendar_name("五月", false), 5);
+        assert_eq!(default_calendar_name("haziran", false), 6);
+        assert_eq!(default_calendar_name("Monday", true), 0);
+    }
+
+    #[test]
+    fn detached_configuration_cannot_change_cached_library_names() {
+        assert_eq!(default_calendar_name("May", false), 5);
+        let mut custom = defaults()[rule_namespace(Rule::Month)].clone();
+        custom.put_ext("May".chars().map(u32::from).collect(), 6);
+        assert_eq!(
+            custom
+                .ext
+                .get(&"May".chars().map(u32::from).collect::<Vec<_>>()),
+            Some(&6)
+        );
+        assert_eq!(default_calendar_name("May", false), 5);
+        assert_eq!(
+            default_lookup(
+                Rule::Month,
+                &"May".chars().map(u32::from).collect::<Vec<_>>()
+            ),
+            5
+        );
+    }
+}
+
 /// Immutable library vocabulary, requiring no Python Configs instance.
 /// User-provided configurations borrow their immutable native rule data.
 pub(super) struct DefaultView;

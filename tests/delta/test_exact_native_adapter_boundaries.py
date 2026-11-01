@@ -154,3 +154,40 @@ def test_anchored_month_span_has_independent_day_distance(ymd, days, zone):
     start = datetime(*ymd, 23, 17, 39, 123456, tzinfo=zone, fold=1)
     assert value.to_timedelta(start) == timedelta(days=days, hours=2)
     assert value.to_timedelta(date(*ymd)) == timedelta(days=days)
+
+
+@pytest.mark.parametrize("unit", ["us", "ns"])
+@pytest.mark.parametrize(
+    "text,fields,expected",
+    [
+        ("2024-01-01T00:00:00", dict(nanoseconds=500), datetime(2024, 1, 1)),
+        ("2024-01-01T00:00:00.000001", dict(nanoseconds=500), datetime(2024, 1, 1, microsecond=2)),
+        ("2024-01-01T00:00:00.000001", dict(nanoseconds=-500), datetime(2024, 1, 1)),
+        ("2024-01-01T00:00:00.999999", dict(nanoseconds=999), datetime(2024, 1, 1, 0, 0, 1)),
+        ("2024-01-01T23:59:59.999999", dict(nanoseconds=500), datetime(2024, 1, 2)),
+        ("2024-05-07T15:30:01.123456", dict(nanosecond=500), datetime(2024, 5, 7, 15, 30, 1, 123456)),
+        ("2024-05-07T15:30:01.123456", dict(nanosecond=501), datetime(2024, 5, 7, 15, 30, 1, 123457)),
+    ],
+)
+def test_numpy_aligned_microsecond_source_uses_complete_ns_calendar(text, fields, expected, unit):
+    source = np.datetime64(text, unit)
+    assert Delta(**fields) + source == expected
+
+
+def test_numpy_microsecond_capacity_applies_after_the_final_rounding():
+    # Year1 is representable in us; it must not be first forced into int64 ns.
+    source = np.datetime64("0001-01-01T00:00:00", "us")
+    assert Delta(nanoseconds=-1) + source == datetime(1, 1, 1)
+
+
+@pytest.mark.parametrize(
+    "text,change,expected",
+    [
+        ("2024-01-01T00:00:00.000000500", 500, datetime(2024, 1, 1, microsecond=1)),
+        ("2024-01-01T00:00:00.000001500", 500, datetime(2024, 1, 1, microsecond=2)),
+        ("2024-01-01T00:00:00.000001500", -1, datetime(2024, 1, 1, microsecond=1)),
+        ("2024-01-01T00:00:00.999999999", 500, datetime(2024, 1, 1, 0, 0, 1)),
+    ],
+)
+def test_numpy_real_ns_tail_is_retained_until_final_projection(text, change, expected):
+    assert Delta(nanoseconds=change) + np.datetime64(text, "ns") == expected
