@@ -22,7 +22,7 @@ def test_default_weekday_view_preserves_saved_spellings(word):
 def test_individual_configs_cannot_extend_default_calendar_queries():
     cfg = Configs()
     cfg.add_month("certainlycustommonth", 5)
-    assert cfg.get_month("certainlycustommonth") == 5
+    assert cfg.month["certainlycustommonth"] == 5
     with pytest.raises(ValueError, match="Pydt.is_month"):
         Pydt(2024, 5, 7).is_month("certainlycustommonth")
 
