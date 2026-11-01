@@ -234,6 +234,31 @@ pub(crate) enum DeltaScalar {
     },
 }
 
+/// Resolve disjoint exact NumPy scalars before an unrelated Python type lookup.
+/// Keep the general bulk/subclass route unchanged; both paths use the same
+/// retained real types and the one validated scalar decoder.
+#[inline]
+pub(crate) fn exact_delta_scalar(
+    value: &Bound<'_, PyAny>,
+    allow_date: bool,
+) -> PyResult<Option<DeltaScalar>> {
+    let py = value.py();
+    let (date, duration) = scalar_types(py)?;
+    // SAFETY: the bound object and retained native types are live under the GIL.
+    let actual = unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) };
+    if actual == date.bind(py).as_type_ptr() {
+        return if allow_date {
+            decode_delta_scalar(value, true).map(Some)
+        } else {
+            Ok(None)
+        };
+    }
+    if actual == duration.bind(py).as_type_ptr() {
+        return decode_delta_scalar(value, false).map(Some);
+    }
+    Ok(None)
+}
+
 /// Qualify genuine temporal inheritance before decoding its public scalar data.
 pub(crate) fn delta_scalar(
     value: &Bound<'_, PyAny>,
@@ -272,7 +297,7 @@ pub(crate) fn delta_scalar(
 
 /// Decode after real ancestry was proved, avoiding tick*multiplier*ns overflow.
 fn decode_delta_scalar(value: &Bound<'_, PyAny>, datetime: bool) -> PyResult<DeltaScalar> {
-    // SAFETY: both callers prove real datetime64/timedelta64 scalar ancestry.
+    // SAFETY: callers prove real datetime64/timedelta64 scalar ancestry.
     // The input remains owned and the GIL held through these immutable reads.
     let scalar = unsafe { &*value.as_ptr().cast::<Scalar>() };
     if scalar.value == i64::MIN {

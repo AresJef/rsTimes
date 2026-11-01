@@ -883,6 +883,9 @@ impl Delta {
             return Bound::new(other.py(), self.with_duration(rhs, false, false)?)
                 .map(Bound::into_any);
         }
+        if let Some(value) = crate::numpy_scalar::exact_delta_scalar(other, true)? {
+            return self.apply_numpy(other.py(), value, false, false, false);
+        }
         if crate::interop::is_relativedelta(other)? {
             return Bound::new(
                 other.py(),
@@ -921,6 +924,9 @@ impl Delta {
             return Bound::new(other.py(), self.with_duration(rhs, false, false)?)
                 .map(Bound::into_any);
         }
+        if let Some(value) = crate::numpy_scalar::exact_delta_scalar(other, true)? {
+            return self.apply_numpy(other.py(), value, false, true, false);
+        }
         if crate::interop::is_relativedelta(other)? {
             return Bound::new(
                 other.py(),
@@ -955,6 +961,9 @@ impl Delta {
         if let Ok(rhs) = other.cast::<PyDelta>() {
             return Bound::new(other.py(), self.with_duration(rhs, true, true)?)
                 .map(Bound::into_any);
+        }
+        if let Some(value) = crate::numpy_scalar::exact_delta_scalar(other, true)? {
+            return self.apply_numpy(other.py(), value, true, true, false);
         }
         if crate::interop::is_relativedelta(other)? {
             return Bound::new(
@@ -1004,6 +1013,9 @@ impl Delta {
         if let Ok(rhs) = other.cast::<PyDelta>() {
             return Bound::new(other.py(), self.with_duration(rhs, true, false)?)
                 .map(Bound::into_any);
+        }
+        if let Some(value) = crate::numpy_scalar::exact_delta_scalar(other, false)? {
+            return self.apply_numpy(other.py(), value, true, false, false);
         }
         if crate::interop::is_relativedelta(other)? {
             return Bound::new(
