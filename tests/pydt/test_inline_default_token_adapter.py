@@ -7,6 +7,31 @@ import pytest
 from rstimes import Pydt
 
 
+def test_real_unicode_subclass_does_not_use_its_displayed_class():
+    class Name(str):
+        @property
+        def __class__(self):
+            return int
+
+        def __str__(self):
+            raise AssertionError("a real saved name must not be stringified")
+
+    assert Pydt(2024, 5, 7).is_month(Name("May")) is True
+    assert Pydt(2024, 6, 7).is_month(Name("May")) is False
+
+
+def test_false_unicode_display_keeps_the_real_integer_protocol():
+    class Number:
+        @property
+        def __class__(self):
+            return str
+
+        def __index__(self):
+            return 5
+
+    assert Pydt(2024, 5, 7).is_month(Number()) is True
+
+
 @pytest.mark.parametrize("token", ["may", "May", "MAY"])
 def test_ascii_month_name_uses_the_complete_default_rule(token):
     assert Pydt(2024, 5, 7).is_month(token) is True

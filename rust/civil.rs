@@ -79,6 +79,40 @@ pub(crate) fn from_ordinal(ordinal: i128) -> Result<(i128, u8, u8), &'static str
     Ok((year, month as u8, day as u8))
 }
 
+/// Prove a small relative-only date move in the native integer width.
+/// Any unproved intermediate returns None; the wide resolver remains the
+/// authority for that input, including large values that later cancel.
+#[inline]
+fn small_relative_date(
+    value: &DeltaValue,
+    input: (i128, u8, u8),
+    sign: i64,
+    clock_carry: i64,
+) -> Option<(i128, u8, u8)> {
+    let mut year = i64::try_from(input.0)
+        .ok()?
+        .checked_add(value.years.checked_mul(sign)?)?;
+    let mut month = i64::from(input.1) + sign * i64::from(value.months());
+    if month > 12 {
+        month -= 12;
+        year = year.checked_add(1)?;
+    } else if month < 1 {
+        month += 12;
+        year = year.checked_sub(1)?;
+    }
+    let days = value.days.checked_mul(sign)?.checked_add(clock_carry)?;
+    if !(-27..=27).contains(&days) {
+        return None;
+    }
+    let day = if input.2 > 28 {
+        i64::from(input.2).min(crate::calendar::days_in_month(year, month))
+    } else {
+        i64::from(input.2)
+    };
+    let [year, month, day] = crate::calendar::shift_small_days(year, month, day, days).ok()?;
+    Some((i128::from(year), month as u8, day as u8))
+}
+
 /// Resolve the date portion once for every precision-specific adapter.
 /// Input fields and direction have already passed the caller's invariants;
 /// clock_carry is the exact bounded day carry from that adapter's clock.
@@ -90,6 +124,11 @@ pub(crate) fn apply_date(
     clock_carry: i64,
 ) -> Result<(i128, u8, u8), &'static str> {
     let absolute = value.absolute();
+    if absolute.is_empty()
+        && let Some(date) = small_relative_date(value, input, sign, clock_carry)
+    {
+        return Ok(date);
+    }
     let (mut year, mut month, day, weekday) = if absolute.is_empty() {
         (input.0, i64::from(input.1), input.2, None)
     } else {
@@ -255,6 +294,61 @@ pub(crate) fn project_microseconds(mut value: CivilNs) -> Result<[i64; 7], &'sta
 mod tests {
     use super::*;
     use crate::delta::value::AbsoluteFields;
+
+    #[test]
+    fn small_relative_dates_match_independent_ordinal_movement() {
+        for year in [-10_000, -1, 0, 1, 1900, 2000, 2024, 9999, 10_000, 1_000_000] {
+            for month in [1, 2, 6, 12] {
+                for day in [1, month_length(year, month)] {
+                    for total_months in [-13, -1, 0, 1, 13] {
+                        for days in [-30, -27, -1, 0, 1, 27, 30] {
+                            let value = DeltaValue::from_totals(
+                                total_months,
+                                days * NS_PER_DAY,
+                                AbsoluteFields::EMPTY,
+                            )
+                            .unwrap();
+                            for sign in [-1, 1] {
+                                for carry in [-1, 0, 1] {
+                                    let selected = year * 12 + i128::from(month) - 1
+                                        + i128::from(sign) * total_months;
+                                    let target_year = selected.div_euclid(12);
+                                    let target_month = (selected.rem_euclid(12) + 1) as u8;
+                                    let target_day =
+                                        day.min(month_length(target_year, target_month));
+                                    let number = ordinal(target_year, target_month, target_day)
+                                        .unwrap()
+                                        + i128::from(sign) * days
+                                        + i128::from(carry);
+                                    assert_eq!(
+                                        apply_date(&value, (year, month, day), sign, carry)
+                                            .unwrap(),
+                                        from_ordinal(number).unwrap(),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn unproved_small_intermediates_retain_the_wide_result() {
+        let value = DeltaValue::from_canonical(i64::MIN, 0, 0, 0, AbsoluteFields::EMPTY);
+        assert!(small_relative_date(&value, (1, 1, 1), -1, 0).is_none());
+        assert_eq!(
+            apply_date(&value, (1, 1, 1), -1, 0).unwrap(),
+            (1 - i128::from(i64::MIN), 1, 1),
+        );
+        let value = DeltaValue::from_canonical(0, 0, i64::MAX, 0, AbsoluteFields::EMPTY);
+        assert!(small_relative_date(&value, (2024, 1, 1), 1, 1).is_none());
+        assert_eq!(
+            apply_date(&value, (2024, 1, 1), 1, 1).unwrap(),
+            from_ordinal(ordinal(2024, 1, 1).unwrap() + i128::from(i64::MAX) + 1).unwrap(),
+        );
+    }
 
     #[test]
     fn final_coordinate_controls_half_even_projection() {

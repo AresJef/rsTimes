@@ -141,3 +141,16 @@ def test_repeated_present_zero_state_keeps_live_metadata_and_independent_snapsho
     first[3]["extra"] = "not live"
     assert value.__dict__ == {"note": "second"}
     assert second[3] == {"note": "second"}
+
+
+@pytest.mark.parametrize(
+    "ymd,days",
+    [((2024, 1, 31), 32), ((2023, 1, 31), 31),
+     ((2024, 5, 7), 34), ((2024, 12, 31), 34), ((2024, 2, 29), 32)],
+)
+@pytest.mark.parametrize("zone", [None, timezone.utc])
+def test_anchored_month_span_has_independent_day_distance(ymd, days, zone):
+    value = Delta(months=1, days=3, hours=2)
+    start = datetime(*ymd, 23, 17, 39, 123456, tzinfo=zone, fold=1)
+    assert value.to_timedelta(start) == timedelta(days=days, hours=2)
+    assert value.to_timedelta(date(*ymd)) == timedelta(days=days)

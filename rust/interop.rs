@@ -638,6 +638,11 @@ pub(crate) fn builtin_span<'py>(
     }
     let mut days = if result[..3] == input[..3] {
         0
+    } else if result[0] == input[0] {
+        // Both dates have the same Gregorian origin. Avoid computing and
+        // subtracting that full year origin twice for an anchored wall span.
+        crate::calendar::day_of_year(result[0], result[1], result[2])
+            - crate::calendar::day_of_year(input[0], input[1], input[2])
     } else {
         crate::calendar::ordinal(result[0], result[1], result[2])
             - crate::calendar::ordinal(input[0], input[1], input[2])

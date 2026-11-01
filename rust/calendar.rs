@@ -447,6 +447,39 @@ pub(crate) fn apply_hours(
 mod tests {
     use super::*;
     #[test]
+    fn whole_hour_change_flag_matches_all_result_fields() {
+        use crate::delta::value::{AbsoluteField as F, AbsoluteFields, DeltaValue};
+        for total_months in [-13, -1, 0, 1, 13] {
+            for relative_hours in [-25, -1, 0, 1, 25] {
+                for selection in [None, Some(31)] {
+                    let mut absolute = AbsoluteFields::EMPTY;
+                    absolute.set(F::Day, selection).unwrap();
+                    let value = DeltaValue::from_totals(
+                        total_months,
+                        relative_hours * 3_600_000_000_000,
+                        absolute,
+                    )
+                    .unwrap();
+                    let hours = (value.clock_ns() / 3_600_000_000_000) as i64;
+                    for day in [1, 28, 29] {
+                        for hour in [0, 23] {
+                            let input = [2024, 2, day, hour, 17, 39, 123_456];
+                            for sign in [-1, 1] {
+                                for datetime in [false, true] {
+                                    let (result, unchanged) =
+                                        apply_hours(&value, input, sign, datetime, hours).unwrap();
+                                    assert_eq!(unchanged, result == input);
+                                    assert_eq!(result[4..], input[4..]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn direct_year_position_matches_independent_month_totals() {
         for (year, leap_year) in [
             (0, true),
