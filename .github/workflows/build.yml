@@ -69,9 +69,9 @@ jobs:
     name: CPython ${{ matrix.python.label }} / ${{ matrix.platform.id }}
     needs: matrix
     runs-on: ${{ matrix.platform.runner }}
-    # Cold official Polars t builds plus our native and full installed checks
-    # exceed 75 minutes on measured ARM/musl runners; ordinary lanes keep their limit.
-    timeout-minutes: ${{ matrix.python.free_threaded && 120 || 75 }}
+    # Some cold full-featured upstream t builds alone reach the old75min cap.
+    # Bound the whole t build/install/test job at3h; ordinary lanes stay at75min.
+    timeout-minutes: ${{ matrix.python.free_threaded && 180 || 75 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.native) }}
