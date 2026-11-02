@@ -6,6 +6,7 @@ run on ordinary CPython; they make no unsupported throughput or speedup claim.
 from concurrent.futures import ThreadPoolExecutor
 import copy
 from datetime import datetime, timedelta
+from datetime import timezone
 import json
 from pathlib import Path
 import pickle
@@ -291,3 +292,40 @@ def test_stable_shared_date_columns_and_expression_execute_independently(workers
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         assert all(pool.map(calculate, range(workers)))
+
+
+@pytest.mark.parametrize("workers", [2, 4])
+def test_shared_region_conversion_keeps_both_dst_instants_and_nanoseconds(workers):
+    """Concurrent region preparation cannot conflate the two repeated clocks."""
+    pd = pytest.importorskip("pandas")
+    pl = pytest.importorskip("polars")
+    from rstimes import Pddt, Pldt
+
+    epoch = datetime(1970, 1, 1)
+    early = ((datetime(2024, 11, 3, 5, 30) - epoch) // timedelta(seconds=1)) * 10**9 + 789
+    late = early + 3600 * 10**9
+    pandas_dates = Pddt([early, None, late], unit="ns", tz="UTC")
+    polars_dates = Pldt([early, None, late], unit="ns", tz="UTC")
+    frame = pl.DataFrame({"time": polars_dates})
+    scalars = [Pydt(2024, 11, 3, hour, 30, tzinfo=timezone.utc) for hour in (5, 6)]
+    barrier = threading.Barrier(workers)
+
+    def convert(_):
+        barrier.wait(timeout=10)
+        for _ in range(8):
+            values = [value.tz_convert("America/New_York") for value in scalars]
+            assert [(v.hour, v.minute, v.fold, v.utcoffset()) for v in values] == [
+                (1, 30, 0, timedelta(hours=-4)), (1, 30, 1, timedelta(hours=-5))]
+            pandas_result = pandas_dates.tz_convert("America/New_York")
+            assert pandas_result.asi8.tolist() == [early, pd.NaT.value, late]
+            assert (pandas_result[0].fold, pandas_result[2].fold) == (0, 1)
+            polars_result = polars_dates.tz_convert("America/New_York")
+            assert polars_result.to_physical().to_list() == [early, None, late]
+            expr = pl.col("time").pldt.tz_convert("America/New_York")
+            result = frame.select(expr).to_series()
+            assert result.to_physical().to_list() == [early, None, late]
+            assert result.dt.strftime("%z").to_list() == ["-0400", None, "-0500"]
+        return True
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        assert all(pool.map(convert, range(workers)))
