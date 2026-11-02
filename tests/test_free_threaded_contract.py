@@ -23,6 +23,8 @@ from rstimes import Configs, Delta, Pydt, parse_str
                     reason="requires a free-threaded CPython build")
 def test_complete_import_and_work_keep_unforced_gil_disabled():
     """Build capability and actual GIL state are independent acceptance facts."""
+    pytest.importorskip("pandas", reason="four-class integration needs optional pandas")
+    pytest.importorskip("polars", reason="four-class integration needs optional Polars")
     code = """
 import os,sys,sysconfig,json
 assert 'PYTHON_GIL' not in os.environ
@@ -48,6 +50,30 @@ print(json.dumps({'native':native.__file__,'gil_enabled':sys._is_gil_enabled()})
                             cwd=Path(sys.prefix), capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stdout + result.stderr
     assert json.loads(result.stdout)["gil_enabled"] is False
+
+
+@pytest.mark.skipif(not sysconfig.get_config_var("Py_GIL_DISABLED"),
+                    reason="requires a free-threaded CPython build")
+def test_core_import_and_work_keep_unforced_gil_disabled():
+    """The core NoGIL contract never requires optional container dependencies."""
+    code = """
+import os,sys,sysconfig
+assert 'PYTHON_GIL' not in os.environ and 'gil' not in sys._xoptions
+assert sysconfig.get_config_var('Py_GIL_DISABLED') == 1
+assert not sys._is_gil_enabled()
+from rstimes import Configs,Delta,Pydt,parse_str
+import rstimes._native as native
+assert native._free_threaded_build() is True
+assert parse_str('29 February 2024',cfg=Configs()).day == 29
+assert (Pydt(2024,1,31)+Delta(months=1)).day == 29
+assert not sys._is_gil_enabled()
+"""
+    import os
+    env = dict(os.environ)
+    env.pop("PYTHON_GIL", None)
+    result = subprocess.run([sys.executable, "-I", "-c", code], env=env,
+                            cwd=Path(sys.prefix), capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_native_reports_its_actual_compiled_threading_abi():
@@ -128,6 +154,24 @@ def test_configs_numeric_callback_can_reenter_the_same_instance():
     assert cfg.weekday["workday"] == 2
 
 
+def test_different_configs_instances_can_edit_in_overlapping_callbacks():
+    """Per-instance business admission cannot serialize independent objects."""
+    configs = [Configs(), Configs()]
+    rendezvous = threading.Barrier(2)
+
+    class Month:
+        def __index__(self):
+            rendezvous.wait(timeout=10)
+            return 10
+
+    def edit(cfg):
+        assert cfg.add_month("harvest", Month()) is True
+        return parse_str("7 harvest 2024", cfg=cfg)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert list(pool.map(edit, configs)) == [datetime(2024, 10, 7)] * 2
+
+
 @pytest.mark.skipif(not sysconfig.get_config_var("Py_GIL_DISABLED"),
                     reason="edit admission is specific to free-threaded builds")
 def test_configs_overlapping_edit_reports_conflict_before_a_second_conversion():
@@ -151,6 +195,10 @@ def test_configs_overlapping_edit_reports_conflict_before_a_second_conversion():
         future = pool.submit(cfg.add_month, "harvest", Month())
         try:
             assert entered.wait(timeout=10)
+            with pytest.raises(RuntimeError, match="Configs.*concurrent"):
+                _ = cfg.month
+            with pytest.raises(RuntimeError, match="Configs.*concurrent"):
+                parse_str("7 October 2024", cfg=cfg)
             with pytest.raises(RuntimeError, match="Configs.*concurrent"):
                 cfg.add_weekday("workday", Day())
         finally:
