@@ -1132,7 +1132,7 @@ fn construct_subclass<'py, const VECTOR: bool>(
     let class = other.get_type();
     let called = if VECTOR {
         static KEYWORDS: PyOnceLock<Py<PyTuple>> = PyOnceLock::new();
-        let names = KEYWORDS.get_or_try_init(py, || -> PyResult<_> {
+        let names = crate::python_cache::get_or_prepare(&KEYWORDS, py, || -> PyResult<_> {
             Ok(PyTuple::new(py, keys.iter().map(|key| key.bind(py)))?.unbind())
         })?;
         let Some(dt) = dt else {

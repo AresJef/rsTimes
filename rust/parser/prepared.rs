@@ -39,7 +39,7 @@ impl TextContext {
         let default =
             super::prepare_default(py, default, yearfirst, dayfirst, isoformat, cfg, strict)?;
         let rules = match cfg {
-            Some(value) => value.cast::<Configs>()?.borrow().native_snapshot(),
+            Some(value) => super::config::read(value.cast::<Configs>()?)?.native_snapshot(),
             None => NativeRules::library(),
         };
         Ok(Self {
@@ -97,8 +97,13 @@ fn _pldt_prepare_text(
         })?;
     }
     let frozen = if expression.0 {
-        cfg.map(|value| Py::new(py, value.cast::<Configs>()?.borrow().independent()))
-            .transpose()?
+        cfg.map(|value| {
+            Py::new(
+                py,
+                super::config::read(value.cast::<Configs>()?)?.independent(),
+            )
+        })
+        .transpose()?
     } else {
         None
     };

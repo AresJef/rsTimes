@@ -5,10 +5,17 @@ use super::zones::{self, RegisteredZone, ZoneMap};
 
 use pyo3::ffi;
 use pyo3::prelude::*;
+#[cfg(Py_GIL_DISABLED)]
+use pyo3::sync::MutexExt;
 use pyo3::types::{PyBool, PyDict, PyInt, PySet, PyString, PyTuple};
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
+#[cfg(Py_GIL_DISABLED)]
+use std::sync::{
+    Mutex,
+    atomic::{AtomicPtr, Ordering},
+};
 type Token = Vec<u32>;
 #[derive(Default, Clone)]
 struct Rules {
@@ -315,12 +322,9 @@ impl FormatRules {
     /// Validate Configs as before; only the immutable default path is borrowed.
     pub(crate) fn prepare(value: Option<&Bound<'_, PyAny>>) -> PyResult<Self> {
         if let Some(value) = value.filter(|v| !v.is_none()) {
-            let cfg = value
-                .cast::<Configs>()
-                .map_err(|_| {
-                    crate::error_context::type_error("cfg must be a Configs instance or None")
-                })?
-                .borrow();
+            let cfg = read(value.cast::<Configs>().map_err(|_| {
+                crate::error_context::type_error("cfg must be a Configs instance or None")
+            })?)?;
             Ok(Self {
                 owners: Some(cfg.owners.clone()),
                 zones: Some(cfg.zones.clone()),
@@ -519,10 +523,115 @@ impl RuleLookup for NativeView<'_> {
 #[pyclass(module = "rstimes.parser")]
 pub(crate) struct Configs {
     owners: [Owner; 8],
-    cache: [Option<(Owner, u64, Py<PyAny>)>; 8],
+    cache: DisplayCache,
+    #[cfg(Py_GIL_DISABLED)]
+    editor: Arc<AtomicPtr<ffi::PyThreadState>>,
     yearfirst: bool,
     dayfirst: bool,
     zones: Arc<ZoneMap>,
+}
+type DisplayEntry = Option<(Owner, u64, Py<PyAny>)>;
+#[cfg(not(Py_GIL_DISABLED))]
+type DisplayCache = [DisplayEntry; 8];
+#[cfg(Py_GIL_DISABLED)]
+type DisplayCache = Arc<Mutex<[DisplayEntry; 8]>>;
+
+/// Keep the conventional layout; t readers publish independently of PyRefMut.
+fn new_display_cache() -> DisplayCache {
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        std::array::from_fn(|_| None)
+    }
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        Arc::new(Mutex::new(std::array::from_fn(|_| None)))
+    }
+}
+
+/// A clear business conflict, rather than a Rust borrow panic or a lost edit.
+fn editing_conflict() -> PyErr {
+    crate::error_context::runtime(
+        "Configs: concurrent business editing/reading overlaps; finish configuring before sharing or synchronize access",
+    )
+}
+
+/// Read native rules without retaining a borrow across a Python callback.
+pub(crate) fn read<'py>(receiver: &Bound<'py, Configs>) -> PyResult<PyRef<'py, Configs>> {
+    let cfg = receiver.try_borrow().map_err(|_| editing_conflict())?;
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        let editor = cfg.editor.load(Ordering::Acquire);
+        // SAFETY: the current caller is attached to this interpreter. The live
+        // thread-state identity cannot be reused while its edit frame is active.
+        if !editor.is_null() && editor != unsafe { ffi::PyThreadState_Get() } {
+            return Err(editing_conflict());
+        }
+    }
+    Ok(cfg)
+}
+
+/// Commit only a short native change; no callback or retired Python Drop inside.
+fn write<'py>(receiver: &Bound<'py, Configs>) -> PyResult<PyRefMut<'py, Configs>> {
+    receiver.try_borrow_mut().map_err(|_| editing_conflict())
+}
+
+/// Admission is per instance, nonblocking and reentrant on the same Python thread.
+/// It is not a lock around a callback or around an entire parse operation.
+struct BusinessEdit {
+    #[cfg(Py_GIL_DISABLED)]
+    editor: Arc<AtomicPtr<ffi::PyThreadState>>,
+    #[cfg(Py_GIL_DISABLED)]
+    thread: *mut ffi::PyThreadState,
+    #[cfg(Py_GIL_DISABLED)]
+    owner: bool,
+}
+
+/// Reject another thread's overlapping edit before converting user arguments.
+#[inline]
+fn edit(receiver: &Bound<'_, Configs>, entry: &str) -> PyResult<BusinessEdit> {
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        let editor = read(receiver)
+            .map_err(|error| edit_error(receiver, entry, error))?
+            .editor
+            .clone();
+        let thread = unsafe { ffi::PyThreadState_Get() };
+        let owner = match editor.compare_exchange(
+            std::ptr::null_mut(),
+            thread,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => true,
+            Err(current) if current == thread => false,
+            Err(_) => return Err(edit_error(receiver, entry, editing_conflict())),
+        };
+        Ok(BusinessEdit {
+            editor,
+            thread,
+            owner,
+        })
+    }
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        let _ = (receiver, entry);
+        Ok(BusinessEdit {})
+    }
+}
+
+#[cfg(Py_GIL_DISABLED)]
+impl Drop for BusinessEdit {
+    fn drop(&mut self) {
+        if self.owner {
+            // Nested same-thread callbacks have completed before this frame.
+            let _ = self.editor.compare_exchange(
+                self.thread,
+                std::ptr::null_mut(),
+                Ordering::Release,
+                Ordering::Relaxed,
+            );
+        }
+    }
 }
 fn empty_owners() -> [Owner; 8] {
     std::array::from_fn(|_| Namespace::default())
@@ -785,11 +894,11 @@ fn add(
     value: i64,
 ) -> PyResult<bool> {
     let (key, value) = base_entry(receiver, i, token, value)?;
-    let mut owner = receiver.borrow().owners[i].clone();
+    let mut owner = read(receiver)?.owners[i].clone();
     owner.generation = owner.generation.wrapping_add(1);
     owner.put_base(key, value);
     let owner = rebuild_namespace(receiver, i, owner)?;
-    set_namespace(receiver, i, owner);
+    set_namespace(receiver, i, owner)?;
     Ok(true)
 }
 
@@ -799,7 +908,7 @@ fn validate_namespace(receiver: &Bound<'_, Configs>, i: usize, owner: &Owner) ->
     if i == 0 {
         return Ok(());
     }
-    let owners = receiver.borrow().owners.clone();
+    let owners = read(receiver)?.owners.clone();
     for key in owner.ext.keys() {
         for (j, other) in owners.iter().enumerate().skip(1) {
             if j != i && other.ext.contains_key(key) {
@@ -853,23 +962,36 @@ fn rebuild_namespace(receiver: &Bound<'_, Configs>, i: usize, mut owner: Owner) 
 fn remove(receiver: &Bound<'_, Configs>, i: usize, token: &Bound<'_, PyAny>) -> PyResult<bool> {
     let low = normalize(receiver, i, token, false)?;
     let key = encode(&low)?;
-    let mut owner = receiver.borrow().owners[i].clone();
+    let mut owner = read(receiver)?.owners[i].clone();
     if owner.base.remove(&key).is_none() {
         return Ok(false);
     }
     owner.base_order.retain(|v| v != &key);
     owner.generation = owner.generation.wrapping_add(1);
     let owner = rebuild_namespace(receiver, i, owner)?;
-    set_namespace(receiver, i, owner);
+    set_namespace(receiver, i, owner)?;
     Ok(true)
 }
 fn display<'py>(receiver: &Bound<'py, Configs>, i: usize) -> PyResult<Bound<'py, PyAny>> {
     let py = receiver.py();
+    #[cfg(Py_GIL_DISABLED)]
+    let (owner, cache) = {
+        let cfg = read(receiver)?;
+        (cfg.owners[i].clone(), cfg.cache.clone())
+    };
     let cached = {
-        let cfg = receiver.borrow();
+        #[cfg(not(Py_GIL_DISABLED))]
+        let cfg = read(receiver)?;
+        #[cfg(not(Py_GIL_DISABLED))]
         let owner = &cfg.owners[i];
         let generation = owner.generation;
-        cfg.cache[i]
+        #[cfg(not(Py_GIL_DISABLED))]
+        let slots = &cfg.cache;
+        #[cfg(Py_GIL_DISABLED)]
+        let slots = cache
+            .lock_py_attached(py)
+            .unwrap_or_else(|error| error.into_inner());
+        slots[i]
             .as_ref()
             .filter(|(o, g, _)| Arc::ptr_eq(&o.0, &owner.0) && *g == generation)
             .map(|(_, _, v)| v.clone_ref(py))
@@ -877,7 +999,8 @@ fn display<'py>(receiver: &Bound<'py, Configs>, i: usize) -> PyResult<Bound<'py,
     if let Some(cached) = cached {
         return copy_display(py, cached.bind(py), i);
     }
-    let owner = receiver.borrow().owners[i].clone();
+    #[cfg(not(Py_GIL_DISABLED))]
+    let owner = read(receiver)?.owners[i].clone();
     let generation = owner.generation;
     let entries = owner.base_entries();
     let out = if i < 3 {
@@ -893,22 +1016,35 @@ fn display<'py>(receiver: &Bound<'py, Configs>, i: usize) -> PyResult<Bound<'py,
         }
         out.into_any()
     };
-    receiver.borrow_mut().cache[i] = Some((owner, generation, out.clone().unbind()));
+    let candidate = Some((owner, generation, out.clone().unbind()));
+    #[cfg(not(Py_GIL_DISABLED))]
+    let retired = std::mem::replace(&mut write(receiver)?.cache[i], candidate);
+    #[cfg(Py_GIL_DISABLED)]
+    let retired = {
+        let mut slots = cache
+            .lock_py_attached(py)
+            .unwrap_or_else(|error| error.into_inner());
+        std::mem::replace(&mut slots[i], candidate)
+    };
+    drop(retired);
     copy_display(py, &out, i)
 }
 // Drop cached Python containers only after releasing the mutable borrow.
-fn set_namespace(receiver: &Bound<'_, Configs>, i: usize, owner: Owner) {
+fn set_namespace(receiver: &Bound<'_, Configs>, i: usize, owner: Owner) -> PyResult<()> {
     let retired = {
-        let mut cfg = receiver.borrow_mut();
-        (
-            std::mem::replace(&mut cfg.owners[i], owner),
-            cfg.cache[i].take(),
-        )
+        let mut cfg = write(receiver)?;
+        let previous = std::mem::replace(&mut cfg.owners[i], owner);
+        #[cfg(not(Py_GIL_DISABLED))]
+        let cached = cfg.cache[i].take();
+        #[cfg(Py_GIL_DISABLED)]
+        let cached = cfg
+            .cache
+            .lock_py_attached(receiver.py())
+            .unwrap_or_else(|error| error.into_inner())[i]
+            .take();
+        (previous, cached)
     };
     drop(retired);
-}
-fn detach_namespace(receiver: &Bound<'_, Configs>, i: usize) -> PyResult<()> {
-    set_namespace(receiver, i, Namespace::default());
     Ok(())
 }
 fn replace(
@@ -919,7 +1055,7 @@ fn replace(
     let Some(input) = input.filter(|v| !v.is_none()) else {
         let owner = defaults()[i].clone();
         validate_namespace(receiver, i, &owner)?;
-        set_namespace(receiver, i, owner);
+        set_namespace(receiver, i, owner)?;
         return Ok(true);
     };
     if !(if i < 3 {
@@ -948,7 +1084,7 @@ fn replace(
             .map(|(key, value)| (key.unbind(), Some(value.unbind())))
             .collect()
     };
-    let temporary = Py::new(receiver.py(), receiver.borrow().independent())?;
+    let temporary = Py::new(receiver.py(), read(receiver)?.independent())?;
     let temporary = temporary.bind(receiver.py());
     let mut owner = Namespace::default();
     for (token, value) in entries {
@@ -965,21 +1101,22 @@ fn replace(
     // A numeric callback may have changed another live namespace. Recheck at
     // commit, without replacing any unrelated changes made by that callback.
     validate_namespace(receiver, i, &owner)?;
-    set_namespace(receiver, i, owner);
+    set_namespace(receiver, i, owner)?;
     Ok(true)
 }
 
 const STATE_TAG: &str = "rstimes.Configs";
 fn snapshot_state(slf: &Bound<'_, Configs>) -> PyResult<Py<PyAny>> {
     let py = slf.py();
-    let (flags, all) = {
-        let cfg = slf.borrow();
+    let (flags, all, zones) = {
+        let cfg = read(slf)?;
         (
             cfg.flags(),
             cfg.owners
                 .iter()
                 .map(|o| o.base_entries())
                 .collect::<Vec<_>>(),
+            cfg.zones.clone(),
         )
     };
     let mut containers = Vec::with_capacity(8);
@@ -999,7 +1136,7 @@ fn snapshot_state(slf: &Bound<'_, Configs>) -> PyResult<Py<PyAny>> {
         }
     }
     let namespaces = PyTuple::new(py, containers)?;
-    let regions = zones::names(py, &slf.borrow().zones)?;
+    let regions = zones::names(py, &zones)?;
     Ok((STATE_TAG, 2, flags.0, flags.1, namespaces, regions)
         .into_pyobject(py)?
         .into_any()
@@ -1033,7 +1170,9 @@ impl Configs {
     fn empty() -> Self {
         Self {
             owners: empty_owners(),
-            cache: std::array::from_fn(|_| None),
+            cache: new_display_cache(),
+            #[cfg(Py_GIL_DISABLED)]
+            editor: Arc::new(AtomicPtr::new(std::ptr::null_mut())),
             yearfirst: false,
             dayfirst: false,
             zones: Arc::new(ZoneMap::new()),
@@ -1043,7 +1182,9 @@ impl Configs {
     pub(crate) fn independent(&self) -> Self {
         Self {
             owners: self.owners.clone(),
-            cache: std::array::from_fn(|_| None),
+            cache: new_display_cache(),
+            #[cfg(Py_GIL_DISABLED)]
+            editor: Arc::new(AtomicPtr::new(std::ptr::null_mut())),
             yearfirst: self.yearfirst,
             dayfirst: self.dayfirst,
             zones: self.zones.clone(),
@@ -1097,7 +1238,7 @@ impl Configs {
     }
     /// Return independent token namespaces and record the copy in memo.
     fn __deepcopy__(slf: &Bound<'_, Self>, memo: &Bound<'_, PyDict>) -> PyResult<Py<Self>> {
-        let out = slf.borrow().independent();
+        let out = read(slf)?.independent();
         let out = Py::new(slf.py(), out)?;
         memo.set_item(slf.as_ptr() as usize, &out)?;
         Ok(out)
@@ -1116,6 +1257,7 @@ impl Configs {
     /// Invalid states leave this configuration unchanged. Legacy state layouts
     /// are rejected. Restored rules do not share the input containers.
     fn __setstate__(slf: &Bound<'_, Self>, state: &Bound<'_, PyAny>) -> PyResult<()> {
+        let _edit = edit(slf, "Configs.__setstate__")?;
         (|| {
             let state = state.cast_exact::<PyTuple>().map_err(|_| {
                 crate::error_context::expected_type(state, "", "state", "an exact tuple")
@@ -1281,14 +1423,14 @@ impl Configs {
                     ))
                     .map_err(crate::error_context::external)?;
             }
-            let incoming = temporary.borrow().owners.clone();
+            let incoming = read(temporary)?.owners.clone();
             let retired = {
-                let mut cfg = slf.borrow_mut();
+                let mut cfg = write(slf)?;
                 cfg.yearfirst = year;
                 cfg.dayfirst = day;
                 (
                     std::mem::replace(&mut cfg.owners, incoming),
-                    std::mem::replace(&mut cfg.cache, std::array::from_fn(|_| None)),
+                    std::mem::replace(&mut cfg.cache, new_display_cache()),
                     std::mem::replace(&mut cfg.zones, Arc::new(regions)),
                 )
             };
@@ -1304,10 +1446,18 @@ impl Configs {
     /// The yearfirst and dayfirst flags are preserved. Each cleared namespace becomes
     /// independent of all existing copies.
     fn clear_settings(slf: &Bound<'_, Self>) -> PyResult<bool> {
-        for i in 0..8 {
-            detach_namespace(slf, i)?;
-        }
-        let retired = std::mem::replace(&mut slf.borrow_mut().zones, Arc::new(ZoneMap::new()));
+        let _edit = edit(slf, "Configs.clear_settings")?;
+        let incoming = empty_owners();
+        let cache = new_display_cache();
+        let zones = Arc::new(ZoneMap::new());
+        let retired = {
+            let mut cfg = write(slf)?;
+            (
+                std::mem::replace(&mut cfg.owners, incoming),
+                std::mem::replace(&mut cfg.cache, cache),
+                std::mem::replace(&mut cfg.zones, zones),
+            )
+        };
         drop(retired);
         Ok(true)
     }
@@ -1316,16 +1466,18 @@ impl Configs {
     /// The yearfirst and dayfirst flags are preserved. Resetting detaches the token
     /// namespaces from existing shallow copies.
     fn reset_settings(slf: &Bound<'_, Self>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.reset_settings")?;
         let incoming = std::array::from_fn(|i| defaults()[i].clone());
+        let cache = new_display_cache();
+        let zones = Arc::new(ZoneMap::new());
         let retired = {
-            let mut cfg = slf.borrow_mut();
+            let mut cfg = write(slf)?;
             (
                 std::mem::replace(&mut cfg.owners, incoming),
-                std::mem::replace(&mut cfg.cache, std::array::from_fn(|_| None)),
+                std::mem::replace(&mut cfg.cache, cache),
+                std::mem::replace(&mut cfg.zones, zones),
             )
         };
-        drop(retired);
-        let retired = std::mem::replace(&mut slf.borrow_mut().zones, Arc::new(ZoneMap::new()));
         drop(retired);
         Ok(true)
     }
@@ -1336,8 +1488,9 @@ impl Configs {
     /// returned set does not change the configuration. A restored name may be
     /// unavailable on this machine; restoring warns about those names.
     #[getter]
-    fn tzone<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PySet>> {
-        zones::names(py, &self.zones)
+    fn tzone<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PySet>> {
+        let zones = read(slf)?.zones.clone();
+        zones::names(slf.py(), &zones)
     }
 
     /// Register a time zone and return True.
@@ -1346,11 +1499,12 @@ impl Configs {
     /// sensitive. Missing time zone support or data raises an error and leaves
     /// the configuration unchanged.
     fn add_tzone(slf: &Bound<'_, Self>, key: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.add_tzone")?;
         let result: PyResult<bool> = (|| {
             let zone = zones::load(key, false)?;
             let token = zone.key.chars().map(u32::from).collect();
             let retired = {
-                let mut cfg = slf.borrow_mut();
+                let mut cfg = write(slf)?;
                 Arc::make_mut(&mut cfg.zones).insert(token, zone)
             };
             drop(retired);
@@ -1361,9 +1515,10 @@ impl Configs {
 
     /// Delete one registered time zone and return whether it existed.
     fn del_tzone(slf: &Bound<'_, Self>, key: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.del_tzone")?;
         let result: PyResult<bool> = (|| {
             let token = zones::token(key)?;
-            let retired = Arc::make_mut(&mut slf.borrow_mut().zones).remove(&token);
+            let retired = Arc::make_mut(&mut write(slf)?.zones).remove(&token);
             let existed = retired.is_some();
             drop(retired);
             Ok(existed)
@@ -1379,9 +1534,10 @@ impl Configs {
     /// an invalid or unavailable name leaves the old configuration unchanged.
     #[pyo3(signature=(keys=None))]
     fn set_tzone(slf: &Bound<'_, Self>, keys: Option<&Bound<'_, PyAny>>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.set_tzone")?;
         let result: PyResult<bool> = (|| {
             let incoming = Arc::new(zones::from_set(keys, false)?);
-            let retired = std::mem::replace(&mut slf.borrow_mut().zones, incoming);
+            let retired = std::mem::replace(&mut write(slf)?.zones, incoming);
             drop(retired);
             Ok(true)
         })();
@@ -1399,6 +1555,7 @@ impl Configs {
     /// Copied configurations remain unchanged by a successful replacement.
     #[pyo3(signature=(tokens=None))]
     fn set_jump(slf: &Bound<'_, Self>, tokens: Option<&Bound<'_, PyAny>>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.set_jump")?;
         let result: PyResult<bool> = replace(slf, 0, tokens);
         result.map_err(|error| edit_error(slf, "Configs.set_jump", error))
     }
@@ -1413,6 +1570,7 @@ impl Configs {
     /// Copied configurations remain unchanged by a successful replacement.
     #[pyo3(signature=(tokens=None))]
     fn set_pertain(slf: &Bound<'_, Self>, tokens: Option<&Bound<'_, PyAny>>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.set_pertain")?;
         let result: PyResult<bool> = replace(slf, 1, tokens);
         result.map_err(|error| edit_error(slf, "Configs.set_pertain", error))
     }
@@ -1427,6 +1585,7 @@ impl Configs {
     /// Copied configurations remain unchanged by a successful replacement.
     #[pyo3(signature=(tokens=None))]
     fn set_utc(slf: &Bound<'_, Self>, tokens: Option<&Bound<'_, PyAny>>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.set_utc")?;
         let result: PyResult<bool> = replace(slf, 2, tokens);
         result.map_err(|error| edit_error(slf, "Configs.set_utc", error))
     }
@@ -1442,6 +1601,7 @@ impl Configs {
     /// Copied configurations remain unchanged by a successful replacement.
     #[pyo3(signature=(mapping=None))]
     fn set_tzoffset(slf: &Bound<'_, Self>, mapping: Option<&Bound<'_, PyAny>>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.set_tzoffset")?;
         let result: PyResult<bool> = replace(slf, 3, mapping);
         result.map_err(|error| edit_error(slf, "Configs.set_tzoffset", error))
     }
@@ -1457,6 +1617,7 @@ impl Configs {
     /// Copied configurations remain unchanged by a successful replacement.
     #[pyo3(signature=(mapping=None))]
     fn set_month(slf: &Bound<'_, Self>, mapping: Option<&Bound<'_, PyAny>>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.set_month")?;
         let result: PyResult<bool> = replace(slf, 4, mapping);
         result.map_err(|error| edit_error(slf, "Configs.set_month", error))
     }
@@ -1472,6 +1633,7 @@ impl Configs {
     /// Copied configurations remain unchanged by a successful replacement.
     #[pyo3(signature=(mapping=None))]
     fn set_weekday(slf: &Bound<'_, Self>, mapping: Option<&Bound<'_, PyAny>>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.set_weekday")?;
         let result: PyResult<bool> = replace(slf, 5, mapping);
         result.map_err(|error| edit_error(slf, "Configs.set_weekday", error))
     }
@@ -1487,6 +1649,7 @@ impl Configs {
     /// Copied configurations remain unchanged by a successful replacement.
     #[pyo3(signature=(mapping=None))]
     fn set_hms(slf: &Bound<'_, Self>, mapping: Option<&Bound<'_, PyAny>>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.set_hms")?;
         let result: PyResult<bool> = replace(slf, 6, mapping);
         result.map_err(|error| edit_error(slf, "Configs.set_hms", error))
     }
@@ -1502,6 +1665,7 @@ impl Configs {
     /// Copied configurations remain unchanged by a successful replacement.
     #[pyo3(signature=(mapping=None))]
     fn set_ampm(slf: &Bound<'_, Self>, mapping: Option<&Bound<'_, PyAny>>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.set_ampm")?;
         let result: PyResult<bool> = replace(slf, 7, mapping);
         result.map_err(|error| edit_error(slf, "Configs.set_ampm", error))
     }
@@ -1526,15 +1690,27 @@ impl Configs {
         yearfirst: &Bound<'_, PyAny>,
         dayfirst: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
+        let _edit = edit(slf, "Configs")?;
         let y = crate::numeric::boolean(yearfirst).map_err(|error| {
             crate::error_context::argument(slf.py(), error, "", "yearfirst", yearfirst)
         })?;
         let d = crate::numeric::boolean(dayfirst).map_err(|error| {
             crate::error_context::argument(slf.py(), error, "", "dayfirst", dayfirst)
         })?;
-        let mut cfg = slf.borrow_mut();
-        cfg.yearfirst = y;
-        cfg.dayfirst = d;
+        let incoming = defaults().clone();
+        let cache = new_display_cache();
+        let zones = Arc::new(ZoneMap::new());
+        let retired = {
+            let mut cfg = write(slf)?;
+            cfg.yearfirst = y;
+            cfg.dayfirst = d;
+            (
+                std::mem::replace(&mut cfg.owners, incoming),
+                std::mem::replace(&mut cfg.cache, cache),
+                std::mem::replace(&mut cfg.zones, zones),
+            )
+        };
+        drop(retired);
         Ok(())
     }
     /// Return the configuration class, calendar-order flags, and namespace sizes.
@@ -1587,6 +1763,7 @@ impl Configs {
     ///
     /// Changes affect this configuration only; copied configurations remain independent.
     fn add_jump(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.add_jump")?;
         let result: PyResult<bool> = add(slf, 0, token, 1);
         result.map_err(|error| edit_error(slf, "Configs.add_jump", error))
     }
@@ -1596,6 +1773,7 @@ impl Configs {
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_jump(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.del_jump")?;
         let result: PyResult<bool> = remove(slf, 0, token);
         result.map_err(|error| edit_error(slf, "Configs.del_jump", error))
     }
@@ -1617,6 +1795,7 @@ impl Configs {
     ///
     /// Changes affect this configuration only; copied configurations remain independent.
     fn add_pertain(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.add_pertain")?;
         let result: PyResult<bool> = add(slf, 1, token, 1);
         result.map_err(|error| edit_error(slf, "Configs.add_pertain", error))
     }
@@ -1626,6 +1805,7 @@ impl Configs {
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_pertain(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.del_pertain")?;
         let result: PyResult<bool> = remove(slf, 1, token);
         result.map_err(|error| edit_error(slf, "Configs.del_pertain", error))
     }
@@ -1647,6 +1827,7 @@ impl Configs {
     ///
     /// Changes affect this configuration only; copied configurations remain independent.
     fn add_utc(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.add_utc")?;
         let result: PyResult<bool> = add(slf, 2, token, 1);
         result.map_err(|error| edit_error(slf, "Configs.add_utc", error))
     }
@@ -1656,6 +1837,7 @@ impl Configs {
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_utc(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.del_utc")?;
         let result: PyResult<bool> = remove(slf, 2, token);
         result.map_err(|error| edit_error(slf, "Configs.del_utc", error))
     }
@@ -1686,6 +1868,7 @@ impl Configs {
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.add_tzoffset")?;
         let result: PyResult<bool> = (|| {
             validate_token_type(token)?;
             if args.len() > 3 {
@@ -1745,6 +1928,7 @@ impl Configs {
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_tzoffset(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.del_tzoffset")?;
         let result: PyResult<bool> = remove(slf, 3, token);
         result.map_err(|error| edit_error(slf, "Configs.del_tzoffset", error))
     }
@@ -1770,6 +1954,7 @@ impl Configs {
         token: &Bound<'_, PyAny>,
         month: &Bound<'_, PyAny>,
     ) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.add_month")?;
         let result: PyResult<bool> = (|| {
             validate_token_type(token)?;
             let month = c_int(month).map_err(|error| {
@@ -1785,6 +1970,7 @@ impl Configs {
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_month(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.del_month")?;
         let result: PyResult<bool> = remove(slf, 4, token);
         result.map_err(|error| edit_error(slf, "Configs.del_month", error))
     }
@@ -1810,6 +1996,7 @@ impl Configs {
         token: &Bound<'_, PyAny>,
         weekday: &Bound<'_, PyAny>,
     ) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.add_weekday")?;
         let result: PyResult<bool> = (|| {
             validate_token_type(token)?;
             let weekday = c_int(weekday).map_err(|error| {
@@ -1831,6 +2018,7 @@ impl Configs {
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_weekday(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.del_weekday")?;
         let result: PyResult<bool> = remove(slf, 5, token);
         result.map_err(|error| edit_error(slf, "Configs.del_weekday", error))
     }
@@ -1856,6 +2044,7 @@ impl Configs {
         token: &Bound<'_, PyAny>,
         flag: &Bound<'_, PyAny>,
     ) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.add_hms")?;
         let result: PyResult<bool> = (|| {
             validate_token_type(token)?;
             let flag = c_int(flag)?;
@@ -1869,6 +2058,7 @@ impl Configs {
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_hms(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.del_hms")?;
         let result: PyResult<bool> = remove(slf, 6, token);
         result.map_err(|error| edit_error(slf, "Configs.del_hms", error))
     }
@@ -1894,6 +2084,7 @@ impl Configs {
         token: &Bound<'_, PyAny>,
         flag: &Bound<'_, PyAny>,
     ) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.add_ampm")?;
         let result: PyResult<bool> = (|| {
             validate_token_type(token)?;
             let flag = c_int(flag)?;
@@ -1907,6 +2098,7 @@ impl Configs {
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_ampm(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
+        let _edit = edit(slf, "Configs.del_ampm")?;
         let result: PyResult<bool> = remove(slf, 7, token);
         result.map_err(|error| edit_error(slf, "Configs.del_ampm", error))
     }
@@ -1931,7 +2123,6 @@ class _Boundary:
         'Create configuration with default token rules.\n\nParameters\n----------\nyearfirst : bool, default True\n    Interpret the first value of an ambiguous calendar triple as year.\ndayfirst : bool, default False\n    Interpret the first non-year value as day. Together with yearfirst,\n    this selects Y/D/M; otherwise it selects D/M/Y.\n\nFlags accept only Python bool or NumPy boolean scalars. Calling __init__ again replaces the flags\nand resets all token rules. Word tokens are normalized to lowercase\nand recognized in lowercase, uppercase, and titlecase. Jump words may overlap\nany word table; other word-table conflicts are rejected. Register regional\nZoneInfo names with add_tzone; these use exact matching and are loaded once.\nFixed-offset aliases use tzoffset.\n\nToken properties return independent containers. copy.copy, copy.deepcopy and\npickle round trips create independent configurations. Editing rules or flags\nin either configuration does not change the other. Configs cannot be subclassed; use\nits add/del/set methods to customize rules. Saved state is independent. Replacements use an entry snapshot before numeric callbacks and commit only after validation; case-expanded conflicts are rejected.'
         try:
             self._flags(yearfirst, dayfirst)
-            self.reset_settings()
         except Exception as error:
             errors._raise_argument_context(error, "Configs", "arguments", None)
     @classmethod

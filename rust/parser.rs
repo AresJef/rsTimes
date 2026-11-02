@@ -743,7 +743,7 @@ fn scan_prepared<'py, P: Policy>(
     };
     let mut view = TextView::new(input)?;
     let parsed = if let Some(configuration) = configuration {
-        let native_config = configuration.borrow();
+        let native_config = config::read(configuration)?;
         let mut rules = native_config.native_view();
         core::read::<P, _, _>(
             &mut view,
@@ -946,8 +946,15 @@ pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     formatted::configure(module)?;
     prepared::configure(module)?;
     let configuration_type = py.get_type::<Configs>();
-    // SAFETY: registration has completed while the GIL is held. The sealed
-    // configuration type has a stable layout and its descriptors stay fixed.
+    // Boundary methods are installed before sealing the type. CPython 3.14's
+    // public API also handles the atomic flags of free-threaded builds.
+    #[cfg(Py_3_14)]
+    if unsafe { ffi::PyType_Freeze(configuration_type.as_type_ptr()) } < 0 {
+        return Err(PyErr::fetch(py));
+    }
+    // SAFETY: older supported interpreters have a GIL and registration has
+    // completed. The sealed type's layout and descriptors stay fixed.
+    #[cfg(not(Py_3_14))]
     unsafe {
         (*configuration_type.as_type_ptr()).tp_flags |= ffi::Py_TPFLAGS_IMMUTABLETYPE;
     }

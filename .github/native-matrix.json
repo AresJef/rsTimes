@@ -100,5 +100,15 @@
       "wheel_platform": "musllinux_1_2_aarch64",
       "new": true
     }
+  ],
+  "free_threaded_pythons": [
+    {
+      "minor": "3.14",
+      "version": "3.14.10"
+    },
+    {
+      "minor": "3.15",
+      "version": "3.15.2"
+    }
   ]
 }

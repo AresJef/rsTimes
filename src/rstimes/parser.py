@@ -3,7 +3,7 @@
 Use parse_str for text and parse for supported date/time objects or text.
 Configs provides vocabulary and date ordering for string parsing.
 """
-from ._optional import POLARS as pl, HAS_POLARS, POLARS_SERIES
+from ._optional import POLARS as pl, POLARS_SERIES
 from ._native import Configs, parse_str, parse, parse_to_epoch, _restore_configs
 from .errors import _own_error, _external_error
 
@@ -12,7 +12,7 @@ __all__ = ["Configs", "parse_str", "parse", "parse_to_epoch"]
 
 def _polars_epoch_value(value, ignoretz):
     """Export one Polars datetime through its integer-backed NumPy adapter."""
-    if not HAS_POLARS:
+    if POLARS_SERIES is None:
         raise _own_error(ImportError("Polars support requires polars; install rstimes[polars]."))
     if not issubclass(type(value), POLARS_SERIES):
         raise _own_error(TypeError("must be a Polars Datetime Series"), "dtobj", value)

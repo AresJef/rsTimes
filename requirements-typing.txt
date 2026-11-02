@@ -1,0 +1,11 @@
+# Isolated static-analysis profile. Runtime minimum/compatibility matrices stay
+# in requirements-test.txt and their existing dedicated environments.
+numpy==2.5.3
+pandas==3.0.6
+polars==2.1.0
+python-dateutil==2.9.0.post0
+pandas-stubs==3.0.5.260914
+types-python-dateutil==2.9.0.20261021
+typing-extensions==4.16.0
+pytest==9.2.0
+packaging==26.3

@@ -3834,7 +3834,7 @@ class Pldt(pl.Series):
         ...
 
     # Own versioned business-state protocol, not native Series serialized bytes.
-    def __getstate__(self) -> object:  # type: ignore[override]
+    def __getstate__(self) -> object:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY037; see tests/typing/pyright_exceptions.json.
         """Return business dictionary/initialized slots, without native caches.
         
         Returns
@@ -3920,7 +3920,7 @@ class Pldt(pl.Series):
             The true final result exceeds the current unit/target capacity."""
         ...
 
-    def to_numpy(self, *, writable: _Boolean=False, allow_copy: _Boolean=True, allow_nat_collision: _Boolean=False) -> np.ndarray:
+    def to_numpy(self, *, writable: _Boolean=False, allow_copy: _Boolean=True, allow_nat_collision: _Boolean=False) -> np.ndarray:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY038; see tests/typing/pyright_exceptions.json.
         """Use Polars' NumPy export, rejecting valid ticks that collide with NaT.
         
         Parameters
@@ -4040,7 +4040,7 @@ class Pldt(pl.Series):
         ...
 
     # Approved date arithmetic/Duration output differs from the generic Series Self stub.
-    @overload  # type: ignore[override]
+    @overload
     def __add__(self, other: Delta | _dt.timedelta | np.timedelta64) -> Self:
         """Apply a calendar Delta or a fixed elapsed duration.
 
@@ -4057,7 +4057,7 @@ class Pldt(pl.Series):
         ...
 
     @overload
-    def __add__(self, other: Any) -> Self | pl.Series | NotImplementedType:
+    def __add__(self, other: Any) -> Self | pl.Series | NotImplementedType:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY039; see tests/typing/pyright_exceptions.json.
         """Apply a calendar Delta or fixed elapsed duration at the current unit.
         
         Parameters
@@ -4126,7 +4126,7 @@ class Pldt(pl.Series):
         ...
 
     # Approved date arithmetic/Duration output differs from the generic Series Self stub.
-    @overload  # type: ignore[override]
+    @overload
     def __sub__(self, other: Delta | _dt.timedelta | np.timedelta64) -> Self:
         """Apply a calendar Delta or a fixed elapsed duration.
 

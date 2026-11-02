@@ -2,7 +2,8 @@
 
 Only copy/save operations enter this module. Date operations never scan state.
 """
-from copy import _reconstruct
+from copy import _reconstruct  # pyright: ignore[reportAttributeAccessIssue] -- TY050; see tests/typing/pyright_exceptions.json.
+from typing import cast
 from ._class_protocol import definition as _definition
 
 from .errors import _own_error, _external_error
@@ -22,7 +23,7 @@ def capture(value):
     if state is None:
         return None
     dictionary,slots=state if isinstance(state,tuple) else (state,None)
-    dictionary=None if dictionary is None else {key:item for key,item in dict.items(dictionary) if key not in _CORE_KEYS}
+    dictionary=None if dictionary is None else {key:item for key,item in dict.items(cast(dict[str, object], dictionary)) if key not in _CORE_KEYS}
     slots=None if slots is None else {key:item for key,item in dict.items(slots) if key not in _CORE_KEYS}
     if slots:
         return dictionary or None,slots

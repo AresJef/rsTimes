@@ -55,7 +55,7 @@ if pd is not None:
 else:
     _pandas_frequency = _mature_units = None
 
-from typing import Any, Literal, SupportsIndex, SupportsFloat, Self, TypeAlias, overload
+from typing import Any, Literal, SupportsIndex, SupportsFloat, Self, TypeAlias, TypeVar, TYPE_CHECKING, cast, overload
 from collections.abc import Iterable
 from types import NotImplementedType
 import datetime as _dt
@@ -89,18 +89,30 @@ _Ambiguous: TypeAlias = Literal["raise", "NaT", "infer"] | _Boolean | _BooleanMa
 _ExprAmbiguous: TypeAlias = _Ambiguous | pl.Expr
 _Nonexistent: TypeAlias = Literal["raise", "NaT", "shift_forward", "shift_backward"] | _dt.timedelta
 _DeltaInput: TypeAlias = Delta | Iterable[Delta] | np.ndarray | pl.Series
+_SeriesT = TypeVar("_SeriesT", bound=pl.Series)
+_PldtT = TypeVar("_PldtT", bound="Pldt")
+
+if TYPE_CHECKING:
+    from ._backend_types import _PandasTicks, _PandasDateTicks
 
 _PLUGIN_PATH = Path(_native.__file__)
 _UNITS = ("ms", "us", "ns")
 _PD_COLUMN = (pd.Series, pd.Index, pd.api.extensions.ExtensionArray) if pd is not None else ()
 _PD_TABLE = (pd.DataFrame, pd.MultiIndex) if pd is not None else ()
-_PD_DATETIME_ARRAY = pd.arrays.DatetimeArray if pd is not None else ()
+# One import-time structural description; runtime identities remain pandas' own
+# actual classes, without wrappers or per-call casts for their public tick views.
+_PD_DATETIME_ARRAY = cast("type[_PandasDateTicks]", pd.arrays.DatetimeArray) if pd is not None else ()
+_PD_TIMEDELTA_ARRAY = cast("type[_PandasTicks]", pd.arrays.TimedeltaArray) if pd is not None else ()
 _NUMPY_FLOAT_TYPES = (np.float16, np.float32, np.float64)
 _NUMPY_EXPORT_SUBNS = {"ps": -1, "fs": -2, "as": -3}
 _NUMPY_DATE_CODES = {"Y": 0, "M": 1, "W": 2, "D": 4, "h": 5, "m": 6, "s": 7, "ms": 8, "us": 9, "ns": 10, "generic": 14}
 _pldt_register_missing(pd.NA if pd is not None else None, pd.NaT if pd is not None else None)
 
 
+@overload
+def _unit(value: object, optional: Literal[False] = False) -> _Unit: ...
+@overload
+def _unit(value: object, optional: Literal[True]) -> _Unit | None: ...
 def _unit(value, optional=False):
     if value is None and optional:
         return None
@@ -143,7 +155,7 @@ def _zone_key(zone):
     raise TypeError("Pldt: this source timezone cannot be represented by Polars; select a supported target tz")
 
 
-def _construct(data, *, unit, name, copy, default, yearfirst, dayfirst, isoformat, strict, cfg, tz, policy):
+def _construct(data, *, unit, name, copy: _Boolean, default, yearfirst: _Boolean | None, dayfirst: _Boolean | None, isoformat: _Boolean, strict: _Boolean, cfg, tz, policy):
     """Read source roles once, then produce one native result carrier."""
     if isinstance(data, (str, bytes, bytearray, date, Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE) or data is None:
         raise TypeError("Pldt: data must be a one-dimensional date collection; use [value] for one date")
@@ -198,8 +210,8 @@ def _construct(data, *, unit, name, copy, default, yearfirst, dayfirst, isoforma
     return _pldt_objects(data, pl.Series, unit, base_unit, name if name is not None else _name(source_name) or "", default, yearfirst, dayfirst, isoformat, strict, cfg, tz, policy)
 
 
-def _text_eager(source, unit, tz, policy, default=None, yearfirst=None,
-                dayfirst=None, isoformat=True, strict=False, cfg=None, formatted=None):
+def _text_eager(source, unit, tz, policy, default=None, yearfirst: _Boolean | None=None,
+                dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg=None, formatted=None):
     """Prepare live host data once, then parse typed String chunks in Rust."""
     prepared = None
     if formatted is None:
@@ -212,9 +224,9 @@ def _text_eager(source, unit, tz, policy, default=None, yearfirst=None,
     return _pldt_text(source, pl.Series, prepared, formatted, unit, tz, policy)
 
 
-def _text_expression(source, *, unit=None, tz=None, default=None, yearfirst=None,
-                     dayfirst=None, isoformat=True, strict=False, cfg=None,
-                     ambiguous="raise", nonexistent="raise", fmt=None):
+def _text_expression(source, *, unit=None, tz=None, default=None, yearfirst: _Boolean | None=None,
+                     dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg=None,
+                     ambiguous: _ExprAmbiguous="raise", nonexistent: _Nonexistent="raise", fmt=None):
     entry = "Pldt.parse" if fmt is None else "Pldt.strptime"
     try:
         target = _prepare_zone(tz)
@@ -246,7 +258,7 @@ def _text_expression(source, *, unit=None, tz=None, default=None, yearfirst=None
 
 
 def _strptime_eager(data, fmt, *, size=None, tz=None, unit=None, name=None,
-                    cfg=None, ambiguous="raise", nonexistent="raise"):
+                    cfg=None, ambiguous: _Ambiguous="raise", nonexistent: _Nonexistent="raise"):
     try:
         unit = _unit(unit, optional=True)
         name = _name(name)
@@ -295,7 +307,13 @@ def _size(value, entry):
     return value
 
 
-def _clock_factory(cls, size, tz, unit, name, entry, naive):
+@overload
+def _clock_factory(cls: type[_PldtT], size: object, tz: object, unit: object, name: object, entry: object, naive: bool) -> _PldtT:
+    ...
+@overload
+def _clock_factory(cls: type[pl.Series], size: object, tz: object, unit: object, name: object, entry: object, naive: bool) -> pl.Series:
+    ...
+def _clock_factory(cls: type[_SeriesT], size, tz, unit, name, entry, naive: bool):
     try:
         size = _size(size, entry)
         unit = "us" if unit is None else _unit(unit)
@@ -308,8 +326,14 @@ def _clock_factory(cls, size, tz, unit, name, entry, naive):
         _raise_argument_context(error, entry, "arguments", None)
 
 
-def _numeric_eager(cls, data, kind, *, size=None, tz=None, unit=None, name=None,
-                   ambiguous="raise", nonexistent="raise", entry):
+@overload
+def _numeric_eager(cls: type[_PldtT], data: object, kind: object, *, size: object=None, tz: object=None, unit: object=None, name: object=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise', entry: object) -> _PldtT:
+    ...
+@overload
+def _numeric_eager(cls: type[pl.Series], data: object, kind: object, *, size: object=None, tz: object=None, unit: object=None, name: object=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise', entry: object) -> pl.Series:
+    ...
+def _numeric_eager(cls: type[_SeriesT], data, kind, *, size=None, tz=None, unit=None, name=None,
+                   ambiguous: _Ambiguous="raise", nonexistent: _Nonexistent="raise", entry):
     try:
         unit = _unit(unit, optional=True)
         name = _name(name)
@@ -361,7 +385,7 @@ def _numeric_eager(cls, data, kind, *, size=None, tz=None, unit=None, name=None,
 
 
 def _numeric_expression(source, kind, *, unit=None, tz=None,
-                        ambiguous="raise", nonexistent="raise", entry):
+                        ambiguous: _ExprAmbiguous="raise", nonexistent: _Nonexistent="raise", entry):
     try:
         unit = _unit(unit, optional=True)
         target = _prepare_zone(tz)
@@ -379,10 +403,16 @@ def _numeric_expression(source, kind, *, unit=None, tz=None,
         _raise_argument_context(error, entry, "arguments", None)
 
 
-def _range_factory(cls, start=None, *, end=None, periods=None, freq=None, tz=None,
-                   normalize=False, inclusive="both", unit=None, name=None, default=None,
-                   yearfirst=None, dayfirst=None, isoformat=True, strict=False, cfg=None,
-                   ambiguous="raise", nonexistent="raise"):
+@overload
+def _range_factory(cls: type[_PldtT], start: object=None, *, end: object=None, periods: object=None, freq: object=None, tz: object=None, normalize: _Boolean=False, inclusive: str='both', unit: object=None, name: object=None, default: object=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: object=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT:
+    ...
+@overload
+def _range_factory(cls: type[pl.Series], start: object=None, *, end: object=None, periods: object=None, freq: object=None, tz: object=None, normalize: _Boolean=False, inclusive: str='both', unit: object=None, name: object=None, default: object=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: object=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Series:
+    ...
+def _range_factory(cls: type[_SeriesT], start=None, *, end=None, periods=None, freq=None, tz=None,
+                   normalize: _Boolean=False, inclusive: str="both", unit=None, name=None, default=None,
+                   yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg=None,
+                   ambiguous: _Ambiguous="raise", nonexistent: _Nonexistent="raise"):
     entry = "Pldt.date_range"
     try:
         unit = _unit(unit, optional=True)
@@ -411,14 +441,14 @@ def _range_factory(cls, start=None, *, end=None, periods=None, freq=None, tz=Non
         if freq is None:
             plan = None
         elif pd is not None and isinstance(freq, pd.DateOffset) and not isinstance(freq, timedelta):
-            plan, metadata, delegated = _pandas_frequency(freq)
+            plan, metadata, delegated = _pandas_frequency(freq)  # pyright: ignore[reportOptionalCall] -- TY020; see tests/typing/pyright_exceptions.json.
         else:
             plan = _pldt_frequency(freq)
             delegated = plan is None
             if delegated:
                 if pd is None:
                     raise ImportError("this special date_range rule requires optional pandas; install rstimes[pandas]")
-                plan, metadata, delegated = _pandas_frequency(freq)
+                plan, metadata, delegated = _pandas_frequency(freq)  # pyright: ignore[reportOptionalCall] -- TY021; see tests/typing/pyright_exceptions.json.
         if delegated and sum(value is not None for value in (start, end, periods)) != 2:
             raise _own_error(ValueError("exactly two of start, end and periods are required with a frequency"), "arguments", None)
         inputs = _pldt_range_endpoints(start, end, policy, plan, unit, target, normalize, default,
@@ -430,12 +460,12 @@ def _range_factory(cls, start=None, *, end=None, periods=None, freq=None, tz=Non
             first, last, carrier_unit = inputs.carrier()
             first = None if first is None else pd.Timestamp(np.datetime64(first, carrier_unit))
             last = None if last is None else pd.Timestamp(np.datetime64(last, carrier_unit))
-            generation_unit, minimum_unit = _mature_units(metadata, inputs.unit, carrier_unit)
+            generation_unit, minimum_unit = _mature_units(metadata, inputs.unit, carrier_unit)  # pyright: ignore[reportOptionalCall] -- TY022; see tests/typing/pyright_exceptions.json.
             if generation_unit is not None:
                 units = ("s", "ms", "us", "ns")
                 generation_unit = units[max(units.index(generation_unit), units.index(carrier_unit))]
             try:
-                external = pd.date_range(start=first, end=last, periods=periods, freq=metadata,
+                external = pd.date_range(start=first, end=last, periods=periods, freq=metadata,  # pyright: ignore[reportCallIssue] -- TY023; see tests/typing/pyright_exceptions.json.
                                          unit=generation_unit, inclusive="both")
             except Exception as error:
                 raise _external_error(error)
@@ -447,8 +477,14 @@ def _range_factory(cls, start=None, *, end=None, periods=None, freq=None, tz=Non
         _raise_argument_context(error, entry, "arguments", None)
 
 
-def _iso_factory(cls, data, *, size=None, tz=None, unit=None, name=None,
-                 ambiguous="raise", nonexistent="raise"):
+@overload
+def _iso_factory(cls: type[_PldtT], data: object, *, size: object=None, tz: object=None, unit: object=None, name: object=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT:
+    ...
+@overload
+def _iso_factory(cls: type[pl.Series], data: object, *, size: object=None, tz: object=None, unit: object=None, name: object=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Series:
+    ...
+def _iso_factory(cls: type[_SeriesT], data, *, size=None, tz=None, unit=None, name=None,
+                 ambiguous: _Ambiguous="raise", nonexistent: _Nonexistent="raise"):
     try:
         unit = _unit(unit, optional=True)
         size = None if size is None else _size(size, "Pldt.fromisoformat")
@@ -479,7 +515,7 @@ def _iso_factory(cls, data, *, size=None, tz=None, unit=None, name=None,
         _raise_argument_context(error, "Pldt.fromisoformat", "arguments", None)
 
 
-def _iso_expression(source, *, tz=None, unit=None, ambiguous="raise", nonexistent="raise"):
+def _iso_expression(source, *, tz=None, unit=None, ambiguous: _ExprAmbiguous="raise", nonexistent: _Nonexistent="raise"):
     try:
         unit = _unit(unit, optional=True)
         target = _prepare_zone(tz)
@@ -494,8 +530,14 @@ def _iso_expression(source, *, tz=None, unit=None, ambiguous="raise", nonexisten
         _raise_argument_context(error, "Pldt.fromisoformat", "arguments", None)
 
 
-def _date_factory(cls, data, kind, *, size=None, tz=None, unit=None, name=None,
-                  ambiguous="raise", nonexistent="raise"):
+@overload
+def _date_factory(cls: type[_PldtT], data: object, kind: object, *, size: object=None, tz: object=None, unit: object=None, name: object=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT:
+    ...
+@overload
+def _date_factory(cls: type[pl.Series], data: object, kind: object, *, size: object=None, tz: object=None, unit: object=None, name: object=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Series:
+    ...
+def _date_factory(cls: type[_SeriesT], data, kind, *, size=None, tz=None, unit=None, name=None,
+                  ambiguous: _Ambiguous="raise", nonexistent: _Nonexistent="raise"):
     entry = "Pldt." + {"date": "fromdate", "datetime": "fromdatetime", "numpy": "fromdatetime64"}[kind]
     try:
         unit = _unit(unit, optional=True)
@@ -566,7 +608,7 @@ def _date_factory(cls, data, kind, *, size=None, tz=None, unit=None, name=None,
         _raise_argument_context(error, entry, "arguments", None)
 
 
-def _date_expression(source, kind, *, tz=None, unit=None, ambiguous="raise", nonexistent="raise"):
+def _date_expression(source, kind, *, tz=None, unit=None, ambiguous: _ExprAmbiguous="raise", nonexistent: _Nonexistent="raise"):
     entry = "Pldt.fromdate" if kind == "date" else "Pldt.fromdatetime"
     try:
         unit = _unit(unit, optional=True)
@@ -633,8 +675,14 @@ def _part_source(value, clock, keep_zone):
     return _pldt_parts_objects(value, _resolve_zone, clock, column, keep_zone), _name(name)
 
 
-def _combine_factory(cls, date, time, *, size=None, tz=None, unit=None, name=None,
-                     ambiguous="raise", nonexistent="raise"):
+@overload
+def _combine_factory(cls: type[_PldtT], date: object, time: object, *, size: object=None, tz: object=None, unit: object=None, name: object=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT:
+    ...
+@overload
+def _combine_factory(cls: type[pl.Series], date: object, time: object, *, size: object=None, tz: object=None, unit: object=None, name: object=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Series:
+    ...
+def _combine_factory(cls: type[_SeriesT], date, time, *, size=None, tz=None, unit=None, name=None,
+                     ambiguous: _Ambiguous="raise", nonexistent: _Nonexistent="raise"):
     try:
         unit = _unit(unit, optional=True)
         size = None if size is None else _size(size, "Pldt.combine")
@@ -651,7 +699,7 @@ def _combine_factory(cls, date, time, *, size=None, tz=None, unit=None, name=Non
         _raise_argument_context(error, "Pldt.combine", "arguments", None)
 
 
-def _combine_expression(source, time=None, *, tz=None, unit=None, ambiguous="raise", nonexistent="raise"):
+def _combine_expression(source, time=None, *, tz=None, unit=None, ambiguous: _ExprAmbiguous="raise", nonexistent: _Nonexistent="raise"):
     try:
         unit = _unit(unit, optional=True)
         target = _prepare_zone(tz)
@@ -704,8 +752,14 @@ def _integer_operand(value, entry, parameter):
     return source.rename(source_name or ""), scalar
 
 
-def _calendar_factory(cls, kind, components, *, size=None, tz=None, unit="us", name=None,
-                      ambiguous="raise", nonexistent="raise"):
+@overload
+def _calendar_factory(cls: type[_PldtT], kind: object, components: object, *, size: object=None, tz: object=None, unit: object='us', name: object=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT:
+    ...
+@overload
+def _calendar_factory(cls: type[pl.Series], kind: object, components: object, *, size: object=None, tz: object=None, unit: object='us', name: object=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Series:
+    ...
+def _calendar_factory(cls: type[_SeriesT], kind, components, *, size=None, tz=None, unit: object="us", name=None,
+                      ambiguous: _Ambiguous="raise", nonexistent: _Nonexistent="raise"):
     entry = "Pldt." + {"ordinal": "fromordinal", "iso": "fromisocalendar", "doy": "fromdayofyear"}[kind]
     try:
         unit = _unit(unit)
@@ -726,7 +780,7 @@ def _calendar_factory(cls, kind, components, *, size=None, tz=None, unit="us", n
         _raise_argument_context(error, entry, "arguments", None)
 
 
-def _calendar_expression(kind, components, *, tz=None, unit="us", ambiguous="raise", nonexistent="raise"):
+def _calendar_expression(kind, components, *, tz=None, unit: object="us", ambiguous: _ExprAmbiguous="raise", nonexistent: _Nonexistent="raise"):
     entry = "Pldt." + {"ordinal": "fromordinal", "iso": "fromisocalendar", "doy": "fromdayofyear"}[kind]
     try:
         unit = _unit(unit)
@@ -754,7 +808,13 @@ def _calendar_expression(kind, components, *, tz=None, unit="us", ambiguous="rai
         _raise_argument_context(error, entry, "arguments", None)
 
 
-def _as_unit(source, unit, round_ok):
+@overload
+def _as_unit(source: _PldtT, unit: object, round_ok: _Boolean) -> _PldtT:
+    ...
+@overload
+def _as_unit(source: pl.Series, unit: object, round_ok: _Boolean) -> Pldt:
+    ...
+def _as_unit(source, unit, round_ok: _Boolean):
     if source.dtype.base_type() not in (pl.Date, pl.Datetime):
         raise _own_error(TypeError("as_unit requires a Date/Datetime source"), "data", source)
     unit = _unit(unit)
@@ -766,7 +826,7 @@ def _as_unit(source, unit, round_ok):
 
 
 
-def _timezone_policy(ambiguous, nonexistent, *, expression):
+def _timezone_policy(ambiguous: _ExprAmbiguous, nonexistent: _Nonexistent, *, expression):
     if isinstance(ambiguous, pl.Expr):
         if not expression:
             raise _own_error(TypeError("ambiguous Expr is only valid in an Expr call"), "ambiguous", ambiguous)
@@ -783,7 +843,13 @@ def _timezone_policy(ambiguous, nonexistent, *, expression):
     return _pldt_policies(ambiguous, nonexistent), None, False
 
 
-def _tz_eager(source, operation, tz, base_tz=None, naive=False, ambiguous="raise", nonexistent="raise"):
+@overload
+def _tz_eager(source: _PldtT, operation: object, tz: object, base_tz: object=None, naive: _Boolean=False, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT:
+    ...
+@overload
+def _tz_eager(source: pl.Series, operation: object, tz: object, base_tz: object=None, naive: _Boolean=False, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
+    ...
+def _tz_eager(source, operation, tz, base_tz=None, naive: _Boolean=False, ambiguous: _Ambiguous="raise", nonexistent: _Nonexistent="raise"):
     entry = "Pldt." + {"localize": "tz_localize", "convert": "tz_convert", "switch": "tz_switch", "astimezone": "astimezone"}[operation]
     try:
         naive = _bool_option(naive, entry, "naive")
@@ -792,7 +858,7 @@ def _tz_eager(source, operation, tz, base_tz=None, naive=False, ambiguous="raise
         dtype = receiver.dtype
         if dtype.base_type() not in (pl.Date, pl.Datetime):
             raise _own_error(TypeError("source must be a Date/Datetime column"), "data", source)
-        source_aware = dtype.base_type() == pl.Datetime and dtype.time_zone is not None
+        source_aware = dtype.base_type() == pl.Datetime and cast(pl.Datetime, dtype).time_zone is not None
         target = _prepare_zone(_local_zone() if operation == "astimezone" and tz is None else tz)
         base = None
         if operation == "astimezone" and not source_aware:
@@ -807,7 +873,7 @@ def _tz_eager(source, operation, tz, base_tz=None, naive=False, ambiguous="raise
         _raise_argument_context(error, entry, "arguments", None)
 
 
-def _tz_expr(source, operation, tz, base_tz=None, naive=False, ambiguous="raise", nonexistent="raise"):
+def _tz_expr(source, operation, tz, base_tz=None, naive: _Boolean=False, ambiguous: _ExprAmbiguous="raise", nonexistent: _Nonexistent="raise"):
     entry = "Pldt." + {"localize": "tz_localize", "convert": "tz_convert", "switch": "tz_switch", "astimezone": "astimezone"}[operation]
     try:
         naive = _bool_option(naive, entry, "naive")
@@ -843,10 +909,10 @@ def _tz_expr(source, operation, tz, base_tz=None, naive=False, ambiguous="raise"
 _UNCHANGED_ZONE = object()
 _FIELD_NAMES = ("year", "month", "day", "hour", "minute", "second", "microsecond", "nanosecond")
 _INCREMENT_NAMES = ("years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds", "milliseconds", "microseconds", "nanoseconds")
-_FIELD_RANGES = ((None, None), (1, 12), (1, 31), (0, 23), (0, 59), (0, 59), (0, 999999), (0, 999))
+_FIELD_RANGES: tuple[tuple[int | None, int | None], ...] = ((None, None), (1, 12), (1, 31), (0, 23), (0, 59), (0, 59), (0, 999999), (0, 999))
 
 
-def _component(value, entry, parameter, optional, names, low, high):
+def _component(value, entry, parameter, optional, names, low, high) -> tuple[pl.Series, bool]:
     """Read a modification parameter once, preserving None and owning literals."""
     if isinstance(value, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
         raise _own_error(TypeError("requires a scalar or one-dimensional field collection"), parameter, value)
@@ -872,7 +938,7 @@ def _component(value, entry, parameter, optional, names, low, high):
     return _pldt_component_objects(value, column, (optional, names, low, high), entry, parameter)
 
 
-def _transform_roles(kind):
+def _transform_roles(kind) -> list[tuple[str, bool, int, int | None, int | None]]:
     if kind in ("replace", "adjust"):
         return [(label, True, 0, *bounds) for label, bounds in zip(_FIELD_NAMES, _FIELD_RANGES)]
     if kind in ("add", "sub"):
@@ -887,8 +953,20 @@ def _transform_roles(kind):
     return [required]
 
 
+@overload
+def _date_operation(owner: _PldtT, kind: object, components: object, method: object, *, tzinfo: object=_UNCHANGED_ZONE, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT:
+    ...
+@overload
+def _date_operation(owner: _SeriesNamespace, kind: object, components: object, method: object, *, tzinfo: object=_UNCHANGED_ZONE, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
+    ...
+@overload
+def _date_operation(owner: _ExprNamespace, kind: object, components: object, method: object, *, tzinfo: object=_UNCHANGED_ZONE, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
+    ...
+@overload
+def _date_operation(owner: object, kind: object, components: object, method: object, *, tzinfo: object=_UNCHANGED_ZONE, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt | pl.Expr:
+    ...
 def _date_operation(owner, kind, components, method, *, tzinfo=_UNCHANGED_ZONE,
-                    ambiguous="raise", nonexistent="raise"):
+                    ambiguous: _ExprAmbiguous="raise", nonexistent: _Nonexistent="raise"):
     """Prepare roles once and enter one native Series/Expr calendar kernel."""
     entry = "Pldt." + method
     try:
@@ -922,7 +1000,7 @@ def _date_operation(owner, kind, components, method, *, tzinfo=_UNCHANGED_ZONE,
             return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_transform",
                                             args=[source, *args], kwargs=options, is_elementwise=False)
         cls = type(owner._series) if isinstance(owner, _SeriesNamespace) and isinstance(owner._series, Pldt) else type(owner) if isinstance(owner, Pldt) else Pldt
-        result = _pldt_transform(source, args, scalars, Pldt if cls is Pldt else pl.Series,
+        result = _pldt_transform(cast(pl.Series, source), args, scalars, Pldt if cls is Pldt else pl.Series,
                                 kind, entry, target, replace_zone, policy)
         return result if cls is Pldt else cls(result)
     except Exception as error:
@@ -939,14 +1017,16 @@ def _prepare_arithmetic(other, entry, subtract, reflected=False, named=False):
     if isinstance(other, _PD_COLUMN):
         column = True
         array = other.array if isinstance(other, (pd.Series, pd.Index)) else other
-        if isinstance(array, (pd.arrays.DatetimeArray, pd.arrays.TimedeltaArray)):
-            storage = "M" if isinstance(array, pd.arrays.DatetimeArray) else "m"
+        if isinstance(array, (_PD_DATETIME_ARRAY, _PD_TIMEDELTA_ARRAY)):
+            storage = "M" if isinstance(array, _PD_DATETIME_ARRAY) else "m"
             if named:
                 raise _own_error(TypeError("requires actual Delta values"), "delta", other)
+            # The actual cached class test proves the structural storage API.
+            array = cast("_PandasTicks", array)
             unit = array.unit
             data = _base_array(array.asi8)
             return _pldt_operand_ticks(pl.Series("", data), storage, _NUMPY_DATE_CODES[unit], 1,
-                                       storage == "M" and array.tz is not None, True)
+                                       storage == "M" and cast("_PandasDateTicks", array).tz is not None, True)
         other = array
     if isinstance(other, np.ndarray):
         other = _base_array(other)
@@ -1036,6 +1116,21 @@ def _delta_expression(source, delta, subtract):
         _raise_argument_context(error, entry, "delta", delta)
 
 
+@overload
+def _period_operation(owner: _PldtT, kind: object, token: object, value: object, mode: object, query: Literal[False], method: object) -> _PldtT:
+    ...
+@overload
+def _period_operation(owner: _SeriesNamespace, kind: object, token: object, value: object, mode: object, query: Literal[False], method: object) -> Pldt:
+    ...
+@overload
+def _period_operation(owner: _ExprNamespace, kind: object, token: object, value: object, mode: object, query: bool, method: object) -> pl.Expr:
+    ...
+@overload
+def _period_operation(owner: object, kind: object, token: object, value: object, mode: object, query: Literal[False], method: object) -> Pldt | pl.Expr:
+    ...
+@overload
+def _period_operation(owner: object, kind: object, token: object, value: object, mode: object, query: Literal[True], method: object) -> pl.Series | pl.Expr:
+    ...
 def _period_operation(owner, kind, token, value, mode, query, method):
     """Prepare a static period/grid once and enter its shared native loop."""
     entry = "Pldt." + method
@@ -1046,7 +1141,7 @@ def _period_operation(owner, kind, token, value, mode, query, method):
             value = _integer_arg(value, entry, "precision")
         elif kind == "round":
             if pd is not None and isinstance(value, pd.DateOffset):
-                plan, _, delegated = _pandas_frequency(value)
+                plan, _, delegated = _pandas_frequency(value)  # pyright: ignore[reportOptionalCall] -- TY024; see tests/typing/pyright_exceptions.json.
                 if delegated or plan is None:
                     raise _own_error(ValueError("requires a positive fixed frequency"), "freq", value)
             else:
@@ -1071,7 +1166,7 @@ def _period_operation(owner, kind, token, value, mode, query, method):
 _NO_QUERY_TARGET = object()
 
 
-def _diff_target(value, count=None):
+def _diff_target(value, count=None) -> tuple[pl.Series, bool, int, tuple[int, int] | None, bool]:
     """Prepare exact date/seconds coordinates, with native dtype metadata."""
     if isinstance(value, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame) + _PD_TABLE):
         raise _own_error(TypeError("requires a scalar or a one-dimensional target collection"), "dtobj", value)
@@ -1129,7 +1224,7 @@ def _boundary_difference(owner, dtobj, unit, absolute, inclusive):
                                                 "absolute": absolute, "inclusive": inclusive, "scalar": scalar,
                                                 "storage": storage, "numpy": numpy, "aware": aware},
                                             is_elementwise=False)
-        return _pldt_diff(source, target, unit, absolute, inclusive, scalar, storage, numpy, aware)
+        return _pldt_diff(cast(pl.Series, source), cast(pl.Series, target), unit, absolute, inclusive, scalar, storage, numpy, aware)
     except Exception as error:
         _raise_argument_context(error, entry, "arguments", None)
 
@@ -1149,20 +1244,20 @@ def _query_operation(owner, code, method, value=_NO_QUERY_TARGET, names=0, param
                 target, scalar = _component(value, entry, parameter, False, names, None, None)
                 if expression:
                     target = pl.lit(target[0], dtype=pl.Int64) if scalar else pl.lit(target)
-        reference = _pldt_query_clock() if code in (107, 108) and (expression or source.len() != source.null_count()) else None
+        reference = _pldt_query_clock() if code in (107, 108) and (expression or cast(pl.Series, source).len() != cast(pl.Series, source).null_count()) else None
         if expression:
             return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_query",
                                             args=[source] if target is None else [source, target],
                                             kwargs={"version": 1, "code": code, "entry": entry,
                                                     "scalar": scalar, "reference": reference},
                                             is_elementwise=target is None)
-        result = _pldt_query(source, code, entry, target, scalar, reference)
+        result = _pldt_query(cast(pl.Series, source), code, entry, cast("pl.Series | None", target), scalar, reference)
         return result.struct.unnest() if code in (202, 203) else result
     except Exception as error:
         _raise_argument_context(error, entry, parameter or "arguments", None if value is _NO_QUERY_TARGET else value)
 
 
-def _output_operation(owner, code, method, utc=False, sep="T", timespec="auto", locale=None):
+def _output_operation(owner, code, method, utc: _Boolean=False, sep="T", timespec="auto", locale=None):
     """Prepare one native output plan, preserving a plain result's role."""
     entry = "Pldt." + method
     try:
@@ -1181,7 +1276,7 @@ def _python_output(owner, clock=False):
     entry = "Pldt.timetz" if clock else "Pldt.datetime"
     try:
         source = _plain_series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
-        key = source.dtype.time_zone if source.dtype.base_type() is pl.Datetime else None
+        key = cast(pl.Datetime, source.dtype).time_zone if source.dtype.base_type() is pl.Datetime else None
         zone = _resolve_zone(key) if key is not None else None
         values = _pldt_python_output(source, Pydt, zone, clock)
         result = np.empty(len(values), dtype=object)
@@ -1249,8 +1344,8 @@ def _strftime_operation(owner, format):
                                             is_elementwise=True)
         source = _plain_series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
         zone = None
-        if not context.native() and source.dtype.base_type() is pl.Datetime and source.dtype.time_zone is not None:
-            zone = _resolve_zone(source.dtype.time_zone)
+        if not context.native() and source.dtype.base_type() is pl.Datetime and cast(pl.Datetime, source.dtype).time_zone is not None:
+            zone = _resolve_zone(cast(pl.Datetime, source.dtype).time_zone)
         return _pldt_strftime(source, context, zone, pl.Series)
     except Exception as error:
         _raise_argument_context(error, entry, "format", format)
@@ -4086,7 +4181,7 @@ class _TimezoneMetadata:
 
     def _timezone_key(self):
         source = self._series if isinstance(self, _SeriesNamespace) else self
-        dtype = pl.Series.dtype.fget(source)
+        dtype = pl.Series.dtype.fget(source)  # pyright: ignore[reportOptionalCall] -- TY025; see tests/typing/pyright_exceptions.json.
         if dtype.base_type() not in (pl.Date, pl.Datetime):
             raise _own_error(TypeError('requires a Date or Datetime source'), 'data', source)
         return dtype.time_zone if dtype.base_type() is pl.Datetime else None
@@ -5427,7 +5522,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity."""
-        return _state_copy(self, False)
+        return _state_copy(self, False)  # pyright: ignore[reportReturnType] -- TY026; see tests/typing/pyright_exceptions.json.
 
     def copy(self, name: str | None=None, deep: _Boolean=False) -> Self:
         """Copy dates and business state without rerunning business initialization.
@@ -5446,7 +5541,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             A fresh same-class shell under the default protocol. Genuine custom
             copy/reduction hooks retain their return values and exceptions."""
         try:
-            return _state_copy(self, _bool_option(deep, 'Pldt.copy', 'deep'),
+            return _state_copy(self, _bool_option(deep, 'Pldt.copy', 'deep'),  # pyright: ignore[reportReturnType] -- TY027; see tests/typing/pyright_exceptions.json.
                                name=_name(name), honor_copy=True)
         except Exception as error:
             _raise_argument_context(error, 'Pldt.copy', 'arguments', None)
@@ -5475,9 +5570,9 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity."""
-        return _state_copy(self, True, memo)
+        return _state_copy(self, True, memo)  # pyright: ignore[reportReturnType] -- TY028; see tests/typing/pyright_exceptions.json.
 
-    def __getstate__(self) -> object:
+    def __getstate__(self) -> object:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY029; see tests/typing/pyright_exceptions.json.
         """Return business dictionary/initialized slots, without native caches.
         
         Returns
@@ -5568,7 +5663,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
                 raise _external_error(error)
         return _state_recipe(self)
 
-    def to_numpy(self, *, writable: _Boolean=False, allow_copy: _Boolean=True, allow_nat_collision: _Boolean=False) -> np.ndarray:
+    def to_numpy(self, *, writable: _Boolean=False, allow_copy: _Boolean=True, allow_nat_collision: _Boolean=False) -> np.ndarray:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY030; see tests/typing/pyright_exceptions.json.
         """Use Polars' NumPy export, rejecting valid ticks that collide with NaT.
         
         Parameters
@@ -5599,14 +5694,14 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             The true final result exceeds the current unit/target capacity."""
         allow = _bool_option(allow_nat_collision, "Pldt.to_numpy", "allow_nat_collision")
         source = _plain_series(self)
-        result = pl.Series.to_numpy(self, writable=writable, allow_copy=allow_copy)
+        result = pl.Series.to_numpy(self, writable=writable, allow_copy=allow_copy)  # pyright: ignore[reportArgumentType] -- TY031; see tests/typing/pyright_exceptions.json.
         if not allow:
             row = _pldt_nat_collision(source)
             if row is not None:
                 raise _own_error(OverflowError("valid date collides with the NumPy NaT reserved tick; use Arrow or to_physical with validity, or explicitly set allow_nat_collision=True"), f"data[{row}]", None)
         return result
 
-    def to_pandas(self, *, use_pyarrow_extension_array: _Boolean=False, allow_nat_collision: _Boolean=False, **kwargs: Any) -> object:
+    def to_pandas(self, *, use_pyarrow_extension_array: _Boolean=False, allow_nat_collision: _Boolean=False, **kwargs: Any) -> object:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY032; see tests/typing/pyright_exceptions.json.
         """Use the complete Polars pandas export and check its actual date result.
         
         Parameters
@@ -5636,7 +5731,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             The true final result exceeds the current unit/target capacity."""
         allow = _bool_option(allow_nat_collision, "Pldt.to_pandas", "allow_nat_collision")
         source = _plain_series(self)
-        result = pl.Series.to_pandas(self, use_pyarrow_extension_array=use_pyarrow_extension_array, **kwargs)
+        result = pl.Series.to_pandas(self, use_pyarrow_extension_array=use_pyarrow_extension_array, **kwargs)  # pyright: ignore[reportArgumentType] -- TY033; see tests/typing/pyright_exceptions.json.
         # This is the actual returned representation, including user callbacks;
         # selecting an Arrow keyword alone is not evidence of preserved validity.
         target = pl.from_pandas(result)
@@ -5671,11 +5766,13 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             The true final result exceeds the current unit/target capacity."""
         protected = dtype is not None and type(self).__getattribute__ is object.__getattribute__ and _getattr_static(self, "to_numpy") is Pldt.to_numpy
         source = _plain_series(self) if protected else None
-        result = pl.Series.__array__(self, dtype=dtype, copy=copy)
+        result = pl.Series.__array__(self, dtype=dtype, copy=copy)  # pyright: ignore[reportArgumentType] -- TY034; see tests/typing/pyright_exceptions.json.
         # A genuine business override owns its returned representation. Do not
         # invoke its descriptor again or impose this base exit on that protocol.
         if not protected:
             return result
+        # The original protected flag proves the already-captured owner exists.
+        source = cast(pl.Series, source)
         if result.dtype.kind == "M":
             unit, multiplier = np.datetime_data(result.dtype)
             code = _NUMPY_DATE_CODES.get(unit, _NUMPY_EXPORT_SUBNS.get(unit))
@@ -5692,7 +5789,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         else:
             # Explicit object/text requests still must round-trip each value
             # and missing position. No implicit fallback or replacement dtype.
-            original = source.dtype.time_unit
+            original = cast(pl.Datetime, source.dtype).time_unit
             restored = np.asarray(result, dtype=f"datetime64[{original}]")
             _pldt_check_numpy(source, _plain_series(restored.view(np.int64)), (_NUMPY_DATE_CODES[original], 1))
         return result
@@ -5985,7 +6082,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             The true final result exceeds the current unit/target capacity."""
         return _binary_eager(self, delta, subtract=True, named=True)
 
-    def replace(self, year: _OptionalField=None, month: _OptionalField=None, day: _OptionalField=None, hour: _OptionalField=None, minute: _OptionalField=None, second: _OptionalField=None, microsecond: _OptionalField=None, nanosecond: _OptionalField=None, tzinfo: _Zone=_UNCHANGED_ZONE, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
+    def replace(self, year: _OptionalField=None, month: _OptionalField=None, day: _OptionalField=None, hour: _OptionalField=None, minute: _OptionalField=None, second: _OptionalField=None, microsecond: _OptionalField=None, nanosecond: _OptionalField=None, tzinfo: _Zone=_UNCHANGED_ZONE, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:  # pyright: ignore[reportArgumentType] -- TY035; see tests/typing/pyright_exceptions.json.
         """Strictly merge date fields; omitted tzinfo retains, None removes the zone.
         
         Parameters
@@ -7045,7 +7142,7 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
             The true final result exceeds the current unit/target capacity."""
         return _delta_expression(self._expr, delta, True)
 
-    def replace(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None, tzinfo: _Zone=_UNCHANGED_ZONE, *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
+    def replace(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None, tzinfo: _Zone=_UNCHANGED_ZONE, *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:  # pyright: ignore[reportArgumentType] -- TY036; see tests/typing/pyright_exceptions.json.
         """Strictly merge date fields; omitted tzinfo retains, None removes the zone.
 
         For Expr receivers, errors depending on schema or row values are deferred
@@ -7920,6 +8017,7 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
 
 
 # Keep ordinary Python binding errors on public names without call wrappers.
+_public_name, _public_item, _public_function = "", None, None
 for _public_owner, _public_prefix in (
     (_TransformMethods, "Pldt"), (_PeriodMethods, "Pldt"),
     (_QueryMethods, "Pldt"), (_OutputMethods, "Pldt"),
@@ -7932,7 +8030,8 @@ for _public_owner, _public_prefix in (
         _public_function = (_public_item.fget if isinstance(_public_item, property)
                             else _public_item.__func__ if isinstance(_public_item, (classmethod, staticmethod))
                             else _public_item)
-        _public_function.__qualname__ = _public_prefix + "." + _public_name
+        if _public_function is not None:
+            _public_function.__qualname__ = _public_prefix + "." + _public_name
 del _public_owner, _public_prefix, _public_name, _public_item, _public_function
 
 if hasattr(pl.Series, "pldt") or hasattr(pl.Expr, "pldt"):

@@ -1,0 +1,902 @@
+{
+  "status": "reviewed narrow exceptions; targeted developer runtime results saved; finalartifact repeat still required",
+  "broad_file_suppression": false,
+  "Any_substitution": false,
+  "entries": [
+    {
+      "file": "src/rstimes/_pldt_state.py",
+      "line_at_review": 77,
+      "symbol": "_sorted",
+      "statement": "flags = pl.Series.flags.fget(value)",
+      "rules": [
+        "reportOptionalCall"
+      ],
+      "reason": "The retained actual Polars name/flags/dtype properties have real getters; invoke those original descriptors without another lookup or wrapper.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY001"
+    },
+    {
+      "file": "src/rstimes/_pldt_state.py",
+      "line_at_review": 162,
+      "symbol": "_named_result",
+      "statement": "if result is source and pl.Series.name.fget(source) != name:",
+      "rules": [
+        "reportOptionalCall"
+      ],
+      "reason": "The retained actual Polars name/flags/dtype properties have real getters; invoke those original descriptors without another lookup or wrapper.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY002"
+    },
+    {
+      "file": "src/rstimes/pddt.py",
+      "line_at_review": 173,
+      "symbol": "_wrap",
+      "statement": "name=name, freq=freq, copy=False)",
+      "rules": [
+        "reportArgumentType"
+      ],
+      "reason": "Public pandas DatetimeIndex construction accepts freq=None; the upstream __new__ stub excludes that actual default.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_construction.py",
+        "tests/pddt/test_release_frequency_metadata.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY003"
+    },
+    {
+      "file": "src/rstimes/pddt.py",
+      "line_at_review": 1893,
+      "symbol": "date_range",
+      "statement": "external = pd.date_range(start=start_value, end=end_value,",
+      "rules": [
+        "reportCallIssue"
+      ],
+      "reason": "Complete approved pandas date_range delegation receives validated optional endpoints/unit and real offset metadata; its overloads do not express this argument correlation.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_date_range.py",
+        "tests/pldt/test_date_range.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY004"
+    },
+    {
+      "file": "src/rstimes/pddt.py",
+      "line_at_review": 2776,
+      "symbol": "round",
+      "statement": "def round(self, freq=\"s\"):",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY005"
+    },
+    {
+      "file": "src/rstimes/pddt.py",
+      "line_at_review": 2797,
+      "symbol": "ceil",
+      "statement": "def ceil(self, freq=\"s\"):",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY006"
+    },
+    {
+      "file": "src/rstimes/pddt.py",
+      "line_at_review": 2818,
+      "symbol": "floor",
+      "statement": "def floor(self, freq=\"s\"):",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY007"
+    },
+    {
+      "file": "src/rstimes/pddt.py",
+      "line_at_review": 2840,
+      "symbol": "snap",
+      "statement": "def snap(self, unit=\"s\"):",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY008"
+    },
+    {
+      "file": "src/rstimes/pddt.py",
+      "line_at_review": 3260,
+      "symbol": "diff",
+      "statement": "def diff(self,dtobj,unit,absolute=False,inclusive=\"one\"):",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY009"
+    },
+    {
+      "file": "src/rstimes/pddt.py",
+      "line_at_review": 3457,
+      "symbol": "strftime",
+      "statement": "def strftime(self,format: str) -> pd.Index:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY010"
+    },
+    {
+      "file": "src/rstimes/pddt.pyi",
+      "line_at_review": 289,
+      "symbol": "tz_convert",
+      "statement": "def tz_convert(self, tz: _dt.tzinfo | str | None) -> Self:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY011"
+    },
+    {
+      "file": "src/rstimes/pddt.pyi",
+      "line_at_review": 316,
+      "symbol": "tz_localize",
+      "statement": "def tz_localize(self, tz: _dt.tzinfo | str | None, ambiguous: _Ambiguous = \"raise\", nonexistent: _Nonexistent = \"raise\") -> Self:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY012"
+    },
+    {
+      "file": "src/rstimes/pddt.pyi",
+      "line_at_review": 1560,
+      "symbol": "__sub__",
+      "statement": "def __sub__(self, other: object) -> Self | pd.DatetimeIndex | pd.TimedeltaIndex | NotImplementedType:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY013"
+    },
+    {
+      "file": "src/rstimes/pddt.pyi",
+      "line_at_review": 1751,
+      "symbol": "round",
+      "statement": "def round(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY014"
+    },
+    {
+      "file": "src/rstimes/pddt.pyi",
+      "line_at_review": 1770,
+      "symbol": "ceil",
+      "statement": "def ceil(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY015"
+    },
+    {
+      "file": "src/rstimes/pddt.pyi",
+      "line_at_review": 1789,
+      "symbol": "floor",
+      "statement": "def floor(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY016"
+    },
+    {
+      "file": "src/rstimes/pddt.pyi",
+      "line_at_review": 1808,
+      "symbol": "snap",
+      "statement": "def snap(self, unit: str = 's') -> Self:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY017"
+    },
+    {
+      "file": "src/rstimes/pddt.pyi",
+      "line_at_review": 2146,
+      "symbol": "diff",
+      "statement": "def diff(self, dtobj: _DateValue | _DateCollection, unit: str, absolute: _Boolean = False, inclusive: Literal[\"one\", \"both\", \"neither\"] = \"one\") -> pd.Index:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY018"
+    },
+    {
+      "file": "src/rstimes/pddt.pyi",
+      "line_at_review": 2310,
+      "symbol": "strftime",
+      "statement": "def strftime(self, format: str) -> pd.Index:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pddt date rounding, snap, boundary-diff, timezone and arithmetic/output contracts intentionally extend or differ from pandas; preserve the declared interface.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_timezones.py",
+        "tests/pddt/test_rewrite_diff.py",
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY019"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 444,
+      "symbol": "_range_factory",
+      "statement": "plan, metadata, delegated = _pandas_frequency(freq)",
+      "rules": [
+        "reportOptionalCall"
+      ],
+      "reason": "The paired optional pandas helpers are prepared together once; the surrounding actual pandas capability/delegation branch proves availability. Do not add hot imports or an adapter just for narrowing.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_date_range.py",
+        "tests/pldt/test_period_operations.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY020"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 451,
+      "symbol": "_range_factory",
+      "statement": "plan, metadata, delegated = _pandas_frequency(freq)",
+      "rules": [
+        "reportOptionalCall"
+      ],
+      "reason": "The paired optional pandas helpers are prepared together once; the surrounding actual pandas capability/delegation branch proves availability. Do not add hot imports or an adapter just for narrowing.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_date_range.py",
+        "tests/pldt/test_period_operations.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY021"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 463,
+      "symbol": "_range_factory",
+      "statement": "generation_unit, minimum_unit = _mature_units(metadata, inputs.unit, carrier_unit)",
+      "rules": [
+        "reportOptionalCall"
+      ],
+      "reason": "The paired optional pandas helpers are prepared together once; the surrounding actual pandas capability/delegation branch proves availability. Do not add hot imports or an adapter just for narrowing.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_date_range.py",
+        "tests/pldt/test_period_operations.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY022"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 468,
+      "symbol": "_range_factory",
+      "statement": "external = pd.date_range(start=first, end=last, periods=periods, freq=metadata,",
+      "rules": [
+        "reportCallIssue"
+      ],
+      "reason": "Complete approved pandas date_range delegation receives validated optional endpoints/unit and real offset metadata; its overloads do not express this argument correlation.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_date_range.py",
+        "tests/pldt/test_date_range.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY023"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 1144,
+      "symbol": "_period_operation",
+      "statement": "plan, _, delegated = _pandas_frequency(value)",
+      "rules": [
+        "reportOptionalCall"
+      ],
+      "reason": "The paired optional pandas helpers are prepared together once; the surrounding actual pandas capability/delegation branch proves availability. Do not add hot imports or an adapter just for narrowing.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_date_range.py",
+        "tests/pldt/test_period_operations.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY024"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 4184,
+      "symbol": "_timezone_key",
+      "statement": "dtype = pl.Series.dtype.fget(source)",
+      "rules": [
+        "reportOptionalCall"
+      ],
+      "reason": "The retained actual Polars name/flags/dtype properties have real getters; invoke those original descriptors without another lookup or wrapper.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY025"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 5525,
+      "symbol": "__copy__",
+      "statement": "return _state_copy(self, False)",
+      "rules": [
+        "reportReturnType"
+      ],
+      "reason": "Standard copying returns the same concrete class. Genuine custom copy/reduction callbacks may deliberately return other objects, as in Python copy itself; preserve those results.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY026"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 5544,
+      "symbol": "copy",
+      "statement": "return _state_copy(self, _bool_option(deep, 'Pldt.copy', 'deep'),",
+      "rules": [
+        "reportReturnType"
+      ],
+      "reason": "Standard copying returns the same concrete class. Genuine custom copy/reduction callbacks may deliberately return other objects, as in Python copy itself; preserve those results.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY027"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 5573,
+      "symbol": "__deepcopy__",
+      "statement": "return _state_copy(self, True, memo)",
+      "rules": [
+        "reportReturnType"
+      ],
+      "reason": "Standard copying returns the same concrete class. Genuine custom copy/reduction callbacks may deliberately return other objects, as in Python copy itself; preserve those results.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY028"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 5575,
+      "symbol": "__getstate__",
+      "statement": "def __getstate__(self) -> object:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pldt export/state/arithmetic exit has its own documented contract; Polars generic overloads or newer optional export parameters do not describe this own API.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py",
+        "tests/pldt/test_native_outputs.py",
+        "tests/pldt/test_delta_arithmetic.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY029"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 5666,
+      "symbol": "to_numpy",
+      "statement": "def to_numpy(self, *, writable: _Boolean=False, allow_copy: _Boolean=True, allow_nat_collision: _Boolean=False) -> np.ndarray:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pldt export/state/arithmetic exit has its own documented contract; Polars generic overloads or newer optional export parameters do not describe this own API.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py",
+        "tests/pldt/test_native_outputs.py",
+        "tests/pldt/test_delta_arithmetic.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY030"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 5697,
+      "symbol": "to_numpy",
+      "statement": "result = pl.Series.to_numpy(self, writable=writable, allow_copy=allow_copy)",
+      "rules": [
+        "reportArgumentType",
+        "reportArgumentType"
+      ],
+      "reason": "These options are intentionally passed to the complete mature export protocol, including numpy.bool_ values. Keep its real acceptance/conversion/error rather than pre-coercing to satisfy bool-only external stubs.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_native_outputs.py",
+        "tests/pldt/test_arrow_outputs.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY031"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 5704,
+      "symbol": "to_pandas",
+      "statement": "def to_pandas(self, *, use_pyarrow_extension_array: _Boolean=False, allow_nat_collision: _Boolean=False, **kwargs: Any) -> object:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pldt export/state/arithmetic exit has its own documented contract; Polars generic overloads or newer optional export parameters do not describe this own API.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py",
+        "tests/pldt/test_native_outputs.py",
+        "tests/pldt/test_delta_arithmetic.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY032"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 5734,
+      "symbol": "to_pandas",
+      "statement": "result = pl.Series.to_pandas(self, use_pyarrow_extension_array=use_pyarrow_extension_array, **kwargs)",
+      "rules": [
+        "reportArgumentType"
+      ],
+      "reason": "These options are intentionally passed to the complete mature export protocol, including numpy.bool_ values. Keep its real acceptance/conversion/error rather than pre-coercing to satisfy bool-only external stubs.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_native_outputs.py",
+        "tests/pldt/test_arrow_outputs.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY033"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 5769,
+      "symbol": "__array__",
+      "statement": "result = pl.Series.__array__(self, dtype=dtype, copy=copy)",
+      "rules": [
+        "reportArgumentType"
+      ],
+      "reason": "These options are intentionally passed to the complete mature export protocol, including numpy.bool_ values. Keep its real acceptance/conversion/error rather than pre-coercing to satisfy bool-only external stubs.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_native_outputs.py",
+        "tests/pldt/test_arrow_outputs.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY034"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 6085,
+      "symbol": "replace",
+      "statement": "def replace(self, year: _OptionalField=None, month: _OptionalField=None, day: _OptionalField=None, hour: _OptionalField=None, minute: _OptionalField=None, second: _OptionalField=None, microsecond: _OptionalField=None, nanosecond: _OptionalField=None, tzinfo: _Zone=_UNCHANGED_ZONE, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:",
+      "rules": [
+        "reportArgumentType"
+      ],
+      "reason": "The private identity sentinel represents an omitted argument, not an additional user timezone type. The public stub uses an ellipsis default and keeps the supported zone type.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_calendar_operations.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY035"
+    },
+    {
+      "file": "src/rstimes/pldt.py",
+      "line_at_review": 7145,
+      "symbol": "replace",
+      "statement": "def replace(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None, tzinfo: _Zone=_UNCHANGED_ZONE, *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:",
+      "rules": [
+        "reportArgumentType"
+      ],
+      "reason": "The private identity sentinel represents an omitted argument, not an additional user timezone type. The public stub uses an ellipsis default and keeps the supported zone type.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_calendar_operations.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY036"
+    },
+    {
+      "file": "src/rstimes/pldt.pyi",
+      "line_at_review": 3837,
+      "symbol": "__getstate__",
+      "statement": "def __getstate__(self) -> object:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pldt export/state/arithmetic exit has its own documented contract; Polars generic overloads or newer optional export parameters do not describe this own API.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py",
+        "tests/pldt/test_native_outputs.py",
+        "tests/pldt/test_delta_arithmetic.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY037"
+    },
+    {
+      "file": "src/rstimes/pldt.pyi",
+      "line_at_review": 3923,
+      "symbol": "to_numpy",
+      "statement": "def to_numpy(self, *, writable: _Boolean=False, allow_copy: _Boolean=True, allow_nat_collision: _Boolean=False) -> np.ndarray:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pldt export/state/arithmetic exit has its own documented contract; Polars generic overloads or newer optional export parameters do not describe this own API.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py",
+        "tests/pldt/test_native_outputs.py",
+        "tests/pldt/test_delta_arithmetic.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY038"
+    },
+    {
+      "file": "src/rstimes/pldt.pyi",
+      "line_at_review": 4060,
+      "symbol": "__add__",
+      "statement": "def __add__(self, other: Any) -> Self | pl.Series | NotImplementedType:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pldt export/state/arithmetic exit has its own documented contract; Polars generic overloads or newer optional export parameters do not describe this own API.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py",
+        "tests/pldt/test_native_outputs.py",
+        "tests/pldt/test_delta_arithmetic.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY039"
+    },
+    {
+      "file": "src/rstimes/pydt.py",
+      "line_at_review": 349,
+      "symbol": "combine",
+      "statement": "def combine(cls, date=None, time=None, tz=None):",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pydt factory keywords / extended real arithmetic protocol intentionally differ from datetime; keep that API and original callbacks.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pydt/test_approved_refactor.py",
+        "tests/pydt/test_arithmetic_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY040"
+    },
+    {
+      "file": "src/rstimes/pydt.py",
+      "line_at_review": 566,
+      "symbol": "fromtimestamp",
+      "statement": "def fromtimestamp(cls, ts, tz=None):",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pydt factory keywords / extended real arithmetic protocol intentionally differ from datetime; keep that API and original callbacks.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pydt/test_approved_refactor.py",
+        "tests/pydt/test_arithmetic_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY041"
+    },
+    {
+      "file": "src/rstimes/pydt.py",
+      "line_at_review": 681,
+      "symbol": "fromisocalendar",
+      "statement": "def fromisocalendar(cls, year, week, weekday, tz=None):",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pydt factory keywords / extended real arithmetic protocol intentionally differ from datetime; keep that API and original callbacks.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pydt/test_approved_refactor.py",
+        "tests/pydt/test_arithmetic_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY042"
+    },
+    {
+      "file": "src/rstimes/pydt.py",
+      "line_at_review": 3047,
+      "symbol": "tz_switch",
+      "statement": "result = Pydt.astimezone(value, target)",
+      "rules": [
+        "reportArgumentType"
+      ],
+      "reason": "This actual unbound Python method intentionally accepts the already-created datetime carrier; it is not a native Pydt-only descriptor or a second construction.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pydt/test_timezone_protocols.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY043"
+    },
+    {
+      "file": "src/rstimes/pydt.py",
+      "line_at_review": 3226,
+      "symbol": "__add__",
+      "statement": "def __add__(self, other):",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pydt factory keywords / extended real arithmetic protocol intentionally differ from datetime; keep that API and original callbacks.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pydt/test_approved_refactor.py",
+        "tests/pydt/test_arithmetic_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY044"
+    },
+    {
+      "file": "src/rstimes/pydt.py",
+      "line_at_review": 3251,
+      "symbol": "__radd__",
+      "statement": "def __radd__(self, other):",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pydt factory keywords / extended real arithmetic protocol intentionally differ from datetime; keep that API and original callbacks.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pydt/test_approved_refactor.py",
+        "tests/pydt/test_arithmetic_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY045"
+    },
+    {
+      "file": "src/rstimes/pydt.py",
+      "line_at_review": 3269,
+      "symbol": "__sub__",
+      "statement": "def __sub__(self, other):",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pydt factory keywords / extended real arithmetic protocol intentionally differ from datetime; keep that API and original callbacks.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pydt/test_approved_refactor.py",
+        "tests/pydt/test_arithmetic_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY046"
+    },
+    {
+      "file": "src/rstimes/pydt.pyi",
+      "line_at_review": 237,
+      "symbol": "combine",
+      "statement": "def combine(cls, date: DatetimeLike | None=None, time: DatetimeLike | datetime.time | None=None, tz: datetime.tzinfo | str | None=None) -> Self:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pydt factory keywords / extended real arithmetic protocol intentionally differ from datetime; keep that API and original callbacks.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pydt/test_approved_refactor.py",
+        "tests/pydt/test_arithmetic_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY047"
+    },
+    {
+      "file": "src/rstimes/pydt.pyi",
+      "line_at_review": 381,
+      "symbol": "fromtimestamp",
+      "statement": "def fromtimestamp(cls, ts: int | float, tz: datetime.tzinfo | str | None=None) -> Self:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pydt factory keywords / extended real arithmetic protocol intentionally differ from datetime; keep that API and original callbacks.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pydt/test_approved_refactor.py",
+        "tests/pydt/test_arithmetic_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY048"
+    },
+    {
+      "file": "src/rstimes/pydt.pyi",
+      "line_at_review": 458,
+      "symbol": "fromisocalendar",
+      "statement": "def fromisocalendar(cls, year: SupportsIndex, week: SupportsIndex, weekday: SupportsIndex, tz: datetime.tzinfo | str | None=None) -> Self:",
+      "rules": [
+        "reportIncompatibleMethodOverride"
+      ],
+      "reason": "Approved Pydt factory keywords / extended real arithmetic protocol intentionally differ from datetime; keep that API and original callbacks.",
+      "contract": "Q04 preserves final approved interfaces and genuine host protocols; narrow exceptions need evidence",
+      "runtime_tests": [
+        "tests/pydt/test_approved_refactor.py",
+        "tests/pydt/test_arithmetic_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error; no legacy type-ignore interpretation",
+      "id": "TY049"
+    },
+    {
+      "id": "TY050",
+      "file": "src/rstimes/_pddt_state.py",
+      "line_at_review": 5,
+      "symbol": "CPython reconstruction import",
+      "statement": "from copy import _reconstruct",
+      "rules": [
+        "reportAttributeAccessIssue"
+      ],
+      "reason": "CPython copy._reconstruct is deliberately the real standard copy protocol, absent from typeshed public exports.",
+      "contract": "Q04 exact narrow exception, no changed user or host protocol",
+      "runtime_tests": [
+        "tests/pddt/test_rewrite_state.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error"
+    },
+    {
+      "id": "TY051",
+      "file": "src/rstimes/_pldt_state.py",
+      "line_at_review": 6,
+      "symbol": "CPython reconstruction import",
+      "statement": "from copy import _reconstruct",
+      "rules": [
+        "reportAttributeAccessIssue"
+      ],
+      "reason": "CPython copy._reconstruct is deliberately the real standard copy protocol, absent from typeshed public exports.",
+      "contract": "Q04 exact narrow exception, no changed user or host protocol",
+      "runtime_tests": [
+        "tests/pldt/test_state_and_native_boundaries.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error"
+    },
+    {
+      "id": "TY052",
+      "file": "tools/wheel_smoke.py",
+      "line_at_review": 101,
+      "symbol": "intentional invalid smoke call",
+      "statement": "parse(number)",
+      "rules": [
+        "reportArgumentType",
+        "reportCallIssue"
+      ],
+      "reason": "Intentional rejected-input smoke: keep the actual invalid bool input and verify TypeError.",
+      "contract": "Q04 exact narrow exception, no changed user or host protocol",
+      "runtime_tests": [
+        "tools/wheel_smoke.py"
+      ],
+      "static_guard": "reportUnnecessaryTypeIgnoreComment=error"
+    }
+  ]
+}

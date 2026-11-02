@@ -21,11 +21,10 @@ concurrency:
 
 jobs:
   verify:
-    # This long-running draft uses PR synchronization without duplicate push jobs.
-    # Early pilots are complete; the current source now needs the full32 matrix.
+    # Dedicated research branches use explicit dispatch to avoid duplicate runs.
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.head_ref || github.ref_name) != 'codex/pldt-nanoseconds-72h-20261030' ||
+      (!contains(fromJSON('["codex/pldt-nanoseconds-72h-20261030", "codex/native-pyright-nogil-20261103"]'), github.head_ref || github.ref_name)) ||
       (github.event_name == 'pull_request' && github.event.action != 'opened')
     uses: ./.github/workflows/build.yml
     with:

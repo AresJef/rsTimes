@@ -159,6 +159,7 @@ pub(crate) fn column_callback(
     let base = match parsed {
         Value::Delta(_) => &bases.0,
         Value::Span(_) if value.is_instance_of::<PyDelta>() => {
+            #[cfg(not(Py_GIL_DISABLED))]
             if inherits_stdlib_span_slot(actual, bases.1.as_type_ptr(), subtract) {
                 return Ok(None);
             }
@@ -175,6 +176,7 @@ pub(crate) fn column_callback(
     Ok(overrides_method(value, base, name)?.then_some(name))
 }
 
+#[cfg(not(Py_GIL_DISABLED))]
 fn inherits_stdlib_span_slot(
     actual: *mut pyo3::ffi::PyTypeObject,
     base: *mut pyo3::ffi::PyTypeObject,
@@ -206,27 +208,54 @@ fn inherits_stdlib_span_slot(
 /// remains nonzero and unchanged. Standard descriptors can populate that version
 /// without invoking user code; custom metaclasses/descriptors stay uncached.
 pub(crate) fn protocol_version(value: &Bound<'_, PyAny>, name: &str) -> PyResult<u32> {
-    let actual = value.get_type();
-    // SAFETY: the owned ready type remains live and attached throughout lookup.
-    let mut version = unsafe { (*actual.as_type_ptr()).tp_version_tag };
-    if version == 0
-        && unsafe { pyo3::ffi::Py_TYPE(actual.as_ptr()) }
-            == std::ptr::addr_of_mut!(pyo3::ffi::PyType_Type)
-        && let Some(definition) = crate::protocol::method_definition(&actual, name)?
+    #[cfg(Py_GIL_DISABLED)]
     {
-        let kind = unsafe { pyo3::ffi::Py_TYPE(definition.as_ptr()) };
-        if kind == std::ptr::addr_of_mut!(pyo3::ffi::PyMethodDescr_Type)
-            || kind == std::ptr::addr_of_mut!(pyo3::ffi::PyWrapperDescr_Type)
-            || unsafe { pyo3::ffi::PyFunction_Check(definition.as_ptr()) != 0 }
-        {
-            // Exact type's attribute machinery and these exact descriptor
-            // types perform no Python callback. A live class edit clears
-            // its version before the following input item can be read.
-            let _ = actual
-                .getattr(name)
-                .map_err(crate::error_context::external)?;
-            version = unsafe { (*actual.as_type_ptr()).tp_version_tag };
-        }
+        // No public synchronized type-version read is required for correctness.
+        // Recheck a mutable subclass's real definitions on the t row path.
+        let _ = (value, name);
+        Ok(0)
     }
-    Ok(version)
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        let actual = value.get_type();
+        // SAFETY: the owned ready type remains live and attached throughout lookup.
+        let mut version = unsafe { (*actual.as_type_ptr()).tp_version_tag };
+        if version == 0
+            && unsafe { pyo3::ffi::Py_TYPE(actual.as_ptr()) }
+                == std::ptr::addr_of_mut!(pyo3::ffi::PyType_Type)
+            && let Some(definition) = crate::protocol::method_definition(&actual, name)?
+        {
+            let kind = unsafe { pyo3::ffi::Py_TYPE(definition.as_ptr()) };
+            if kind == std::ptr::addr_of_mut!(pyo3::ffi::PyMethodDescr_Type)
+                || kind == std::ptr::addr_of_mut!(pyo3::ffi::PyWrapperDescr_Type)
+                || unsafe { pyo3::ffi::PyFunction_Check(definition.as_ptr()) != 0 }
+            {
+                // Exact type's attribute machinery and these exact descriptor
+                // types perform no Python callback. A live class edit clears
+                // its version before the following input item can be read.
+                let _ = actual
+                    .getattr(name)
+                    .map_err(crate::error_context::external)?;
+                version = unsafe { (*actual.as_type_ptr()).tp_version_tag };
+            }
+        }
+        Ok(version)
+    }
+}
+
+/// Retain ordinary per-call eligibility caching without raw version reads on t.
+///
+/// # Safety
+/// The caller retains this ready type through the current live operand.
+#[inline]
+pub(crate) unsafe fn current_protocol_version(class: *mut pyo3::ffi::PyTypeObject) -> u32 {
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        let _ = class;
+        0
+    }
+    #[cfg(not(Py_GIL_DISABLED))]
+    unsafe {
+        (*class).tp_version_tag
+    }
 }

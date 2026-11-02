@@ -459,6 +459,7 @@ impl Components {
 /// Reuse the proven S0 public-dictionary borrow for a callback-free primitive
 /// keyword set. All names/types are captured before declared-order conversion;
 /// arbitrary numeric protocols, bool and None use the owned binding instead.
+#[cfg(not(Py_GIL_DISABLED))]
 fn small_keywords<const COUNT: usize>(kwargs: &Bound<'_, PyDict>) -> Option<PyResult<DeltaValue>> {
     let py = kwargs.py();
     let names = keyword_names(py);
@@ -594,6 +595,7 @@ pub(crate) fn construct(
             args.len()
         )));
     }
+    #[cfg(not(Py_GIL_DISABLED))]
     if args.is_empty()
         && let Some(kwargs) = kwargs.filter(|values| (2..=4).contains(&values.len()))
     {

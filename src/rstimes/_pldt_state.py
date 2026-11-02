@@ -3,7 +3,7 @@
 Only explicit copy/save operations enter here. Ordinary date kernels do not
 inspect business dictionaries, slots, reduction hooks or namespace caches.
 """
-from copy import _reconstruct
+from copy import _reconstruct  # pyright: ignore[reportAttributeAccessIssue] -- TY051; see tests/typing/pyright_exceptions.json.
 
 from ._optional import POLARS as pl
 from ._native import _pldt_core, _pldt_restore_core, _pldt_copy_core
@@ -74,7 +74,7 @@ def _class(cls):
 
 
 def _sorted(value):
-    flags = pl.Series.flags.fget(value)
+    flags = pl.Series.flags.fget(value)  # pyright: ignore[reportOptionalCall] -- TY001; see tests/typing/pyright_exceptions.json.
     return 1 if flags['SORTED_ASC'] else 2 if flags['SORTED_DESC'] else 0
 
 
@@ -159,7 +159,7 @@ def copy_value(value, deep, memo=None, *, name=None, honor_copy=False):
 
 def _named_result(source, result, name):
     if name is not None:
-        if result is source and pl.Series.name.fget(source) != name:
+        if result is source and pl.Series.name.fget(source) != name:  # pyright: ignore[reportOptionalCall] -- TY002; see tests/typing/pyright_exceptions.json.
             raise _own_error(ValueError('the copy hook returned the original object; it cannot be renamed without changing the source'), 'name', name)
         try:
             if isinstance(result, pl.Series):

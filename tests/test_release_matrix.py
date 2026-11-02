@@ -20,25 +20,33 @@ def wheel_rows():
     """Build tags from the explicitly approved ABI/platform definition."""
     result = []
     for row in manifest.release_matrix()["include"]:
-        py = "cp" + row["python"]["minor"].replace(".", "")
+        py = row["python"]["interpreter_tag"]
+        abi = row["python"]["abi_tag"]
         platform = row["platform"]
         tag = platform.get("wheel_platform")
         if tag is None:
-            tag = "macosx_11_0" + platform["wheel_suffix"]
-        result.append({"tags": [f"{py}-{py}-{tag}"]})
+            tag = "macosx_" + row["macos_deployment_target"].replace(".", "_") + platform["wheel_suffix"]
+        result.append({"tags": [f"{py}-{abi}-{tag}"]})
     return result
 
 
 def test_full_matrix_has_all_32_positions_and_four_new_pilots():
+    # The ordinary32 contract remains; Q02 adds16 distinct t ABI positions.
     rows = wheel_rows()
-    assert len(rows) == 32
-    assert len(manifest.release_matrix("pilot")["include"]) == 4
+    assert len(rows) == 48
+    selected = manifest.release_matrix()["include"]
+    assert sum(not row["python"]["free_threaded"] for row in selected) == 32
+    assert sum(row["python"]["free_threaded"] for row in selected) == 16
+    pilots = manifest.release_matrix("pilot")["include"]
+    assert len(pilots) == 8
+    assert sum(not row["python"]["free_threaded"] for row in pilots) == 4
     manifest.validate_matrix(rows, complete=True)
 
 
 @pytest.mark.parametrize("tag", [
     "cp311-cp311-win_amd64", "cp313-cp313-win32",
-    "cp314-cp314t-win_amd64", "cp315-cp315-linux_aarch64",
+    "cp313-cp313t-win_amd64", "cp315-cp315-linux_aarch64",
+    "cp314-cp314t-macosx_11_0_x86_64",
     "cp313-cp313-manylinux_2_17_x86_64", "cp313-cp313-macosx_11_0_universal2",
 ])
 def test_unsupported_release_tags_are_rejected(tag):
@@ -55,6 +63,26 @@ def test_incomplete_or_duplicate_bundle_cannot_pass_by_count(kind):
         manifest.validate_matrix(rows, complete=True)
     with pytest.raises(AssertionError):
         manifest.validate_matrix(rows)
+
+
+def test_free_threaded_wheels_are_distinct_from_same_minor_ordinary_wheels():
+    assert manifest.matrix_key("cp314-cp314-win_amd64") == ("cp314", "windows-x86_64")
+    assert manifest.matrix_key("cp314-cp314t-win_amd64") == ("cp314t", "windows-x86_64")
+    assert manifest.matrix_key("cp315-cp315t-musllinux_1_2_aarch64") == ("cp315t", "linux-musl-arm64")
+    ordinary = [row for row in wheel_rows() if "t-" not in row["tags"][0]]
+    with pytest.raises(AssertionError):
+        manifest.validate_matrix(ordinary, complete=True)
+
+
+def test_free_threaded_interpreters_keep_actual_abi_and_dependency_floor():
+    rows = manifest.release_matrix()["include"]
+    for row in rows:
+        py = row["python"]
+        assert py["linux_python"] == f"/opt/python/{py['interpreter_tag']}-{py['abi_tag']}/bin/python"
+        assert py["free_threaded"] is py["label"].endswith("t")
+        assert py["linux_interpreter"] == "python" + py["label"]
+        if py["free_threaded"] and row["platform"]["id"] == "macos-x86_64":
+            assert row["macos_deployment_target"] == "14.0"
 
 
 def test_dependency_policy_matches_approved_platform_boundaries():

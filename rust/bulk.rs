@@ -168,12 +168,15 @@ fn fill_list<'py, const NATIVE: bool>(
         // SAFETY: The live length was checked under the GIL. No callback runs
         // before borrowing this slot; foreign dispatch owns it before calling
         // Python, and native kernels finish reads before any allocation.
+        #[cfg(not(Py_GIL_DISABLED))]
         let value = unsafe {
             Borrowed::from_ptr(
                 values.py(),
                 ffi::PyList_GET_ITEM(values.as_ptr(), index as isize),
             )
         };
+        #[cfg(Py_GIL_DISABLED)]
+        let value = values.get_item(index)?;
         let result = if NATIVE {
             batch.add(&value)
         } else {
@@ -252,12 +255,15 @@ fn fill_arithmetic_list<'py, const REPLACE: bool>(
         // type check proves the Delta layout; its complete payload is read
         // before allocation. Other items enter the ordinary loop at this index,
         // retaining Batch::add's callback ownership.
+        #[cfg(not(Py_GIL_DISABLED))]
         let value = unsafe {
             Borrowed::from_ptr(
                 values.py(),
                 ffi::PyList_GET_ITEM(values.as_ptr(), index as isize),
             )
         };
+        #[cfg(Py_GIL_DISABLED)]
+        let value = values.get_item(index)?;
         let actual = unsafe { ffi::Py_TYPE(value.as_ptr()) };
         let result = if actual == delta_type {
             addition.add_delta_prepared::<REPLACE>(unsafe { value.cast_unchecked::<Delta>() }.get())
@@ -343,8 +349,11 @@ fn fill_foreign_list<'py, const DATE: bool, const RELATIVE: bool>(
     while output.used < values.len() {
         // SAFETY: The GIL and freshly checked live size protect the slot.
         // Its new reference survives callbacks which remove it from the list.
+        #[cfg(not(Py_GIL_DISABLED))]
         let item =
             unsafe { ffi::Py_NewRef(ffi::PyList_GET_ITEM(values.as_ptr(), output.used as isize)) };
+        #[cfg(Py_GIL_DISABLED)]
+        let item = values.get_item(output.used)?.into_ptr();
         let result = if DATE && unsafe { ffi::PyObject_TypeCheck(item, date_type) } != 0 {
             let value = unsafe { Borrowed::from_ptr(py, item) };
             add_date_subclass(batch, &value)
@@ -403,8 +412,7 @@ fn add_date_subclass<'py>(
     let slf = batch.slf;
     // SAFETY: Caller owns both objects, has checked actual date inheritance and
     // exact Delta identity, and holds the GIL. The ready type owns its slots.
-    let number = unsafe { (*ffi::Py_TYPE(value.as_ptr())).tp_as_number };
-    if let Some(slot) = unsafe { number.as_ref() }.and_then(|number| number.nb_add) {
+    if let Some(slot) = addition_slot(value) {
         let result = unsafe { slot(value.as_ptr(), slf.as_ptr()) };
         if result != unsafe { ffi::Py_NotImplemented() } {
             return unsafe { Bound::from_owned_ptr_or_err(slf.py(), result) }
@@ -441,8 +449,7 @@ fn add_relative<'py>(
 ) -> PyResult<Bound<'py, PyAny>> {
     // SAFETY: The GIL and the caller's strong references protect the current
     // type and its live slots. The unrelated exact Delta takes the second turn.
-    let number = unsafe { (*ffi::Py_TYPE(value.as_ptr())).tp_as_number };
-    if let Some(slot) = unsafe { number.as_ref() }.and_then(|number| number.nb_add) {
+    if let Some(slot) = addition_slot(value) {
         let result = unsafe { slot(value.as_ptr(), batch.slf.as_ptr()) };
         if result != unsafe { ffi::Py_NotImplemented() } {
             return unsafe { Bound::from_owned_ptr_or_err(batch.slf.py(), result) }
@@ -752,15 +759,22 @@ impl<'py> Output<'py> {
     /// # Errors
     /// Propagates Python allocation failure.
     fn new(py: Python<'py>, length: usize) -> PyResult<Self> {
-        // Input list/tuple length already fits Py_ssize_t.
-        let list = unsafe { Bound::from_owned_ptr_or_err(py, ffi::PyList_New(length as isize))? }
-            .cast_into::<PyList>()?;
-        // SAFETY: PyList_New allocated null slots, and no Python callback runs
-        // before this full-ABI size update. No slot owns a reference yet. GC and
-        // error cleanup must see size zero while allocated capacity is retained.
-        unsafe {
-            (*list.as_ptr().cast::<ffi::PyListObject>()).ob_base.ob_size = 0;
-        }
+        #[cfg(Py_GIL_DISABLED)]
+        let list = PyList::empty(py);
+        #[cfg(not(Py_GIL_DISABLED))]
+        let list = {
+            // Input list/tuple length already fits Py_ssize_t.
+            let list =
+                unsafe { Bound::from_owned_ptr_or_err(py, ffi::PyList_New(length as isize))? }
+                    .cast_into::<PyList>()?;
+            // SAFETY: PyList_New allocated null slots, and no Python callback runs
+            // before this full-ABI size update. No slot owns a reference yet. GC and
+            // error cleanup must see size zero while allocated capacity is retained.
+            unsafe {
+                (*list.as_ptr().cast::<ffi::PyListObject>()).ob_base.ob_size = 0;
+            }
+            list
+        };
         Ok(Self {
             list,
             reserved: length,
@@ -773,33 +787,48 @@ impl<'py> Output<'py> {
     /// Preserves growth allocation errors without exposing a partial result.
     #[inline(always)]
     fn push(&mut self, value: Bound<'py, PyAny>) -> PyResult<()> {
-        // SAFETY: the exact list is live under the GIL. Read its current size
-        // once before any callback; publication below still owns every slot.
-        let list = self.list.as_ptr().cast::<ffi::PyListObject>();
-        let length = unsafe { (*list).ob_base.ob_size };
-        if self.used < length as usize {
-            // SAFETY: Every visible slot is initialized before callbacks. The GIL
-            // and freshly checked live size protect GET/SET with no intervening
-            // callback. Install the new owned reference before decref can run a
-            // destructor; no access to old follows that decref.
-            unsafe {
-                let old = ffi::PyList_GET_ITEM(self.list.as_ptr(), self.used as isize);
-                ffi::PyList_SET_ITEM(self.list.as_ptr(), self.used as isize, value.into_ptr());
-                ffi::Py_DECREF(old);
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            // The initialized prefix remains observable to actual callbacks.
+            // Public list operations synchronize their storage. We retain no
+            // raw slot or native guard across any destructor callback; CPython
+            // owns its internal critical-section and reentry protocol.
+            if self.used < self.list.len() {
+                self.list.set_item(self.used, value)?;
+            } else {
+                self.list.append(value)?;
             }
-        } else {
-            // SAFETY: This owned exact CPython list is accessed with the GIL.
-            // Its live size/capacity are read after callbacks. An allocated
-            // slot beyond size has no owned reference. Store the owned result
-            // before publishing size; neither action invokes Python, so GC can
-            // only observe the fully initialized prefix. Public append handles
-            // growth and allocation errors when no spare capacity remains.
-            unsafe {
-                if (*list).allocated > length {
-                    (*list).ob_item.add(length as usize).write(value.into_ptr());
-                    (*list).ob_base.ob_size = length + 1;
-                } else {
-                    self.list.append(value)?;
+        }
+        #[cfg(not(Py_GIL_DISABLED))]
+        {
+            // SAFETY: the exact list is live under the GIL. Read its current size
+            // once before any callback; publication below still owns every slot.
+            let list = self.list.as_ptr().cast::<ffi::PyListObject>();
+            let length = unsafe { (*list).ob_base.ob_size };
+            if self.used < length as usize {
+                // SAFETY: Every visible slot is initialized before callbacks. The GIL
+                // and freshly checked live size protect GET/SET with no intervening
+                // callback. Install the new owned reference before decref can run a
+                // destructor; no access to old follows that decref.
+                unsafe {
+                    let old = ffi::PyList_GET_ITEM(self.list.as_ptr(), self.used as isize);
+                    ffi::PyList_SET_ITEM(self.list.as_ptr(), self.used as isize, value.into_ptr());
+                    ffi::Py_DECREF(old);
+                }
+            } else {
+                // SAFETY: This owned exact CPython list is accessed with the GIL.
+                // Its live size/capacity are read after callbacks. An allocated
+                // slot beyond size has no owned reference. Store the owned result
+                // before publishing size; neither action invokes Python, so GC can
+                // only observe the fully initialized prefix. Public append handles
+                // growth and allocation errors when no spare capacity remains.
+                unsafe {
+                    if (*list).allocated > length {
+                        (*list).ob_item.add(length as usize).write(value.into_ptr());
+                        (*list).ob_base.ob_size = length + 1;
+                    } else {
+                        self.list.append(value)?;
+                    }
                 }
             }
         }
@@ -815,5 +844,25 @@ impl<'py> Output<'py> {
             self.list.del_slice(self.used, self.reserved)?;
         }
         Ok(self.list)
+    }
+}
+
+/// Read a real numeric addition slot without direct mutable type-field access on t.
+fn addition_slot(value: &Bound<'_, PyAny>) -> Option<ffi::binaryfunc> {
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        let slot = unsafe { ffi::PyType_GetSlot(value.get_type().as_type_ptr(), ffi::Py_nb_add) };
+        if slot.is_null() {
+            None
+        } else {
+            // SAFETY: Py_nb_add denotes exactly binaryfunc; value retains its type.
+            Some(unsafe { std::mem::transmute::<*mut std::ffi::c_void, ffi::binaryfunc>(slot) })
+        }
+    }
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        // SAFETY: the conventional GIL protects the retained value's live slots.
+        let number = unsafe { (*ffi::Py_TYPE(value.as_ptr())).tp_as_number };
+        unsafe { number.as_ref() }.and_then(|number| number.nb_add)
     }
 }

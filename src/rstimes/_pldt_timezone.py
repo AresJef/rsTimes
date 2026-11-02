@@ -5,14 +5,20 @@ pinned mature Rust IANA database and TZif/POSIX parser on every platform.
 No custom operating-system directory or Python resource fallback is maintained.
 """
 
-from datetime import timezone
+from __future__ import annotations
+
+from datetime import timezone, tzinfo
 from functools import lru_cache
+from typing import TYPE_CHECKING, overload
 import zoneinfo
 
 from ._optional import POLARS as pl
 from ._localization import resolve_timezone, _UTC_ALIASES
 from ._native import _pldt_zone_context, _pldt_named_zone_context
 from .errors import _own_error
+
+if TYPE_CHECKING:
+    from ._native import _PldtZoneContext
 
 _UTC = _pldt_zone_context("UTC", b"", 0)
 
@@ -31,6 +37,12 @@ def _cached(zone):
     return _read(zone)
 
 
+@overload
+def prepare_timezone(value: None) -> None: ...
+@overload
+def prepare_timezone(value: str | tzinfo) -> _PldtZoneContext: ...
+@overload
+def prepare_timezone(value: object) -> _PldtZoneContext | None: ...
 def prepare_timezone(value):
     """Return immutable native rules; naive/UTC/fixed paths do not probe DST."""
     value = resolve_timezone(value)

@@ -7,7 +7,8 @@
 //!
 //! Calendar behavior follows this package's approved contracts, derived from
 //! the frozen cyTimes 3.1.0 reference with explicit safety and behavior changes. The
-//! release matrix targets ordinary, GIL-enabled 64-bit CPython 3.12 through 3.15.
+//! targets ordinary 64-bit CPython 3.12 through 3.15 and the free-threaded
+//! 3.14/3.15 ABIs from this same source.
 
 #![deny(missing_docs)]
 
@@ -73,11 +74,17 @@ fn release_build() -> bool {
     !cfg!(debug_assertions)
 }
 
+/// Report the binary's compiled free-threaded ABI, independently of runtime GIL state.
+#[pyfunction]
+fn _free_threaded_build() -> bool {
+    cfg!(Py_GIL_DISABLED)
+}
+
 /// Register Delta and diagnostic helpers in the rstimes native module.
 ///
 /// # Errors
 /// Propagates type registration and descriptor installation errors.
-#[pymodule(gil_used = true)]
+#[pymodule(gil_used = false)]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     delta::configure_hash(module.py());
     module.add_class::<delta::Delta>()?;
@@ -97,5 +104,6 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(interop::_configure_optional, module)?)?;
     module.add_function(wrap_pyfunction!(runtime_info, module)?)?;
     module.add_function(wrap_pyfunction!(release_build, module)?)?;
+    module.add_function(wrap_pyfunction!(_free_threaded_build, module)?)?;
     Ok(())
 }

@@ -7,7 +7,7 @@ _DT = TypeVar('_DT', bound=datetime.datetime)
 _MapValue = TypeVar('_MapValue', bound=SupportsIndex)
 _Default = str | datetime.date | datetime.datetime | int | float | np.datetime64
 # A type-only optional import does not make Polars a runtime dependency.
-from polars import Series as _PolarsSeries  # type: ignore[import-not-found]
+from polars import Series as _PolarsSeries
 _EpochInput = _Default | _PolarsSeries
 
 @final

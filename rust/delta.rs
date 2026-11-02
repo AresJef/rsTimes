@@ -9,6 +9,7 @@ use pyo3::types::{
     PyType,
 };
 use std::borrow::Cow;
+#[cfg(not(Py_GIL_DISABLED))]
 use std::cell::OnceCell;
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 
@@ -25,15 +26,28 @@ static NATIVE_TUPLE_HASH: AtomicBool = AtomicBool::new(false);
 /// Own one display string only on the registered ordinary-GIL base path.
 /// Other runtimes never access this cell. PyO3 retains responsibility for the
 /// owned string's destruction, including deferred decref outside an attachment.
+#[cfg(not(Py_GIL_DISABLED))]
 struct RepresentationCache(OnceCell<Py<PyString>>);
+// The t build never retains a GIL-dependent cell, even while an external module
+// transiently enables the GIL. Its existing uncached repr path remains native.
+#[cfg(Py_GIL_DISABLED)]
+struct RepresentationCache;
 // SAFETY: get/set are private unsafe entry points. Their callers prove the
 // registered non-free-threaded GIL path before every access, retain the instance,
 // and never keep a cell borrow across a Python call or a discarded value's Drop.
+#[cfg(not(Py_GIL_DISABLED))]
 unsafe impl Sync for RepresentationCache {}
 
 impl RepresentationCache {
     const fn new() -> Self {
-        Self(OnceCell::new())
+        #[cfg(not(Py_GIL_DISABLED))]
+        {
+            Self(OnceCell::new())
+        }
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            Self
+        }
     }
 
     /// Clone a saved string without exposing a cell borrow.
@@ -41,7 +55,15 @@ impl RepresentationCache {
     /// The caller holds the conventional GIL and a live registered base instance.
     #[inline(always)]
     unsafe fn get<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyString>> {
-        self.0.get().map(|text| text.bind(py).clone())
+        #[cfg(not(Py_GIL_DISABLED))]
+        {
+            self.0.get().map(|text| text.bind(py).clone())
+        }
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            let _ = py;
+            None
+        }
     }
 
     /// Save the first completed display; drop a reentrant loser's value normally.
@@ -49,7 +71,10 @@ impl RepresentationCache {
     /// The same GIL qualification must be checked after formatting callbacks.
     #[inline(always)]
     unsafe fn set(&self, _py: Python<'_>, text: Py<PyString>) {
+        #[cfg(not(Py_GIL_DISABLED))]
         let _ = self.0.set(text);
+        #[cfg(Py_GIL_DISABLED)]
+        drop(text);
     }
 }
 

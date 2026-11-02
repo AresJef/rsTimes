@@ -1,6 +1,7 @@
 """Integer-backed date columns with explicit resolution and calendar operations."""
 from datetime import datetime, date, timezone, timedelta
 from zoneinfo import available_timezones
+from typing import Literal, TypeVar, TypedDict, TYPE_CHECKING, cast, overload
 
 import numpy as np
 from ._optional import PANDAS as pd, POLARS as pl
@@ -24,6 +25,24 @@ if pd is None:
     raise _own_error(ImportError("Pddt requires pandas; install rstimes[pandas]."))
 
 _UNITS = ("s", "ms", "us", "ns")
+_Unit = Literal["s", "ms", "us", "ns"]
+_NumericLayout = tuple[bytes, str, bytes | None]
+_PddtT = TypeVar("_PddtT", bound="Pddt")
+
+if TYPE_CHECKING:
+    from ._backend_types import _PandasDateTicks
+
+
+class _DiffLayout(TypedDict, total=False):
+    """Exact optional metadata passed to the native difference boundary."""
+
+    buffer: bytes
+    storage: str
+    date_unit: str
+    multiplier: int
+    target_zone: object
+    target_mask: bytes | None
+
 _MIN_TICK = np.iinfo("int64").min
 _pddt_register(pd.NA, pd.NaT, _timezone)
 # pandas2.0 ignores a non-ns unit for integer+timezone dtype construction.
@@ -33,6 +52,10 @@ _TZ_TICKS_UNIT_SAFE = pd.array(np.array([1], dtype="int64"),
     dtype=pd.DatetimeTZDtype(unit="us", tz=timezone.utc), copy=False).unit == "us"
 
 
+@overload
+def _unit(value: object, *, optional: Literal[False] = False) -> _Unit: ...
+@overload
+def _unit(value: object, *, optional: Literal[True]) -> _Unit | None: ...
 def _unit(value, *, optional=False):
     if value is None and optional:
         return None
@@ -77,7 +100,7 @@ def _outer(data, parameter="data"):
                 # processing first, and must not reread a mutable source shell.
                 values = _plain_series(values)
                 source_name = values.name
-                zone = values.dtype.time_zone
+                zone = cast(pl.Datetime, values.dtype).time_zone
                 source_zone = _timezone(zone) if zone is not None else None
                 validity = b"" if values.null_count() == 0 else np.asarray(values.is_null().to_numpy(), dtype="uint8").tobytes()
                 # NumPy carries the physical bits; source validity remains
@@ -128,7 +151,7 @@ def _date_array(values, zone):
         if zone is None:
             return pd.array(values, copy=False)
         if _TZ_TICKS_UNIT_SAFE:
-            unit = np.datetime_data(values.dtype)[0]
+            unit = cast(_Unit, np.datetime_data(values.dtype)[0])
             return pd.array(values.view("int64"),
                 dtype=pd.DatetimeTZDtype(unit=unit, tz=zone), copy=False)
         return pd.array(values, copy=False).tz_localize(timezone.utc).tz_convert(zone)
@@ -147,7 +170,7 @@ def _wrap(cls, values, *, zone=None, name=None, freq=None):
             prepared = pd.DatetimeIndex(array, freq=freq, copy=False)
             return pd.DatetimeIndex.__new__(cls, prepared, name=name, copy=False)
         return pd.DatetimeIndex.__new__(cls, array,
-            name=name, freq=freq, copy=False)
+            name=name, freq=freq, copy=False)  # pyright: ignore[reportArgumentType] -- TY003; see tests/typing/pyright_exceptions.json.
     except Exception as error:
         raise _external_error(error)
 
@@ -246,7 +269,7 @@ def _now(cls, size, tz, unit, name, kind):
     return _finish(cls, values, zone=None if naive else zone, name=name)
 
 
-def _numeric_source(value, parameter="data", integer=False):
+def _numeric_source(value, parameter="data", integer=False) -> tuple[object, bool, object, _NumericLayout | None]:
     known = issubclass(type(value), (list, tuple, dict, set, frozenset, np.ndarray,
                                pd.Series, pd.Index, pd.api.extensions.ExtensionArray))
     if pl is not None:
@@ -445,7 +468,7 @@ def _fields(self, values, entry, strict=False, tzinfo=_UNSET, ambiguous="raise",
 
 
 def _moved(self, kind, offset, selection, day, entry):
-    specifications = [(offset, "offset", False, 0, None, None)]
+    specifications: list[tuple[object, str, bool, int, int | None, int | None]] = [(offset, "offset", False, 0, None, None)]
     if kind in ("year", "quarter"):
         specifications.extend(((selection, "month", True, 1 if kind == "year" else 0, 1, 12 if kind == "year" else 3),
             (day, "day", True, 0, 1, 31)))
@@ -516,6 +539,10 @@ def _binary(self, other, subtract=False, reflected=False):
     return _finish(type(self), array, name=self.name, freq=validated_freq)
 
 
+@overload
+def _period(self: _PddtT, unit: str, mode: int, query: Literal[False], entry: str) -> _PddtT: ...
+@overload
+def _period(self: object, unit: str, mode: int, query: Literal[True], entry: str) -> pd.Index: ...
 def _period(self, unit, mode, query, entry):
     if not isinstance(unit,str):
         raise _own_error(TypeError("must be a period string or a supported stored name"), "unit", unit)
@@ -540,6 +567,12 @@ def _rounded(self, freq, mode, entry):
     return _finish(type(self),array,name=self.name,freq=validated_freq)
 
 
+@overload
+def _calendar_query(self: object, code: Literal[200], entry: str, target: object = _UNSET, parameter: str | None = None, names: int = 0) -> pd.Index: ...
+@overload
+def _calendar_query(self: object, code: Literal[201], entry: str, target: object = _UNSET, parameter: str | None = None, names: int = 0) -> pd.DataFrame: ...
+@overload
+def _calendar_query(self: object, code: int, entry: str, target: object = _UNSET, parameter: str | None = None, names: int = 0) -> pd.Index | pd.DataFrame: ...
 def _calendar_query(self, code, entry, target=_UNSET, parameter=None, names=0):
     prepared=None if target is _UNSET else _component(target,len(self),entry,parameter,False,names)
     # Copy at most one cache line for an exact tiny ndarray; its complete
@@ -587,7 +620,8 @@ def _difference(self,dtobj,unit,absolute,inclusive):
     known=issubclass(type(dtobj), (list,tuple,dict,set,frozenset,np.ndarray,pd.Series,pd.Index,pd.api.extensions.ExtensionArray))
     if pl is not None:
         known=known or issubclass(type(dtobj), (pl.Series,pl.DataFrame,pl.LazyFrame))
-    values,zone,metadata=(dtobj,None,{})
+    values,zone=(dtobj,None)
+    metadata: _DiffLayout = {}
     if known:
         try:
             values,zone,_,_,validity=_outer(dtobj,"dtobj")
@@ -597,12 +631,12 @@ def _difference(self,dtobj,unit,absolute,inclusive):
             date_unit,multiplier=np.datetime_data(values.dtype)
             if not values.dtype.isnative:
                 values=values.astype(values.dtype.newbyteorder("="))
-            metadata=dict(buffer=values.tobytes(),storage="M",date_unit=date_unit,multiplier=multiplier,target_zone=zone,target_mask=validity)
+            metadata={"buffer":values.tobytes(),"storage":"M","date_unit":date_unit,"multiplier":multiplier,"target_zone":zone,"target_mask":validity}
         else:
             values,_,_,native=_numeric_source(values,"dtobj",True)
             if native is not None:
                 buffer,storage,mask=native
-                metadata=dict(buffer=buffer,storage=storage,target_mask=mask)
+                metadata={"buffer":buffer,"storage":storage,"target_mask":mask}
     packed,mask=_pddt_diff(source,self.unit,self.tz is not None,values,known,unit,absolute,inclusive,**metadata)
     values=np.frombuffer(packed,dtype="int64")
     if mask is not None:
@@ -636,6 +670,10 @@ def _numeric_export(self,kind,entry,utc=False):
     return pd.Index(values,name=name)
 
 
+@overload
+def _object_export(self: object, kind: Literal[0, 1, 2, 3], entry: str, option: object = None, timespec: object = None) -> np.ndarray: ...
+@overload
+def _object_export(self: object, kind: Literal[4, 5, 6, 7, 8], entry: str, option: object = None, timespec: object = None) -> pd.Index: ...
 def _object_export(self,kind,entry,option=None,timespec=None):
     values=_pddt_objects(self.asi8.tobytes(),self.unit,self.tz,kind,entry,Pydt if kind==0 else None,option,timespec)
     if kind<=3:
@@ -736,6 +774,14 @@ class Pddt(pd.DatetimeIndex):
     >>> Pddt(["0000-01-01"], unit="us").year.tolist()
     [0]
     """
+
+    if TYPE_CHECKING:
+        # Actual inherited pandas storage, intentionally omitted by pandas-stubs.
+        # These declarations create no runtime descriptors or replacement data.
+        _data: _PandasDateTicks
+
+        @property
+        def asi8(self) -> np.ndarray: ...
 
     def __new__(cls, data, *, unit=None, name=None, copy=False, freq=None,
                 tz=None, default=None, yearfirst=None, dayfirst=None,
@@ -1844,7 +1890,7 @@ class Pddt(pd.DatetimeIndex):
                 if generation_unit is not None:
                     generation_unit = _UNITS[max(_UNITS.index(generation_unit), _UNITS.index(carrier_unit))]
                 try:
-                    external = pd.date_range(start=start_value, end=end_value,
+                    external = pd.date_range(start=start_value, end=end_value,  # pyright: ignore[reportCallIssue] -- TY004; see tests/typing/pyright_exceptions.json.
                         periods=periods, freq=metadata, unit=generation_unit, inclusive="both")
                 except Exception as error:
                     raise _external_error(error)
@@ -2727,7 +2773,7 @@ class Pddt(pd.DatetimeIndex):
         except Exception as error:
             _raise_argument_context(error,"Pddt.fsp","precision",precision)
 
-    def round(self, freq="s"):
+    def round(self, freq="s"):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY005; see tests/typing/pyright_exceptions.json.
         """Round to the nearest grid, with ties to even.
 
         Parameters
@@ -2748,7 +2794,7 @@ class Pddt(pd.DatetimeIndex):
         except Exception as error:
             _raise_argument_context(error,"Pddt.round","freq",freq)
 
-    def ceil(self, freq="s"):
+    def ceil(self, freq="s"):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY006; see tests/typing/pyright_exceptions.json.
         """Round upward without moving earlier.
 
         Parameters
@@ -2769,7 +2815,7 @@ class Pddt(pd.DatetimeIndex):
         except Exception as error:
             _raise_argument_context(error,"Pddt.ceil","freq",freq)
 
-    def floor(self, freq="s"):
+    def floor(self, freq="s"):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY007; see tests/typing/pyright_exceptions.json.
         """Round downward without moving later.
 
         Parameters
@@ -2791,7 +2837,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error,"Pddt.floor","freq",freq)
 
 
-    def snap(self, unit="s"):
+    def snap(self, unit="s"):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY008; see tests/typing/pyright_exceptions.json.
         """Select the nearest valid period start; an equal distance goes later.
 
         Parameters
@@ -3211,7 +3257,7 @@ class Pddt(pd.DatetimeIndex):
         except Exception as error:
             _raise_argument_context(error,"Pddt.is_future","data",self)
 
-    def diff(self,dtobj,unit,absolute=False,inclusive="one"):
+    def diff(self,dtobj,unit,absolute=False,inclusive="one"):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY009; see tests/typing/pyright_exceptions.json.
         """Count unit boundaries between dates and scalar or positional targets.
 
         Parameters
@@ -3408,7 +3454,7 @@ class Pddt(pd.DatetimeIndex):
         except Exception as error:
             _raise_argument_context(error,"Pddt.isoformat","options",(sep,timespec))
 
-    def strftime(self,format: str) -> pd.Index:
+    def strftime(self,format: str) -> pd.Index:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY010; see tests/typing/pyright_exceptions.json.
         """Format with complete system rules and exact fractional directives.
 
         Parameters
