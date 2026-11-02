@@ -118,8 +118,15 @@ jobs:
       - name: Prepare fixed official Polars source for internal t validation
         if: matrix.python.free_threaded
         run: python -I -B tools/prepare_polars_ci.py prepare
-      - name: Build official unmodified Polars runtime for internal t validation
+      - name: Reuse only the exact internal official-runtime build
         if: matrix.python.free_threaded
+        id: polars-cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: .local/internal-polars-wheels/
+          key: internal-polars-${{ matrix.platform.id }}-${{ matrix.python.version }}-${{ matrix.python.abi_tag }}-${{ hashFiles('.github/polars-upstream.json', '.github/native-matrix.json', '.github/workflows/build.yml', 'tools/prepare_polars_ci.py') }}
+      - name: Build official unmodified Polars runtime for internal t validation
+        if: matrix.python.free_threaded && steps.polars-cache.outputs.cache-hit != 'true'
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b
         with:
           command: build

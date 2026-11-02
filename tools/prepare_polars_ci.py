@@ -76,9 +76,19 @@ def main() -> None:
         assert sysconfig.get_config_var("Py_GIL_DISABLED")
         assert name == "polars-runtime-32" and str(version) == spec["version"]
         assert {tag.abi for tag in tags} == {abi}, tags
+        proof = args.wheel_directory / "build-proof.json"
+        internal_wheel = {"filename": wheel.name, "sha256": digest(wheel), "tags": sorted(map(str, tags))}
+        cached = proof.is_file()
+        if cached:
+            original = json.loads(proof.read_text())
+            assert original["official_source"] == spec
+            assert original["source_sha256"] == payload["source_sha256"]
+            assert original["internal_wheel"] == internal_wheel
+            assert original["upstream_patches"] == [] and original["default_upstream_features"] is True
         payload.update(status="SOURCE_UNCHANGED", checked_utc=datetime.now(timezone.utc).isoformat(),
-                       internal_wheel={"filename": wheel.name, "sha256": digest(wheel),
-                                       "tags": sorted(map(str, tags))})
+                       internal_wheel=internal_wheel, exact_internal_cache_reused=cached)
+        if not cached:
+            proof.write_text(json.dumps(payload, indent=2) + "\n")
         receipt.write_text(json.dumps(payload, indent=2) + "\n")
     print(json.dumps({"source": str(source), "receipt": str(receipt), "status": payload["status"]}))
 

@@ -10,6 +10,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 
+from distribution_manifest import release_matrix
+
 
 def gh(*args):
     """Run the authenticated GitHub CLI without exposing its credentials."""
@@ -45,7 +47,7 @@ def main():
     assert repository == "AresJef/rsTimes"
     bundle = Path("bundle")
     manifest = json.loads((bundle / "release-manifest.json").read_text(encoding='utf-8'))
-    assert len(manifest["wheels"]) == 32 and len(manifest["sdists"]) == 1
+    assert len(manifest["wheels"]) == len(release_matrix()["include"]) and len(manifest["sdists"]) == 1
     assert manifest["source_commit"] == os.environ["GITHUB_SHA"]
     version = manifest["version"]
     tag = "v" + version
@@ -60,9 +62,13 @@ def main():
     for name in ("release-manifest.json", "SHA256SUMS", "performance-receipt.json"):
         files[name] = bundle / name
         expected[name] = hashlib.sha256(files[name].read_bytes()).hexdigest()
-    ref = api(f"repos/{repository}/git/ref/tags/{tag}")["object"]
+    reference = api(f"repos/{repository}/git/ref/tags/{tag}")
+    assert reference is not None  # This required endpoint never accepts404.
+    ref = reference["object"]
     if ref["type"] == "tag":
-        ref = api(f"repos/{repository}/git/tags/{ref['sha']}")["object"]
+        annotated = api(f"repos/{repository}/git/tags/{ref['sha']}")
+        assert annotated is not None
+        ref = annotated["object"]
     assert ref["type"] == "commit" and ref["sha"] == manifest["source_commit"]
     endpoint = f"repos/{repository}/releases/tags/{tag}"
     release = api(endpoint, missing_ok=True)
@@ -83,6 +89,7 @@ def main():
         if missing:
             gh("release", "upload", tag, "--repo", repository, *(str(files[name]) for name in sorted(missing)))
     release = api(endpoint)
+    assert release is not None
     present = {asset["name"] for asset in release["assets"]}
     assert present == files.keys(), present
     verify_remote_files(repository, tag, expected, present)

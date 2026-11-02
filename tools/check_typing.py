@@ -199,7 +199,7 @@ def _full(command: list[str], output: Path, env: dict[str, str], oracle: Path,
     config = output / "full.pyright.json"
     config.write_text(json.dumps({"extends": str(ROOT / "pyrightconfig.json"),
         "pythonVersion": language,
-        "extraPaths": [str(ROOT / "src"), str(ROOT / "demo"), str(symbols.parent)]}, indent=2) + "\n")
+        "extraPaths": [str(ROOT / "src"), str(ROOT / "demo"), str(ROOT / "tools"), str(symbols.parent)]}, indent=2) + "\n")
     status, report = _run(command + ["--project", str(config), "--outputjson"],
                           output / "full-source.json", env)
     expected: Counter[tuple[str, int, str]] = Counter()
