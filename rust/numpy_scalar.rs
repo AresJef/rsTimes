@@ -349,6 +349,26 @@ fn decode_delta_scalar(value: &Bound<'_, PyAny>, datetime: bool) -> PyResult<Del
 /// Split a supported h..ns source before scaling its bounded day remainder.
 #[inline]
 fn split_clock(ticks: i128, unit: i32) -> (i128, u64) {
+    if let Ok(ticks) = i64::try_from(ticks) {
+        // Each supported unit has a constant day length. Keep these native
+        // divisions constant without narrowing a larger dtype multiplier.
+        #[inline(always)]
+        fn native<const PER_DAY: i64>(ticks: i64) -> (i128, u64) {
+            (
+                i128::from(ticks.div_euclid(PER_DAY)),
+                ticks.rem_euclid(PER_DAY) as u64,
+            )
+        }
+        return match unit {
+            5 => native::<24>(ticks),
+            6 => native::<1440>(ticks),
+            7 => native::<86_400>(ticks),
+            8 => native::<86_400_000>(ticks),
+            9 => native::<86_400_000_000>(ticks),
+            10 => native::<86_400_000_000_000>(ticks),
+            _ => unreachable!("supported NumPy clock unit"),
+        };
+    }
     let per_day = [
         24i64,
         1440,
@@ -357,17 +377,10 @@ fn split_clock(ticks: i128, unit: i32) -> (i128, u64) {
         86_400_000_000,
         86_400_000_000_000,
     ][(unit - 5) as usize];
-    if let Ok(ticks) = i64::try_from(ticks) {
-        (
-            i128::from(ticks.div_euclid(per_day)),
-            ticks.rem_euclid(per_day) as u64,
-        )
-    } else {
-        (
-            ticks.div_euclid(i128::from(per_day)),
-            ticks.rem_euclid(i128::from(per_day)) as u64,
-        )
-    }
+    (
+        ticks.div_euclid(i128::from(per_day)),
+        ticks.rem_euclid(i128::from(per_day)) as u64,
+    )
 }
 
 /// Apply exact NumPy wall fields and construct only its required final object.
@@ -787,6 +800,36 @@ fn native_datetime<'py>(py: Python<'py>, parts: [i64; 7]) -> PyResult<Bound<'py,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clock_split_preserves_sign_and_wide_dtype_multipliers() {
+        let values = [
+            -(1_i128 << 94),
+            i128::from(i64::MIN) - 1,
+            i128::from(i64::MIN),
+            -1,
+            0,
+            1,
+            i128::from(i64::MAX),
+            i128::from(i64::MAX) + 1,
+            1_i128 << 94,
+        ];
+        for (unit, per_day) in (5..=10).zip([
+            24_i128,
+            1440,
+            86_400,
+            86_400_000,
+            86_400_000_000,
+            86_400_000_000_000,
+        ]) {
+            for ticks in values {
+                let (days, clock) = split_clock(ticks, unit);
+                assert!(i128::from(clock) < per_day);
+                assert_eq!(days * per_day + i128::from(clock), ticks);
+            }
+        }
+    }
+
     #[test]
     fn scalar_layout_matches_public_numpy_headers() {
         assert_eq!(std::mem::size_of::<Scalar>(), 32);

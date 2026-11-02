@@ -450,7 +450,10 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
         }
     }
     if value.is_instance_of::<PyInt>() {
-        if crate::numeric::is_bool(value) {
+        // A proved Python int cannot be a NumPy bool. Reject its only boolean
+        // subtype directly instead of repeating the general numeric dispatch.
+        // SAFETY: value is a live owned reference while the GIL is held.
+        if unsafe { ffi::PyBool_Check(value.as_ptr()) != 0 } {
             return Err(crate::error_context::type_error(
                 "boolean values are not date or epoch inputs",
             ));
