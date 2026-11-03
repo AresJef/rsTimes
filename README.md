@@ -159,12 +159,14 @@ python -m pip install --no-deps dist/*.whl
 python -I -B tools/wheel_smoke.py --expect-version 0.2.0b2 --with-dateutil --with-pandas --with-polars
 python -I -B tools/run_release_tests.py --junitxml evidence/tests.xml
 python -I -B tools/check_public_docs.py
-python -I -B tools/check_typing.py
 ```
 
 Use separate output directories after source changes. Source-tree imports do not
 replace installed-wheel verification. On PowerShell, install wheels with
 `Get-ChildItem dist\*.whl | ForEach-Object { python -m pip install --no-deps $_.FullName }`.
+
+For Python type checks, prepare the separate analysis environment and pinned
+Node/Pyright toolchain described in the [type-checking guide](docs/type-checking.md).
 
 ## Demonstrations
 
@@ -183,11 +185,12 @@ silently loads another wheel or compiles a temporary replacement. See the
 - Only a pushed annotated `v*` tag triggers `publish.yml`. The tag binds the exact
   source commit, successful complete CI run/attempt, manifest SHA256 and local
   performance completion receipt.
-- Publication downloads that original tested32-wheel/sdist bundle. It does not
+- Publication downloads that original tested wheel/sdist bundle. It does not
   rebuild files. All gates must pass before GitHub Release, followed by PyPI
   Trusted Publishing/OIDC. No long-lived PyPI token is used.
-- All32 positions download the published version from PyPI, check the original
-  SHA256, install it in clean provider environments and exercise functionality.
+- Every release-matrix position downloads the published version from PyPI,
+  checks the original SHA256, installs it in clean provider environments and
+  exercises functionality.
 - The publisher identity is `AresJef/rsTimes`, `publish.yml`, environment `pypi`.
 
 After a partial publication, retain the tag and original files. Verify remote
