@@ -94,6 +94,17 @@ jobs:
         if: matrix.platform.id == 'macos-arm64' && matrix.python.label == '3.13' && inputs.profile == 'full'
         with:
           node-version: "26.7.0"
+      - name: Isolate Windows Rustup from preinstalled runner toolchains
+        if: runner.os == 'Windows'
+        run: |
+          python - <<'PYCODE'
+          import os
+          from pathlib import Path
+          rustup_home = Path(os.environ["RUNNER_TEMP"]) / "rstimes-rustup"
+          rustup_home.mkdir()
+          with Path(os.environ["GITHUB_ENV"]).open("a") as output:
+              output.write("RUSTUP_HOME=" + str(rustup_home) + "\n")
+          PYCODE
       - name: Prepare fixed build tools and release identity
         run: |
           rustup set profile minimal
