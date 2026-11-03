@@ -3824,10 +3824,6 @@ fn _pydt_convert<'py>(
     }
     // SAFETY: the datetime capsule was initialized at module registration.
     let utc = unsafe { ffi::PyDateTime_TimeZone_UTC() };
-    let fixed = unsafe { ffi::Py_TYPE(target.as_ptr()) == ffi::Py_TYPE(utc) };
-    let zone = ZONEINFO
-        .get(py)
-        .is_some_and(|class| target.get_type().is(class.bind(py)));
     let implicit_offset;
     let offset = match offset {
         Some(offset) => offset,
@@ -3880,6 +3876,10 @@ fn _pydt_convert<'py>(
         )
         .map(Some);
     }
+    let fixed = unsafe { ffi::Py_TYPE(target.as_ptr()) == ffi::Py_TYPE(utc) };
+    let zone = ZONEINFO
+        .get(py)
+        .is_some_and(|class| target.get_type().is(class.bind(py)));
     // SAFETY: a real live datetime owns its borrowed timezone.
     if output_class.is_none()
         && unsafe { ffi::PyDateTime_DATE_GET_TZINFO(value.as_ptr()) } == target.as_ptr()

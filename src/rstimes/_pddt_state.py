@@ -23,7 +23,7 @@ def capture(value):
     if state is None:
         return None
     dictionary,slots=state if isinstance(state,tuple) else (state,None)
-    dictionary=None if dictionary is None else {key:item for key,item in dict.items(cast(dict[str, object], dictionary)) if key not in _CORE_KEYS}
+    dictionary=None if dictionary is None else {key:item for key,item in dict.items(cast("dict[str, object]", dictionary)) if key not in _CORE_KEYS}
     slots=None if slots is None else {key:item for key,item in dict.items(slots) if key not in _CORE_KEYS}
     if slots:
         return dictionary or None,slots

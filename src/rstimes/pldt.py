@@ -979,8 +979,10 @@ def _date_operation(owner, kind, components, method, *, tzinfo=_UNCHANGED_ZONE,
         else:
             policy, mask, mask_scalar = None, None, False
         args, scalars = [], []
+        has_expr_component = False
         for value, role in zip(components, _transform_roles(kind)):
             if isinstance(value, pl.Expr):
+                has_expr_component = True
                 if not expression:
                     raise _own_error(TypeError("Expr fields require the Expr namespace"), role[0], value)
                 argument, scalar = value, value.meta.is_scalar()
@@ -997,10 +999,13 @@ def _date_operation(owner, kind, components, method, *, tzinfo=_UNCHANGED_ZONE,
                        "mask_scalar": mask_scalar}
             if mask is not None:
                 args.append(mask)
+            # Only basic columns prove row-wise input without a schema.
+            # Selectors and composed sources retain the general plugin path.
             return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_transform",
                                             args=[source, *args], kwargs=options,
-                                            is_elementwise=all(scalars) and not any(isinstance(value, pl.Expr) for value in components)
-                                            and mask is None and (options["policy"] is None or options["policy"]["ambiguous"] not in ("infer", "mask")))
+                                            is_elementwise=all(scalars) and not has_expr_component
+                                            and mask is None and (options["policy"] is None or options["policy"]["ambiguous"] not in ("infer", "mask"))
+                                            and cast(pl.Expr, source).meta.is_column())
         cls = type(owner._series) if isinstance(owner, _SeriesNamespace) and isinstance(owner._series, Pldt) else type(owner) if isinstance(owner, Pldt) else Pldt
         result = _pldt_transform(cast(pl.Series, source), args, scalars, Pldt if cls is Pldt else pl.Series,
                                 kind, entry, target, replace_zone, policy)
@@ -1113,7 +1118,7 @@ def _delta_expression(source, delta, subtract):
         return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_delta", args=args,
                                         kwargs={"version": 1, "prepared": operand.plugin_data() if operand.scalar else b"",
                                                 "subtract": subtract, "entry": entry, "scalar": operand.scalar},
-                                        is_elementwise=operand.scalar)
+                                        is_elementwise=operand.scalar and cast(pl.Expr, source).meta.is_column())
     except Exception as error:
         _raise_argument_context(error, entry, "delta", delta)
 
