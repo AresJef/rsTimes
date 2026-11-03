@@ -33,6 +33,11 @@ install cyTimes into the pandas 3 environment, import its binary there, or
 replace the official stubs. The active source scope is explicit in
 `pyrightconfig.json`.
 
+The gate also accepts `--python-version 3.14` and `--python-version 3.15` for
+the two added language configurations. These are static language checks; they
+do not prove the runtime GIL state or replace installed t-wheel tests. CI runs
+the 3.12, 3.14, and 3.15 configurations separately against the installed package.
+
 The demos deliberately include rejected inputs, `NotImplemented` negotiation,
 and real external behavior that a third-party stub cannot express. Their exact
 diagnostics remain visible and are checked against

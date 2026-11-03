@@ -123,10 +123,11 @@ One source tree supports ordinary GIL-enabled CPython 3.12,3.13,3.14 and3.15:
 | Linux musl | x86_64 | musllinux_1_2 | ubuntu-24.04, matching pinned container |
 | Linux musl | ARM64 | musllinux_1_2 | ubuntu-24.04-arm, matching pinned container |
 
-The release contains32 wheels and one complete sdist. Linux installation tests
-run inside the matching libc, not only on the host. 32-bit, PyPy and free-threaded
-CPython are unsupported. Runner testing does not claim physical testing on every
-historical OS release permitted by a wheel tag.
+The published 0.2.0b2 release contains32 ordinary-GIL wheels and one complete
+sdist. Linux installation tests run inside the matching libc, not only on the
+host. That published release does not provide free-threaded wheels. 32-bit and
+PyPy are outside the supported matrix. Runner testing does not claim physical
+testing on every historical OS release permitted by a wheel tag.
 
 Every position verifies real isolated core-only, core+Polars and pandas3
 installations. Applicable pandas2 positions use the same wheel. Additional
@@ -135,6 +136,16 @@ are NumPy 2.5.3, pandas 3.0.6 and Polars 2.0.0; pandas2 compatibility uses2.3.3.
 The frozen cytimes3.1.0 oracle runs separately with pandas2.3.3 and NumPy2.5.3.
 It is a test-only dependency. The 4,588 independent frozen string expectations
 remain protected. Shared cloud runners do not establish strict performance ratios.
+
+## Free-threaded development builds
+
+The current development source also targets CPython 3.14t and 3.15t, alongside
+the ordinary interpreters, using one source tree for Delta, Parser / Configs,
+Pydt, Pddt and Pldt. These builds have their own installed-wheel, concurrency
+and performance qualification. They are distinct from the older public b2
+artifacts even where the version strings match. See
+[the free-threaded guide](docs/free-threaded-python.md) for actual GIL checks,
+configuration sharing, dependency requirements and upstream Polars ownership.
 
 ## Development
 

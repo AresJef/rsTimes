@@ -37,6 +37,8 @@ creating Configs, or override them for one parse call with its arguments.
 
 Configs cannot be subclassed. Copies and restored snapshots are independently editable. Returned dictionaries and sets are independent snapshots, so edit the configuration with add_*, del_* and set_*.
 
+Concurrent read-only parsing is supported, including first lookup-cache preparation. Finish business edits before sharing an instance between threads. Concurrent edits on separate instances are supported; overlapping edits or edit/read operations on the same instance can raise RuntimeError. Same-thread callbacks retain their supported reentry behavior. Internal read-only cache publication is not a business edit.
+
 Words use the stored lowercase, uppercase and titlecase forms; arbitrary mixed case is not inferred. Word namespaces reject conflicting tokens except that jump words may overlap. Region names are exact, case-sensitive ZoneInfo keys validated when registered. Restoring a missing region keeps its key and warns; using an unavailable region raises an error.
 
 Examples

@@ -273,7 +273,8 @@ def test_stable_shared_date_columns_and_expression_execute_independently(workers
     frame = pl.DataFrame({"time": polars_dates})
     expression = pl.col("time").pldt.to_next_month()
     scalar = Pydt(2024, 1, 31, 12, 34, 56, 123456)
-    delta = Delta(months=1)
+    delta = Delta(months=1, nanoseconds=1)
+    delta_expression = pl.col("time").pldt.add_delta(delta)
     expected = datetime(2024, 2, 29, 12, 34, 56, 123456)
     epoch = datetime(1970, 1, 1)
     expected_ns = ((expected - epoch) // timedelta(microseconds=1)) * 1000 + 789
@@ -288,6 +289,11 @@ def test_stable_shared_date_columns_and_expression_execute_independently(workers
             assert shifted.asi8.tolist() == [expected_ns, pd.NaT.value]
             assert polars_dates.to_next_month().to_physical().to_list() == [expected_ns, None]
             assert frame.select(expression).to_series().to_physical().to_list() == [expected_ns, None]
+            bulk = pandas_dates + delta
+            assert bulk.unit == "ns"
+            assert bulk.asi8.tolist() == [expected_ns + 1, pd.NaT.value]
+            assert (polars_dates + delta).to_physical().to_list() == [expected_ns + 1, None]
+            assert frame.select(delta_expression).to_series().to_physical().to_list() == [expected_ns + 1, None]
         return True
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
