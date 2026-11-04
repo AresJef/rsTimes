@@ -18,6 +18,7 @@ import threading
 import pytest
 
 from rstimes import Configs, Delta, Pydt, parse_str
+from _thread_case_watchdog import bounded_case, stage
 
 
 @pytest.mark.skipif(not sysconfig.get_config_var("Py_GIL_DISABLED"),
@@ -84,6 +85,7 @@ def test_native_reports_its_actual_compiled_threading_abi():
 
 
 @pytest.mark.parametrize("workers", [1, 2, 4])
+@bounded_case
 def test_shared_cold_delta_hash_repr_and_state_are_consistent(workers):
     """Concurrent first publication must not mutate frozen values or state."""
     shared = Delta(days=1, nanoseconds=2)
@@ -92,6 +94,7 @@ def test_shared_cold_delta_hash_repr_and_state_are_consistent(workers):
 
     def read():
         barrier.wait(timeout=10)
+        stage("delta workers passed barrier")
         for _ in range(80):
             assert (shared.days, shared.nanoseconds) == (1, 2)
             assert hash(shared) == expected_hash
@@ -105,6 +108,7 @@ def test_shared_cold_delta_hash_repr_and_state_are_consistent(workers):
 
 
 @pytest.mark.parametrize("workers", [1, 2, 4])
+@bounded_case
 def test_shared_configs_first_display_and_parse_are_read_only(workers):
     """Internal cache initialization is not a conflicting business edit."""
     cfg = Configs()
@@ -113,6 +117,7 @@ def test_shared_configs_first_display_and_parse_are_read_only(workers):
 
     def read():
         barrier.wait(timeout=10)
+        stage("Configs readers passed barrier")
         for _ in range(40):
             assert parse_str("7 harvest 2024", cfg=cfg) == datetime(2024, 10, 7)
             assert cfg.month["harvest"] == 10
@@ -123,6 +128,7 @@ def test_shared_configs_first_display_and_parse_are_read_only(workers):
         assert all(pool.map(lambda _: read(), range(workers)))
 
 
+@bounded_case
 def test_parser_does_not_retain_a_configs_borrow_across_constructor_callback():
     """A real target-class callback may inspect the shared configuration again."""
     cfg = Configs()
@@ -140,6 +146,7 @@ def test_parser_does_not_retain_a_configs_borrow_across_constructor_callback():
     assert visits == [10]
 
 
+@bounded_case
 def test_configs_numeric_callback_can_reenter_the_same_instance():
     """An edit admission flag must not become a lock around user callbacks."""
     cfg = Configs()
@@ -155,6 +162,7 @@ def test_configs_numeric_callback_can_reenter_the_same_instance():
     assert cfg.weekday["workday"] == 2
 
 
+@bounded_case
 def test_different_configs_instances_can_edit_in_overlapping_callbacks():
     """Per-instance business admission cannot serialize independent objects."""
     configs = [Configs(), Configs()]
@@ -163,6 +171,7 @@ def test_different_configs_instances_can_edit_in_overlapping_callbacks():
     class Month:
         def __index__(self):
             rendezvous.wait(timeout=10)
+            stage("independent Configs callbacks passed barrier")
             return 10
 
     def edit(cfg):
@@ -175,6 +184,7 @@ def test_different_configs_instances_can_edit_in_overlapping_callbacks():
 
 @pytest.mark.skipif(not sysconfig.get_config_var("Py_GIL_DISABLED"),
                     reason="edit admission is specific to free-threaded builds")
+@bounded_case
 def test_configs_overlapping_edit_reports_conflict_before_a_second_conversion():
     """The first edit remains valid; another thread cannot silently commit over it."""
     cfg = Configs()
@@ -210,6 +220,7 @@ def test_configs_overlapping_edit_reports_conflict_before_a_second_conversion():
 
 
 @pytest.mark.parametrize("descriptor", [False, True])
+@bounded_case
 def test_delta_special_method_reads_the_actual_mro_without_metaclass_hooks(descriptor):
     """A replacement __mro__ property cannot hide real arithmetic definitions."""
     visits = []
@@ -240,6 +251,7 @@ def test_delta_special_method_reads_the_actual_mro_without_metaclass_hooks(descr
     assert visits == [other]
 
 
+@bounded_case
 def test_two_constructor_callbacks_can_overlap_and_read_the_shared_configs():
     """No library-wide lock or mutable Configs borrow may enclose a callback."""
     cfg = Configs()
@@ -250,6 +262,7 @@ def test_two_constructor_callbacks_can_overlap_and_read_the_shared_configs():
         def __new__(cls, *args, **kwargs):
             assert cfg.month["harvest"] == 10
             rendezvous.wait(timeout=10)
+            stage("constructor callbacks passed barrier")
             return super().__new__(cls, *args, **kwargs)
 
     def construct(_):
@@ -261,6 +274,7 @@ def test_two_constructor_callbacks_can_overlap_and_read_the_shared_configs():
 
 
 @pytest.mark.parametrize("workers", [1, 2, 4])
+@bounded_case(optional_modules=("pandas", "polars"))
 def test_stable_shared_date_columns_and_expression_execute_independently(workers):
     """All four classes retain precision and null positions under shared reads."""
     pd = pytest.importorskip("pandas")
@@ -282,6 +296,7 @@ def test_stable_shared_date_columns_and_expression_execute_independently(workers
 
     def calculate(_):
         barrier.wait(timeout=10)
+        stage("date/Expr workers passed barrier")
         for _ in range(12):
             assert scalar + delta == expected
             shifted = pandas_dates.to_next_month()
@@ -301,6 +316,7 @@ def test_stable_shared_date_columns_and_expression_execute_independently(workers
 
 
 @pytest.mark.parametrize("workers", [2, 4])
+@bounded_case(optional_modules=("pandas", "polars"))
 def test_shared_region_conversion_keeps_both_dst_instants_and_nanoseconds(workers):
     """Concurrent region preparation cannot conflate the two repeated clocks."""
     pd = pytest.importorskip("pandas")
@@ -318,6 +334,7 @@ def test_shared_region_conversion_keeps_both_dst_instants_and_nanoseconds(worker
 
     def convert(_):
         barrier.wait(timeout=10)
+        stage("region workers passed barrier")
         for _ in range(8):
             values = [value.tz_convert("America/New_York") for value in scalars]
             assert [(v.hour, v.minute, v.fold, v.utcoffset()) for v in values] == [

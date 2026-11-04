@@ -169,8 +169,8 @@ class _PldtRangeEndpoints:
     @property
     def unit(self) -> _PolarsUnit:
         """Return the chosen final unit."""
-    def carrier(self) -> tuple[int | None, int | None, _PolarsUnit]:
-        """Return both local endpoint ticks and their shared carrier unit."""
+    def carrier(self) -> tuple[int | None, int | None, _Unit]:
+        """Return exact local ticks and their s/ms/us/ns carrier, separate from storage."""
 
 @type_check_only
 class _PldtPeriodContext:

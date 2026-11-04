@@ -2444,7 +2444,15 @@ class Pddt(pd.DatetimeIndex):
         Pddt
             A new shell of the same class under the default protocol. Custom
             reduction hooks keep their normal Python choices and exceptions.
-        """
+        
+
+        Notes
+        -----
+        Custom shallow-copy hooks are looked up on the class and receive the source;
+        custom deep-copy hooks are looked up on the instance and receive the memo,
+        as in Python's copy module. Real descriptors, return choices and exceptions
+        are preserved. Static discovery reads actual class definitions; the state
+        hooks themselves retain their normal Python behavior."""
         ...
 
     def __copy__(self) -> Self:

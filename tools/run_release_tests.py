@@ -7,6 +7,7 @@ product matrix also runs the independently frozen upstream string corpus.
 import argparse
 import importlib.metadata
 import importlib.util
+import os
 from pathlib import Path
 import sys
 import sysconfig
@@ -35,13 +36,16 @@ def main():
     parser.add_argument("--junitxml", required=True)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
+    report = Path(args.junitxml).resolve()
+    os.environ.setdefault("RSTIMES_THREAD_CASE_EVIDENCE", str(
+        report.parent / (report.stem + "-thread-cases")))
     sys.path.insert(0, str(root / "tests/parser"))
     if args.core and args.with_oracle:
         parser.error("--core cannot be combined with --with-oracle")
     if args.core:
         paths = [
             "test_optional_dateutil.py", "test_release_matrix.py",
-            "test_free_threaded_contract.py",
+            "test_free_threaded_contract.py", "test_thread_case_watchdog.py",
             "parser/test_frozen_parse.py", "parser/test_entrypoints.py",
             "parser/test_behavior_revision.py", "parser/test_object_parse.py",
         ]

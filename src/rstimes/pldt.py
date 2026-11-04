@@ -4991,7 +4991,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
                              ambiguous=ambiguous, nonexistent=nonexistent)
 
     @classmethod
-    def fromordinal(cls, ordinal: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
+    def fromordinal(cls, ordinal: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
         """Resolve real integer calendar components into one checked date column.
         
         Parameters
@@ -5006,9 +5006,9 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
             UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
             follow this operation.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"}, default "us"
             Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback.
+            final date; no automatic fallback. Explicit None is not accepted.
         name : str | None
             Optional string column name. None preserves a usable source/current name; a custom copy
             returning the original cannot rename it to a different name.
@@ -5039,7 +5039,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
                                   name=name, ambiguous=ambiguous, nonexistent=nonexistent)
 
     @classmethod
-    def fromisocalendar(cls, year: _CalendarInput, week: _CalendarInput, weekday: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
+    def fromisocalendar(cls, year: _CalendarInput, week: _CalendarInput, weekday: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
         """Resolve real integer calendar components into one checked date column.
         
         Parameters
@@ -5062,9 +5062,9 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
             UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
             follow this operation.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"}, default "us"
             Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback.
+            final date; no automatic fallback. Explicit None is not accepted.
         name : str | None
             Optional string column name. None preserves a usable source/current name; a custom copy
             returning the original cannot rename it to a different name.
@@ -5099,7 +5099,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
                                   name=name, ambiguous=ambiguous, nonexistent=nonexistent)
 
     @classmethod
-    def fromdayofyear(cls, year: _CalendarInput, doy: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
+    def fromdayofyear(cls, year: _CalendarInput, doy: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
         """Resolve real integer calendar components into one checked date column.
         
         Parameters
@@ -5119,9 +5119,9 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
             UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
             follow this operation.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"}, default "us"
             Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback.
+            final date; no automatic fallback. Explicit None is not accepted.
         name : str | None
             Optional string column name. None preserves a usable source/current name; a custom copy
             returning the original cannot rename it to a different name.
@@ -5546,7 +5546,15 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         -------
         Pldt
             A fresh same-class shell under the default protocol. Genuine custom
-            copy/reduction hooks retain their return values and exceptions."""
+            copy/reduction hooks retain their return values and exceptions.
+
+        Notes
+        -----
+        Custom shallow-copy hooks are looked up on the class and receive the source;
+        custom deep-copy hooks are looked up on the instance and receive the memo,
+        as in Python's copy module. Real descriptors, return choices and exceptions
+        are preserved. Static discovery reads actual class definitions; the state
+        hooks themselves retain their normal Python behavior."""
         try:
             return _state_copy(self, _bool_option(deep, 'Pldt.copy', 'deep'),  # pyright: ignore[reportReturnType] -- TY027; see tests/typing/pyright_exceptions.json.
                                name=_name(name), honor_copy=True)
@@ -6047,11 +6055,21 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         Returns
         -------
         Pldt
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
+            One final date column in the source unit, timezone and name. Native rules and per-row
+            callbacks retain source nulls. A real whole-column callback instead owns its returned
+            values and validity, including values at formerly null source positions; every returned
+            value is checked for awareness, exact precision and final capacity. Its date collection
+            must have the complete source length. A business subclass is constructed once.
         
+        Examples
+        --------
+        >>> from rstimes import Delta, Pldt
+        >>> class Fill(Delta):
+        ...     def __radd__(self, column):
+        ...         return Pldt([7, None], unit="us")
+        >>> Pldt([None, 0], unit="us").pldt.add_delta(Fill()).to_physical().to_list()
+        [7, None]
+
         Raises
         ------
         TypeError
@@ -6074,10 +6092,11 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         Returns
         -------
         Pldt
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
+            One final date column in the source unit, timezone and name. Native rules and per-row
+            callbacks retain source nulls. A real whole-column callback instead owns its returned
+            values and validity, including values at formerly null source positions; every returned
+            value is checked for awareness, exact precision and final capacity. Its date collection
+            must have the complete source length. A business subclass is constructed once.
         
         Raises
         ------
@@ -6276,7 +6295,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         return _combine_factory(cls, self._series, time, tz=tz, unit=unit, name=name,
                                  ambiguous=ambiguous, nonexistent=nonexistent)
 
-    def fromordinal(self, *, tz: _Zone=None, unit: _Unit | None='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
+    def fromordinal(self, *, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
         """Resolve positional calendar components with a fixed output schema.
         
         Parameters
@@ -6285,9 +6304,9 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
             UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
             follow this operation.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"}, default "us"
             Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback.
+            final date; no automatic fallback. Explicit None is not accepted.
         name : str | None
             Optional string column name. None preserves a usable source/current name; a custom copy
             returning the original cannot rename it to a different name.
@@ -6318,7 +6337,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         return _calendar_factory(cls, "ordinal", (self._series,), tz=tz, unit=unit, name=name,
                                  ambiguous=ambiguous, nonexistent=nonexistent)
 
-    def fromisocalendar(self, week: _CalendarInput, weekday: _CalendarInput, *, tz: _Zone=None, unit: _Unit | None='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
+    def fromisocalendar(self, week: _CalendarInput, weekday: _CalendarInput, *, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
         """Resolve positional calendar components with a fixed output schema.
         
         Parameters
@@ -6334,9 +6353,9 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
             UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
             follow this operation.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"}, default "us"
             Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback.
+            final date; no automatic fallback. Explicit None is not accepted.
         name : str | None
             Optional string column name. None preserves a usable source/current name; a custom copy
             returning the original cannot rename it to a different name.
@@ -6367,7 +6386,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         return _calendar_factory(cls, "iso", (self._series, week, weekday), tz=tz, unit=unit, name=name,
                                  ambiguous=ambiguous, nonexistent=nonexistent)
 
-    def fromdayofyear(self, doy: _CalendarInput, *, tz: _Zone=None, unit: _Unit | None='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
+    def fromdayofyear(self, doy: _CalendarInput, *, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
         """Resolve positional calendar components with a fixed output schema.
         
         Parameters
@@ -6380,9 +6399,9 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
             UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
             follow this operation.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"}, default "us"
             Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback.
+            final date; no automatic fallback. Explicit None is not accepted.
         name : str | None
             Optional string column name. None preserves a usable source/current name; a custom copy
             returning the original cannot rename it to a different name.
@@ -7336,7 +7355,7 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         return _combine_expression(self._expr, time, tz=tz, unit=unit,
                                     ambiguous=ambiguous, nonexistent=nonexistent)
 
-    def fromordinal(self, *, tz: _Zone=None, unit: _Unit | None='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
+    def fromordinal(self, *, tz: _Zone=None, unit: _Unit='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Resolve positional calendar components with a fixed output schema.
 
         For Expr receivers, errors depending on schema or row values are deferred
@@ -7350,9 +7369,9 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
             Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
             UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
             follow this operation.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"}, default "us"
             Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback.
+            final date; no automatic fallback. Explicit None is not accepted.
         ambiguous : _ExprAmbiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.
@@ -7377,7 +7396,7 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         return _calendar_expression("ordinal", (self._expr,), tz=tz, unit=unit,
                                     ambiguous=ambiguous, nonexistent=nonexistent)
 
-    def fromisocalendar(self, week: _ExprCalendarInput, weekday: _ExprCalendarInput, *, tz: _Zone=None, unit: _Unit | None='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
+    def fromisocalendar(self, week: _ExprCalendarInput, weekday: _ExprCalendarInput, *, tz: _Zone=None, unit: _Unit='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Resolve positional calendar components with a fixed output schema.
 
         For Expr receivers, errors depending on schema or row values are deferred
@@ -7398,9 +7417,9 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
             Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
             UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
             follow this operation.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"}, default "us"
             Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback.
+            final date; no automatic fallback. Explicit None is not accepted.
         ambiguous : _ExprAmbiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.
@@ -7425,7 +7444,7 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         return _calendar_expression("iso", (self._expr, week, weekday), tz=tz, unit=unit,
                                     ambiguous=ambiguous, nonexistent=nonexistent)
 
-    def fromdayofyear(self, doy: _ExprCalendarInput, *, tz: _Zone=None, unit: _Unit | None='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
+    def fromdayofyear(self, doy: _ExprCalendarInput, *, tz: _Zone=None, unit: _Unit='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Resolve positional calendar components with a fixed output schema.
 
         For Expr receivers, errors depending on schema or row values are deferred
@@ -7443,9 +7462,9 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
             Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
             UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
             follow this operation.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"}, default "us"
             Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback.
+            final date; no automatic fallback. Explicit None is not accepted.
         ambiguous : _ExprAmbiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.

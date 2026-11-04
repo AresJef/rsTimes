@@ -579,6 +579,19 @@ fn calculate(
         .transpose()
         .map_err(|m| Failure::new(Kind::Value, m))?;
     let mut output = Vec::with_capacity(source.len());
+    if return_only {
+        // The callback already computed absolute dates, including its own nulls.
+        // `one` ignores the source coordinate for dates in this projection mode.
+        for (row, value) in values.iter().enumerate() {
+            output.push(
+                one(0, value, zone.as_ref(), false, true)
+                    .map_err(|error| error.at(row))?
+                    .map(|value| project(value, unit, row))
+                    .transpose()?,
+            );
+        }
+        return finish(source, output, dtype);
+    }
     for_source(source, |row, value| {
         let other = &values[if data.scalar { 0 } else { row }];
         if let Value::Date(_, aware) = other

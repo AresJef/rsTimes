@@ -66,6 +66,7 @@ _OWN_TOKEN = object()
 _ORIGIN_KEY = "_rstimes_failure_origin"
 _EXCEPTION_DICT = BaseException.__dict__["__dict__"]
 _EXCEPTION_ARGS = BaseException.__dict__["args"]
+_TYPE_NAME = type.__dict__["__name__"]
 
 
 def _critical(error: BaseException) -> bool:
@@ -78,7 +79,7 @@ def _critical(error: BaseException) -> bool:
 def _preview(value, original_length: int | None = None) -> str:
     """Display a bounded builtin value without invoking user display hooks."""
     kind = type(value)
-    name = type.__getattribute__(kind, "__name__")
+    name = _TYPE_NAME.__get__(kind)
     if kind is str:
         size = len(value) if original_length is None else original_length
         shown = repr(value[:96])

@@ -1,11 +1,12 @@
 {
-  "environment": ".local/pldt-72h-20261030/final02-oracle",
+  "environment": ".local/native-pyright-nogil-48h-20261103/doc01-final-oracle-demo",
   "version": "0.2.0b2",
-  "release_manifest": "tasks/evidence/pldt-72h-20261030/W38/final-source-02/FINAL02-distribution-manifest.json",
-  "status": "Final-source02 local qualification: strict performance and same-source32CI acceptance pending",
-  "selection": "local_development_candidate",
+  "release_manifest": "tasks/evidence/native-pyright-nogil-48h-20261103/N30/demo-delivery-manifest.json",
+  "status": "Locally adopted doc01; final evidence and seven bounded performance decisions retained",
+  "selection": "local_delivery",
   "environments": {
-    "pddt": ".local/pldt-72h-20261030/final02-main"
+    "pddt": ".local/native-pyright-nogil-48h-20261103/doc01-ordinary-dependencies-main"
   },
-  "validation": "functional_candidate_not_adopted"
+  "validation": "Frozenactualnative/payloadmanifest,approved7performanceexceptionsretained; publicPyPIb2isoldartifact",
+  "adoption_audit": "tasks/evidence/native-pyright-nogil-48h-20261103/adoption-completion-audit.json"
 }

@@ -161,6 +161,11 @@ source roles and do not become general string parsers.
 | `now` / `today` / `utcnow` | Current time at requested resolution; today retains the clock, no fabricated ns |
 | `date_range` | Native common elapsed/calendar generation; only approved special rules delegate to optional pandas |
 
+The three integer-calendar factories default to `unit="us"`; explicitly pass
+`"ms"`, `"us"` or `"ns"`, not `None`. The same rule applies to their Series
+and Expr namespace entries. This differs from the general constructor, where
+`unit=None` retains its initial unit-selection role.
+
 ```python
 clock = Pldt(["1970-01-01 08:00:00"], tz="Asia/Shanghai")
 assert clock.toseconds().to_list() == [28800.0]
@@ -202,6 +207,21 @@ assert Pldt([1], unit="us").add(microseconds=1, nanoseconds=-1000).to_physical()
 DST. Date subtraction returns native Duration; named `add_delta/sub_delta`
 retain actual Delta absolute fields and ns. Unknown operands and genuine
 subclass operator callbacks retain Python negotiation; no DateOffset guessing.
+
+For named eager `add_delta/sub_delta`, a genuine whole-column callback must
+return a date collection with the complete source length. That result owns
+its values and nulls: it can fill a formerly null source position or return a
+new null. Projection checks every returned value for awareness, exact source
+unit and capacity, then constructs one result using the source zone/name.
+Ordinary native operations and per-row callbacks still skip source-null rows.
+
+```python
+class Fill(Delta):
+    def __radd__(self, column):
+        return Pldt([7, None], unit="us")
+
+assert Pldt([None, 0], unit="us").pldt.add_delta(Fill()).to_physical().to_list() == [7, None]
+```
 
 First/last/start/end and their four queries use the same period boundaries.
 Snap accepts one natural unit or a saved month/weekday name, compares real
@@ -248,6 +268,13 @@ memo and physically distinct buffers; restore/copy does not rerun business
 initialization. Ordinary new date results of a real Pldt subclass invoke its
 normal constructor once. Native Expr serialization remains Polars' protocol;
 rsTimes does not download plugins or execute arbitrary plans on load.
+
+Named `copy` follows Python's hook binding: shallow hooks are obtained from the
+class and receive the source, deep hooks from the instance and receive one
+memo. Static/class methods and real descriptors retain those same rules and
+return choices. Protocol discovery reads actual class definitions rather than
+metaclass display properties; genuine state hooks keep their own behavior and
+exceptions, including Python's default state protocol.
 
 The installed `pldt.pyi` documents every own eager/namespace method. Concrete
 Pldt operations retain type information, including its typed `.pldt` and

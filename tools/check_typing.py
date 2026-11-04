@@ -33,6 +33,10 @@ FIXTURES = (
     ("pldt_invalid.py", set(range(3, 17))),
     ("native_boundary_valid.py", set()),
     ("native_boundary_invalid.py", set(range(5, 9))),
+    ("calendar_units_valid.py", set()),
+    ("calendar_units_invalid.py", set(range(7, 16))),
+    ("range_carrier_valid.py", set()),
+    ("range_carrier_invalid.py", {14}),
 )
 
 
@@ -136,6 +140,7 @@ def _installed(command: list[str], output: Path, env: dict[str, str], language: 
     assert completeness["completenessScore"] == 1, completeness
     return {"fixtures": rows, "original_negative_locations": 48,
             "new_negative_locations": 4, "package": str(package),
+            "repair_negative_locations": 10,
             "public_types": completeness["exportedSymbolCounts"],
             "installed_payload": {p.name: _digest(p) for p in package.iterdir()
                                   if p.suffix in (".py", ".pyi", ".so", ".pyd") or p.name == "py.typed"}}

@@ -7,7 +7,7 @@ from copy import _reconstruct  # pyright: ignore[reportAttributeAccessIssue] -- 
 
 from ._optional import POLARS as pl
 from ._native import _pldt_core, _pldt_restore_core, _pldt_copy_core
-from ._class_protocol import definition
+from ._class_protocol import definition, copy_hook as _copy_hook
 from ._polars import plain_series
 from .errors import _own_error, _external_error
 
@@ -131,13 +131,17 @@ def copy_value(value, deep, memo=None, *, name=None, honor_copy=False):
     cls = type(value)
     if deep and memo is None:
         memo = {}
-    hook = '__deepcopy__' if deep else '__copy__'
-    if honor_copy and definition(cls, hook) is not definition(_BASE, hook):
+    if honor_copy:
         try:
-            result = getattr(value, hook)(memo) if deep else getattr(value, hook)()
+            copier = _copy_hook(value, _BASE, deep)
         except Exception as error:
             raise _external_error(error)
-        return _named_result(value, result, name)
+        if copier is not None:
+            try:
+                result = copier(memo) if deep else copier(value)
+            except Exception as error:
+                raise _external_error(error)
+            return _named_result(value, result, name)
     custom = (definition(cls, '__reduce_ex__') is not _BASE.__reduce_ex__
               or definition(cls, '__reduce__') is not _BASE.__reduce__)
     if custom:
