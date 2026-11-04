@@ -129,6 +129,10 @@ def run_case(module: Path, function: str, args: tuple = (), kwargs: dict | None 
                                              dir=folder, encoding="utf-8", delete=False) as saved:
                 json.dump(result, saved, indent=2)
                 saved.write("\n")
+            # Container tests run as root; the host runner uploads these
+            # explicitly requested, non-secret test receipts afterwards.
+            if os.name != "nt":
+                Path(saved.name).chmod(0o644)
         return result
 
 

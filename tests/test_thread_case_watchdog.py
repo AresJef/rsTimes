@@ -1,5 +1,8 @@
 """DCR05: fault controls prove deadlines, diagnostics and later progress."""
 from pathlib import Path
+import json
+import os
+import stat
 
 import pytest
 
@@ -62,3 +65,13 @@ def test_original_failure_and_skip_are_not_reclassified_as_pass():
     skipped = run_case(CASES, "skips")
     assert skipped["status"] == "skipped"
     assert skipped["reason"] == "controlled optional-dependency skip"
+
+
+def test_saved_evidence_is_readable_by_the_host_artifact_collector(tmp_path, monkeypatch):
+    monkeypatch.setenv("RSTIMES_THREAD_CASE_EVIDENCE", str(tmp_path))
+    result = run_case(CASES, "passes")
+    assert result["status"] == "passed" and result["reaped"] is True
+    receipt, = tmp_path.glob("thread-case-*.json")
+    assert json.loads(receipt.read_text())["child_pid"] == result["child_pid"]
+    if os.name != "nt":
+        assert stat.S_IMODE(receipt.stat().st_mode) == 0o644
