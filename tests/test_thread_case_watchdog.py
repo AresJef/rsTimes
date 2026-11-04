@@ -58,6 +58,21 @@ def test_startup_diagnostic_deadline_includes_child_bootstrap(tmp_path, monkeypa
     assert "Timeout" in result["output"] and "_thread_watchdog_import_hang" in result["output"]
 
 
+def test_diagnostics_survive_a_delayed_native_timer(tmp_path, monkeypatch):
+    helper = Path(watchdog.__file__)
+    delayed = tmp_path / "delayed_native_timer_watchdog.py"
+    source = helper.read_text(encoding="utf-8")
+    original = '    faulthandler.enable(all_threads=True)'
+    assert source.count(original) == 1
+    injected = original + '\n    original_dump = faulthandler.dump_traceback_later\n    faulthandler.dump_traceback_later = lambda delay: original_dump(delay + 0.2)'
+    delayed.write_text(source.replace(original, injected), encoding="utf-8")
+    monkeypatch.setattr(watchdog, "__file__", str(delayed))
+    result = run_case(CASES, "hangs_after_barrier", startup=30, execution=0.8, cleanup=3)
+    assert result["status"] == "timeout" and result["timeout_phase"] == "execution"
+    assert result["reaped"] is True and result["elapsed_seconds"] < 35
+    assert "Timeout" in result["output"] and "hangs_after_barrier" in result["output"]
+
+
 def test_original_failure_and_skip_are_not_reclassified_as_pass():
     failure = run_case(CASES, "raises")
     assert failure["status"] == "failed" and failure["returncode"] != 0

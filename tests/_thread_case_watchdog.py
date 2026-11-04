@@ -31,6 +31,12 @@ _PROGRESS: dict[str, object] = {}
 _PROGRESS_LOCK = threading.Lock()
 
 
+def _arm_diagnostic(deadline: float) -> None:
+    """Leave scheduler headroom before the parent's unchanged phase limit."""
+    remaining = max(0.002, deadline - time.monotonic())
+    faulthandler.dump_traceback_later(max(0.001, remaining - min(1.0, remaining / 2)))
+
+
 def stage(label: str) -> None:
     """Publish the last known test stage, including from a worker callback."""
     _record("running", label)
@@ -169,7 +175,7 @@ def _child(payload_path: Path, progress_path: Path) -> int:
     faulthandler.enable(all_threads=True)
     # Interpreter/bootstrap imports already consume the parent's startup
     # budget. Schedule diagnostics before that same absolute deadline.
-    faulthandler.dump_traceback_later(max(0.001, payload["startup_deadline"] - time.monotonic() - 0.1))
+    _arm_diagnostic(payload["startup_deadline"])
     _record("startup", "importing test and installed native")
     pytest_module = None
     try:
@@ -189,7 +195,7 @@ def _child(payload_path: Path, progress_path: Path) -> int:
         body = getattr(module, payload["function"])
         body = getattr(body, "__wrapped__", body)
         faulthandler.cancel_dump_traceback_later()
-        faulthandler.dump_traceback_later(max(0.1, payload["execution"] - 0.1))
+        _arm_diagnostic(time.monotonic() + payload["execution"])
         _record("running", "test body", native=native.__file__, free_threaded=free_threaded)
         body(*payload["args"], **payload["kwargs"])
         if free_threaded:
@@ -205,7 +211,7 @@ def _child(payload_path: Path, progress_path: Path) -> int:
         return 1
     finally:
         faulthandler.cancel_dump_traceback_later()
-        faulthandler.dump_traceback_later(max(0.1, payload["cleanup"] - 0.1))
+        _arm_diagnostic(time.monotonic() + payload["cleanup"])
 
 
 if __name__ == "__main__":
