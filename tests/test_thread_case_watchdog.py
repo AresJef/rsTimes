@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+import _thread_case_watchdog as watchdog
 from _thread_case_watchdog import run_case
 
 
@@ -36,6 +37,21 @@ def test_startup_hang_is_bounded_separately_from_case_execution():
     assert result["status"] == "timeout" and result["timeout_phase"] == "startup"
     assert result["stage"] == "importing test and installed native"
     assert result["elapsed_seconds"] < 6 and result["reaped"] is True
+    assert "Timeout" in result["output"] and "_thread_watchdog_import_hang" in result["output"]
+
+
+def test_startup_diagnostic_deadline_includes_child_bootstrap(tmp_path, monkeypatch):
+    helper = Path(watchdog.__file__)
+    delayed = tmp_path / "delayed_watchdog.py"
+    source = helper.read_text(encoding="utf-8")
+    original = '    raise SystemExit(_child(Path(sys.argv[2]), Path(sys.argv[3])))'
+    assert source.count(original) == 1
+    delayed.write_text(source.replace(original, '    time.sleep(0.6)\n' + original), encoding="utf-8")
+    monkeypatch.setattr(watchdog, "__file__", str(delayed))
+    module = Path(__file__).with_name("_thread_watchdog_import_hang.py")
+    result = run_case(module, "unused", startup=1.5, execution=30, cleanup=3)
+    assert result["status"] == "timeout" and result["timeout_phase"] == "startup"
+    assert result["reaped"] is True and result["elapsed_seconds"] < 6
     assert "Timeout" in result["output"] and "_thread_watchdog_import_hang" in result["output"]
 
 

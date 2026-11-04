@@ -76,7 +76,8 @@ def run_case(module: Path, function: str, args: tuple = (), kwargs: dict | None 
         payload, progress, output = root / "case.json", root / "progress.jsonl", root / "output.txt"
         payload.write_text(json.dumps({"module": str(module.resolve()), "function": function,
             "args": args, "kwargs": kwargs or {}, "case_id": case_id or function,
-            "startup": startup, "execution": execution, "cleanup": cleanup}), encoding="utf-8")
+            "startup": startup, "startup_deadline": started + startup,
+            "execution": execution, "cleanup": cleanup}), encoding="utf-8")
         env = dict(os.environ)
         env.pop("PYTHON_GIL", None)
         command = [sys.executable, "-I", "-X", "faulthandler", str(Path(__file__).resolve()),
@@ -162,7 +163,9 @@ def _child(payload_path: Path, progress_path: Path) -> int:
     # The imported test module must share this exact progress sink/lock.
     sys.modules["_thread_case_watchdog"] = sys.modules[__name__]
     faulthandler.enable(all_threads=True)
-    faulthandler.dump_traceback_later(max(0.1, payload["startup"] - 0.1))
+    # Interpreter/bootstrap imports already consume the parent's startup
+    # budget. Schedule diagnostics before that same absolute deadline.
+    faulthandler.dump_traceback_later(max(0.001, payload["startup_deadline"] - time.monotonic() - 0.1))
     _record("startup", "importing test and installed native")
     pytest_module = None
     try:
