@@ -20,7 +20,7 @@ def certificate():
 
 def successful_ci():
     run = {"repository": {"full_name": gate.REPOSITORY}, "head_repository": {"full_name": gate.REPOSITORY},
-           "path": ".github/workflows/ci.yml", "event": "push", "head_sha": "a" * 40,
+           "path": ".github/workflows/ci.yml", "event": "push", "head_branch": "main", "head_sha": "a" * 40,
            "id": 123, "run_attempt": 1, "status": "completed", "conclusion": "success"}
     names = [f"CPython {row['python']['label']} / {row['platform']['id']}"
              for row in gate.release_matrix()["include"]]
@@ -34,7 +34,7 @@ def successful_ci():
         {"name": "verify / " + name, "status": "completed", "conclusion": "success"} for name in names]}
 
 
-@pytest.mark.parametrize("change", [None, "failed-run", "wrong-source", "fork", "wrong-workflow",
+@pytest.mark.parametrize("change", [None, "failed-run", "wrong-source", "wrong-branch", "fork", "wrong-workflow",
                                           "wrong-attempt", "failed-job", "missing-job"])
 def test_ci_gate_requires_same_successful_complete_attempt(change):
     run, jobs = successful_ci()
@@ -42,6 +42,8 @@ def test_ci_gate_requires_same_successful_complete_attempt(change):
         run["conclusion"] = "failure"
     elif change == "wrong-source":
         run["head_sha"] = "b" * 40
+    elif change == "wrong-branch":
+        run["head_branch"] = "unmerged-research"
     elif change == "fork":
         run["head_repository"]["full_name"] = "someone/rsTimes"
     elif change == "wrong-workflow":
@@ -118,25 +120,45 @@ def test_occupied_pypi_version_must_contain_only_identical_files():
             gate.verify_existing_pypi({"urls": [{"filename": name, "digests": {"sha256": sha}}]}, manifest)
 
 
+def complete_performance_receipt():
+    """Independent complete fixture for the explicitly frozen release contract."""
+    contract = json.loads((ROOT / ".github/release-performance-contract.json").read_text())
+    wheels = [{"filename": f"rstimes-0.2.0b3-{abi.rstrip('t')}-{abi}-macosx_11_0_arm64.whl",
+               "tags": [f"{abi.rstrip('t')}-{abi}-macosx_11_0_arm64"],
+               "sha256": hashlib.sha256((abi + "wheel").encode()).hexdigest(),
+               "native_sha256": hashlib.sha256((abi + "native").encode()).hexdigest()}
+              for abi in contract["baseline_artifacts"]]
+    artifacts = {row["tags"][0].split("-")[1]: {
+        "filename": row["filename"], "wheel_sha256": row["sha256"],
+        "native_sha256": row["native_sha256"]} for row in wheels}
+    receipt = {"schema": "rstimes-performance-completion-v2", "source_commit": "a" * 40,
+               "version": "0.2.0b3", "baseline": "R18 final01",
+               "contract_sha256": gate.digest_json(contract),
+               "baseline_artifacts": contract["baseline_artifacts"], "artifacts": artifacts,
+               "case_manifest_sha256": "c" * 64, "raw_evidence_sha256": "d" * 64,
+               "raw_audit_sha256": "e" * 64, "raw_recomputation_passed": True,
+               "selected_pairs": 94 * 216, "rounds": 2,
+               "items": [{"id": row["id"], "group": row["group"], "abi": row["abi"],
+                          "status": "PASS", "pairs": 216, "workers": 36,
+                          "precision_pct": 2.9, "stability_pct": 4.9, "max_increase_pct": 4.9}
+                         for row in contract["required_cases"]]}
+    cert = {"performance_sha256": gate.digest_json(receipt)}
+    manifest = {"source_commit": "a" * 40, "version": "0.2.0b3", "wheels": wheels}
+    return receipt, cert, manifest
+
+
 @pytest.mark.parametrize("change", [None, "speed", "precision", "stability", "samples", "identity", "receipt"])
 def test_performance_completion_is_same_final_wheel_and_original_gates(change):
-    wheel = {"filename": "rstimes-0.2.0b2-cp313-cp313-macosx_11_0_arm64.whl",
-             "sha256": "a" * 64, "native_sha256": "b" * 64}
-    receipt = {"source_commit": "a" * 40, "version": "0.2.0b2", "baseline": "0.2.0b1",
-               "wheel_sha256": "a" * 64, "native_sha256": "b" * 64,
-               "case_manifest_sha256": "c" * 64, "raw_evidence_sha256": "d" * 64,
-               "items": [{"id": "case", "group": "pd3", "status": "PASS", "pairs": 216, "workers": 36,
-                          "precision_pct": 2.9, "stability_pct": 4.9, "max_increase_pct": 4.9}]}
+    receipt, cert, manifest = complete_performance_receipt()
     if change in ("speed", "precision", "stability"):
         receipt["items"][0][{"speed": "max_increase_pct", "precision": "precision_pct", "stability": "stability_pct"}[change]] = 5.1
     elif change == "samples":
         receipt["items"][0]["pairs"] = 215
     elif change == "identity":
-        receipt["native_sha256"] = "e" * 64
+        receipt["artifacts"]["cp313"]["native_sha256"] = "f" * 64
     cert = {"performance_sha256": gate.digest_json(receipt)}
     if change == "receipt":
         receipt["items"][0]["precision_pct"] = 2.8
-    manifest = {"source_commit": "a" * 40, "version": "0.2.0b2", "wheels": [wheel]}
     if change is None:
         gate.validate_performance(receipt, cert, manifest)
     else:

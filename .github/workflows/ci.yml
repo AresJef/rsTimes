@@ -2,8 +2,12 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
+    # These follow-up records do not change a frozen distribution. Their
+    # documentation/demo checks are recorded by the release procedure.
+    paths-ignore: ["docs/**", "AGENTS.md", "README.md", "demo/README.md", "demo/runtime.json", "tasks/**"]
   pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       profile:
@@ -21,11 +25,6 @@ concurrency:
 
 jobs:
   verify:
-    # Dedicated research branches use explicit dispatch to avoid duplicate runs.
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (!contains(fromJSON('["codex/pldt-nanoseconds-72h-20261030", "codex/native-pyright-nogil-20261103"]'), github.head_ref || github.ref_name)) ||
-      (github.event_name == 'pull_request' && github.event.action != 'opened')
     uses: ./.github/workflows/build.yml
     with:
-      profile: ${{ inputs.profile || 'full' }}
+      profile: ${{ inputs.profile || (github.event_name == 'pull_request' && 'pilot' || 'full') }}

@@ -1,10 +1,11 @@
 # Pldt: native Polars date columns and expressions
 
-This guide describes the current **locally adopted R18 optimization final01**. The
-previously published `0.2.0b2` is the frozen reference; publication of this work
-is a separate action. The public classes are `Delta`, `Pydt`, `Pddt` and `Pldt`.
-The [R18 qualification report](/Users/jef/ResilioSync/code/rsTimes/docs/R18检查器优化与验收-20261105.md)
-records the complete export checks, measured gains and local ABI coverage.
+This guide describes **rsTimes 0.2.0b3**. The older 0.2.0b2 distribution does
+not contain Pldt. The public classes are `Delta`, `Pydt`, `Pddt` and `Pldt`.
+The [release notes](releases/v0.2.0b3.md) describe the public release boundary.
+The [R18 qualification report](R18检查器优化与验收-20261105.md) separately
+records the local predecessor's complete export checks and measured gains;
+its timings are not reassigned to another binary.
 
 Install the optional Polars capability to use `Pldt`. NumPy remains a default
 dependency. Ordinary Pldt calculations require neither pandas nor dateutil,

@@ -1,43 +1,28 @@
 # rsTimes
 
-**Published rsTimes 0.2.0b2** is a Python date and time library with a shared Rust core.
-It provides calendar deltas, configurable parsing, a real `datetime.datetime`
-subclass and a real `pandas.DatetimeIndex` subclass.
+rsTimes 0.2.0b3 is a beta Python date and time library with a shared Rust core.
+It combines scalar calendars, pandas indexes and native Polars columns/expressions.
 
-- **`Delta`**: relative calendar changes, absolute fields, scalar and bulk arithmetic.
-- **`parse_str`, `parse`, `parse_to_epoch`**: shared parsing rules returning a date object or an epoch integer in a chosen unit.
-- **`Configs`**: parsing vocabularies, ordering, fixed offsets and explicitly configured regional time zones.
-- **`Pydt`**: calendar, boundary, time zone and formatting methods on a standard datetime subclass.
-- **`Pddt`**: nanoseconds, explicit units, column operations and pandas index interoperability.
+- **`Delta`**: exact nanosecond relative changes, absolute fields and scalar/bulk arithmetic.
+- **`parse_str`, `parse`, `parse_to_epoch`**: shared configurable parsing returning date objects or integer epoch ticks.
+- **`Configs`**: vocabularies, ordering, fixed offsets and explicitly configured regional zones.
+- **`Pydt`**: a real `datetime.datetime` subclass with calendar, boundary, zone and formatting operations.
+- **`Pddt`**: a real `pandas.DatetimeIndex` subclass with explicit units, nanoseconds and column operations.
+- **`Pldt`**: a real `polars.Series` subclass, with Series/Expr `.pldt` namespaces and shared Rust date kernels.
 
-The distribution name is `rsTimes`; import `rstimes`. The published 0.2.0b2
-distribution does not include `Pldt` or the new `Delta` nanosecond parameters.
-Its optional Polars integration reads supported Series inputs.
-
-## Local Pldt and nanosecond development
-
-This checkout additionally implements `Pldt`, a real `polars.Series` subclass,
-and relative `Delta(nanoseconds=...)` / absolute `Delta(nanosecond=...)` fields.
-These checkout additions are separate from the published distribution.
-Installing the published version above does not install these additions.
-
-The four core class names are **`Delta`, `Pydt`, `Pddt` and `Pldt`**. Polars
-Series and Expr expose the `.pldt` namespace; date-field replacement uses
-`.pldt.replace(...)` while native Polars value replacement keeps its meaning.
-The corresponding `Pddt` date-field entry is `.pddt.replace(...)` in this checkout.
-Shared Rust kernels preserve each container's precision, validity and capacity.
-See the [Pldt guide](docs/Pldt使用说明.md) and [Delta guide](docs/Delta使用说明.md).
-
-The current validation workflow uses `macos-15` for ARM64; the published beta
-matrix below records its original runner. Both retain the macOS 11.0 wheel baseline.
+The distribution name is `rsTimes`; import `rstimes`. The four core class names
+are **Delta, Pydt, Pddt and Pldt**. Date-field replacement uses
+`x.pddt.replace(...)` or `x.pldt.replace(...)`; native host replacement methods
+retain their own meaning. See the [b3 release notes](docs/releases/v0.2.0b3.md)
+for upgrade details and explicitly deferred custom-protocol cases.
 
 ## Installation and dependencies
 
 This is a beta release. Select the version explicitly:
 
 ```sh
-python -m pip install "rsTimes==0.2.0b2"
-python -m pip install "rsTimes[dateutil,pandas,polars]==0.2.0b2"
+python -m pip install "rsTimes==0.2.0b3"
+python -m pip install "rsTimes[dateutil,pandas,polars]==0.2.0b3"
 ```
 
 | Dependency | Required version | Purpose |
@@ -46,7 +31,7 @@ python -m pip install "rsTimes[dateutil,pandas,polars]==0.2.0b2"
 | tzdata | >=2026.5, Windows only | Required IANA data for standard `ZoneInfo` |
 | python-dateutil | >=2.9, optional `dateutil` extra | Import parserinfo and relativedelta rules; actual relativedelta interoperability |
 | pandas | >=2.3.3 on CPython 3.12–3.14 except Windows ARM64; >=3.0.6 on CPython 3.15 or Windows ARM64 | Optional `pandas` extra, required for `Pddt` |
-| Polars | >=2.0.0 | Optional `polars` extra, supported Series inputs |
+| Polars | >=2.0.0 ordinary profile | Optional `polars` extra, required for `Pldt`; t requires a compatible upstream runtime |
 
 Core `Delta`, `Configs`, parsing and `Pydt` work without dateutil, pandas or Polars.
 Without python-dateutil, `Configs.from_parserinfo()` and
@@ -110,42 +95,43 @@ are `OverflowError`.
 
 ## Native support and verification
 
-One source tree supports ordinary GIL-enabled CPython 3.12,3.13,3.14 and3.15:
+One source tree supports ordinary CPython 3.12–3.15 and free-threaded CPython
+3.14t/3.15t. The native release matrix is:
 
-| Platform | CPU | Wheel baseline | Published 0.2.0b2 verification runner |
-|---|---|---|---|
-| macOS | ARM64 | macOS11.0+ | macos-14 |
-| macOS | x86_64 | macOS11.0+ | macos-15-intel |
-| Windows | x86_64 | win_amd64 | windows-2025 |
-| Windows | ARM64 | win_arm64 | windows-11-arm |
-| Linux glibc | x86_64 | manylinux_2_28 | ubuntu-24.04, matching pinned container |
-| Linux glibc | ARM64 | manylinux_2_28 | ubuntu-24.04-arm, matching pinned container |
-| Linux musl | x86_64 | musllinux_1_2 | ubuntu-24.04, matching pinned container |
-| Linux musl | ARM64 | musllinux_1_2 | ubuntu-24.04-arm, matching pinned container |
+| Platform | CPU | Wheel/libc policy | Ordinary Python | Free-threaded Python |
+|---|---|---|---|---|
+| macOS | ARM64 | macOS 11.0 wheel tag; dependency OS floor also applies | 3.12–3.15 | 3.14t, 3.15t |
+| macOS | Intel x86_64 | macOS 11.0 ordinary tag; t requires 14.0+ | 3.12–3.15 | 3.14t, 3.15t |
+| Windows | x86_64 | win_amd64 | 3.12–3.15 | 3.14t, 3.15t |
+| Windows | ARM64 | win_arm64 | 3.12–3.15 | 3.14t, 3.15t |
+| Linux glibc | x86_64 | manylinux_2_28 | 3.12–3.15 | 3.14t, 3.15t |
+| Linux glibc | ARM64 | manylinux_2_28 | 3.12–3.15 | 3.14t, 3.15t |
+| Linux musl | x86_64 | musllinux_1_2 | 3.12–3.15 | 3.14t, 3.15t |
+| Linux musl | ARM64 | musllinux_1_2 | 3.12–3.15 | 3.14t, 3.15t |
 
-The published 0.2.0b2 release contains32 ordinary-GIL wheels and one complete
-sdist. Linux installation tests run inside the matching libc, not only on the
-host. That published release does not provide free-threaded wheels. 32-bit and
-PyPy are outside the supported matrix. Runner testing does not claim physical
-testing on every historical OS release permitted by a wheel tag.
+This is 32 ordinary plus16 t wheels and one canonical sdist. 32-bit, PyPy,
+universal2 and 3.13t are outside the matrix. Linux installation tests use the
+matching libc container. Wheel tags and hosted-runner tests do not prove
+physical execution on every historical OS release allowed by a tag.
 
-Every position verifies real isolated core-only, core+Polars and pandas3
-installations. Applicable pandas2 positions use the same wheel. Additional
-latest-version representatives are recorded separately. The fixed main versions
-are NumPy 2.5.3, pandas 3.0.6 and Polars 2.0.0; pandas2 compatibility uses2.3.3.
-The frozen cytimes3.1.0 oracle runs separately with pandas2.3.3 and NumPy2.5.3.
-It is a test-only dependency. The 4,588 independent frozen string expectations
-remain protected. Shared cloud runners do not establish strict performance ratios.
+The complete dependency set determines the usable OS floor. In particular,
+NumPy 2.5.3 requires macOS 14.0+ on ARM64 Python 3.14/3.15, including t builds;
+Intel t integration also requires macOS 14.0+. Use the
+[free-threaded guide](docs/free-threaded-python.md) for exact conditions.
 
-## Free-threaded development builds
+**NoGIL support requires matching upstream dependencies.** The t qualification
+uses pandas 3 and fixed, unmodified official Polars 2.1.0 sources when a
+suitable official wheel is unavailable. Internal CI builds are not a runtime
+supply channel. rsTimes does not ship, download or maintain a Polars fork or
+custom user runtime. Users obtain a compatible upstream Polars build; this
+matrix does not promise that every dependency has a public t wheel everywhere.
 
-The current development source also targets CPython 3.14t and 3.15t, alongside
-the ordinary interpreters, using one source tree for Delta, Parser / Configs,
-Pydt, Pddt and Pldt. These builds have their own installed-wheel, concurrency
-and performance qualification. They are distinct from the older public b2
-artifacts even where the version strings match. See
-[the free-threaded guide](docs/free-threaded-python.md) for actual GIL checks,
-configuration sharing, dependency requirements and upstream Polars ownership.
+Every release position tests actual isolated installed wheels, with core-only,
+Polars-only and pandas3 configurations as applicable. Ordinary pandas2 and
+latest-version representatives are separate profiles. The frozen cytimes oracle
+is test-only and isolated from pandas3 product environments. Shared cloud
+runners are not used as strict performance proof; measured results name the
+actual artifact, ABI, workload and baseline.
 
 ## Development
 
@@ -156,7 +142,7 @@ python -m pip install --upgrade pip==26.2.2
 python -m pip install -r requirements-dev.txt
 maturin build --release --locked --interpreter python --out dist
 python -m pip install --no-deps dist/*.whl
-python -I -B tools/wheel_smoke.py --expect-version 0.2.0b2 --with-dateutil --with-pandas --with-polars
+python -I -B tools/wheel_smoke.py --expect-version 0.2.0b3 --with-dateutil --with-pandas --with-polars
 python -I -B tools/run_release_tests.py --junitxml evidence/tests.xml
 python -I -B tools/check_public_docs.py
 ```
@@ -181,7 +167,9 @@ silently loads another wheel or compiles a temporary replacement. See the
 
 ## Automated publication
 
-- Branch/PR/manual CI builds and tests, without publication permissions.
+- PRs run representative pilot checks; a fixed main commit runs the full48 matrix.
+  Manual verification cannot publish. Documentation-only follow-ups have their
+  recorded documentation/demo checks without rebuilding a frozen release.
 - Only a pushed annotated `v*` tag triggers `publish.yml`. The tag binds the exact
   source commit, successful complete CI run/attempt, manifest SHA256 and local
   performance completion receipt.
@@ -202,7 +190,8 @@ assets, mix incomplete CI attempts or rebuild substitutes for an existing versio
 - [Delta API](docs/DeltaAPI.md), [Delta guide](docs/Delta使用说明.md)
 - [Parser guide](docs/Parser使用说明.md), [object parsing](docs/Parser对象解析使用说明.md)
 - [Pydt guide](docs/Pydt使用说明.md), [Pddt and epoch parsing](docs/Pddt与parse_epoch使用说明.md)
-- [Errors](docs/错误处理使用说明.md), [release notes](docs/releases/v0.2.0b2.md)
+- [Pldt guide](docs/Pldt使用说明.md), [NoGIL](docs/free-threaded-python.md), [type checking](docs/type-checking.md)
+- [Errors](docs/错误处理使用说明.md), [release notes](docs/releases/v0.2.0b3.md)
 
 Wheels include public stubs and `py.typed`, with annotations, docstrings and
 examples. rsTimes uses the [MIT license](LICENSE); distributions include the

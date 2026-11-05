@@ -1,12 +1,12 @@
 # Free-threaded Python
 
-This development checkout adds one-source support for ordinary CPython
+rsTimes 0.2.0b3 provides one-source support for ordinary CPython
 3.12–3.15 and free-threaded CPython 3.14t / 3.15t. `Delta`, Parser / `Configs`,
 `Pydt`, `Pddt`, and `Pldt` keep the same date semantics and public interfaces.
-The current project is qualifying the installed distributions; its final
-acceptance record determines which build is adopted. The publicly released
-`0.2.0b2` is an older, ordinary-GIL distribution. A matching version string
-does not identify the new development binary.
+Use an actual 0.2.0b3 distribution for this support. The older 0.2.0b2
+release contains ordinary-GIL wheels and does not include Pldt or these
+free-threaded builds. Source and runtime identity remain important when
+comparing local builds: a package version alone does not identify a binary.
 
 ## Interpreter and dependencies
 
