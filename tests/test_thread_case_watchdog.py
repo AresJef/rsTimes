@@ -49,12 +49,16 @@ def test_startup_diagnostic_deadline_includes_child_bootstrap(tmp_path, monkeypa
     source = helper.read_text(encoding="utf-8")
     original = '    raise SystemExit(_child(Path(sys.argv[2]), Path(sys.argv[3])))'
     assert source.count(original) == 1
-    delayed.write_text(source.replace(original, '    time.sleep(0.6)\n' + original), encoding="utf-8")
+    # Keep enough real bootstrap/diagnostic headroom on slow free-threaded
+    # runners. A relative five-second arm after this two-second delay would
+    # still miss the parent's absolute deadline, so the negative control is
+    # preserved without relying on a subsecond scheduling window.
+    delayed.write_text(source.replace(original, '    time.sleep(2.0)\n' + original), encoding="utf-8")
     monkeypatch.setattr(watchdog, "__file__", str(delayed))
     module = Path(__file__).with_name("_thread_watchdog_import_hang.py")
-    result = run_case(module, "unused", startup=1.5, execution=30, cleanup=3)
+    result = run_case(module, "unused", startup=5.0, execution=30, cleanup=3)
     assert result["status"] == "timeout" and result["timeout_phase"] == "startup"
-    assert result["reaped"] is True and result["elapsed_seconds"] < 6
+    assert result["reaped"] is True and result["elapsed_seconds"] < 10
     assert "Timeout" in result["output"] and "_thread_watchdog_import_hang" in result["output"]
 
 

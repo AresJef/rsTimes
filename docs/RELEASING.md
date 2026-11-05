@@ -1,8 +1,8 @@
-# rsTimes maintainer release procedure — release candidate
+# rsTimes release procedure
 
-This is the current operating procedure. Its b3 experience record is still
-provisional: publication and remaining gates have not yet succeeded. The
-maintainer will replace pending facts with actual receipts after completion.
+This is the maintainer procedure validated while publishing rsTimes 0.2.0b3.
+Its observed records are evidence for that release, not reusable authorization
+or acceptance for another artifact.
 
 ## Authority and immutable inputs
 
@@ -137,6 +137,23 @@ identity, supported tag, package resource, stub, `py.typed` and license.
 Install the six actual macOS ARM64 wheels in fresh local views and read back
 their native paths and loaded identities from outside the source checkout.
 
+An explicitly approved execution-order adjustment may overlap local work on
+individually qualified, immutable CI files with the tail of the same full run.
+Keep that partial qualification separate. Final certification still requires
+all full-CI jobs and the original complete bundle, then byte equality of every
+early-used file, native and Python payload. A partial six-wheel manifest must
+remain incapable of passing the full release gate. If any relevant input or
+artifact changes, invalidate its local qualification and measurements. Do not
+run heavy archive capture/extraction alongside timed batches. This run's DE03
+used that bounded overlap; it is not authorization for an unrelated future run.
+
+Count actual installation roles from receipts rather than multiplying platform
+counts by an assumed fixed number of profiles. Full CI has three to five
+profiles depending on ABI/platform, whereas the pilot is deliberately smaller.
+This run has 181 native-job install receipts plus three sdist receipts, 184 in
+total, and 13 separate local installation roles. Preserve any previous counting
+error and its correction rather than rewriting original evidence.
+
 If local validation reuses relocated official macOS Python frameworks, first
 check the real framework, OpenSSL library and trusted-CA paths. This run's
 controlled t verifier needed the unmodified installer's OpenSSL libraries via
@@ -246,9 +263,11 @@ work, changing the root branch or staging its existing index.
 
 Finalize this document only after replacing pending facts with actual records.
 Add the concise reference to AGENTS; the README link was frozen before the tag.
-Post-publication procedure,
-runtime selection and adoption records are a separately identified docs-only
-follow-up commit; they do not alter the immutable release tag or public wheels.
+Post-publication procedure, runtime selection and adoption records use a
+separately identified normal follow-up PR and merge. A necessary test-control
+repair is identified as verification maintenance and receives its own checks;
+it is not called docs-only. Neither kind changes the immutable release tag or
+public wheels. Do not push directly to the default branch as a shortcut.
 If a change affects product/package payload, do not call it docs-only.
 
 Report actual clean successful timings by platform and ABI, cache state and
@@ -261,7 +280,7 @@ Completion is reported separately as configuration, actual Actions success,
 GitHub publication, PyPI publication and public-package installation success.
 Save the final report, completion audit, raw identities and budget settlement.
 
-## This run's observed records — incomplete until finalization
+## This run's verified release records
 
 | Stage | Actual evidence | State |
 |---|---|---|
@@ -269,9 +288,156 @@ Save the final report, completion audit, raw identities and budget settlement.
 | Adopted baseline integration | dd1c1b4; 135 input hashes | Verified |
 | Release wiring and metadata | 00042d4 | Verified locally |
 | Local installed examples, functionality and gates | S04 | Passed; not remote final evidence |
-| PR representative CI | 41969566935, attempt1 | Passed, eight positions; publisher follow-up awaits current-head validation |
-| Main/full CI and sealed artifacts | S06/S07 | Pending |
-| Exact final artifact measurements | S08/S09 | Pending |
-| Tag / GitHub / PyPI | S10 | Pending |
-| Public 48-position install checks | S11 | Pending |
-| Final procedure/demos/timing settlement | S12 | Pending |
+| PR representative CI | 41969566935 and current-head41978594378, attempt1 | Passed, eight positions each; original artifacts and full case inventories read back |
+| Normal merge / main source | PR1, dc878ef53f531f09c3bfe22348850bf9f163c7ee | Merged and remotely read back; root HEAD/index preserved |
+| Main/full CI and sealed artifacts | CI41982305161 attempt1, S06/S07 | All56 jobs passed; 104 original archives,48 wheels/1sdist,184 install receipts/186 XML lanes independently read back; three fresh-target rebuilds passed |
+| Exact final artifact measurements | S08/S09 | All94 strictPASS;20304 complete pairs/648 distinct actual workerPIDs; all41540 raw formal members and1692 selected controls independently replayed; no exceptions |
+| Tag / GitHub / PyPI | S10 | Annotatedv0.2.0b3 object57c9590fe163065bdfc93f7981400a67806fd80f; GitHub52 assets actualdownload/SHAequal; PyPI49 files/SHAequal, OIDC upload succeeded |
+| Public 48-position install checks | S11 | Original47 positions plus one unchanged macIntel315t recovery passed;144 smoke/144 XML independently checked; original failure retained |
+| Procedure, demos and timing | S12 | This runbook and original timing receipts; root/other-directory8 demos passed, Delta150 scenarios/0unknown differences; follow-up PR/CI recorded in the release ledger |
+
+## Command reference for the next approved release
+
+Run these from the isolated integration checkout. Use the authenticated `gh`
+executable already verified for the task; a non-PATH installation should use
+its recorded absolute path. Values below are explicit task variables, not
+instructions to reuse b3's source, budget, evidence or authorization.
+
+Read-only account and source checks:
+
+```bash
+git status --short
+git remote -v
+git rev-parse HEAD
+git rev-parse 'HEAD^{tree}'
+gh auth status
+gh api repos/AresJef/rsTimes
+gh pr view "$release_pr" --repo AresJef/rsTimes \
+  --json number,state,isDraft,headRefOid,baseRefOid,mergeable,statusCheckRollup
+gh api repos/AresJef/rsTimes/environments/pypi
+python tools/distribution_manifest.py --print-matrix full
+```
+
+The PyPI project/Trusted Publisher and any required owner login are separate
+from GitHub CLI authentication. The exact version must also be absent from
+PyPI and the proposed tag absent remotely before any new tag is created.
+Do not save output containing credential material.
+
+Useful existing local gates, with the task's qualified Python/Node environment:
+
+```bash
+python -I -B -m pytest tests/test_release_candidate.py tests/test_release_b3_gate.py
+python -I -B tools/check_typing.py --full --python-version 3.12 \
+  --evidence-dir "$typing_evidence"
+python -I -B tools/check_public_docs.py --evidence-dir "$docs_evidence"
+```
+
+The b3-specific test remains a historical regression. A future contract needs
+its own current positive/negative inputs rather than editing it to accept an
+old receipt. The existing CI also checks the approved 3.14 and 3.15 language
+views. Use the pinned Actionlint binary for all changed workflow files.
+
+After applicable PR checks and review, use normal merge with an exact expected
+head. For example, `gh pr ready` and `gh pr merge --merge --match-head-commit`
+provide the CLI equivalents of the connector actions. Do not use `--admin`.
+Read back main and follow its automatically triggered CI instead of dispatching
+a duplicate full build:
+
+```bash
+gh run list --repo AresJef/rsTimes --workflow ci.yml \
+  --commit "$release_source" --json databaseId,event,headSha,headBranch,status,conclusion
+gh run view "$release_ci" --repo AresJef/rsTimes \
+  --json jobs,createdAt,startedTime,updatedAt,conclusion,headSha
+gh run download "$release_ci" --repo AresJef/rsTimes \
+  --name "release-distributions-${release_ci}-${release_attempt}" \
+  --dir "$sealed_directory"
+```
+
+Retain the original artifact ZIPs and complete paginated run/job metadata too;
+the extracted files alone omit their original container provenance. Keep
+different attempts and partial captures separate. The task's existing capture
+helper uses the artifact API to retain original ZIP bytes and original logs.
+
+Use `distribution_manifest.py` to recheck the actual downloaded bundle against
+the frozen source. Pass the approved matrix count from `release_matrix()` to
+`--wheels`, plus `--sdists 1 --complete`. Do not place checksum/receipt files in
+the `dist/` directory: that directory must contain distributions only. Keep the
+CI's original manifest and checksums; write the independent recheck elsewhere.
+
+`verify_wheel.py` accepts `--directory`, `--platform-id`, `--python-minor`,
+`--mode` and `--evidence`. Its t role additionally needs `--free-threaded` and
+the qualified `--internal-polars` directory. `wheel_smoke.py` can independently
+check a real installed environment with `--expect-version`, `--with-pandas`,
+`--with-polars`, and one of `--with-dateutil`/`--without-dateutil`, according to
+the actual profile. Run with `-I -B` outside the checkout. Neither tool makes
+an ABI-incompatible wheel compatible; use the actual target interpreter.
+
+Create a certificate only from the completed current raw audit and final CI
+metadata. Use `release_candidate.digest_json`, `validate_ci`, `verify_bundle`
+and `validate_performance` from the frozen source as the local preflight. The
+certificate must contain the complete current performance receipt, not an
+inherited result or just a digest. Save the JSON file with real newlines.
+
+The final authorized write is then a single immutable annotated tag:
+
+```bash
+git tag --annotate "$release_tag" "$release_source" --file "$certificate_file"
+git cat-file -p "$release_tag"
+git push origin "refs/tags/${release_tag}"
+gh api "repos/AresJef/rsTimes/git/ref/tags/${release_tag}"
+```
+
+Follow the tag-triggered `publish.yml`. Its jobs perform GitHub publication,
+OIDC PyPI upload and actual public installation in that order. The only manual
+workflow used for public recovery is the read-only `verify-published.yml` with
+its explicit `tag` input. It has no upload or compilation permission for
+rsTimes. Before any recovery, verify what already exists and compare bytes.
+
+Starting prompt for a future release:
+
+> Read AGENTS.md, docs/RELEASING.md and the current adoption report. Propose a
+> bounded plan for the requested next version, using the current repository and
+> actual support matrix. Verify GitHub/PyPI authorization first. Preserve my
+> dirty root checkout and immutable past releases. Reuse existing CI, package
+> verifier and benchmark tools; validate the actual release artifacts and do
+> not transfer older binary timings. State the version, baseline, full required
+> scope, budget, account handoffs, and whether commit/push/merge/tag/publication
+> are authorized. Keep 30-minute self-questioning corrections and reports.
+> Do not begin publishing until the agreed authorization and current gates hold.
+
+## Successful full-CI timing observed for b3
+
+Run41982305161 attempt1 at dc878ef was successful without a failed job. All16
+internal upstream-runtime qualifications were actual cache misses on main.
+Do not substitute the warmer eight-position pilot for this full48-position time.
+
+| Platform | ABI positions | Native parallel span | Sum of native job time | Sum of observed job queue time |
+|---|---:|---:|---:|---:|
+| linux-arm64 | 6 | 1h 20m 42s | 2h 16m 02s | 2h 18m 41s |
+| linux-musl-arm64 | 6 | 2h 10m 33s | 4h 11m 33s | 2h 10m 28s |
+| linux-musl-x86_64 | 6 | 1h 42m 37s | 4h 03m 40s | 0h 36m 09s |
+| linux-x86_64 | 6 | 0h 57m 07s | 1h 54m 28s | 1h 28m 19s |
+| macos-arm64 | 6 | 1h 39m 00s | 2h 46m 18s | 1h 45m 25s |
+| macos-x86_64 | 6 | 2h 47m 43s | 5h 58m 51s | 2h 44m 23s |
+| windows-arm64 | 6 | 1h 22m 00s | 3h 35m 36s | 0h 11m 14s |
+| windows-x86_64 | 6 | 1h 30m 09s | 3h 30m 37s | 2h 44m 12s |
+
+Whole full-CI wall time, including the independent rebuilds/oracles/final bundle: **3h 06m 37s**.
+Native spans run concurrently and may contain scheduling gaps. Neither those
+spans nor sums of job/queue times should be added to claim workflow wall time.
+Per-ABI rows, actual interpreter patches, step times and cache-source log lines
+are retained in the release evidence `S12/full-41982305161-timing.json`.
+The initial publication attempt failed one owned watchdog diagnostic control.
+Only macOS Intel/3.15t was rerun unchanged and passed in5m24s. Other50
+successful jobs retained their original step/timing records. GitHub assigned
+new API job IDs/run_attempt fields to those reused records: that does not mean
+50 extra executions or repeated uploads. Keep both attempts and the explicit
+47+1 public-position selection. Never describe the first attempt as all-green.
+
+The fragile control injected0.6s bootstrap delay into a1.5s diagnostic window;
+its parent deadline/reaping worked but a slow t interpreter could leave no
+time to flush a traceback. Verification maintenance gives that synthetic test
+a5s window with2s bootstrap delay, retaining its diagnostic/phase/reaping
+assertions and default60/30/5 watchdog limits. Six ABI suites passed and
+ordinary/314t/315t isolated relative-deadline mutations remained rejected.
+It changes no production source or released distribution.

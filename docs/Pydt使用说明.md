@@ -2,7 +2,7 @@
 
 ## 本地PLDT／Delta纳秒候选的共享扩展
 
-本节描述本轮本地候选，不冒称已公开的0.2.0b2包含这些新增功能。Pydt仍是真正的datetime子类，保留微秒精度和1—9999年容量。Delta现在保存规范纳秒，在Pydt出口最后一次投影到微秒；并未为Pydt增加不存在的纳秒字段。
+本节描述已公开的0.2.0b3；旧0.2.0b2不包含本轮Pldt／完整纳秒／NoGIL等新增内容。Pydt仍是真正的datetime子类，保留微秒精度和1—9999年容量。Delta现在保存规范纳秒，在Pydt出口最后一次投影到微秒；并未为Pydt增加不存在的纳秒字段。
 
 ```python
 from rstimes import Delta, Pydt

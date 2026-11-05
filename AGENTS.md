@@ -2,7 +2,18 @@
 
 2026-11-05。现行核心断言共26条／77子条款；适用范围和例外是断言的一部分。已采用实现范围见下；未批准的扩展不因断言文字而自动启动。
 
-## 当前本地采用：R18完整NumPy检查器优化 final01
+## 当前公开采用：rsTimes 0.2.0b3
+
+- **公开采用Python0.2.0b3／Cargo0.2.0-beta.3／v0.2.0b3。**源码dc878ef53f531f09c3bfe22348850bf9f163c7ee，树49c399cc688f3c0185558fbd319368e068638bff，注释tag对象57c9590fe163065bdfc93f7981400a67806fd80f。核心类仍Delta、Pydt、Pddt、Pldt；发行算法与R18 final01一致，135生产输入中只有4项版本／交付元数据变化。RV03—RV05与P3仍未处理，不把历史成绩或旧例外转记本包。
+- 同源main CI41982305161 attempt1的56必要job成功，32普通＋16t共48 wheel／1sdist；104原ZIP、184真实安装检查／186XML、3个fresh-target独立sdist重建及2oracle均已独立读回。代表普通23843PASS／5条件SKIP、t23846PASS／2、两oracle各29947PASS／18；各位置以实际XML为准，旧案例无未解释变化。干净完整CI墙钟3小时6分37秒；16项上游SDK资格实际cache miss，不能用暖pilot代替此完整时间。
+- **本包94必要性能全部严格PASS，0FAIL／0INC，无产物例外。**每项216完整配对／36真实worker，20304选定对、648不同worker；41540原始正式成员与1692选定控制对独立复算。最大精度2.932926%、稳定性3.721199%、最差保守耗时增加3.031401%；原3/5/5与覆盖／样本保持。仅六macARM ABI差分保护，不宣称全平台严格5%计时或新增统一提速。
+- GitHub Release435062763的52公开资产全部实际下载核对；PyPI49文件与原封存清单一致。发布42011736440首轮47公开位置成功、1个合成watchdog诊断测试失败；只重跑macIntel315t后通过，144公开安装／XML与同文件fullCI核对。原FAIL、恢复及API克隆历史成功job的新ID均保留，不称首轮全绿；50既有成功job的真实时间和步骤未重跑，产品未重建／重传，tag未移动。
+- CP313／macARM公开native SHA256为3d7eec63be232574d419952eb0932961d7e87a1a8ffdd0ca31f53735e110ed5b；wheel59b7d661d7d0a5aceaa1e1c15587a8061df74d7c2ec90520a4b811d4053346a5；sdist94d1a08d2c65817e075906e12ca3cbefe55841397d775e7d251bbeb1f46bf3b4。各ABI独立身份；所有wheel各27非native载荷＋1native。Pyright1.1.414／Node26.7.0、三语言41活动文件、993声明／162例子通过；43既定demo诊断和51具体语句例外保持，意外诊断0；Rust89debug／89release、fmt／严格Clippy通过。
+- 普通CPython3.12—3.15及3.14t／3.15t同源，八个64位平台与既定依赖范围保持。**D01不变：**内部使用固定未改官方Polars2.1.0源码SDK验证；不维护fork、不分发自建runtime，不承诺所有平台均有官方现成t wheel。用户自行取得兼容上游依赖；t实际导入／真实工作GIL保持关闭，不用强制关闭参数。性能计时器不冒称逐计时批额外探测GIL。
+- 主环境`.local/beta-b3-release-20h-20261105/public-main`，前三官方对照demo用独立`public-oracle-demo`（Babel／cytimes仅对照）；core无可选集成环境亦已验证。四demo根／另一目录8次运行、Delta150场景未知差异0；源码／pyi身份、指南／runtime与公开包同步。后续验证维护通过正常PR／CI；不改变已发布产物，也不把新构建转为采用对象。根原HEAD／分支／index及全部既存修改保留。
+- [统一发布流程](docs/RELEASING.md)、[本轮报告](/Users/jef/ResilioSync/code/rsTimes/docs/rsTimes-0.2.0b3合并发布与验收-20261105.md)、[唯一ledger](/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/beta-b3-release-20h-20261105/ledger.json)、[完成核查](/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/beta-b3-release-20h-20261105/adoption-completion-audit.json)。48小时原T0／已用沿用，软调配、自查迟延、工具疏漏与原负面如实保留。主Agent独立，未启动／咨询子Agent；收尾结束后本轮合理approve授权失效，不为余额扩新项目。
+
+## 历史本地采用：R18完整NumPy检查器优化 final01
 
 - **本轮本地采用R18 final01，完整检查、真实子类与原异常职责不变。** 主Agent独立完成，未启动或咨询子Agent。仅优化P1原生typed迭代与P2单位一次准备；P3直接NumPy缓冲重写未做，RV03—RV05仍开放、暂不处理。包元数据仍0.2.0b2，公开PyPI b2仍是旧发行，本轮未提交、推送、远端CI、tag、Release或PyPI。
 - 135生产输入仅`rust/pldt/output.rs`改变，SHA256为`e29317c555e39908220ed6df7ce7ad62204961acfed3a423671aa4f803efb238`；其余134项、Python／pyi／依赖不变。源日期和实际目标日期每行完整比较，独立validity、有效MIN、ns、乘数、Y/M、sub-ns、精度／容量及首个错误位置保持。复用既有单位解码，i64先扩大到i128再乘，宽因子保留checked计算和原错误冷路；无新unsafe、全局锁或裸缓冲借用。
@@ -71,9 +82,9 @@
 - [最终报告](/Users/jef/ResilioSync/code/rsTimes/docs/PLDT与Delta纳秒升级最终验收-20261102.md)、[执行计划](/Users/jef/ResilioSync/code/rsTimes/tasks/PLDT与Delta纳秒升级七十二小时执行计划-20261030.md)、[唯一ledger](/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/pldt-72h-20261030/ledger.json)、[采用核查](/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/pldt-72h-20261030/adoption-completion-audit.json)、[最终预算](/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/pldt-72h-20261030/budget-final.json)、[3项委托例外决定](/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/pldt-72h-20261030/W40/SOURCE31-three-stability-specific-exceptions-delegated-decision.json)。原72h经用户5次追加至81h，原T0／已用／等待不重置；阶段偏差、自查延迟和工具错误全部如实保留。
 - 本轮为本地采用与隔离Draft PR1／CI；根HEAD／分支／index和既有脏工作保留，未推用户主干／merge／tag／Release／PyPI。四demo与类型／指南／源码已同步。Goal完成后合理approve授权失效，不为剩余预算继续新优化；后续发行或新工作另列授权和预算。
 
-## 当前公开发行事实（本地新增不自动发行）
+## 历史公开发行：0.2.0b2（保留独立产物事实）
 
-- **当前公开采用 `rsTimes==0.2.0b2`，依赖／平台扩展已完成必要验收。** Python0.2.0b2、Cargo0.2.0-beta.2、tag `v0.2.0b2`，已发行源码`ae74aa973a7d7af23026ef41dd13806ca9cf1d32`，注释tag对象`96a10864a985a2c645dac476fc94b9e7720359fe`。普通64位GIL CPython3.12—3.15 × macOS ARM64／Intel、Windows x86_64／ARM64、Linux x86_64／ARM64各glibc2.28及musl1.2，共32wheel＋1sdist。
+- **历史公开采用 `rsTimes==0.2.0b2`，依赖／平台扩展已完成必要验收。** Python0.2.0b2、Cargo0.2.0-beta.2、tag `v0.2.0b2`，已发行源码`ae74aa973a7d7af23026ef41dd13806ca9cf1d32`，注释tag对象`96a10864a985a2c645dac476fc94b9e7720359fe`。普通64位GIL CPython3.12—3.15 × macOS ARM64／Intel、Windows x86_64／ARM64、Linux x86_64／ARM64各glibc2.28及musl1.2，共32wheel＋1sdist。
 - 默认NumPy>=2.5.3，Windows tzdata>=2026.5；dateutil>=2.9、pandas、Polars>=2.0.0可选。pandas2最低2.3.3，在21适用位置验收；全部32位置以pandas3.0.6主线验收。Py315／WindowsARM64须pandas>=3.0.6。旧NumPy1／Py311／pandas2.0仅历史证据，不是b2支持。日期语义仍按唯一Pddt最终决定，新的依赖／平台事实按[本轮最终决定](/Users/jef/ResilioSync/code/rsTimes/docs/依赖与跨平台发行最终讨论决定-20261028.md)。
 - 完整同源CI40742598980 attempt1的39任务全部通过：32主线各19485PASS、21pandas2各19472PASS／13原条件SKIP、8最新各19485PASS；两个oracle各25589PASS／13原条件SKIP。19432旧正确案例ID和817旧oracle ID均保留，新53不同ID。两代表sdist空target独立重建，Rust fmt／严格Clippy／debug16／release16、357pyi定义／96示例及静态类型正负例通过。
 - CP313macOS ARM64实际公开native SHA256 `818a9a6ebd4ae6736802d23c0b1e1be95b8d59797bd4eb1c126c795b692a4506`；wheel `599ba1ef7e2b9b379b51b583716420b53821ce75bf1351fc05e5c9c240fe79b7`；sdist `985326d453f769c8c8adeb1b52db5ca2e6582a2500bce9114a267ad7ee26baf9`。不同ABI／平台有各自SHA；75生产／构建／许可输入与原sdist和实际发行文件一致。
