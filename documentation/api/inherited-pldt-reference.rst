@@ -1307,3 +1307,363 @@ For all provider parameter details, see the `Polars Series reference
    Return Pldt for matching date operands. The receiver is selected at True mask rows and the other column at False or null rows in the executed example.
 
    **Executed examples:** :doc:`inherited-pldt-transformations`.
+
+.. py:method:: rstimes.Pldt.__arrow_c_stream__(requested_schema=None)
+
+   Actual PyArrow TimestampArray and PyCapsule-stream consumption, ns/UTC, valid i64 MIN versus null, empty data and unchanged source.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-arrow`.
+
+.. py:method:: rstimes.Pldt.approx_n_unique()
+
+   Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.approx_quantile(quantile, *, method='auto', error=0.001, error_tightness='empirical')
+
+   Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.arg_max()
+
+   Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.arg_min()
+
+   Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.arg_sort(*, descending=False, nulls_last=False)
+
+   Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.bin_intervals(intervals, *, labels, include_intervals=False, right_closed=False)
+
+   Actual date breakpoints versus sorted ranks and physical-us compatibility cuts; category dtype/nulls; numeric-only rejections.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.bin_quantiles(quantiles, *, labels, include_intervals=False, right_closed=False)
+
+   Actual date breakpoints versus sorted ranks and physical-us compatibility cuts; category dtype/nulls; numeric-only rejections.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.bin_ranks(ranks, *, labels, include_intervals=False)
+
+   Actual date breakpoints versus sorted ranks and physical-us compatibility cuts; category dtype/nulls; numeric-only rejections.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.bottom_k(k=5)
+
+   Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.bottom_k_by(by, k=5, *, reverse=False)
+
+   Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.cumulative_eval(expr, *, min_samples=1, parallel=False)
+
+   Numerical-kernel dtype rejection on actual date receiver; cumulative Expr actually evaluated to native date Series with exact ticks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.cut(breaks, *, labels=None, left_closed=False, include_breaks=False)
+
+   Actual date breakpoints versus sorted ranks and physical-us compatibility cuts; category dtype/nulls; numeric-only rejections.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.describe(percentiles=(0.25, 0.5, 0.75), interpolation='nearest')
+
+   Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.diff(n=1, null_behavior='ignore')
+
+   Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.hist(bins=None, *, bin_count=None, include_category=True, include_breakpoint=True)
+
+   Actual date breakpoints versus sorted ranks and physical-us compatibility cuts; category dtype/nulls; numeric-only rejections.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.index_of(element)
+
+   Actual scalar datetime lookup on explicit us dtype, absent result None, scalar index versus vector native index Series.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.map_elements(function, return_dtype=None, *, skip_nulls=True, _disable_inefficient_map_warning=False)
+
+   Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.max()
+
+   Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.max_by(by)
+
+   Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.mean()
+
+   Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.median()
+
+   Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.min()
+
+   Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.min_by(by)
+
+   Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.mode(*, maintain_order=False)
+
+   Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.n_unique()
+
+   Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.qcut(quantiles, *, labels=None, left_closed=False, allow_duplicates=False, include_breaks=False)
+
+   Actual date breakpoints versus sorted ranks and physical-us compatibility cuts; category dtype/nulls; numeric-only rejections.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.quantile(quantile, interpolation='nearest')
+
+   Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.rank(method='average', *, descending=False, seed=None)
+
+   Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.rle()
+
+   Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.rle_id()
+
+   Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.rolling_kurtosis(window_size, *, fisher=True, bias=True, min_samples=None, center=False)
+
+   Numerical-kernel dtype rejection on actual date receiver; cumulative Expr actually evaluated to native date Series with exact ticks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_map(function, window_size, weights=None, *, min_samples=None, center=False)
+
+   Numerical-kernel dtype rejection on actual date receiver; cumulative Expr actually evaluated to native date Series with exact ticks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_max(window_size, weights=None, *, min_samples=None, center=False)
+
+   Two-row window, min_samples, explicit epoch-second mathematical answers; date dtype versus Float64 rank; null/empty source.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_max_by(by, window_size, *, min_samples=1, closed='right')
+
+   Separate sorted UTC date by-axis and 3-second right-closed windows; date metadata, values and native rank output.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_mean(window_size, weights=None, *, min_samples=None, center=False)
+
+   Two-row window, min_samples, explicit epoch-second mathematical answers; date dtype versus Float64 rank; null/empty source.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_mean_by(by, window_size, *, min_samples=1, closed='right')
+
+   Separate sorted UTC date by-axis and 3-second right-closed windows; date metadata, values and native rank output.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_median(window_size, weights=None, *, min_samples=None, center=False)
+
+   Two-row window, min_samples, explicit epoch-second mathematical answers; date dtype versus Float64 rank; null/empty source.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_median_by(by, window_size, *, min_samples=1, closed='right')
+
+   Separate sorted UTC date by-axis and 3-second right-closed windows; date metadata, values and native rank output.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_min(window_size, weights=None, *, min_samples=None, center=False)
+
+   Two-row window, min_samples, explicit epoch-second mathematical answers; date dtype versus Float64 rank; null/empty source.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_min_by(by, window_size, *, min_samples=1, closed='right')
+
+   Separate sorted UTC date by-axis and 3-second right-closed windows; date metadata, values and native rank output.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_quantile(quantile, interpolation='nearest', window_size=2, weights=None, *, min_samples=None, center=False)
+
+   Two-row window, min_samples, explicit epoch-second mathematical answers; date dtype versus Float64 rank; null/empty source.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_quantile_by(by, window_size, *, quantile, interpolation='nearest', min_samples=1, closed='right')
+
+   Separate sorted UTC date by-axis and 3-second right-closed windows; date metadata, values and native rank output.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_rank(window_size, method='average', *, seed=None, min_samples=None, center=False)
+
+   Two-row window, min_samples, explicit epoch-second mathematical answers; date dtype versus Float64 rank; null/empty source.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_rank_by(by, window_size, method='average', *, seed=None, min_samples=1, closed='right')
+
+   Separate sorted UTC date by-axis and 3-second right-closed windows; date metadata, values and native rank output.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_skew(window_size, *, bias=True, min_samples=None, center=False)
+
+   Numerical-kernel dtype rejection on actual date receiver; cumulative Expr actually evaluated to native date Series with exact ticks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_std(window_size, weights=None, *, min_samples=None, center=False, ddof=1)
+
+   Sample ddof1 Float64 standard deviation in physical ns and variance in ns squared; one-row null and explicit mathematical tolerance.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_std_by(by, window_size, *, min_samples=1, closed='right', ddof=1)
+
+   Sample ddof1 Float64 standard deviation in physical ns and variance in ns squared; one-row null and explicit mathematical tolerance.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_sum(window_size, weights=None, *, min_samples=None, center=False)
+
+   Numerical-kernel dtype rejection on actual date receiver; cumulative Expr actually evaluated to native date Series with exact ticks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_sum_by(by, window_size, *, min_samples=0, closed='right')
+
+   Numerical-kernel dtype rejection on actual date receiver; cumulative Expr actually evaluated to native date Series with exact ticks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_var(window_size, weights=None, *, min_samples=None, center=False, ddof=1)
+
+   Sample ddof1 Float64 standard deviation in physical ns and variance in ns squared; one-row null and explicit mathematical tolerance.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.rolling_var_by(by, window_size, *, min_samples=1, closed='right', ddof=1)
+
+   Sample ddof1 Float64 standard deviation in physical ns and variance in ns squared; one-row null and explicit mathematical tolerance.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-windows`.
+
+.. py:method:: rstimes.Pldt.search_sorted(element, side='any', *, descending=False)
+
+   Actual scalar datetime lookup on explicit us dtype, absent result None, scalar index versus vector native index Series.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.sql(query, *, table_name='self')
+
+   Actually executed native SQL DataFrame with exact ns/UTC column, selected null rows, explicit table name and unchanged source.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-sql`.
+
+.. py:method:: rstimes.Pldt.to_arrow(*, compat_level=None)
+
+   Actual PyArrow TimestampArray and PyCapsule-stream consumption, ns/UTC, valid i64 MIN versus null, empty data and unchanged source.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-arrow`.
+
+.. py:method:: rstimes.Pldt.top_k(k=5)
+
+   Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.top_k_by(by, k=5, *, reverse=False)
+
+   Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.unique(*, maintain_order=False)
+
+   Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.unique_counts()
+
+   Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+
+.. py:method:: rstimes.Pldt.value_counts(*, sort=False, parallel=False, name=None, normalize=False)
+
+   Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks.
+
+   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.

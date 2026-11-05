@@ -32,3 +32,19 @@ Python's [data model](https://docs.python.org/3/reference/datamodel.html)
 describes reflected comparison negotiation and `NotImplemented`. The
 [Delta protocol guide](../guides/delta-protocols.md) demonstrates these operations
 alongside this library's immutable value and business-state rules.
+
+## NumPy dispatch priority metadata
+
+```{py:attribute} rstimes.Delta.__array_priority__
+```
+
+The priority is scalar dispatch metadata, not an elapsed amount or date unit.
+The value is available on the class and an immutable Delta instance.
+
+```{doctest} delta-native-array-priority-metadata
+>>> from rstimes import Delta
+>>> (type(Delta.__array_priority__) is float, Delta.__array_priority__)
+(True, 1000.0)
+>>> Delta().__array_priority__ == Delta.__array_priority__
+True
+```

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "target_status": "candidate",
+  "target_status": "published_0.2.0b3_full_validation_pending",
   "examples": [
     {
       "id": "delta-month-end",
@@ -12,7 +12,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Gregorian2024leap year; month-end fitting, then reverse from Feb29.",
       "scenarios": [
@@ -32,7 +33,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "1001ns=1us+1ns; standard timedelta rounds to microseconds.",
       "scenarios": [
@@ -53,7 +55,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Integer quotient/remainder and ties-to-even at final destination; date midnight-1ns selects previous date.",
       "scenarios": [
@@ -78,7 +81,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "12+3+10=25months;7+2days;6ms+7us=6007us; Euclidean -1ns borrow.",
       "scenarios": [
@@ -106,7 +110,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Independent absolute settings;3ms+789us=3789us; explicit zero present; approved upper limits.",
       "scenarios": [
@@ -128,7 +133,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Relative amount arithmetic; each absolute field right-biased for addition/left-biased for subtraction.",
       "scenarios": [
@@ -150,7 +156,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Calendar Jan31->Feb29=29days;24h-2h=22h;2h-24h=-22h.",
       "scenarios": [
@@ -169,7 +176,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Approved integer-index/floating roles and checked signed64/range boundaries.",
       "scenarios": [
@@ -195,7 +203,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Immutable native value; repeated init leaves value/hash unchanged.",
       "scenarios": [
@@ -223,7 +232,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Normalized equality, standard object protocol negotiation and empty format specification.",
       "scenarios": [
@@ -248,7 +258,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Direct protocol calls and independent24h/2h arithmetic; reflected Delta input declines.",
       "scenarios": [
@@ -266,7 +277,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Gregorian date/datetime +1day and fixed timedelta+1day in input order.",
       "scenarios": [
@@ -284,7 +296,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Real user callback must retain the same original exception object.",
       "scenarios": [
@@ -302,7 +315,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Standard shallow sharing/deep memo alias+cycle contract; business init runs once.",
       "scenarios": [
@@ -325,7 +339,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Approved v2 marker/17core fields; immutable restore; standard pickle reconstruction.",
       "scenarios": [
@@ -344,7 +359,9 @@
         "rstimes.Delta.__add__"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "Independent integer ns values1789->1002/1000/2789/0 for selected absolute/relative fields.",
       "scenarios": [
@@ -362,7 +379,9 @@
         "rstimes.Delta.__add__"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "1ns+1ns=2ns; source missing validity retained; standard scalar final1ns->0us.",
       "scenarios": [
@@ -383,7 +402,9 @@
         "rstimes.Delta.__add__"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "Existing us cannot represent1ns;1000ns-1000ns=0; strict positional2row Delta pairing.",
       "scenarios": [
@@ -403,7 +424,9 @@
         "rstimes.Delta.__rsub__"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "Original NumPy tick/unit roles, Unix epoch+/-1day,1500ns->2us, average Y/M constants; native source confirms unsupported-unit TypeError/NaT ValueError.",
       "scenarios": [
@@ -422,7 +445,9 @@
         "rstimes.Delta.apply_many"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "1000ns+500ns=1500ns; timedelta stays ns while datetime rounds final1500ns->2us.",
       "scenarios": [
@@ -438,7 +463,9 @@
         "rstimes.Delta.from_relativedelta"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "Read original relative fields;1.5h=1h30m and.001us=1ns; weekday/leapdays unrepresentable.",
       "scenarios": [
@@ -456,7 +483,9 @@
         "rstimes.Delta.to_timedelta"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "Datetime coordinate1000ns+500ns rounds2000ns before difference; Timestamp retains500ns span->0us.",
       "scenarios": [
@@ -478,7 +507,8 @@
       ],
       "profiles": [
         "core",
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "Python object formatting/comparison protocol on an actual Delta instance.",
       "scenarios": [
@@ -497,7 +527,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "calendar and independent integer seconds/ns",
       "scenarios": [
@@ -516,7 +547,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "stored date fields; Unix+10days; floor(-1ns)=-1us; identity/fold",
       "scenarios": [
@@ -535,7 +567,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "one real string conversion and exact-builtin-str boundary",
       "scenarios": [
@@ -554,7 +587,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "explicit flags > Configs; independent complete date; no borrowed clock/tz",
       "scenarios": [
@@ -572,7 +606,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "Feb2024has29days; Jan2Tuesday; AM/PM1..12",
       "scenarios": [
@@ -592,7 +627,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "1970Jan1at08:+08isUnix0; wall clock is28800seconds",
       "scenarios": [
@@ -610,7 +646,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "Paris2024Mar31gap; standard datetime vs strict Pydt constructor",
       "scenarios": [
@@ -629,7 +666,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "Gregorian year0epoch=-719528days; integer ns beyondint64",
       "scenarios": [
@@ -648,7 +686,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "single constructor call; original exception identity; numeric/boolean roles",
       "scenarios": [
@@ -671,7 +710,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "four independent flag combinations and true allocation/init",
       "scenarios": [
@@ -702,7 +742,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "actual named table lifecycle with independent valid word/code",
       "scenarios": [
@@ -738,7 +779,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "actual named table lifecycle with independent valid word/code",
       "scenarios": [
@@ -767,7 +809,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "clear each actual returned snapshot; populated receiver unchanged",
       "scenarios": [
@@ -788,7 +831,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "Feb29; Jan4Thursday; h/m/s0/1/2 and AM/PM0/1",
       "scenarios": [
@@ -809,7 +853,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "8h30m15s=30615s; mappings hold seconds",
       "scenarios": [
@@ -832,7 +877,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "exact Asia/Shanghai key;1970offset+8h; all actual edit paths",
       "scenarios": [
@@ -859,7 +905,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "known word conflict, strict integer codes and source-defined clear/reset/reinit",
       "scenarios": [
@@ -881,7 +928,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "standard independent editable snapshot and actual memo registration",
       "scenarios": [
@@ -903,7 +951,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "actual v2six-tuple/eight tables; supported v1five-tuple omits regions",
       "scenarios": [
@@ -922,7 +971,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "version99 and None fail before replacing receiver rules",
       "scenarios": [
@@ -948,7 +998,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "standard identity/hash/format/comparison on real Configs",
       "scenarios": [
@@ -977,7 +1028,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "real two-stage allocation and object protocol calls",
       "scenarios": [
@@ -994,7 +1046,9 @@
         "rstimes.Configs.from_parserinfo"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "real dateutil tables; imported fields and integer seconds; wrong outer/flag types",
       "scenarios": [
@@ -1014,7 +1068,9 @@
         "rstimes.Configs.from_parserinfo"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "real dateutil tables; imported fields and integer seconds; wrong outer/flag types",
       "scenarios": [
@@ -1034,7 +1090,9 @@
         "rstimes.Configs.from_parserinfo"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "real dateutil tables; imported fields and integer seconds; wrong outer/flag types",
       "scenarios": [
@@ -1055,7 +1113,9 @@
         "rstimes.parse_to_epoch"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "123ns real Timestamp; datetime microsecond destination;UTC+8wall clock",
       "scenarios": [
@@ -1073,7 +1133,9 @@
         "rstimes.parse_to_epoch"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "one real non-null Datetime123ns; native unit retained",
       "scenarios": [
@@ -1092,7 +1154,9 @@
         "rstimes.parse_to_epoch"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "one-element/non-null/Datetime contract; parse excludes Series",
       "scenarios": [
@@ -1110,7 +1174,9 @@
         "rstimes.parse_to_epoch"
       ],
       "profiles": [
-        "full"
+        "full",
+        "public-install",
+        "windows-full"
       ],
       "expectation_basis": "UTC+5h30m1.5s means epoch-19801.5s; real callback exception identity",
       "scenarios": [
@@ -1132,7 +1198,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "real core scalar operations with optional distributions absent",
       "scenarios": [
@@ -1150,7 +1217,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "present branch executes0ns; true core asserts named-extra ImportError",
       "scenarios": [
@@ -1169,7 +1237,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "real adapter calls and absent-package ImportError run in separate verified profiles",
       "scenarios": [
@@ -1187,7 +1256,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "independent Unix constants, negative floor and standard datetime1..9999boundaries",
       "scenarios": [
@@ -1210,7 +1280,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "independent Unix constants, negative floor and standard datetime1..9999boundaries",
       "scenarios": [
@@ -1233,7 +1304,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "independent Unix constants, negative floor and standard datetime1..9999boundaries",
       "scenarios": [
@@ -1314,7 +1386,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "all20paths are invoked/read for each of the three real exception classes with Python protocol expectations",
       "scenarios": [
@@ -1343,7 +1416,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "Gregorian strict invalid day, known token conflict, boolean code error, real class hierarchy",
       "scenarios": [
@@ -1362,7 +1436,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "application ParseError remains exact original object",
       "scenarios": [
@@ -1380,7 +1455,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "year1..9999 and independent Feb29 fields;actual NumPy index/fold bool",
       "scenarios": [
@@ -1404,7 +1480,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "Unix0;attach clock vs convert instant;negative1us",
       "scenarios": [
@@ -1427,7 +1504,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "actual single float callback;Decimal1.5s;strict numeric roles",
       "scenarios": [
@@ -1449,7 +1527,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "Gregorian ordinal738945;2024W9D4;leapday60;real cap/error boundaries",
       "scenarios": [
@@ -1470,7 +1549,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "date-only midnight;true timezone/fold fields;floor(-1ns)=-1us and10Dmultiplier",
       "scenarios": [
@@ -1492,7 +1572,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "dateYMD and timeclock/zone;dynamic today read bounds",
       "scenarios": [
@@ -1513,7 +1594,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "known October token;explicit formatyear1900;completefraction at us destination",
       "scenarios": [
@@ -1535,7 +1617,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "builtin independent before/after clock bounds",
       "scenarios": [
@@ -1558,7 +1641,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "actual wrapper options;calendar literals;source type errors andclockonly default",
       "scenarios": [
@@ -1596,7 +1680,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "all actual listed subtype factories;Feb29;UTCepoch0",
       "scenarios": [
@@ -1642,7 +1727,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "explicit27Gregorian selector cases;clock12:34:56.123456UTC",
       "scenarios": [
@@ -1669,7 +1755,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "Jan31 to leapFeb29 convenience;strictFeb31error;Nonevszero",
       "scenarios": [
@@ -1693,7 +1780,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "all10actual integer components with independent literal plus/minus answers",
       "scenarios": [
@@ -1745,7 +1833,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "2024leapday60 and real ISOweek9day4;2015longyear;year0nonmatch",
       "scenarios": [
@@ -1773,7 +1862,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "1970Jan1at08+08=Unix0;attachvsconvert/remove distinctions",
       "scenarios": [
@@ -1804,7 +1894,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "NY2024Nov3repeated01:30UTC05:30/06:30;Mar10gap",
       "scenarios": [
@@ -1827,7 +1918,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "NYMar9to10noon1calendar day=23elapsedhours",
       "scenarios": [
@@ -1853,7 +1945,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "UTCsingleton identity;known tzset;real negativeDSTcustom-1h;negativefractionoffsetfloor",
       "scenarios": [
@@ -1876,7 +1969,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "fresh real TZAsia/Shanghai process;08wall=UTC00",
       "scenarios": [
@@ -1896,7 +1990,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "actual application daylight callback original exception identity",
       "scenarios": [
@@ -1917,7 +2012,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "leap2024first/lastdates forYQMW+January;clock preserved",
       "scenarios": [
@@ -1941,7 +2037,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "literalYQMWD/h/m/s/ms/us/ns/Mondayboundarypairs",
       "scenarios": [
@@ -1964,7 +2061,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "SaoPaulo2018Nov4firstexistingclock01:00-02",
       "scenarios": [
@@ -1985,7 +2083,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "12:30ties-even12vslatersnap13;all8frequencies;negativeepoch",
       "scenarios": [
@@ -2006,7 +2105,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "explicitdecimaltruncations0..6and9",
       "scenarios": [
@@ -2027,7 +2127,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "oneelapsedsecondcrossesD/M;all12unitspellings;UTC+08sameinstant",
       "scenarios": [
@@ -2059,7 +2160,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "each actual9method rejectsunknown/empty/None/bool",
       "scenarios": [
@@ -2081,7 +2183,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "+08clock28800seconds=Unix0;negativehalfsecond;year9999exactinteger",
       "scenarios": [
@@ -2110,7 +2213,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "1970Jan1Thursday/ISO1970W1D4;clock08vsUTC00;ordinal719163",
       "scenarios": [
@@ -2133,7 +2237,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "standardfixed+08clock;datetime1..9999bounds;1usresolution",
       "scenarios": [
@@ -2155,7 +2260,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "literalfraction123456 andprecision0..9;strictformats",
       "scenarios": [
@@ -2178,7 +2284,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "CLDRFebruary/Thursday andFrenchfevrier/jeudi",
       "scenarios": [
@@ -2198,7 +2305,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "before/after1day margin using actualnaive/awareclocks",
       "scenarios": [
@@ -2224,7 +2332,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "ordinarydatetimeJan1vsJan2;naive-awarestandardrules",
       "scenarios": [
@@ -2247,7 +2356,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "literalday/1us/monthend;ordinaryotherdate86400s;rightnegotiation",
       "scenarios": [
@@ -2271,7 +2381,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "immutabledate;realmetadata dictionary/slots/cycles andactualmemo",
       "scenarios": [
@@ -2295,7 +2406,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "actualprotocol0..highest;NYfold1;metadatarecipeandinvalidcontainers",
       "scenarios": [
@@ -2317,7 +2429,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "realbusinessstrftimecallbackoriginalRuntimeError",
       "scenarios": [
@@ -2334,7 +2447,8 @@
         "rstimes.Pydt.fromdatetime64"
       ],
       "profiles": [
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "explicit10NumPydateunits;negative1nsfloor;10Dmultiplier",
       "scenarios": [
@@ -2354,7 +2468,8 @@
         "rstimes.Pydt.fromdatetime64"
       ],
       "profiles": [
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "independent365.2425averageYduration;floorns/1000beforeoperation",
       "scenarios": [
@@ -2383,7 +2498,8 @@
         "rstimes.Pydt.parse"
       ],
       "profiles": [
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "real123ns;12independentties-even cases;wideyear3000;UTC+08instant",
       "scenarios": [
@@ -2406,7 +2522,8 @@
         "rstimes.Pydt.__sub__"
       ],
       "profiles": [
-        "full"
+        "full",
+        "windows-full"
       ],
       "expectation_basis": "actualrelativedeltaweekdayMO2andmonths;originalbusinessresults/errors",
       "scenarios": [
@@ -2443,7 +2560,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "actualinheritedentryforms;UTCfieldsandstandardcallbacks",
       "scenarios": [
@@ -2464,7 +2582,8 @@
       ],
       "profiles": [
         "full",
-        "core"
+        "core",
+        "windows-full"
       ],
       "expectation_basis": "accepted external timezone protocol boundary with independent builtin datetime carrier",
       "scenarios": [
@@ -2484,7 +2603,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "explicit1tick/all4units;UTC0vsShanghai08;MINreserved",
       "scenarios": [
@@ -2508,7 +2628,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "actual named Series/Index/extension/iterator/nativeunit/stride and literal mixedns",
       "scenarios": [
@@ -2531,7 +2652,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "12exactmissingforms anddtype-informedemptyunits",
       "scenarios": [
@@ -2552,7 +2674,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "floor(-1ns)=-1us;sourceunchanged",
       "scenarios": [
@@ -2575,7 +2698,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "123nstailmustsurvive;exact4units;year0/10000",
       "scenarios": [
@@ -2600,7 +2724,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "realConfigsOctober;dayfirst;completeindependentdefault;strictleapday",
       "scenarios": [
@@ -2627,7 +2752,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "0wallvsinstant;1.5second=1500ms;1000us=1ms;1nsactualtails",
       "scenarios": [
@@ -2654,7 +2780,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "realTimestamp123ns;date-onlymidnight;replacezonefields;10Dmultipliers",
       "scenarios": [
@@ -2679,7 +2806,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "ordinal0=0000Dec31;leap2024doy60;2015W53;labelsdonotalign",
       "scenarios": [
@@ -2705,7 +2833,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "complete123456789ns;strptimeexplicitusonce truncation;clock-onlycombine",
       "scenarios": [
@@ -2731,7 +2860,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "testedpandas3NaNvs2Noneactualtextcontainer",
       "scenarios": [
@@ -2750,7 +2880,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "actualbefore/aftertime_nsandnaivelocalclockbounds;onevalueforeachcall",
       "scenarios": [
@@ -2775,7 +2906,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "08local+08=UTC0;attachvsconvert/remove;knownmixedzones",
       "scenarios": [
@@ -2801,7 +2933,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "NYfoldcandidatesUTC05:30/06:30;WarsawandKyivsameDSTdifferentactualoffsets",
       "scenarios": [
@@ -2825,7 +2958,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "actualoriginalorderedrepeatUTC04:30..07:30andknownfold0/1",
       "scenarios": [
@@ -2844,7 +2978,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "NY07:00UTCedgeall4units;realhalf-hourLordHoweandwhole-dayApia",
       "scenarios": [
@@ -2866,7 +3001,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "source-definedexactpolicytypesvalidatedevenempty",
       "scenarios": [
@@ -2888,7 +3024,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "NYsource01:30\u2192UTC06:30.123456789",
       "scenarios": [
@@ -2914,7 +3051,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "standardUTCmetadataandactualTZShanghaiisolatedsubprocess",
       "scenarios": [
@@ -2935,7 +3073,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "Jan1..3calendar;exact0/1/2nsticks;allinclusionmodes",
       "scenarios": [
@@ -2958,7 +3097,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "23literalGregorianfrequencyfamilies+allfixedunits/decimal/compound/timedelta",
       "scenarios": [
@@ -2979,7 +3119,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "MonWedFriholidayJan3;literalgeneralDateOffsetdays1hours2;fullmatureFYreference",
       "scenarios": [
@@ -2999,7 +3140,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "Mar9..11calendarnoon23hvs24h;fullmaskbeforeexclusiveendpoints",
       "scenarios": [
@@ -3047,7 +3189,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "all26literalcalendarselectorsfromJan31;nsclock/NaT/UTC/name",
       "scenarios": [
@@ -3075,7 +3218,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "explicitcompletefractionfieldreplacement;strictvsfit;wide0/-1",
       "scenarios": [
@@ -3103,7 +3247,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "Jan31Feb29andMar31Apr30;actualobjectNonevsextensionNA",
       "scenarios": [
@@ -3128,7 +3273,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "all11relativecomponentsandoppositedirection;monthandnsnetcancellation",
       "scenarios": [
@@ -3158,7 +3304,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "leapFeb29YQMW+namedmonths;12exactclockperiods;all4unittails",
       "scenarios": [
@@ -3185,7 +3332,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "positive/negative1500/2500nstieseven;allfractionalprecisions0..9+12",
       "scenarios": [
@@ -3227,7 +3375,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "2024leapday60ISO9/4;nullableInt64/UInt32andzero-yearISO-1",
       "scenarios": [
@@ -3253,7 +3402,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "all12bucketunits;MINlegitimateintegerdifference;liveclock\u00b11day",
       "scenarios": [
@@ -3283,7 +3433,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "123ns+08clockvsUTC;all4units;negative1nsfloor;fractionaloffset",
       "scenarios": [
@@ -3308,7 +3459,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "1970Jan1Thursday;local08vsUTC00;fixednullable9columnschema",
       "scenarios": [
@@ -3334,7 +3486,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "NYrepeated05:30Z/06:30Zfold0/1;usdestinationfloor;year0capacity",
       "scenarios": [
@@ -3358,7 +3511,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "literalfraction123456789;all14ISOspellings;all10dotformats;all4storageunits",
       "scenarios": [
@@ -3383,7 +3537,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "CLDRFebruary/FrenchThursday;NYEST/EDT;objectNonezones",
       "scenarios": [
@@ -3403,7 +3558,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "actualTZNYchildprocessunresolvedgaporrepeaterror",
       "scenarios": [
@@ -3423,7 +3579,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "actual3durationtypesvsDeltacalendarDST;native nsdate/durationrows;finerresultunit",
       "scenarios": [
@@ -3451,7 +3608,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "realSeriesoperatorownslabels;actualMonthEnd29",
       "scenarios": [
@@ -3472,7 +3630,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "realBusinessnew/init;shallowsharedbuffer;deepindependentbuffer/aliases/cycles",
       "scenarios": [
@@ -3499,7 +3658,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "allpickleprotocols;versioneddatecoreandindependentmetadata;reservedcoreblocked",
       "scenarios": [
@@ -3530,7 +3690,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "actualcustomchoicesandoriginalRuntimeError",
       "scenarios": [
@@ -3548,7 +3709,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "isolatedmutableinputreadback;stride/byteswap;actualpandasDatetimeArraymetadata",
       "scenarios": [
@@ -3574,7 +3736,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "actualnsDatetime/Date/Time/Durationcolumnroleswithnull",
       "scenarios": [
@@ -3598,7 +3761,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "validPolarsMINseparatefromnull;PddtreservedtargetcollisionOverflowError",
       "scenarios": [
@@ -3617,7 +3781,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "ArrowtimestampnsUTC123/null;wrappedpandasArrowaccepted;rawScalarnotdate",
       "scenarios": [
@@ -3642,7 +3807,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "unsupportedplainrelativedelta;explicitDeltaadapter;whole-columncustomcallbackanditeratorerror",
       "scenarios": [
@@ -3663,7 +3829,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "strictfieldsNone/ns/name/unit;directreplaceactuallyabsent",
       "scenarios": [
@@ -3684,7 +3851,8 @@
       ],
       "profiles": [
         "full",
-        "pandas2"
+        "pandas2",
+        "windows-full"
       ],
       "expectation_basis": "NYrepeatUTC06:30andgap03:00edge",
       "scenarios": [
@@ -3705,7 +3873,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "1tick;validMINandindependentnull;explicitlossoptin",
       "scenarios": [
@@ -3729,7 +3898,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualnamednative123ns;stridebyteswap;tenunsupportedouters",
       "scenarios": [
@@ -3752,7 +3922,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "date-ms/datetime-us/text-declared-ns;seconds-to-ms-in-wideinteger",
       "scenarios": [
@@ -3775,7 +3946,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "tenexactmissingmarkers;typednumericempty-ns;untypedempty-ms",
       "scenarios": [
@@ -3799,7 +3971,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "-1500nsfloors-2us;copyisolation;capturedshellbeforeappend",
       "scenarios": [
@@ -3824,7 +3997,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Octobercustomtoken;dayfirstoverride;leapdaydefaultdateonly",
       "scenarios": [
@@ -3853,7 +4027,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "0wall-vs-instant;1nsfloatseconds;1000us=1ms",
       "scenarios": [
@@ -3883,7 +4058,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "clock08discard-or-rezone;1x10D=864000000ms;123nsretained",
       "scenarios": [
@@ -3913,7 +4089,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "ordinal0year0Dec31;2015W53;leapday60;uppercap",
       "scenarios": [
@@ -3942,7 +4119,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "123456789ns;clock09:30;customOctober;completeformat",
       "scenarios": [
@@ -3971,7 +4149,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "liveclockbefore-afterbounds;onesnapshotpercolumn;all3units",
       "scenarios": [
@@ -4001,7 +4180,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Shanghai08=UTC00;removezonewall-vs-instant",
       "scenarios": [
@@ -4028,7 +4208,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "NY05:30Zvs06:30Z123ns;Warsaw5040/3600;Kyiv14400/10800",
       "scenarios": [
@@ -4054,7 +4235,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "NY03:00edgeandlastunitbeforegap;LordHowe/Apiaactualedges",
       "scenarios": [
@@ -4087,7 +4269,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "registeredNYsourceUTCinstant;normalizedUTC;actualsubprocessTZ",
       "scenarios": [
@@ -4109,7 +4292,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "inclusivefourforms;intsubdivision0,1,3,5andreverse",
       "scenarios": [
@@ -4136,7 +4320,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "23literalcalendaranswerlists;9fixedstepintegeranswers",
       "scenarios": [
@@ -4157,7 +4342,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "business/custombusiness/generalDateOffset/fiscalruleliteralanswers",
       "scenarios": [
@@ -4176,7 +4362,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "calendarD12clock-vs24h13clock;fullmaskbeforeinclusive",
       "scenarios": [
@@ -4201,7 +4388,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "physicalY1971=31536000000ms;Feb1970=2678400000ms;NaTsentinel",
       "scenarios": [
@@ -4231,7 +4419,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "all3fullint64endpointswithseparatevalidity;nativeTime123ns",
       "scenarios": [
@@ -4258,7 +4447,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "-1500nsfloors-2us;year2500cannotns;subns-inputunsupported",
       "scenarios": [
@@ -4301,7 +4491,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Shanghai08+999nsclock/UTC0+999ns;nativeFloat64/Int64/Date/Time",
       "scenarios": [
@@ -4330,7 +4521,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "literal1970Jan1Thursday;9fixeddtypes;local08UTC00",
       "scenarios": [
@@ -4359,7 +4551,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "all14ISOspecs;all10explicitfractions;CLDRFrenchThursday",
       "scenarios": [
@@ -4385,7 +4578,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "NYsecondfold1;123456usand789nstail;Python1..9999",
       "scenarios": [
@@ -4413,7 +4607,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "all3validMINvsnull;nativecopyflags;exactY/M/Dandps/fs/asintegeranswers",
       "scenarios": [
@@ -4440,7 +4635,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "actualpandasunitmetadataanddeclaredNaT",
       "scenarios": [
@@ -4463,7 +4659,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "36unit-zone-validitycombinations;all3pandasouterforms;actualArrowroundtrip",
       "scenarios": [
@@ -4492,7 +4689,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "twoNYinstantsbecomeequal01:30UTCclockonlyonfactorytzreplacement",
       "scenarios": [
@@ -4516,7 +4714,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "actualdeclaredArrowdtype;originalexporterroronce;sourceupdateaftercapture",
       "scenarios": [
@@ -4541,7 +4740,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "date32midnight2024Jan1=1704067200000ms",
       "scenarios": [
@@ -4560,7 +4760,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "defaultnsNaT;mapperappendsbutexported0,1;actualerroridentity",
       "scenarios": [
@@ -4587,7 +4788,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "dayfirstFebruary;all9exactunitconversions\u00b11s",
       "scenarios": [
@@ -4664,7 +4866,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "26literalcalendaranswersfromJan31;123456789nsretained",
       "scenarios": [
@@ -4695,7 +4898,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "strictFeb31errorvsfittedFeb29;fractionmerge000001002;year0/-1",
       "scenarios": [
@@ -4725,7 +4929,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Jan31\u2192Feb29andMar31\u2192Apr30byposition",
       "scenarios": [
@@ -4751,7 +4956,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "11literalcomponentanswers;exactcancel1us-1000ns;DST12vs13",
       "scenarios": [
@@ -4790,7 +4996,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "5calendarperiods/12timeperiods;lasttickforeachunit;fine-latticeidentity",
       "scenarios": [
@@ -4822,7 +5029,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "signedties-even\u00b11500/2500ns;all0..9+12fractions;snaplater",
       "scenarios": [
@@ -4854,7 +5062,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "SaoPaulo01start;NYsecond06h;queryoutsidecapacityfalse",
       "scenarios": [
@@ -4925,7 +5134,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "2024leapday60ISO9/4;negative-tickintegerfloor",
       "scenarios": [
@@ -4964,7 +5174,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "lowerinclusive2020..2024count1;2020longISOyear",
       "scenarios": [
@@ -4991,7 +5202,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "nativeUInt32children;year0validbutISO-1cannotUInt32",
       "scenarios": [
@@ -5028,7 +5240,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "UTCnormalized;NYwinter-18000summer-14400;clock\u00b11day",
       "scenarios": [
@@ -5053,7 +5266,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "12unitbucketcounts;7fixedbuckets\u00d73storageintegeranswers",
       "scenarios": [
@@ -5077,7 +5291,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "all9inclusive/absolutecombinations;validMIN;final-onlymaxcapacity",
       "scenarios": [
@@ -5101,7 +5316,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Shanghai08equals05:30+0530;row[0,1,None];actualoffseterroronce",
       "scenarios": [
@@ -5130,7 +5346,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "13literalDeltafieldanswers;allvectors;validMIN+1",
       "scenarios": [
@@ -5159,7 +5376,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "8actualNumPydurationunitintegeranswers;DateJan2-Jan1=1day",
       "scenarios": [
@@ -5189,7 +5407,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "1nsactualtemporaloperandpreserved;reflecteddate-subtractionrejected",
       "scenarios": [
@@ -5215,7 +5434,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualNInegotiation;one-rowSeriescallback2ns;nullskip;originalerror",
       "scenarios": [
@@ -5242,7 +5462,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "all3units\u00d73zones\u00d76copyroutes;fullint64/validity;actualdatapointers",
       "scenarios": [
@@ -5271,7 +5492,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualnew/initcounters;aliases/slots/cycles;suppliedmemo",
       "scenarios": [
@@ -5302,7 +5524,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "allpickleprotocols;versionedcore/validatedstate;_sblocked",
       "scenarios": [
@@ -5331,7 +5554,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualfreshprocess__main__Businesssameconstructorcountallprotocols",
       "scenarios": [
@@ -5358,7 +5582,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualforeigncopychoicesandoriginalRuntimeErroridentity",
       "scenarios": [
@@ -5381,7 +5606,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "Independent standard/intended control compared with explicitly labelled observed wrong product behavior.",
       "scenarios": [
@@ -5405,7 +5631,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "Independent standard/intended control compared with explicitly labelled observed wrong product behavior.",
       "scenarios": [
@@ -5429,7 +5656,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "Independent standard/intended control compared with explicitly labelled observed wrong product behavior.",
       "scenarios": [
@@ -5455,7 +5683,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "Independent standard/intended control compared with explicitly labelled observed wrong product behavior.",
       "scenarios": [
@@ -5479,7 +5708,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "literal123ns/null;nativeSeriesDatetime(ns)",
       "scenarios": [
@@ -5508,7 +5738,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "6typedsourceexpectations;String123ns;numeric0instantvsnaive0Shanghaiwall",
       "scenarios": [
@@ -5539,7 +5770,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "customjanFebsnapshotvsliveMarch;NY12=17Z;defaultdateleapday",
       "scenarios": [
@@ -5569,7 +5801,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "all4factories\u00d73units1secondscale;Shanghaiwallvsinstant;\u00b11nsfloat",
       "scenarios": [
@@ -5602,7 +5835,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "ordinal0year0Dec31;ISO2015W53;2023doy60Mar1;actual123nsclock",
       "scenarios": [
@@ -5635,7 +5869,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "123456789ns;explicitus123456;dateJan2+Time1ns;frozen12clock",
       "scenarios": [
@@ -5693,7 +5928,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "26literalGregoriananswers;independentNumPyepochconversion",
       "scenarios": [
@@ -5726,7 +5962,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "literalFeb29fitvsstrictFeb31error;rowJan31/Mar31;maxoffsetbroadcast",
       "scenarios": [
@@ -5759,7 +5996,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "all11literalcomponentanswers;9exactunitconversions;finalcancellation",
       "scenarios": [
@@ -5788,7 +6026,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "13literalDeltafieldanswers;absolute-daynotnegated;frozenrowmonths",
       "scenarios": [
@@ -5824,7 +6063,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "5calendar/12timeperiods;all3lastunitticks;full-int64Falsequeries",
       "scenarios": [
@@ -5856,7 +6096,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "\u00b11500/2500nsties-even;10snapperiodliteralanswers;all0..9+12fsp",
       "scenarios": [
@@ -5889,7 +6130,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "SaoPaulo01daystart;NYsecond06h;snap06vsround07",
       "scenarios": [
@@ -5949,7 +6191,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "leapday60ISO9/4;23literalqueries;fixedUInt32Struct",
       "scenarios": [
@@ -5983,7 +6226,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "1970Jan/Febrowtargets;ISO-1cannotUInt32",
       "scenarios": [
@@ -6013,7 +6257,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "12unitliteralbucketanswers;allinclusive/absolute;validMINinteger",
       "scenarios": [
@@ -6045,7 +6290,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "realclockcrossedtargetaftercreation;frozenFalse/TruevsfreshTrue/False",
       "scenarios": [
@@ -6078,7 +6324,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Shanghai08+123ns=UTC00+123ns;wallvsinstantzone-removal",
       "scenarios": [
@@ -6110,7 +6357,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "fullmaskNYUTC06:30/05:30;two-chunkinfer04/05/06/07;Warsaw/Kyivoffsetpairs",
       "scenarios": [
@@ -6140,7 +6388,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "all3unitgaplasttick;LordHowe30mingap;Apiadaygap",
       "scenarios": [
@@ -6170,7 +6419,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "NY-18000/-14400;DublinnegativeDST;naivenulloffset",
       "scenarios": [
@@ -6201,7 +6451,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualisolatedTZShanghai;UTC0instantretained",
       "scenarios": [
@@ -6234,7 +6485,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Shanghai08+999nswallvsUTC0+999ns;nativeDate0/Time28800s",
       "scenarios": [
@@ -6265,7 +6517,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "literal1970Thursday;9fixedchilddtypes;outerStructnull",
       "scenarios": [
@@ -6298,7 +6551,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "all14ISOspecs;all10dotfractions;CLDRChineseJanuary/FrenchThursday",
       "scenarios": [
@@ -6327,7 +6581,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualplain-SeriesMINcollidesonNumPyexit;Pldtguardrejects",
       "scenarios": [
@@ -6356,7 +6611,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "literal2groupmincounts;chunked4rows;groupListDatetime",
       "scenarios": [
@@ -6384,7 +6640,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "vector1/2/3/4nswithoutputslice1002/2003;prefilterlengtherror",
       "scenarios": [
@@ -6411,7 +6668,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualclasseditnewPythonresultvsoldfrozen1nsrule",
       "scenarios": [
@@ -6438,7 +6696,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualdefaultcallbackonce;ExprJan14vsliveeagerFeb14",
       "scenarios": [
@@ -6466,7 +6725,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualpickle/nativebinaryExprroundtrip;literal1/1001/2001nsstrings",
       "scenarios": [
@@ -6511,7 +6771,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "literal2024leapday60;nativeInt32/Int8;fullns123456789vs789tail",
       "scenarios": [
@@ -6548,7 +6809,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "independentstandalonePolarscontrolandliteralphysicaldates;combinezonepreserved",
       "scenarios": [
@@ -6575,7 +6837,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "literalnative9digitfvsrsTimes6digits;standarddatetimeus",
       "scenarios": [
@@ -6603,7 +6866,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "all7SchemaErrorcontrols;literal90061002003004nsdurationtotals",
       "scenarios": [
@@ -6625,7 +6889,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "123nsnativeSeriesvs0usPythonDateTime;actualslice/gatherselectors",
       "scenarios": [
@@ -6670,7 +6935,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "literal Gregorian calendar fields, weekday3/2 and 123456us+789ns; NaT float/mask output",
       "scenarios": [
@@ -6711,7 +6977,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "literal1709210096123456789ns, int64MinNaT, UTCns vs ndarray UTC, real daily frequency and shape",
       "scenarios": [
@@ -6734,7 +7001,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "actual Pddt return family, exact ticks/unit/zone/name; identity only where asserted; inherited object init no date mutation",
       "scenarios": [
@@ -6755,7 +7023,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "literal positional selections, Timestamp/NaT vs Pddt; immutable setitem and shape errors",
       "scenarios": [
@@ -6778,7 +7047,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "literal duplicate and missing positions; inclusive labels, pad/tolerance, -1, IndexError/KeyError",
       "scenarios": [
@@ -6798,7 +7068,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "literal sorted UTC midnight clock selection and masked last valid label",
       "scenarios": [
@@ -6822,7 +7093,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "single-level and singleton duties; names/inplace metadata, equality vs identity, actual scalar errors",
       "scenarios": [
@@ -6849,7 +7121,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "literal changed rows and source unchanged; per-version mask returns, nativeDatetimeIndex exits and required frequency",
       "scenarios": [
@@ -6877,7 +7150,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "literal duplicate multiplicities, NaT ordering, positional permutations and date families",
       "scenarios": [
@@ -6904,7 +7178,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "literal -1 alignment, duplicate error, counts and map of real Pddt values; ndarray masks",
       "scenarios": [
@@ -6927,7 +7202,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "independent3day timestamps, sample deviation1day, allNaT/empty, explicit byte count bounds",
       "scenarios": [
@@ -6948,7 +7224,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "literal123ns fraction and NaT; Pythonus truncation vs Timestampns, NumPy/object/int families",
       "scenarios": [
@@ -6968,7 +7245,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "exact28payload timestamps through tables; PeriodIndex warning and literal Julian day2460310.5",
       "scenarios": [
@@ -6990,7 +7268,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "literal Boolean comparisons incl NaT, standard aware date input",
       "scenarios": [
@@ -7010,7 +7289,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "literal fullns input, NumPy date add vs elapsed differences and immutable rebinding",
       "scenarios": [
@@ -7053,7 +7333,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "each actual unsupported date operator TypeError, truth ValueError, disabled hash, unsupported str AttributeError",
       "scenarios": [
@@ -7072,7 +7353,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "date/name/unit/zone/missing display fields and invalid numericformat TypeError",
       "scenarios": [
@@ -7133,7 +7415,8 @@
       "profiles": [
         "full",
         "pandas2",
-        "pandas-current"
+        "pandas-current",
+        "windows-full"
       ],
       "expectation_basis": "literal negativeposition vs explicitNaTfill, actual parameter/default availability",
       "scenarios": [
@@ -7169,7 +7452,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "literal ns/UTC/validity, byte counts and real sorted input",
       "scenarios": [
@@ -7200,7 +7484,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualPldtvsplainSeries selections; standarddatetime microseconds vs exactns, null andBoolean-maskrejection",
       "scenarios": [
@@ -7222,7 +7507,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "exact2chunks, mutatecloneonly, plainSerieschunks, allocationthenrealinit",
       "scenarios": [
@@ -7239,7 +7525,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualregisterednamespace onPldt; Int64year, unitconversion, no constructorcall",
       "scenarios": [
@@ -7262,7 +7549,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualnamespacegetters and normalnondate-dtypeerrors; catpanicrecordedseparately",
       "scenarios": [
@@ -7281,7 +7569,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "literal genericExtension wrapping andstorage roundtrip; exactns/zone/null, ordinarySeriesreturns, wrongdtypeerrors",
       "scenarios": [
@@ -7351,7 +7640,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualmissinglibraries,ModuleNotFoundErrorvsModuleUpgradeRequiredError,sourceunchanged",
       "scenarios": [
@@ -7443,7 +7733,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "independentplainPolarsdtypeerrorswithvalidnumericparameters;actualPldteverycall",
       "scenarios": [
@@ -7469,7 +7760,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "literal nsdates, stdDatetimeustruncation, actualPldt/plainSeriesreturnsandnullablepeakflags",
       "scenarios": [
@@ -7490,7 +7782,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "independentmathsqrt8/cbrt8/ratio7, actualFloat64metadataandunit-dependentidenticalinstant",
       "scenarios": [
@@ -7512,7 +7805,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "independentalpha1/2numericalanswers, gapweightingandnativeBydtypeerrors",
       "scenarios": [
@@ -7530,7 +7824,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "independentInt64andDatetimecontrols;literalvalleyandmissing-neighboranswers",
       "scenarios": [
@@ -7564,7 +7859,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "literalnativeBooleanSeries/nullcomparisonsemanticsandnumericalis_closerejection",
       "scenarios": [
@@ -7592,7 +7888,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "actualnativePldtmemberandmissing-awaremasks,indexedunique,scalarvalue/name/nullchecks",
       "scenarios": [
@@ -7614,7 +7911,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "truth/hashprotocolTypeErrorvsUInt64rowhash,nativePldtclassdisplayandinvalidformat",
       "scenarios": [
@@ -7631,7 +7929,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Executed ordinary rsTimes receiver usage; actual native return unit, values and nulls.",
       "scenarios": [
@@ -7649,7 +7948,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "literalnsFramecolumnvaluesandUInt8onehotdate/nullcategory;explicitrenaming/dropNullscenarios",
       "scenarios": [
@@ -7666,7 +7966,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Executed ordinary rsTimes receiver usage; actual native return unit, values and nulls.",
       "scenarios": [
@@ -7683,7 +7984,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "independentliteralphysicalintegers+NoneandcompleteDatetimeunit/timezonereconstruction",
       "scenarios": [
@@ -7714,7 +8016,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Names and native transforms on an rsTimes date column; exact ticks, UTC, nulls, dtype changes and necessary dtype errors.",
       "scenarios": [
@@ -7732,7 +8035,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Typed scalar expression with complete date dtype; missing and shifted rows; actual lazy collection.",
       "scenarios": [
@@ -7753,7 +8057,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Whole-date replacement and completeness errors, nullable mask selection, sorting, exact data and unchanged receiver.",
       "scenarios": [
@@ -7774,7 +8079,8 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Actual cloned rsTimes receiver mutation versus returned replacement; matching date dtype, None and unchanged original.",
       "scenarios": [
@@ -7796,11 +8102,541 @@
       "profiles": [
         "full",
         "polars-only",
-        "polars-current"
+        "polars-current",
+        "windows-full"
       ],
       "expectation_basis": "Exact nested date ticks and validity, native return families, seeded sampling repeatability and multisets.",
       "scenarios": [
         "Exact nested date ticks and validity, native return families, seeded sampling repeatability and multisets."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "inherited-pldt-native-summaries",
+      "page": "api/inherited-pldt-analysis.md",
+      "covers": [
+        "rstimes.Pldt.min",
+        "rstimes.Pldt.max",
+        "rstimes.Pldt.mean",
+        "rstimes.Pldt.median",
+        "rstimes.Pldt.quantile",
+        "rstimes.Pldt.approx_quantile",
+        "rstimes.Pldt.n_unique",
+        "rstimes.Pldt.approx_n_unique",
+        "rstimes.Pldt.arg_min",
+        "rstimes.Pldt.arg_max",
+        "rstimes.Pldt.min_by",
+        "rstimes.Pldt.max_by"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection.",
+      "scenarios": [
+        "Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "inherited-pldt-native-ordering",
+      "page": "api/inherited-pldt-analysis.md",
+      "covers": [
+        "rstimes.Pldt.mode",
+        "rstimes.Pldt.unique",
+        "rstimes.Pldt.unique_counts",
+        "rstimes.Pldt.value_counts",
+        "rstimes.Pldt.arg_sort",
+        "rstimes.Pldt.rank",
+        "rstimes.Pldt.top_k",
+        "rstimes.Pldt.bottom_k",
+        "rstimes.Pldt.top_k_by",
+        "rstimes.Pldt.bottom_k_by"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks.",
+      "scenarios": [
+        "Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "inherited-pldt-native-search",
+      "page": "api/inherited-pldt-analysis.md",
+      "covers": [
+        "rstimes.Pldt.index_of",
+        "rstimes.Pldt.search_sorted"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Actual scalar datetime lookup on explicit us dtype, absent result None, scalar index versus vector native index Series.",
+      "scenarios": [
+        "Actual scalar datetime lookup on explicit us dtype, absent result None, scalar index versus vector native index Series."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "inherited-pldt-native-binning",
+      "page": "api/inherited-pldt-analysis.md",
+      "covers": [
+        "rstimes.Pldt.bin_intervals",
+        "rstimes.Pldt.bin_ranks",
+        "rstimes.Pldt.bin_quantiles",
+        "rstimes.Pldt.cut",
+        "rstimes.Pldt.qcut",
+        "rstimes.Pldt.hist"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Actual date breakpoints versus sorted ranks and physical-us compatibility cuts; category dtype/nulls; numeric-only rejections.",
+      "scenarios": [
+        "Actual date breakpoints versus sorted ranks and physical-us compatibility cuts; category dtype/nulls; numeric-only rejections."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "inherited-pldt-native-runs-and-callbacks",
+      "page": "api/inherited-pldt-analysis.md",
+      "covers": [
+        "rstimes.Pldt.rle",
+        "rstimes.Pldt.rle_id",
+        "rstimes.Pldt.diff",
+        "rstimes.Pldt.map_elements",
+        "rstimes.Pldt.describe"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.",
+      "scenarios": [
+        "Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "inherited-pldt-native-row-windows",
+      "page": "api/inherited-pldt-windows.md",
+      "covers": [
+        "rstimes.Pldt.rolling_min",
+        "rstimes.Pldt.rolling_max",
+        "rstimes.Pldt.rolling_mean",
+        "rstimes.Pldt.rolling_median",
+        "rstimes.Pldt.rolling_quantile",
+        "rstimes.Pldt.rolling_rank"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Two-row window, min_samples, explicit epoch-second mathematical answers; date dtype versus Float64 rank; null/empty source.",
+      "scenarios": [
+        "Two-row window, min_samples, explicit epoch-second mathematical answers; date dtype versus Float64 rank; null/empty source."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "inherited-pldt-native-time-windows",
+      "page": "api/inherited-pldt-windows.md",
+      "covers": [
+        "rstimes.Pldt.rolling_min_by",
+        "rstimes.Pldt.rolling_max_by",
+        "rstimes.Pldt.rolling_mean_by",
+        "rstimes.Pldt.rolling_median_by",
+        "rstimes.Pldt.rolling_quantile_by",
+        "rstimes.Pldt.rolling_rank_by"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Separate sorted UTC date by-axis and 3-second right-closed windows; date metadata, values and native rank output.",
+      "scenarios": [
+        "Separate sorted UTC date by-axis and 3-second right-closed windows; date metadata, values and native rank output."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "inherited-pldt-native-window-statistics",
+      "page": "api/inherited-pldt-windows.md",
+      "covers": [
+        "rstimes.Pldt.rolling_std",
+        "rstimes.Pldt.rolling_std_by",
+        "rstimes.Pldt.rolling_var",
+        "rstimes.Pldt.rolling_var_by"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Sample ddof1 Float64 standard deviation in physical ns and variance in ns squared; one-row null and explicit mathematical tolerance.",
+      "scenarios": [
+        "Sample ddof1 Float64 standard deviation in physical ns and variance in ns squared; one-row null and explicit mathematical tolerance."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "inherited-pldt-native-window-boundaries",
+      "page": "api/inherited-pldt-windows.md",
+      "covers": [
+        "rstimes.Pldt.rolling_kurtosis",
+        "rstimes.Pldt.rolling_skew",
+        "rstimes.Pldt.rolling_sum",
+        "rstimes.Pldt.rolling_map",
+        "rstimes.Pldt.rolling_sum_by",
+        "rstimes.Pldt.cumulative_eval"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Numerical-kernel dtype rejection on actual date receiver; cumulative Expr actually evaluated to native date Series with exact ticks.",
+      "scenarios": [
+        "Numerical-kernel dtype rejection on actual date receiver; cumulative Expr actually evaluated to native date Series with exact ticks."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "inherited-pldt-native-sql",
+      "page": "api/inherited-pldt-sql.md",
+      "covers": [
+        "rstimes.Pldt.sql"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Actually executed native SQL DataFrame with exact ns/UTC column, selected null rows, explicit table name and unchanged source.",
+      "scenarios": [
+        "Actually executed native SQL DataFrame with exact ns/UTC column, selected null rows, explicit table name and unchanged source."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "inherited-pldt-native-arrow",
+      "page": "api/inherited-pldt-arrow.md",
+      "covers": [
+        "rstimes.Pldt.to_arrow",
+        "rstimes.Pldt.__arrow_c_stream__"
+      ],
+      "profiles": [
+        "full",
+        "pandas2",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Actual PyArrow TimestampArray and PyCapsule-stream consumption, ns/UTC, valid i64 MIN versus null, empty data and unchanged source.",
+      "scenarios": [
+        "Actual PyArrow TimestampArray and PyCapsule-stream consumption, ns/UTC, valid i64 MIN versus null, empty data and unchanged source."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "recipe-event-renewals",
+      "page": "recipes/ingest-and-query.md",
+      "covers": [
+        "polars.Expr.pldt.parse",
+        "polars.Expr.pldt.add",
+        "rstimes.Pldt",
+        "rstimes.Pldt.strftime"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Explicit calendar dates and independent integer ticks at stated destination resolutions. Real eager and lazy two-stage event parsing/month renewal; ns UTC/null schema and exact ticks.",
+      "scenarios": [
+        "Real eager and lazy two-stage event parsing/month renewal; ns UTC/null schema and exact ticks."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "recipe-calendar-scalar",
+      "page": "recipes/calendar-across-containers.md",
+      "covers": [
+        "rstimes.Delta",
+        "rstimes.Pydt",
+        "rstimes.Pydt.__add__",
+        "rstimes.Pydt.__sub__"
+      ],
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Explicit calendar dates and independent integer ticks at stated destination resolutions. Month end clamping versus30calendar days on scalar Pydt; nonreversibility and unchanged source.",
+      "scenarios": [
+        "Month end clamping versus30calendar days on scalar Pydt; nonreversibility and unchanged source."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "recipe-calendar-batches",
+      "page": "recipes/calendar-across-containers.md",
+      "covers": [
+        "rstimes.Pddt",
+        "rstimes.Pldt",
+        "rstimes.Pddt.__add__",
+        "rstimes.Pldt.__add__"
+      ],
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Explicit calendar dates and independent integer ticks at stated destination resolutions. SharedDelta on pandas/Polars batches keeps123ns, name, unit and native missing roles; np.int64 explicitly checked.",
+      "scenarios": [
+        "SharedDelta on pandas/Polars batches keeps123ns, name, unit and native missing roles; np.int64 explicitly checked."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "recipe-calendar-destination-resolution",
+      "page": "recipes/calendar-across-containers.md",
+      "covers": [
+        "rstimes.Delta",
+        "rstimes.Pydt.__add__",
+        "rstimes.Pddt.__add__",
+        "rstimes.Pldt.__add__"
+      ],
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Explicit calendar dates and independent integer ticks at stated destination resolutions. Exact1nsDelta follows scalar microsecond rounding while ns batches retain one ns.",
+      "scenarios": [
+        "Exact1nsDelta follows scalar microsecond rounding while ns batches retain one ns."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "recipe-exact-arrow-exchange",
+      "page": "recipes/precise-exchange.md",
+      "covers": [
+        "rstimes.Pldt",
+        "rstimes.Pldt.to_numpy",
+        "rstimes.Pldt.to_arrow"
+      ],
+      "profiles": [
+        "full",
+        "pandas2",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Explicit calendar dates and independent integer ticks at stated destination resolutions. Validminimum/null/123ns data; checked NumPy collision rejection and Arrow native round-trip keeps explicit dtype/name/validity.",
+      "scenarios": [
+        "Validminimum/null/123ns data; checked NumPy collision rejection and Arrow native round-trip keeps explicit dtype/name/validity."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "recipe-explicit-nat-collision",
+      "page": "recipes/precise-exchange.md",
+      "covers": [
+        "rstimes.Pldt.to_numpy"
+      ],
+      "profiles": [
+        "full",
+        "pandas2",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Explicit calendar dates and independent integer ticks at stated destination resolutions. Explicitallow_nat_collision accepts one documented loss; unrelatedvalidnsdata and originalsourcechecked.",
+      "scenarios": [
+        "Explicitallow_nat_collision accepts one documented loss; unrelatedvalidnsdata and originalsourcechecked."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "getting-started-calendar-change",
+      "page": "getting-started/index.md",
+      "covers": [
+        "rstimes.Delta",
+        "rstimes.Pydt",
+        "rstimes.Pydt.__add__"
+      ],
+      "profiles": [
+        "full",
+        "core",
+        "public-install",
+        "windows-full"
+      ],
+      "expectation_basis": "Public b3 minimal install, exact metadata version, scalar calendar month clamp/type/naivezone and unchanged source.",
+      "scenarios": [
+        "Public b3 minimal install, exact metadata version, scalar calendar month clamp/type/naivezone and unchanged source."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "free-threaded-actual-date-work",
+      "page": "compatibility/free-threaded.md",
+      "covers": [
+        "rstimes.Delta",
+        "rstimes.Pydt",
+        "rstimes.Pddt",
+        "rstimes.Pldt",
+        "rstimes.Pydt.__add__",
+        "rstimes.Pddt.__add__",
+        "rstimes.Pldt.__add__",
+        "polars.Expr.pldt.add"
+      ],
+      "profiles": [
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Actual3.14t/3.15t public wheel; default GILoff before/after imports and four-class/date-expression work; exactns/NaT/null schema and lazy collect.",
+      "scenarios": [
+        "Actual3.14t/3.15t public wheel; default GILoff before/after imports and four-class/date-expression work; exactns/NaT/null schema and lazy collect."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "free-threaded-shared-config-reads",
+      "page": "compatibility/free-threaded.md",
+      "covers": [
+        "rstimes.Configs",
+        "rstimes.Configs.add_month",
+        "rstimes.parse_str"
+      ],
+      "profiles": [
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "FinishedsharedConfigsvocabulary, two actual synchronized worker reads, month/dayanswers and GILoff inworkers/afterwork.",
+      "scenarios": [
+        "FinishedsharedConfigsvocabulary, two actual synchronized worker reads, month/dayanswers and GILoff inworkers/afterwork."
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "delta-native-array-priority-metadata",
+      "page": "api/inherited-delta.md",
+      "covers": [
+        "rstimes.Delta.__array_priority__"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Independently authored literal values and actual type/exception identity; public b3 wheel, no generated expected output.",
+      "scenarios": [
+        "array-dispatch-metadata",
+        "exact-return-type",
+        "not-date-ticks"
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "inherited-pldt-native-reflected-matrix",
+      "page": "api/inherited-pldt-numeric.md",
+      "covers": [
+        "rstimes.Pldt.__rmatmul__"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Independently authored literal values and actual type/exception identity; public b3 wheel, no generated expected output.",
+      "scenarios": [
+        "actual-direct-protocol",
+        "datetime-dtype-rejection",
+        "source-and-null-unchanged"
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "pddt-native-array-dispatch-protocols",
+      "page": "api/array-dispatch-protocols.md",
+      "covers": [
+        "rstimes.Pddt.__array_wrap__",
+        "rstimes.Pddt.__array_priority__",
+        "rstimes.Pddt.__pandas_priority__"
+      ],
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Independently authored literal values and actual type/exception identity; public b3 wheel, no generated expected output.",
+      "scenarios": [
+        "supplied-array-role",
+        "ordinary-DatetimeIndex-return",
+        "ns",
+        "null",
+        "name",
+        "source-unchanged"
+      ],
+      "reviewed": true
+    },
+    {
+      "id": "error-chain-attributes",
+      "page": "api/errors.md",
+      "covers": [
+        "rstimes.errors.ConfigError.__cause__",
+        "rstimes.errors.ConfigError.__context__",
+        "rstimes.errors.ConfigError.__notes__",
+        "rstimes.errors.ConfigError.__suppress_context__",
+        "rstimes.errors.ConfigError.__traceback__",
+        "rstimes.errors.ParseError.__cause__",
+        "rstimes.errors.ParseError.__context__",
+        "rstimes.errors.ParseError.__notes__",
+        "rstimes.errors.ParseError.__suppress_context__",
+        "rstimes.errors.ParseError.__traceback__",
+        "rstimes.errors.RstimesError.__cause__",
+        "rstimes.errors.RstimesError.__context__",
+        "rstimes.errors.RstimesError.__notes__",
+        "rstimes.errors.RstimesError.__suppress_context__",
+        "rstimes.errors.RstimesError.__traceback__"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Independently authored literal values and actual type/exception identity; public b3 wheel, no generated expected output.",
+      "scenarios": [
+        "actual-rsTimes-domain-exceptions",
+        "explicit-cause",
+        "retained-context",
+        "traceback-type",
+        "instance-created-notes"
       ],
       "reviewed": true
     }

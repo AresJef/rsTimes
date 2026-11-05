@@ -27,6 +27,23 @@ def sha(content):
     return hashlib.sha256(content).hexdigest()
 
 
+def report_matches_profile(report, identity, profiles, verifier_sha):
+    """Bind package bytes, actual dependency presence/versions and interpreter state."""
+    actual = report['identity']
+    if actual.get('import_location_verified') is not True:
+        return False
+    reference = identity.get('profile_identities', {}).get(report['profile'], identity)
+    if actual.get('version') != reference['product_version']:
+        return False
+    if any(actual.get(k) != reference[k] for k in ('native', 'stubs', 'payload')):
+        return False
+    spec = profiles.get(report['profile'])
+    if not spec or actual.get('python_minor') != spec['python_minor'] or actual.get('gil_enabled') is not spec['gil_enabled']:
+        return False
+    dependencies = {name: value for name, value in spec['dependencies'].items() if value is not None}
+    return actual.get('dependencies') == dependencies and report.get('verifier_sha256') == verifier_sha
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--reports', type=Path, required=True)
@@ -40,6 +57,8 @@ def main():
     manifest = json.loads((ROOT / '_data/examples.json').read_text())
     target = json.loads((ROOT / 'target.json').read_text())
     identity = json.loads(args.identity.read_text())
+    profile_specs = json.loads((ROOT / '_data/profiles.json').read_text())['profiles']
+    verifier_sha = sha((ROOT / '_tools/verify_examples.py').read_bytes())
     duplicates = [path for path, count in Counter(e['path'] for e in inventory['entries']).items() if count > 1]
     if duplicates:
         parser.error('Duplicate canonical public paths in coverage table: ' + ', '.join(duplicates))
@@ -70,14 +89,16 @@ def main():
     examples = {e['id']: e for e in manifest['examples']}
     if len(examples) != len(manifest['examples']):
         problems.append('Example IDs must be globally unique.')
+    missing_profiles = {p for e in manifest['examples'] for p in e['profiles']} - profile_specs.keys()
+    if missing_profiles:
+        problems.append('Undeclared execution profiles: ' + ', '.join(sorted(missing_profiles)))
     reports = []
     for path in args.reports.rglob('*.md.json'):
         report = json.loads(path.read_text())
         source = ROOT / report['page']
         if not source.exists() or report['page_sha256'] != sha(source.read_bytes()):
             continue  # Historical changed-page evidence is retained but not reused.
-        actual = report['identity']
-        if actual['version'] != identity['product_version'] or actual['native'] != identity['native'] or actual['stubs'] != identity['stubs'] or actual.get('payload') != identity['payload']:
+        if not report_matches_profile(report, identity, profile_specs, verifier_sha):
             continue
         reports.append((path, report))
     anchors = {}
@@ -86,7 +107,7 @@ def main():
         entry_problems = []
         if build_problem:
             entry_problems.append(build_problem)
-        if not entry['description_reviewed'] or entry['status'] not in ('candidate_examples_passed', 'verified'):
+        if not entry['description_reviewed'] or entry['status'] not in ('candidate_examples_passed', 'verified', 'reviewed_pending_full_gate'):
             entry_problems.append('description/scenario review incomplete')
         if not entry['examples']:
             entry_problems.append('no example mapping')

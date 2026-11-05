@@ -34,6 +34,9 @@ html_theme_options = {
 }
 html_context = {"default_mode": "auto"}
 html_show_sourcelink = False
+html_copy_source = False
+templates_path = ['_templates']
+html_theme_options['navbar_end'].insert(0, 'version-link')
 autoapi_type = "python"
 autoapi_dirs = [str(HERE / "_stubs")]
 autoapi_file_patterns = ["*.pyi"]

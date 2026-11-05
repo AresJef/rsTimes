@@ -7,6 +7,8 @@ dl.py > dt { max-width: 100%; overflow-wrap: anywhere; }
 .highlight pre { overflow-x: auto; }
 :focus-visible { outline: 3px solid var(--pst-color-primary); outline-offset: 3px; }
 a { text-underline-offset: .15em; }
+.rstimes-version { white-space: nowrap; padding: .4rem .55rem; font-size: .875rem; }
+.rstimes-version span { color: var(--pst-color-text-muted); }
 @media (max-width: 575px) {
   .bd-article-container { min-width: 0; }
   .bd-article h1 { font-size: 2rem; }

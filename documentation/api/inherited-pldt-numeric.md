@@ -170,3 +170,26 @@ valid Datetime `by` column does not change that value-dtype restriction.
 >>> for method in ('ewm_mean_by', 'ewm_sum_by'):
 ...     assert error_name(lambda: getattr(small, method)(clock, half_life='1ns')) == 'InvalidOperationError'
 ```
+
+## Reflected matrix protocol
+
+```{py:method} rstimes.Pldt.__rmatmul__(other)
+```
+
+The direct inherited reflected matrix entry also rejects this date dtype.
+Its presence is not a date-vector dot-product interface. For date comparisons,
+choose an explicit rsTimes date difference and unit.
+
+```{doctest} inherited-pldt-native-reflected-matrix
+>>> import numpy as np
+>>> import polars as pl
+>>> from rstimes import Pldt
+>>> reflected_dates = Pldt([123, None], unit='ns')
+>>> try:
+...     reflected_dates.__rmatmul__(np.array([1, 2]))
+... except pl.exceptions.InvalidOperationError as error:
+...     print(type(error).__name__)
+InvalidOperationError
+>>> (reflected_dates.dtype, reflected_dates.to_physical().to_list())
+(Datetime(time_unit='ns', time_zone=None), [123, None])
+```

@@ -130,3 +130,38 @@ and [data model](https://docs.python.org/3/reference/datamodel.html) for the ful
 standard protocols. Batch errors identify a reliable row or argument when
 available. Inputs are not returned partly transformed after a failed library
 operation; external iterator consumption or callback side effects are separate.
+
+## Exception chains and notes
+
+These attributes are Python exception protocols on the three rsTimes domain
+classes. They describe an error and do not carry a date value, unit or timezone.
+
+| Entry on each domain exception | Value and role |
+|---|---|
+| <span id="rstimes.errors.RstimesError.__cause__"></span><span id="rstimes.errors.ParseError.__cause__"></span><span id="rstimes.errors.ConfigError.__cause__"></span>`E.__cause__` | Explicit exception cause, or None; `raise error from cause` also suppresses implicit context display. |
+| <span id="rstimes.errors.RstimesError.__context__"></span><span id="rstimes.errors.ParseError.__context__"></span><span id="rstimes.errors.ConfigError.__context__"></span>`E.__context__` | Previous exception active when this one was raised, or None. |
+| <span id="rstimes.errors.RstimesError.__suppress_context__"></span><span id="rstimes.errors.ParseError.__suppress_context__"></span><span id="rstimes.errors.ConfigError.__suppress_context__"></span>`E.__suppress_context__` | Boolean controlling implicit context display; it does not erase the context object. |
+| <span id="rstimes.errors.RstimesError.__traceback__"></span><span id="rstimes.errors.ParseError.__traceback__"></span><span id="rstimes.errors.ConfigError.__traceback__"></span>`E.__traceback__` | Traceback object after a raise, or None; `with_traceback` returns the same exception. |
+| <span id="rstimes.errors.RstimesError.__notes__"></span><span id="rstimes.errors.ParseError.__notes__"></span><span id="rstimes.errors.ConfigError.__notes__"></span>`E.__notes__` | List of strings created by `add_note`; absent on a new instance until a note is added. |
+
+```{doctest} error-chain-attributes
+>>> from types import TracebackType
+>>> for kind in (RstimesError, ParseError, ConfigError):
+...     error = kind('record')
+...     assert error.__cause__ is None and error.__context__ is None
+...     assert error.__traceback__ is None and error.__suppress_context__ is False
+...     assert not hasattr(error, '__notes__')
+...     assert error.add_note('input row 7') is None
+...     assert error.__notes__ == ['input row 7']
+...     cause = ValueError('source')
+...     try:
+...         try:
+...             raise cause
+...         except ValueError:
+...             raise error from cause
+...     except kind as caught:
+...         assert caught is error and caught.__cause__ is cause
+...         assert caught.__context__ is cause and caught.__suppress_context__ is True
+...         assert isinstance(caught.__traceback__, TracebackType)
+...         assert caught.with_traceback(None) is caught and caught.__traceback__ is None
+```

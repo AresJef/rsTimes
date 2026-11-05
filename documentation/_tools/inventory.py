@@ -24,7 +24,7 @@ PROTOCOLS = {
     "__new__", "__init__", "__add__", "__radd__", "__iadd__", "__sub__",
     "__rsub__", "__isub__", "__mul__", "__rmul__", "__truediv__",
     "__rtruediv__", "__floordiv__", "__rfloordiv__", "__mod__", "__rmod__",
-    "__pow__", "__rpow__", "__divmod__", "__rdivmod__", "__matmul__",
+    "__pow__", "__rpow__", "__divmod__", "__rdivmod__", "__matmul__", "__rmatmul__",
     "__neg__", "__pos__", "__abs__", "__invert__", "__and__", "__rand__",
     "__or__", "__ror__", "__xor__", "__rxor__", "__eq__", "__ne__",
     "__lt__", "__le__", "__gt__", "__ge__", "__hash__", "__bool__",
@@ -33,8 +33,10 @@ PROTOCOLS = {
     "__format__", "__bytes__", "__int__", "__float__", "__index__",
     "__copy__", "__deepcopy__", "__getstate__", "__setstate__", "__reduce__",
     "__reduce_ex__", "__array__", "__array_ufunc__", "__array_function__",
+    "__array_wrap__", "__array_priority__", "__pandas_priority__",
     "__arrow_c_array__", "__arrow_c_stream__", "__dlpack__",
     "__dlpack_device__", "__dataframe__", "__replace__", "__round__",
+    "__cause__", "__context__", "__suppress_context__", "__traceback__", "__notes__",
 }
 
 
@@ -80,6 +82,10 @@ def inventory() -> dict:
             names |= {n for n in PROTOCOLS if n != '__init__' and any(n in base.__dict__ for base in typ.__mro__ if base is not object)}
         else:
             names = {n for n in dir(typ) if not n.startswith("_") or n in PROTOCOLS} | set(declared)
+        # Notes are created on the exception instance by add_note, rather than
+        # advertised by dir(Exception). They are still a user-facing protocol.
+        if prefix.startswith('rstimes.errors.'):
+            names.add('__notes__')
         if clsname and clsname.startswith("_"):
             names -= {n for n in names if n.startswith("_")}
         for name in sorted(names):
@@ -99,6 +105,11 @@ def inventory() -> dict:
             except AttributeError:
                 descriptor, doc, runtime_signature = None, "", None
                 runtime_present = False
+                if name == '__notes__' and prefix.startswith('rstimes.errors.'):
+                    sample = typ('documentation inventory')
+                    sample.add_note('instance notes')
+                    runtime_present = sample.__notes__ == ['instance notes']
+                    doc = 'List of string notes created by add_note on the exception instance.'
             # Registered upstream accessors are non-data descriptors. Class
             # lookup returns an accessor class, whose constructor signature is
             # not the user-facing property access syntax.
@@ -111,7 +122,7 @@ def inventory() -> dict:
                 runtime_signature = None
             rows.append({
                 "path": f"{prefix}.{name}", "owner": prefix, "name": name,
-                "kind": "protocol" if name.startswith("__") else "namespace_accessor" if namespace_accessor else "property" if isinstance(descriptor, property) or inspect.isdatadescriptor(descriptor) else "method",
+                "kind": "attribute" if name in ("__array_priority__", "__pandas_priority__", "__cause__", "__context__", "__suppress_context__", "__traceback__", "__notes__") else "protocol" if name.startswith("__") else "namespace_accessor" if namespace_accessor else "property" if isinstance(descriptor, property) or inspect.isdatadescriptor(descriptor) else "method",
                 "declared_in_stub": bool(nodes), "stub": stub,
                 "stub_lines": [n.lineno for n in nodes],
                 "signatures": [signature(n) for n in nodes],
@@ -120,7 +131,7 @@ def inventory() -> dict:
                 "disabled": runtime_present and descriptor is None,
                 "provider": f"{provider.__module__}.{provider.__qualname__}" if provider else None,
                 "origin": "library" if provider and provider.__module__.startswith("rstimes") else "inherited",
-                "source_description": ast.get_docstring(nodes[-1]) if nodes else doc,
+                "source_description": f"Array dispatch priority metadata: {prefix}.{name} = {getattr(typ, name)!r}." if name in ("__array_priority__", "__pandas_priority__") else ast.get_docstring(nodes[-1]) if nodes else doc,
                 "page": None, "anchor": None, "examples": [], "scenarios": [],
                 "status": "unmapped",
             })
@@ -163,7 +174,7 @@ def inventory() -> dict:
             row['kind'] = 'attribute'
     return {
         "schema": 3, "product_version": importlib.metadata.version("rstimes"),
-        "target_status": "provisional_latest_adopted_implementation_awaiting_release",
+        "target_status": json.loads((Path(__file__).resolve().parents[1] / 'target.json').read_text())["status"],
         "python": sys.version, "package": str(package),
         "dependencies": {n: importlib.metadata.version(n) for n in ("numpy", "pandas", "polars", "python-dateutil")},
         "native": {p.name: sha(p) for p in package.iterdir() if p.suffix in ('.so', '.pyd')},
@@ -171,7 +182,7 @@ def inventory() -> dict:
         "exports": rstimes.__all__, "error_exports": errors.__all__,
         "aliases": aliases, "rows": sorted(rows, key=lambda x: x["path"]),
         "exclusions": exclusions,
-        "scope_note": "Inherited datetime/pandas/Polars public members and usable Datetime and genericExtension/Plot namespaces included. Dtype-specific non-Datetime namespaces are recorded at their accessors; their unrelated dtype API is not an rsTimes datetime API. Private implementation helpers excluded. Overloads are signatures of one entry, not extra entries.",
+        "scope_note": "Inherited datetime/pandas/Polars public members and usable Datetime and Extension/Plot namespaces included, together with meaningful value, array-dispatch and exception-chain protocols. Dtype-specific non-Datetime namespaces are recorded at their accessors; their unrelated dtype API is not an rsTimes datetime API. Private helpers and generic Python object/class-authoring infrastructure (attribute lookup, dictionaries, annotations, layout, weak references, subclass hooks and size introspection) are excluded. Overloads are signatures of one entry, not extra entries.",
         "counts": dict(Counter(r["owner"] for r in rows)),
         "raw_descriptor_and_namespace_rows": declaration_count,
         "merged_namespace_accessor_paths": namespace_accessors,

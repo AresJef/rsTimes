@@ -1,0 +1,5 @@
+# Fixed documentation dependencies; the product wheel is installed separately and SHA-verified.
+numpy==2.5.3
+polars==2.0.0
+polars-runtime-32==2.0.0
+tzdata==2026.5; sys_platform == "win32"

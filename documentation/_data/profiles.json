@@ -1,0 +1,224 @@
+{
+  "schema": 1,
+  "scope": "Pinned documentation execution profiles. null means the tracked optional package must be absent. Matching a name alone never validates an environment.",
+  "profiles": {
+    "full": {
+      "python_minor": "3.13",
+      "gil_enabled": true,
+      "dependencies": {
+        "numpy": "2.5.3",
+        "pandas": "3.0.6",
+        "polars": "2.0.0",
+        "pyarrow": "23.0.1",
+        "python-dateutil": "2.9.0.post0",
+        "jax": null,
+        "jaxlib": null,
+        "torch": null,
+        "altair": null,
+        "pytz": null,
+        "tzdata": null,
+        "polars-runtime-32": "2.0.0"
+      }
+    },
+    "core": {
+      "python_minor": "3.13",
+      "gil_enabled": true,
+      "dependencies": {
+        "numpy": "2.5.3",
+        "pandas": null,
+        "polars": null,
+        "pyarrow": null,
+        "python-dateutil": null,
+        "jax": null,
+        "jaxlib": null,
+        "torch": null,
+        "altair": null,
+        "pytz": null,
+        "tzdata": null,
+        "polars-runtime-32": null
+      }
+    },
+    "pandas2": {
+      "python_minor": "3.13",
+      "gil_enabled": true,
+      "dependencies": {
+        "numpy": "2.5.3",
+        "pandas": "2.3.3",
+        "polars": "2.0.0",
+        "pyarrow": "23.0.1",
+        "python-dateutil": "2.9.0.post0",
+        "jax": null,
+        "jaxlib": null,
+        "torch": null,
+        "altair": null,
+        "pytz": "2026.6",
+        "tzdata": "2026.6",
+        "polars-runtime-32": "2.0.0"
+      }
+    },
+    "pandas-current": {
+      "python_minor": "3.13",
+      "gil_enabled": true,
+      "dependencies": {
+        "numpy": "2.5.3",
+        "pandas": "3.1.0",
+        "polars": "2.1.0",
+        "pyarrow": "23.0.1",
+        "python-dateutil": "2.9.0.post0",
+        "jax": null,
+        "jaxlib": null,
+        "torch": null,
+        "altair": null,
+        "pytz": null,
+        "tzdata": null,
+        "polars-runtime-32": "2.1.0"
+      }
+    },
+    "polars-current": {
+      "python_minor": "3.13",
+      "gil_enabled": true,
+      "dependencies": {
+        "numpy": "2.5.3",
+        "pandas": "3.1.0",
+        "polars": "2.1.0",
+        "pyarrow": "23.0.1",
+        "python-dateutil": "2.9.0.post0",
+        "jax": null,
+        "jaxlib": null,
+        "torch": null,
+        "altair": null,
+        "pytz": null,
+        "tzdata": null,
+        "polars-runtime-32": "2.1.0"
+      }
+    },
+    "polars-only": {
+      "python_minor": "3.13",
+      "gil_enabled": true,
+      "dependencies": {
+        "numpy": "2.5.3",
+        "pandas": null,
+        "polars": "2.0.0",
+        "pyarrow": null,
+        "python-dateutil": null,
+        "jax": null,
+        "jaxlib": null,
+        "torch": null,
+        "altair": null,
+        "pytz": null,
+        "tzdata": null,
+        "polars-runtime-32": "2.0.0"
+      }
+    },
+    "optional-exports": {
+      "python_minor": "3.13",
+      "gil_enabled": true,
+      "dependencies": {
+        "numpy": "2.5.3",
+        "pandas": "3.0.6",
+        "polars": "2.0.0",
+        "pyarrow": "23.0.1",
+        "python-dateutil": "2.9.0.post0",
+        "jax": "0.12.0.1",
+        "jaxlib": "0.12.0.1",
+        "torch": "2.15.0",
+        "altair": "6.3.0",
+        "pytz": null,
+        "tzdata": null,
+        "polars-runtime-32": "2.0.0"
+      }
+    },
+    "optional-exports-current": {
+      "python_minor": "3.13",
+      "gil_enabled": true,
+      "dependencies": {
+        "numpy": "2.5.3",
+        "pandas": "3.1.0",
+        "polars": "2.1.0",
+        "pyarrow": "23.0.1",
+        "python-dateutil": "2.9.0.post0",
+        "jax": "0.12.0.1",
+        "jaxlib": "0.12.0.1",
+        "torch": "2.15.0",
+        "altair": "6.3.0",
+        "pytz": null,
+        "tzdata": null,
+        "polars-runtime-32": "2.1.0"
+      }
+    },
+    "nogil314": {
+      "python_minor": "3.14",
+      "gil_enabled": false,
+      "dependencies": {
+        "numpy": "2.5.3",
+        "pandas": "3.0.6",
+        "polars": "2.1.0",
+        "pyarrow": null,
+        "python-dateutil": "2.9.0.post0",
+        "jax": null,
+        "jaxlib": null,
+        "torch": null,
+        "altair": null,
+        "pytz": "2026.5",
+        "tzdata": "2026.5",
+        "polars-runtime-32": "2.1.0"
+      }
+    },
+    "nogil315": {
+      "python_minor": "3.15",
+      "gil_enabled": false,
+      "dependencies": {
+        "numpy": "2.5.3",
+        "pandas": "3.0.6",
+        "polars": "2.1.0",
+        "pyarrow": null,
+        "python-dateutil": "2.9.0.post0",
+        "jax": null,
+        "jaxlib": null,
+        "torch": null,
+        "altair": null,
+        "pytz": "2026.5",
+        "tzdata": "2026.5",
+        "polars-runtime-32": "2.1.0"
+      }
+    },
+    "public-install": {
+      "python_minor": "3.13",
+      "gil_enabled": true,
+      "dependencies": {
+        "numpy": "2.5.4",
+        "pandas": "3.1.1",
+        "polars": "2.1.0",
+        "pyarrow": null,
+        "python-dateutil": "4.0.0",
+        "jax": null,
+        "jaxlib": null,
+        "torch": null,
+        "altair": null,
+        "pytz": null,
+        "tzdata": "2026.6",
+        "polars-runtime-32": "2.1.0"
+      },
+      "scope": "Bounded2026-11-05publicpip installation/adapters smoke, separate from frozen release and full documentation profiles."
+    },
+    "windows-full": {
+      "python_minor": "3.13",
+      "gil_enabled": true,
+      "dependencies": {
+        "numpy": "2.5.3",
+        "pandas": "3.0.6",
+        "polars": "2.0.0",
+        "pyarrow": "23.0.1",
+        "python-dateutil": "2.9.0.post0",
+        "jax": null,
+        "jaxlib": null,
+        "torch": null,
+        "altair": null,
+        "pytz": null,
+        "tzdata": "2026.5",
+        "polars-runtime-32": "2.0.0"
+      },
+      "scope": "Actual Windowsx86_64 full documentation examples with the declared Windows timezone dependency."
+    }
+  }
+}

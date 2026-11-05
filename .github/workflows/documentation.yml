@@ -1,0 +1,158 @@
+name: English documentation
+
+on:
+  push:
+    branches: [docs-pages, "codex/docs-pages-*"]
+  pull_request:
+    branches: [docs-pages]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: documentation-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  examples:
+    name: Examples / ${{ matrix.profile }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {profile: full, python: "3.13.17", runner: ubuntu-24.04, freethreaded: false}
+          - {profile: core, python: "3.13.17", runner: ubuntu-24.04, freethreaded: false}
+          - {profile: pandas2, python: "3.13.17", runner: ubuntu-24.04, freethreaded: false}
+          - {profile: pandas-current, python: "3.13.17", runner: ubuntu-24.04, freethreaded: false}
+          - {profile: polars-only, python: "3.13.17", runner: ubuntu-24.04, freethreaded: false}
+          - {profile: polars-current, python: "3.13.17", runner: ubuntu-24.04, freethreaded: false}
+          - {profile: optional-exports, python: "3.13.17", runner: macos-15, freethreaded: false}
+          - {profile: optional-exports-current, python: "3.13.17", runner: macos-15, freethreaded: false}
+          - {profile: public-install, python: "3.13.17", runner: ubuntu-24.04, freethreaded: false}
+          - {profile: windows-full, python: "3.13.17", runner: windows-2025, freethreaded: false}
+          - {profile: nogil314, python: "3.14.10", runner: macos-15, freethreaded: true, abi: cp314t}
+          - {profile: nogil315, python: "3.15.2", runner: macos-15, freethreaded: true, abi: cp315t}
+          - {profile: inventory312, python: "3.12.10", runner: ubuntu-24.04, freethreaded: false}
+          - {profile: inventory314, python: "3.14.10", runner: ubuntu-24.04, freethreaded: false}
+          - {profile: inventory315, python: "3.15.2", runner: ubuntu-24.04, freethreaded: false}
+    env:
+      DOC_PROFILE: ${{ matrix.profile }}
+      OMP_NUM_THREADS: "1"
+      POLARS_MAX_THREADS: "2"
+      XLA_FLAGS: --xla_cpu_multi_thread_eigen=false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: ${{ matrix.python }}
+          freethreaded: ${{ matrix.freethreaded }}
+      - name: Qualify the unchanged official dependency for actual free-threaded tests
+        if: matrix.freethreaded
+        uses: ./.github/actions/internal-polars-runtime
+        with:
+          platform-id: macos-arm64
+          python-version: ${{ matrix.python }}
+          abi-tag: ${{ matrix.abi }}
+          interpreter: ${{ env.pythonLocation }}/bin/python
+          target: aarch64-apple-darwin
+          container: "off"
+          manylinux: "off"
+      - name: Verify the actual public wheel and run all pages for this profile
+        shell: bash
+        run: python -I documentation/_tools/ci_profile.py --profile "$DOC_PROFILE" --work .local/docs-profile --output .local/docs-export
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: docs-evidence-${{ matrix.profile }}
+          path: .local/docs-export/
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 30
+
+  build:
+    name: Complete documentation gate and checked Pages artifact
+    needs: examples
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      artifact_name: ${{ steps.pages_name.outputs.name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.13.17"
+      - run: python -m pip install --disable-pip-version-check -r requirements-docs.txt
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          pattern: docs-evidence-*
+          path: .local/docs-producers/
+          digest-mismatch: error
+      - name: Assemble only this complete workflow's evidence
+        run: >-
+          python -I documentation/_tools/assemble_evidence.py
+          --input .local/docs-producers --output .local/docs-evidence
+          --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA"
+          --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
+      - name: Verify the documentation-only source boundary
+        run: python -I documentation/_tools/check_source_scope.py --output .local/docs-scope.json
+      - name: Build all HTML strictly from the verified public declarations
+        run: sphinx-build -d .local/docs-doctrees -b html -E -W --keep-going documentation .local/docs-html
+      - name: Require complete entries, scenarios, actual page examples, identities and HTML anchors
+        run: >-
+          python -I documentation/_tools/check_coverage.py
+          --reports .local/docs-evidence/reports --identity .local/docs-evidence/identity.json
+          --html-dir .local/docs-html --output .local/docs-coverage.json
+      - name: Prepare exact-version, root/latest, 404 and public verification receipts
+        run: >-
+          python -I documentation/_tools/prepare_pages.py
+          --html .local/docs-html --coverage .local/docs-coverage.json
+          --reports .local/docs-evidence/reports --identity .local/docs-evidence/identity.json
+          --output .local/pages --commit "$GITHUB_SHA"
+          --run-url "https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+      - name: Check actual packaged links, anchors and the public artifact allowlist
+        run: python -I documentation/_tools/check_site.py --site .local/pages --output .local/docs-site-check.json
+      - id: pages_name
+        run: echo "name=github-pages-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
+        with:
+          name: ${{ steps.pages_name.outputs.name }}
+          path: .local/pages
+          retention-days: 30
+          include-hidden-files: true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: documentation-acceptance
+          path: |
+            .local/docs-coverage.json
+            .local/docs-site-check.json
+            .local/docs-scope.json
+            .local/docs-evidence/context.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 90
+
+  deploy:
+    name: Publish the checked artifact to GitHub Pages
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/docs-pages'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346
+        with:
+          artifact_name: ${{ needs.build.outputs.artifact_name }}

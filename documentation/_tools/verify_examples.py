@@ -17,6 +17,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import sysconfig
 
 ROOT = Path(__file__).resolve().parents[1]
 BLOCK = re.compile(r"^```\{doctest\}(?:[ \t]+([^\n]*))?\n(.*?)^```[ \t]*$", re.M | re.S)
@@ -30,16 +31,31 @@ def identity() -> dict:
     import rstimes
 
     package = Path(rstimes.__file__).resolve().parent
+    installed = Path(sysconfig.get_path('purelib')).resolve() / 'rstimes'
+    if package != installed:
+        raise RuntimeError('Examples must import the installed wheel from this interpreter site-packages.')
     return {
         "version": importlib.metadata.version("rstimes"),
         "python": sys.version,
+        "python_minor": f"{sys.version_info.major}.{sys.version_info.minor}",
         "package_path": str(package),
+        "import_location_verified": True,
         "native": {p.name: sha(p.read_bytes()) for p in package.iterdir() if p.suffix in ('.so', '.pyd')},
         "stubs": {p.name: sha(p.read_bytes()) for p in package.glob("*.pyi")},
         "payload": {p.relative_to(package).as_posix(): sha(p.read_bytes()) for p in package.rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix != '.pyc'},
-        "dependencies": {d: importlib.metadata.version(d) for d in ("numpy", "pandas", "polars", "pyarrow", "python-dateutil") if importlib.util.find_spec({"python-dateutil": "dateutil"}.get(d, d))},
+        "dependencies": installed_dependencies(),
         "gil_enabled": getattr(sys, "_is_gil_enabled", lambda: True)(),
     }
+
+
+def installed_dependencies() -> dict:
+    versions = {}
+    for name in ('numpy', 'pandas', 'polars', 'polars-runtime-32', 'pyarrow', 'python-dateutil', 'pytz', 'tzdata', 'jax', 'jaxlib', 'torch', 'altair'):
+        try:
+            versions[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            continue
+    return versions
 
 
 def run_page(page: Path, profile: str) -> dict:
@@ -55,7 +71,7 @@ def run_page(page: Path, profile: str) -> dict:
         # No skips, global ellipsis, or regenerated expectations.
         if re.search(r"doctest:.*\b(?:SKIP|ELLIPSIS)\b", source):
             raise ValueError(f"{page}: skipped or loose examples are not accepted")
-        test = doctest.DocTestParser().get_doctest(source, namespace, name, str(page), text[:match.start()].count("\n"))
+        test = doctest.DocTestParser().get_doctest(source, namespace, name, page.relative_to(ROOT).as_posix(), text[:match.start()].count("\n"))
         runner.run(test, out=output.write, clear_globs=False)
         namespace.update(test.globs)
         groups.append({"id": name, "sha256": sha(source.encode()), "assertions": len(test.examples)})
