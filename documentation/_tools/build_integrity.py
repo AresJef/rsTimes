@@ -51,6 +51,14 @@ def build_finished(app, exception):
     # The theme's Jinja macro is needed while rendering, never by a browser.
     # Remove only this known build output; check all remaining HTML strictly.
     (Path(app.outdir) / '_static/webpack-macros.html').unlink(missing_ok=True)
+    # The pinned theme emits icon-only native disclosures in the section tree.
+    # Keep the native details/summary behavior and name this site's controls.
+    marker = '<summary><span class="toctree-toggle"'
+    named = '<summary aria-label="Toggle nested section navigation"><span class="toctree-toggle"'
+    for page in Path(app.outdir).rglob('*.html'):
+        content = page.read_text()
+        if marker in content:
+            page.write_text(content.replace(marker, named))
     outputs = html_outputs(app.outdir)
     if any(part.startswith('.') for name in outputs for part in Path(name).parts):
         raise RuntimeError('Private build/cache files must not be inside the public HTML output.')

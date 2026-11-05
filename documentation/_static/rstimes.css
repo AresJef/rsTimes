@@ -9,6 +9,7 @@ dl.py > dt { max-width: 100%; overflow-wrap: anywhere; }
 a { text-underline-offset: .15em; }
 .rstimes-version { white-space: nowrap; padding: .4rem .55rem; font-size: .875rem; }
 .rstimes-version span { color: var(--pst-color-text-muted); }
+table.indextable tr.cap { background-color: var(--pst-color-surface); }
 @media (max-width: 575px) {
   .bd-article-container { min-width: 0; }
   .bd-article h1 { font-size: 2rem; }
