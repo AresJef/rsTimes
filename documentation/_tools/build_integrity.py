@@ -48,6 +48,9 @@ def build_finished(app, exception):
     # Sphinx's incremental-build cache belongs outside the published artifact.
     # The doctree directory is already separate; remove only its own root marker.
     (Path(app.outdir) / '.buildinfo').unlink(missing_ok=True)
+    # The theme's Jinja macro is needed while rendering, never by a browser.
+    # Remove only this known build output; check all remaining HTML strictly.
+    (Path(app.outdir) / '_static/webpack-macros.html').unlink(missing_ok=True)
     outputs = html_outputs(app.outdir)
     if any(part.startswith('.') for name in outputs for part in Path(name).parts):
         raise RuntimeError('Private build/cache files must not be inside the public HTML output.')

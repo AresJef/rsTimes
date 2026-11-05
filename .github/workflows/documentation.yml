@@ -140,9 +140,24 @@ jobs:
           overwrite: true
           retention-days: 90
 
+  acceptance:
+    name: Documentation acceptance
+    needs: [examples, build]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      EXAMPLES_RESULT: ${{ needs.examples.result }}
+      BUILD_RESULT: ${{ needs.build.result }}
+    steps:
+      - name: Require every execution profile and the complete site gate
+        run: |
+          test "$EXAMPLES_RESULT" = success
+          test "$BUILD_RESULT" = success
+
   deploy:
     name: Publish the checked artifact to GitHub Pages
-    needs: build
+    needs: [build, acceptance]
     if: github.event_name == 'push' && github.ref == 'refs/heads/docs-pages'
     runs-on: ubuntu-24.04
     timeout-minutes: 15

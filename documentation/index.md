@@ -18,7 +18,7 @@ published package with declared dependency profiles.
 | Execute date work in a lazy query | [Polars expressions](guides/expressions.md) |
 
 ```{toctree}
-:maxdepth: 2
+:maxdepth: 1
 
 getting-started/index
 concepts/index
