@@ -167,6 +167,10 @@ silently loads another wheel or compiles a temporary replacement. See the
 
 ## Automated publication
 
+Maintainers use the [release procedure](https://github.com/AresJef/rsTimes/blob/main/docs/RELEASING.md)
+and the current approved release plan. Each release records its own source,
+artifacts, validation and authorization.
+
 - PRs run representative pilot checks; a fixed main commit runs the full48 matrix.
   Manual verification cannot publish. Documentation-only follow-ups have their
   recorded documentation/demo checks without rebuilding a frozen release.
