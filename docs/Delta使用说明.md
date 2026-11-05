@@ -1,6 +1,6 @@
 # Delta 使用说明
 
-`Delta`保存相对增量和可选的绝对字段。本文件描述当前本地PLDT／Delta纳秒升级候选；已公开的`0.2.0b2`仍作为冻结起点，发行范围见[发行说明](releases/v0.2.0b2.md)。四个demo由demo/runtime.json明确选择实际验证的环境和产物；候选功能不冒称已经公开发行。
+`Delta`保存相对增量和可选的绝对字段。本文件描述已公开的`0.2.0b3`，包含完整纳秒值核及已采用修复；发行范围见[发行说明](releases/v0.2.0b3.md)。四个demo由demo/runtime.json选择实际从PyPI下载、安装并校验的公开产物。旧b2与历史本地版本保留各自身份和证据。
 
 ```python
 from datetime import date, datetime, timedelta
@@ -88,7 +88,7 @@ NumPy的datetime64/timedelta64两类NaT均报ValueError。已支持的单位、�
 
 字段只读，重复调用__init__不改变既有值。copy/deepcopy和pickle保留本包值及正常子类字典/可写slots。当前状态为("rstimes.delta",2,core17,metadata)，不保存哈希缓存；恢复后按真实字段计算哈希。固定17字段小端核心为144字节；旧version1／旧bytes及cyTimes状态均明确拒绝，不提供迁移或兼容别名。pickle仅用于可信数据。
 
-直接数值参数拒绝Python／NumPy布尔。公开None仅表达参数含义；Delta内部仍使用紧凑整数表示，不把Python对象带进普通运算内核。本轮CPython3.13／macOS ARM64实测基础对象由冻结起点64字节增至80字节，纳秒及额外字段的存储成本明确保留；不将该单环境观察冒称全部平台大小，整数构造、既有主要运算与相关批量路径仍受逐项5%性能保护。
+直接数值参数拒绝Python／NumPy布尔。公开None仅表达参数含义；Delta内部仍使用紧凑整数表示，不把Python对象带进普通运算内核。历史PLDT纳秒升级时，CPython3.13／macOS ARM64实测基础对象由冻结起点64字节增至80字节，纳秒及额外字段的存储成本明确保留；不将该单环境观察冒称全部平台大小，整数构造、既有主要运算与相关批量路径仍受逐项5%性能保护。
 
 ## NumPy 和状态恢复的本轮修正
 
@@ -96,7 +96,7 @@ NumPy dtype 的倍数会计入日期或时长，例如 `datetime64(1, "10D")` �
 
 `apply_many(values)` 的每项结果与普通 `value + delta` 保持一致，包括返回类型与错误。datetime64的Y/M/W/D单位在普通左侧`value +/- delta`及批量中返回date；h/m/s/ms/us/ns返回datetime。`delta + value`及显式反向方法保留各自datetime合同。timedelta64的W/D/h/m/s/ms/us/ns普通标量正反方向均返回Delta并保留真实纳秒；Y/M仅保留Delta在左的既定支持，普通NumPy左方向及对应批量仍报错。不扩成任意ndarray广播或显式np.add/np.subtract的通用ufunc承诺。
 
-带槽位的子类恢复属性时，按恢复开始时的条目处理。用户 setter 后来改动输入字典，不会使正在执行的恢复崩溃，也不会改变 Delta 的不可变字段和哈希。详见[本次发行说明](releases/v0.2.0b2.md)。
+带槽位的子类恢复属性时，按恢复开始时的条目处理。用户 setter 后来改动输入字典，不会使正在执行的恢复崩溃，也不会改变 Delta 的不可变字段和哈希。详见[本次发行说明](releases/v0.2.0b3.md)。
 
 
 ## Pandas values and subclass operations
@@ -139,12 +139,12 @@ assert (Delta() + span).days == 1_000_000_000
 If a Delta subclass defines `__eq__` and inherits `__ne__`, inequality follows the opposite of that equality result. An explicit subclass `__ne__` remains authoritative. Direct calls preserve `NotImplemented`, and user comparison exceptions propagate. Copies preserve instance attributes, slots and reference cycles. Exceptions raised by your copy hooks or setters are propagated.
 
 
-For the beta's public scope and distributions, see [the release notes](releases/v0.2.0b2.md).
+For the beta's public scope and distributions, see [the release notes](releases/v0.2.0b3.md).
 
 
 ## Current reconstruction rules
 
-See [the release notes](releases/v0.2.0b2.md) for scope. Standard pandas Timestamp anchors in `to_timedelta(start)` use elapsed instants and retain nanoseconds until one final nearest-microsecond rounding (ties to even); ordinary datetime anchors retain Python wall-clock subtraction for the same timezone object. Long spans may exceed pandas Timedelta storage if standard timedelta can hold them. Custom arithmetic remains in control.
+See [the release notes](releases/v0.2.0b3.md) for scope. Standard pandas Timestamp anchors in `to_timedelta(start)` use elapsed instants and retain nanoseconds until one final nearest-microsecond rounding (ties to even); ordinary datetime anchors retain Python wall-clock subtraction for the same timezone object. Long spans may exceed pandas Timedelta storage if standard timedelta can hold them. Custom arithmetic remains in control.
 
 NumPy may convert a scalar before a reflected expression dispatches. Consequently, `value + delta` can pass a different Python type from `delta.__radd__(value)`; direct method probes and expression results should not be confused.
 

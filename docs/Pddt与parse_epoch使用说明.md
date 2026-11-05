@@ -2,7 +2,7 @@
 
 ## 本地PLDT／Delta纳秒候选同步
 
-当前指南包含本轮本地候选的共享修改，未冒称已公开0.2.0b2具有这些新增内容。日期字段替换统一写`x.pddt.replace(...)`；原生pandas的完整接口保留自身含义，不用双义参数兼容。Pldt对应写`x.pldt.replace(...)`，并保留Polars原生replace。
+当前指南描述已公开0.2.0b3中的共享修改；旧0.2.0b2保持其历史发行范围。日期字段替换统一写`x.pddt.replace(...)`；原生pandas的完整接口保留自身含义，不用双义参数兼容。Pldt对应写`x.pldt.replace(...)`，并保留Polars原生replace。
 
 Delta的相对nanoseconds和绝对nanosecond尾数已经纳入整列运算；已有Pddt保持当前unit，不能保存的非零纳秒结果会报精度错误，不自动改单位。用户可先主动`as_unit('ns')`。全部分量先合并，合法抵消不制造中间精度错误。
 

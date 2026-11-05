@@ -1,12 +1,12 @@
 {
-  "environment": ".local/r18-numpy-check-optimization-20261105/final01-oracle-demo",
-  "version": "0.2.0b2",
-  "release_manifest": "tasks/evidence/r18-numpy-check-optimization-20261105/S04/demo-delivery-manifest.json",
-  "status": "Locally adopted R18 final01;94 necessary strictPASS, no performance exceptions",
-  "selection": "local_delivery",
+  "environment": ".local/beta-b3-release-20h-20261105/public-oracle-demo",
+  "version": "0.2.0b3",
+  "release_manifest": "tasks/evidence/beta-b3-release-20h-20261105/sealed-release/release-manifest.json",
+  "status": "Public0.2.0b3; fullCI/publicinstall and all94 necessary comparisons strictPASS",
+  "selection": "published_release",
   "environments": {
-    "pddt": ".local/r18-numpy-check-optimization-20261105/final01-main"
+    "pddt": ".local/beta-b3-release-20h-20261105/public-main"
   },
-  "validation": "Six local ABI/differential tests and actual wheel payload/native; no new remote CI or publication",
-  "adoption_audit": "tasks/evidence/r18-numpy-check-optimization-20261105/adoption-completion-audit.json"
+  "validation": "Actual published files matched same48-position fullCI; local publicPyPI wheel/sdist and648-worker performance evidence checked",
+  "adoption_audit": "tasks/evidence/beta-b3-release-20h-20261105/adoption-completion-audit.json"
 }
