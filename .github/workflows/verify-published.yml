@@ -1,6 +1,7 @@
 name: Verify an existing published release
 
-# Read-only recovery/revalidation. This workflow never builds or publishes.
+# Read-only recovery/revalidation: never rebuild or publish rsTimes files.
+# A cold t integration may qualify the fixed official upstream dependency.
 on:
   workflow_dispatch:
     inputs:
