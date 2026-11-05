@@ -20,14 +20,14 @@ published package with declared dependency profiles.
 ```{toctree}
 :maxdepth: 1
 
-getting-started/index
-concepts/index
-guides/index
-recipes/index
-api/index
-compatibility/index
-troubleshooting
-development/index
+Getting started <getting-started/index>
+Concepts <concepts/index>
+Guides <guides/index>
+Recipes <recipes/index>
+API reference <api/index>
+Compatibility <compatibility/index>
+Troubleshooting <troubleshooting>
+Development <development/index>
 ```
 
 The [compatibility guide](compatibility/index.md) records actual dependency,

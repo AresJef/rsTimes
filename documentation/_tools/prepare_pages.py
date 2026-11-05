@@ -82,12 +82,14 @@ def main():
         directory.mkdir(parents=True, exist_ok=True)
         (directory / 'index.html').write_text(f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="{SITE_PREFIX}{version}/_static/favicon.svg">
 <meta http-equiv="refresh" content="0; url={SITE_PREFIX}{version}/"><title>rsTimes {version} documentation</title>
 <link rel="canonical" href="https://aresjef.github.io{SITE_PREFIX}{version}/"></head>
 <body><main><h1>rsTimes {version} documentation</h1><p>Beta release.</p>
 <p><a href="{SITE_PREFIX}{version}/">Open the English documentation</a></p></main></body></html>\n''')
     (args.output / '404.html').write_text(f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="{SITE_PREFIX}{version}/_static/favicon.svg">
 <title>Page not found — rsTimes</title><style>body{{font:1rem/1.65 system-ui;margin:4rem auto;padding:0 1.25rem;max-width:44rem}}a:focus-visible{{outline:3px solid #176b94;outline-offset:3px}}</style></head>
 <body><main><h1>Page not found</h1><p>The address may have changed. The current documentation covers rsTimes {version} (beta).</p>
 <p><a href="{SITE_PREFIX}{version}/">Documentation home</a> · <a href="{SITE_PREFIX}{version}/api/index.html">API reference</a> · <a href="{SITE_PREFIX}{version}/search.html">Search</a></p></main></body></html>\n''')

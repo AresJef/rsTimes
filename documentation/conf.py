@@ -21,9 +21,11 @@ html_theme = "pydata_sphinx_theme"
 html_title = f"rsTimes {release} documentation"
 html_static_path = ["_static"]
 html_css_files = ["rstimes.css"]
+html_favicon = '_static/favicon.svg'
 html_theme_options = {
     "logo": {"text": "rsTimes"},
     "navbar_end": ["theme-switcher", "navbar-icon-links"],
+    "navbar_persistent": ["search-button"],
     "github_url": "https://github.com/AresJef/rsTimes",
     "navigation_with_keys": False,
     "show_toc_level": 2,
