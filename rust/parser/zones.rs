@@ -1,102 +1,10 @@
 //! Registered ZoneInfo objects; Python is used only at configuration/build boundaries.
-use super::config::Configs;
-use super::text::{self, TextView};
+use super::text::TextView;
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::{PySet, PyString};
 use std::collections::HashMap;
 use std::sync::Arc;
-
-/// Peel complete trailing region names without allocating a Python string.
-/// The existing ISO prefix has already handled ordinary fully consumed input.
-pub(super) fn suffix(
-    py: Python<'_>,
-    input: &mut TextView<'_>,
-    config: Option<&Bound<'_, Configs>>,
-    ignore: bool,
-    strict: bool,
-) -> PyResult<Option<Arc<RegisteredZone>>> {
-    let mut end = input.len();
-    let mut selected: Option<Arc<RegisteredZone>> = None;
-    let mut key_buffer = [0_u32; 64];
-    loop {
-        let mut last = end;
-        while last > 0 && text::space(input.get(last - 1)) {
-            last -= 1;
-        }
-        if last == 0 {
-            break;
-        }
-        let bracket = input.get(last - 1) == 93;
-        let key_end = last - usize::from(bracket);
-        let mut first = key_end;
-        while first > 0 && !text::space(input.get(first - 1)) && input.get(first - 1) != 91 {
-            first -= 1;
-        }
-        if bracket && (first == 0 || input.get(first - 1) != 91) {
-            break;
-        }
-        if first == key_end {
-            break;
-        }
-        // A textual month followed by numeric date fields, such as
-        // Sep/25/2003, belongs to the existing date grammar, not a region.
-        let region_form = bracket
-            || (text::ascii_letter(input.get(first))
-                && (first..key_end.saturating_sub(1))
-                    .any(|i| input.get(i) == 47 && text::ascii_letter(input.get(i + 1))));
-        // Ordinary text must not allocate a candidate key or query an empty
-        // registry. The previous implementation did both for every fallback.
-        if !region_form && !config.is_some_and(|cfg| cfg.borrow().has_zones()) {
-            break;
-        }
-        let owned_name;
-        let name = if key_end - first <= key_buffer.len() {
-            let name = &mut key_buffer[..key_end - first];
-            for (offset, slot) in name.iter_mut().enumerate() {
-                *slot = input.get(first + offset);
-            }
-            &*name
-        } else {
-            // Long names retain the original unbounded representation.
-            owned_name = input.range(first, key_end);
-            &owned_name
-        };
-        let registered = config.and_then(|cfg| cfg.borrow().zone(name));
-        if registered.is_none() && !region_form {
-            break;
-        }
-        if !ignore {
-            let zone = registered.ok_or_else(|| -> PyErr {
-                let key: String = name.iter().filter_map(|c| char::from_u32(*c)).collect();
-                match crate::error_context::text_preview(py, &key) {
-                    Ok(key) => crate::error_context::domain(py, "ParseError", format!(
-                        "time zone {key} is not registered; register the IANA name with cfg.add_tzone() and pass cfg to this call"
-                    )),
-                    Err(error) => error,
-                }
-            })?;
-            if let Some(previous) = &selected {
-                if strict && previous.key != zone.key {
-                    return Err(crate::error_context::domain(
-                        py,
-                        "ParseError",
-                        format!(
-                            "conflicting time zones: {} and {}",
-                            crate::error_context::text_preview(py, &zone.key)?,
-                            crate::error_context::text_preview(py, &previous.key)?,
-                        ),
-                    ));
-                }
-            } else {
-                selected = Some(zone);
-            }
-        }
-        end = first - usize::from(bracket);
-    }
-    input.truncate(end);
-    Ok(selected)
-}
 
 /// Construct one checked builtin datetime; user constructors are called later.
 fn datetime<'py>(

@@ -2,8 +2,12 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
+    # These follow-up records do not change a frozen distribution. Their
+    # documentation/demo checks are recorded by the release procedure.
+    paths-ignore: ["docs/**", "AGENTS.md", "README.md", "demo/README.md", "demo/runtime.json", "tasks/**"]
   pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       profile:
@@ -16,11 +20,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}-${{ inputs.profile || 'full' }}
   cancel-in-progress: true
 
 jobs:
   verify:
     uses: ./.github/workflows/build.yml
     with:
-      profile: ${{ inputs.profile || 'full' }}
+      profile: ${{ inputs.profile || (github.event_name == 'pull_request' && 'pilot' || 'full') }}

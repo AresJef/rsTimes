@@ -2,14 +2,12 @@
 use crate::epoch::{Unit, Zone};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
+#[cfg(test)]
+use std::time::UNIX_EPOCH;
 
 pub(super) fn system_nanos(time: SystemTime) -> PyResult<i128> {
-    match time.duration_since(UNIX_EPOCH) {
-        Ok(value) => i128::try_from(value.as_nanos()),
-        Err(value) => i128::try_from(value.duration().as_nanos()).map(|n| -n),
-    }
-    .map_err(|_| crate::error_context::overflow("system clock exceeds native integer range"))
+    crate::clock::system_nanos(time).map_err(crate::error_context::overflow)
 }
 
 /// Read one integer clock value after all parameters and empty-size are known.
@@ -43,7 +41,7 @@ fn _pddt_now<'py>(
         .ok_or_else(|| crate::error_context::overflow("clock exceeds the requested unit"))?
         .to_ne_bytes();
     PyBytes::new_with(py, size, |out| {
-        for row in out.chunks_exact_mut(8) {
+        for row in out.as_chunks_mut::<8>().0.iter_mut() {
             row.copy_from_slice(&tick);
         }
         Ok(())
@@ -90,80 +88,26 @@ impl Numeric {
     }
 }
 
-fn number_missing(value: &Bound<'_, PyAny>) -> PyResult<bool> {
-    if super::prepare::missing(value) {
-        return Ok(true);
-    }
-    if let Ok(text) = value.cast::<pyo3::types::PyString>() {
-        return super::prepare::missing_text(text);
-    }
-    if let Some((ticks, code, _)) = crate::numpy_scalar::datetime_ticks(value)? {
-        super::prepare::scalar_unit(code)?;
-        return Ok(ticks == i64::MIN);
-    }
-    Ok(false)
-}
-
 fn read_number(value: &Bound<'_, PyAny>, kind: Numeric) -> PyResult<Option<i128>> {
-    if number_missing(value)? {
-        return Ok(None);
-    }
-    if crate::numeric::is_bool(value) {
-        return Err(crate::error_context::type_error(
-            "boolean values are not numeric dates",
-        ));
-    }
-    if matches!(kind, Numeric::Micros) {
-        // Real floating NaN is still a date-missing value, not a fractional integer.
-        if crate::numeric::supported_float(value) {
-            let number = if value.is_instance_of::<pyo3::types::PyFloat>() {
-                value.extract::<f64>()?
-            } else {
-                crate::numeric::float_value(value)?
-            };
-            if number.is_nan() {
-                return Ok(None);
-            }
-        }
-        return crate::numeric::index_i128(value)?
-            .checked_mul(1000)
-            .map(Some)
-            .ok_or_else(|| crate::error_context::overflow("microseconds exceed native range"));
-    }
-    if unsafe { pyo3::ffi::PyIndex_Check(value.as_ptr()) != 0 } {
-        return crate::numeric::index_i128(value)?
-            .checked_mul(1_000_000_000)
-            .map(Some)
-            .ok_or_else(|| crate::error_context::overflow("seconds exceed native range"));
-    }
-    if value.is_instance_of::<pyo3::types::PyString>()
-        || value.is_instance_of::<pyo3::types::PyBytes>()
-        || value.is_instance_of::<pyo3::types::PyByteArray>()
-    {
-        return Err(crate::error_context::type_error(
-            "seconds must be numeric, not text or byte strings",
-        ));
-    }
-    // SAFETY: PyNumber_Float reads the original numeric protocol once; unlike
-    // Python float(text), it does not add a textual number parser.
-    let number = unsafe {
-        Bound::from_owned_ptr_or_err(value.py(), pyo3::ffi::PyNumber_Float(value.as_ptr()))
-    }
-    .map_err(crate::error_context::external)?
-    .extract::<f64>()?;
-    float_number(number, kind)
+    crate::numeric_epoch::read(
+        value,
+        if matches!(kind, Numeric::Micros) {
+            crate::numeric_epoch::Quantity::Microseconds
+        } else {
+            crate::numeric_epoch::Quantity::Seconds
+        },
+    )
 }
-
 fn float_number(value: f64, kind: Numeric) -> PyResult<Option<i128>> {
-    if value.is_nan() {
-        return Ok(None);
-    }
-    if matches!(kind, Numeric::Micros) {
-        return Err(crate::error_context::type_error(
-            "microseconds require integer index values, not floats",
-        ));
-    }
-    crate::epoch::float_nanos(value, Unit::Second).map(Some)
+    crate::numeric_epoch::float_number(
+        value,
+        if matches!(kind, Numeric::Micros) {
+            crate::numeric_epoch::Quantity::Microseconds
+        } else {
+            crate::numeric_epoch::Quantity::Seconds
+        },
+    )
+    .map_err(crate::numeric_epoch::error)
 }
 
 /// A local timestamp discovers its system zone only upon the first valid value.
@@ -221,23 +165,7 @@ impl<'a, 'py> NumericRows<'a, 'py> {
 }
 
 fn numeric_scalar(value: &Bound<'_, PyAny>) -> PyResult<bool> {
-    if number_missing(value)?
-        || value.is_instance_of::<pyo3::types::PyString>()
-        || value.is_instance_of::<pyo3::types::PyBytes>()
-        || value.is_instance_of::<pyo3::types::PyByteArray>()
-    {
-        return Ok(true);
-    }
-    // Actual scalar protocol slots classify without executing a conversion.
-    Ok(unsafe {
-        pyo3::ffi::PyDate_Check(value.as_ptr()) != 0
-            || pyo3::ffi::PyIndex_Check(value.as_ptr()) != 0
-            || !pyo3::ffi::PyType_GetSlot(
-                pyo3::ffi::Py_TYPE(value.as_ptr()),
-                pyo3::ffi::Py_nb_float,
-            )
-            .is_null()
-    })
+    crate::numeric_epoch::scalar(value)
 }
 
 #[pyfunction]
@@ -317,7 +245,7 @@ fn _pddt_number_buffer<'py>(
     local: Option<&Bound<'py, PyAny>>,
     entry: &str,
 ) -> PyResult<(Bound<'py, PyBytes>, &'static str, Py<PyAny>)> {
-    if data.len() % 8 != 0 || mask.is_some_and(|m| m.len() != data.len() / 8) {
+    if !data.len().is_multiple_of(8) || mask.is_some_and(|m| m.len() != data.len() / 8) {
         return Err(crate::error_context::value_error(
             "invalid numeric buffer or missing mask",
         ));
@@ -326,7 +254,7 @@ fn _pddt_number_buffer<'py>(
     let requested = unit.map(Unit::parse).transpose()?;
     let mut output = NumericRows::new(kind, local);
     let mut raw = [0; 8];
-    for (index, bytes) in data.chunks_exact(8).enumerate() {
+    for (index, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
         if mask.is_some_and(|m| m[index] != 0) {
             output.push(py, None)?;
             continue;

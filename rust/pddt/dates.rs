@@ -1,6 +1,6 @@
 //! Actual date roles and scalar/column calendar factories before final wrapping.
 use super::common::{NS_DAY, Rows, finish};
-use crate::epoch::{self, Options, Parsed, Unit, Zone};
+use crate::epoch::{self, Parsed, Unit, Zone};
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
@@ -30,50 +30,15 @@ fn role(value: &Bound<'_, PyAny>, kind: &str, replace: bool) -> PyResult<Option<
         }
         return crate::parser::iso_factory::read(text.to_str()?).map(|p| Some((p, false)));
     }
-    if super::arguments::date_missing(value)? {
-        return Ok(None);
-    }
-    if kind == "numpy" {
-        let (ticks, code, multiplier) =
-            crate::numpy_scalar::datetime_ticks(value)?.ok_or_else(|| {
-                crate::error_context::type_error(
-                    "requires a NumPy datetime64 value; use fromdatetime for Python datetime",
-                )
-            })?;
-        return epoch::numpy_ticks(ticks, code, multiplier).map(|p| Some((p, false)));
-    }
-    let valid = unsafe {
-        if kind == "date" {
-            ffi::PyDate_Check(value.as_ptr())
-        } else {
-            ffi::PyDateTime_Check(value.as_ptr())
-        }
-    };
-    if valid == 0 {
-        return Err(crate::error_context::type_error(if kind == "date" {
-            "requires date or datetime values; use parse for text and fromdatetime64 for NumPy dates"
-        } else {
-            "requires datetime values, not plain date, text or numeric data"
-        }));
-    }
-    let opts = Options {
-        default: None,
-        yearfirst: None,
-        dayfirst: None,
-        ignoretz: replace || kind == "date",
-        isoformat: true,
-        strict: false,
-        iso_only: false,
-        cfg: None,
-        input_unit: Unit::Second,
-    };
-    let mut parsed = epoch::read(value, &opts)?;
-    if kind == "date" {
-        parsed.nanos = parsed.nanos.div_euclid(NS_DAY) * NS_DAY;
-        parsed.zone = Zone::Naive;
-    }
-    let instant = kind == "datetime" && !replace && !matches!(parsed.zone, Zone::Naive);
-    Ok(Some((parsed, instant)))
+    crate::date_input::named_date(
+        value,
+        match kind {
+            "date" => crate::date_input::DateSource::Date,
+            "numpy" => crate::date_input::DateSource::Numpy,
+            _ => crate::date_input::DateSource::Datetime,
+        },
+        replace,
+    )
 }
 
 #[pyfunction]
@@ -176,7 +141,7 @@ pub(super) fn numpy_code(source: &str) -> PyResult<i32> {
 
 #[pyfunction]
 #[expect(clippy::too_many_arguments, reason = "Native temporal column metadata")]
-#[pyo3(signature=(data,policy,kind,source,multiplier=1,unit=None,source_zone=None,target=None,entry="Pddt"))]
+#[pyo3(signature=(data,policy,kind,source,multiplier=1,unit=None,source_zone=None,target=None,entry="Pddt",mask=None))]
 fn _pddt_date_buffer<'py>(
     py: Python<'py>,
     data: &[u8],
@@ -188,8 +153,9 @@ fn _pddt_date_buffer<'py>(
     source_zone: Option<&Bound<'py, PyAny>>,
     target: Option<&Bound<'py, PyAny>>,
     entry: &str,
+    mask: Option<&[u8]>,
 ) -> PyResult<(Bound<'py, PyBytes>, &'static str, Py<PyAny>)> {
-    if data.len() % 8 != 0 || multiplier < 1 {
+    if !data.len().is_multiple_of(8) || multiplier < 1 {
         return Err(crate::error_context::runtime(
             "invalid native date metadata",
         ));
@@ -197,6 +163,7 @@ fn _pddt_date_buffer<'py>(
     let code = numpy_code(source)?;
     let mut rows = Rows::new(super::prepare::scalar_unit(code)?);
     rows.reserve(data.len() / 8)?;
+    let validity = super::validity::TemporalValidity::new(mask, data.len() / 8)?;
     let requested = unit.map(Unit::parse).transpose()?;
     let source_zone = source_zone.filter(|t| !t.is_none());
     let fixed = if let Some(zone) = source_zone {
@@ -205,17 +172,15 @@ fn _pddt_date_buffer<'py>(
         Some(0)
     };
     let replace = target.is_some_and(|t| !t.is_none());
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid date bytes"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let ticks = i64::from_ne_bytes(raw);
-        if ticks == i64::MIN {
+        if validity.missing(i, ticks) {
             rows.missing();
             continue;
         }
         let row = (|| -> PyResult<(Parsed, bool)> {
-            let mut parsed = epoch::numpy_ticks(ticks, code, multiplier)?;
+            let mut parsed = epoch::native_datetime_ticks(ticks, code, multiplier)?;
             let mut instant = false;
             if let Some(zone) = source_zone {
                 if kind == "date" || replace {

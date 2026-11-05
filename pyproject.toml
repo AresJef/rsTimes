@@ -4,11 +4,11 @@ build-backend = "maturin"
 
 [project]
 name = "rsTimes"
-version = "0.2.0b2"
-description = "Rust-powered calendar deltas, configurable parsing, and scalar and pandas datetimes"
+version = "0.2.0b3"
+description = "Rust-powered calendar deltas, configurable parsing, and scalar, pandas and Polars datetimes"
 readme = "README.md"
 license = "MIT"
-license-files = ["LICENSE", "NOTICE", "NOTICE-RUST-STDLIB.html", "NOTICE-CPYTHON.txt", "NOTICE-UNICODE.txt", "NOTICE-IANA-TIME-ZONE.txt"]
+license-files = ["LICENSE", "NOTICE", "NOTICE-RUST-STDLIB.html", "NOTICE-CPYTHON.txt", "NOTICE-UNICODE.txt", "NOTICE-IANA-TIME-ZONE.txt", "NOTICE-PLDT-DEPENDENCIES.txt"]
 requires-python = ">=3.12"
 dependencies = ["numpy>=2.5.3", "tzdata>=2026.5; sys_platform == 'win32'"]
 classifiers = [
@@ -46,7 +46,7 @@ module-name = "rstimes._native"
 bindings = "pyo3"
 features = ["extension-module"]
 # Source metadata files must not pull same-named files from local/reference trees.
-exclude = [".local/**", "reference/**", "target/**", "benchmarks/**", "tasks/**", "docs/**", "tests/**", "tools/**", "**/__pycache__/**", ".pytest_cache/**", ".git/**", "build/**", "dist/**", ".delta-oracle/**", ".wheel-test*/**", ".venv/**", "htmlcov/**"]
+exclude = ["AGENTS.md", ".local/**", "reference/**", "target/**", "benchmarks/**", "tasks/**", "docs/**", "tests/**", "tools/**", "**/__pycache__/**", ".pytest_cache/**", ".git/**", "build/**", "dist/**", ".delta-oracle/**", ".wheel-test*/**", ".venv/**", "htmlcov/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

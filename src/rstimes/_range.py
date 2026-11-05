@@ -1,6 +1,7 @@
 """Prepare complete static frequency metadata for the native range generator."""
 from datetime import timedelta,timezone
 from zoneinfo import ZoneInfo
+from typing import TYPE_CHECKING, Literal, cast
 import sys
 import re
 import numpy as np
@@ -10,12 +11,23 @@ from .errors import _own_error, _external_error
 
 _MONTHS = {name: i for i, name in enumerate(
     ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"), 1)}
-_WEEKDAYS = {name: i for i, name in enumerate(("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"))}
+_Weekday = Literal[0, 1, 2, 3, 4, 5, 6]
+_WEEKDAYS: dict[str, _Weekday] = {"MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6}
 _SIMPLE = re.compile(r"^([+-]?\d*)\s*([A-Za-z]+)(?:-([A-Za-z0-9-]+))?$")
 _FIXED_PART = re.compile(r"(\d+(?:\.\d*)?|\.\d+)\s*(min|ms|us|ns|D|h|s)")
 _SCALES = {"D": 86400_000_000_000, "h": 3600_000_000_000,
            "min": 60_000_000_000, "s": 1_000_000_000,
            "ms": 1_000_000, "us": 1000, "ns": 1}
+
+if TYPE_CHECKING:
+    from typing import Protocol
+
+    class _NativeOffset(Protocol):
+        """Actual public offset fields omitted by some pandas stub releases."""
+
+        normalize: bool
+        kwds: dict[str, object]
+        n: int
 
 _INVALID_METADATA=(ValueError,)
 _ARRAY_HAS_FREQ = pd is not None and hasattr(pd.arrays.DatetimeArray, "freq")
@@ -187,10 +199,12 @@ def frequency(value):
         # stay wholly with the mature executor, with their original parameters.
         return None, offset, True
     kind, detail = spec
-    props = {"normalize": offset.normalize}
-    kwargs = offset.kwds
+    # A successful real-type table lookup proves this complete offset protocol.
+    native_offset = cast("_NativeOffset", offset)
+    props: dict[str, object] = {"normalize": native_offset.normalize}
+    kwargs = native_offset.kwds
     if kind == "fixed":
-        props["tick"] = offset.n * detail
+        props["tick"] = native_offset.n * detail
         props["precision"] = {1:"ns",1000:"us",1_000_000:"ms"}.get(detail,"s")
     elif kind == "week":
         props["weekday"] = kwargs.get("weekday")
@@ -210,7 +224,7 @@ def frequency(value):
         props["holidays"] = calendar.holidays.view("int64").tobytes()
     if "offset" in kwargs:
         props["duration"] = kwargs["offset"]
-    return _pddt_frequency(kind, offset.n, props), offset, False
+    return _pddt_frequency(kind, native_offset.n, props), offset, False
 
 
 def attach_frequency(array, metadata):
@@ -252,22 +266,27 @@ def rounding_step(value):
     return step
 
 
-def mature_units(metadata,source):
-    """Separate a mature engine's working precision from its initial output unit."""
+def mature_units(metadata, source, carrier=None):
+    """Separate the mature engine's exact local carrier from final resolution.
+
+    source is the original output requirement; carrier is an optional exact
+    local working unit. Omission uses source for both roles.
+    """
     if type(metadata) not in _METADATA:
-        return None,None
-    units=('s','ms','us','ns')
-    index=units.index(source)
-    kwargs=metadata.kwds
-    generic=type(metadata) is _o.DateOffset
-    business=type(metadata) in (_o.BusinessHour,_o.CustomBusinessHour)
-    if any(key in kwargs for key in ('nanosecond','nanoseconds')):
-        index=3
-    elif business or any(key in kwargs for key in ('microsecond','microseconds')):
-        index=max(index,2)
-    offset=kwargs.get('offset')
-    if isinstance(offset,pd.Timedelta):
-        index=max(index,units.index(offset.unit))
-    # DateOffset may use fractional seconds without an explicit microsecond key.
-    # Generate those with at least us, then the native finalizer keeps exact output.
-    return units[max(index,2) if generic or business else index],units[index]
+        return None, None
+    units = ("s", "ms", "us", "ns")
+    required = 0
+    kwargs = metadata.kwds
+    generic = type(metadata) is _o.DateOffset
+    business = type(metadata) in (_o.BusinessHour, _o.CustomBusinessHour)
+    if any(key in kwargs for key in ("nanosecond", "nanoseconds")):
+        required = 3
+    elif business or any(key in kwargs for key in ("microsecond", "microseconds")):
+        required = 2
+    offset = kwargs.get("offset")
+    if isinstance(offset, pd.Timedelta):
+        required = max(required, units.index(offset.unit))
+    output = max(units.index(source), required)
+    working = max(units.index(source if carrier is None else carrier), required,
+                  2 if generic or business else 0)
+    return units[working], units[output]

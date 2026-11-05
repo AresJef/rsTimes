@@ -66,15 +66,18 @@ jobs:
           cargo test --release --locked --lib
 
   native:
-    name: CPython ${{ matrix.python.minor }} / ${{ matrix.platform.id }}
+    name: CPython ${{ matrix.python.label }} / ${{ matrix.platform.id }}
     needs: matrix
     runs-on: ${{ matrix.platform.runner }}
-    timeout-minutes: 45
+    # Some cold full-featured upstream t builds alone reach the old75min cap.
+    # Bound the whole t build/install/test job at3h; ordinary lanes stay at75min.
+    timeout-minutes: ${{ matrix.python.free_threaded && 180 || 75 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.native) }}
     env:
-      MACOSX_DEPLOYMENT_TARGET: "11.0"
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_deployment_target }}
+      CARGO_BUILD_JOBS: "2"
       TZ: UTC
       PYTHONUTF8: "1"
     steps:
@@ -86,9 +89,29 @@ jobs:
         with:
           python-version: ${{ matrix.python.version }}
           architecture: ${{ matrix.platform.arch }}
+          freethreaded: ${{ matrix.python.free_threaded }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        if: matrix.platform.id == 'macos-arm64' && matrix.python.label == '3.13' && inputs.profile == 'full'
+        with:
+          node-version: "26.7.0"
+      - name: Isolate Windows Rustup from preinstalled runner toolchains
+        if: runner.os == 'Windows'
+        run: |
+          python - <<'PYCODE'
+          import os
+          from pathlib import Path
+          rustup_home = Path(os.environ["RUNNER_TEMP"]) / "rstimes-rustup"
+          rustup_home.mkdir()
+          with Path(os.environ["GITHUB_ENV"]).open("a") as output:
+              output.write("RUSTUP_HOME=" + str(rustup_home) + "\n")
+          PYCODE
       - name: Prepare fixed build tools and release identity
         run: |
           rustup set profile minimal
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy
+            rustup default 1.99.0
+          fi
           python -m pip install --index-url https://pypi.org/simple --upgrade pip==26.2.2
           python -m pip install --index-url https://pypi.org/simple maturin==1.15.0 twine==7.0.0 packaging==26.3
           python - <<'PYCODE'
@@ -106,6 +129,20 @@ jobs:
               output.write('PACKAGE_VERSION=' + version + '\n')
           Path('evidence').mkdir(exist_ok=True)
           PYCODE
+      - name: Install the sole pinned Python checker
+        if: matrix.platform.id == 'macos-arm64' && matrix.python.label == '3.13' && inputs.profile == 'full'
+        run: npm --prefix tools/typing ci --ignore-scripts --omit=optional
+      - name: Qualify the fixed official runtime for internal t validation
+        if: matrix.python.free_threaded
+        uses: ./.github/actions/internal-polars-runtime
+        with:
+          platform-id: ${{ matrix.platform.id }}
+          python-version: ${{ matrix.python.version }}
+          abi-tag: ${{ matrix.python.abi_tag }}
+          interpreter: ${{ runner.os == 'Linux' && matrix.python.linux_interpreter || steps.python.outputs.python-path }}
+          target: ${{ matrix.platform.target }}
+          manylinux: ${{ matrix.platform.manylinux }}
+          container: ${{ matrix.platform.container }}
       - name: Build the actual release wheel
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1 resolved commit
         with:
@@ -115,7 +152,7 @@ jobs:
           target: ${{ matrix.platform.target }}
           manylinux: ${{ matrix.platform.manylinux }}
           container: ${{ matrix.platform.container }}
-          args: --release --locked --out dist --interpreter "${{ runner.os == 'Linux' && format('python{0}', matrix.python.minor) || steps.python.outputs.python-path }}"
+          args: --release --locked --out dist --interpreter "${{ runner.os == 'Linux' && matrix.python.linux_interpreter || steps.python.outputs.python-path }}"
       - name: Build the single source distribution
         if: matrix.platform.id == 'macos-arm64' && matrix.python.minor == '3.13'
         run: maturin sdist --out dist
@@ -123,22 +160,20 @@ jobs:
         run: python -m twine check --strict dist/*
       - name: Verify installed wheel on native desktop
         if: runner.os != 'Linux'
-        run: python -I -B tools/verify_wheel.py --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode "${{ inputs.profile }}"
+        run: python -I -B tools/verify_wheel.py --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode "${{ inputs.profile }}" ${{ matrix.python.free_threaded && '--free-threaded --internal-polars .local/internal-polars-wheels' || '' }}
       - name: Verify installed wheel in the matching Linux libc
         if: runner.os == 'Linux'
         run: |
-          abi_tag="cp${{ matrix.python.minor }}"
-          abi_tag="${abi_tag//./}"
           docker run --rm --volume "$PWD:/project" --workdir /project \
             --env TZ=UTC --env PYTHONUTF8=1 "${{ matrix.platform.container }}" \
-            "/opt/python/${abi_tag}-${abi_tag}/bin/python" -I -B tools/verify_wheel.py \
-            --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode "${{ inputs.profile }}"
+            "${{ matrix.python.linux_python }}" -I -B tools/verify_wheel.py \
+            --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode "${{ inputs.profile }}" ${{ matrix.python.free_threaded && '--free-threaded --internal-polars .local/internal-polars-wheels' || '' }}
       - name: Bind tested files to source
         run: python tools/distribution_manifest.py --directory dist --wheels 1 --sdists ${{ matrix.platform.id == 'macos-arm64' && matrix.python.minor == '3.13' && '1' || '0' }} --output evidence/distributions.json
       - name: Save only verified distributions
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: wheel-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.platform.id }}-${{ matrix.python.minor }}
+          name: wheel-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.platform.id }}-${{ matrix.python.label }}
           path: dist/*
           if-no-files-found: error
           retention-days: 7
@@ -146,13 +181,21 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.platform.id }}-${{ matrix.python.minor }}
+          name: evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.platform.id }}-${{ matrix.python.label }}
           path: evidence/
           if-no-files-found: warn
           retention-days: 7
+      - name: Retain one qualified upstream dependency only for the t sdist check
+        if: matrix.platform.id == 'macos-arm64' && matrix.python.label == '3.14t'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: internal-polars-${{ github.run_id }}-${{ github.run_attempt }}-macos-arm64-3.14t
+          path: .local/internal-polars-wheels/*.whl
+          if-no-files-found: error
+          retention-days: 1
 
   sdist:
-    name: Independent sdist / ${{ matrix.platform.id }} / ${{ matrix.python.minor }}
+    name: Independent sdist / ${{ matrix.platform.id }} / ${{ matrix.python.label }}
     if: inputs.profile == 'full'
     needs: [matrix, native]
     runs-on: ${{ matrix.platform.runner }}
@@ -161,15 +204,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - python: { minor: "3.13", version: "3.13.17" }
+          - python: { minor: "3.13", label: "3.13", version: "3.13.17", free_threaded: false, linux_interpreter: "python3.13" }
             platform:
               id: macos-arm64
-              runner: macos-14
+              runner: macos-15
               arch: arm64
               target: aarch64-apple-darwin
               container: "off"
               manylinux: "off"
-          - python: { minor: "3.15", version: "3.15.2" }
+          - python: { minor: "3.14", label: "3.14t", version: "3.14.10", free_threaded: true }
+            platform:
+              id: macos-arm64
+              runner: macos-15
+              arch: arm64
+              target: aarch64-apple-darwin
+              container: "off"
+              manylinux: "off"
+          - python: { minor: "3.15", label: "3.15", version: "3.15.2", free_threaded: false, linux_interpreter: "python3.15", linux_python: "/opt/python/cp315-cp315/bin/python" }
             platform:
               id: linux-musl-arm64
               runner: ubuntu-24.04-arm
@@ -190,10 +241,16 @@ jobs:
         with:
           python-version: ${{ matrix.python.version }}
           architecture: ${{ matrix.platform.arch }}
+          freethreaded: ${{ matrix.python.free_threaded }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: wheel-${{ github.run_id }}-${{ github.run_attempt }}-macos-arm64-3.13
           path: source-artifact/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        if: matrix.python.free_threaded
+        with:
+          name: internal-polars-${{ github.run_id }}-${{ github.run_attempt }}-macos-arm64-3.14t
+          path: .local/internal-polars-wheels/
       - name: Extract original sdist with a fresh target
         run: |
           python - <<'PYCODE'
@@ -220,23 +277,21 @@ jobs:
           target: ${{ matrix.platform.target }}
           manylinux: ${{ matrix.platform.manylinux }}
           container: ${{ matrix.platform.container }}
-          args: --release --locked --out ../sdist-rebuilt --interpreter "${{ runner.os == 'Linux' && format('python{0}', matrix.python.minor) || steps.python.outputs.python-path }}"
+          args: --release --locked --out ../sdist-rebuilt --interpreter "${{ runner.os == 'Linux' && matrix.python.linux_interpreter || steps.python.outputs.python-path }}"
       - name: Verify independent desktop wheel
         if: runner.os != 'Linux'
-        run: python -I -B tools/verify_wheel.py --directory sdist-rebuilt --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode sdist
+        run: python -I -B tools/verify_wheel.py --directory sdist-rebuilt --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode sdist ${{ matrix.python.free_threaded && '--free-threaded --internal-polars .local/internal-polars-wheels' || '' }}
       - name: Verify independent musl wheel
         if: runner.os == 'Linux'
         run: |
-          abi_tag="cp${{ matrix.python.minor }}"
-          abi_tag="${abi_tag//./}"
           docker run --rm --volume "$PWD:/project" --workdir /project \
             --env TZ=UTC --env PYTHONUTF8=1 "${{ matrix.platform.container }}" \
-            "/opt/python/${abi_tag}-${abi_tag}/bin/python" -I -B tools/verify_wheel.py \
+            "${{ matrix.python.linux_python }}" -I -B tools/verify_wheel.py \
             --directory sdist-rebuilt --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode sdist
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: evidence-${{ github.run_id }}-${{ github.run_attempt }}-sdist-${{ matrix.platform.id }}
+          name: evidence-${{ github.run_id }}-${{ github.run_attempt }}-sdist-${{ matrix.platform.id }}-${{ matrix.python.label }}
           path: evidence/
           retention-days: 7
 
@@ -301,7 +356,7 @@ jobs:
 
   bundle:
     if: inputs.profile == 'full'
-    name: Verify complete32-wheel and sdist bundle
+    name: Verify complete48-wheel and sdist bundle
     needs: [native, rust, oracle, sdist]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -324,7 +379,7 @@ jobs:
         run: |
           python -m pip install --index-url https://pypi.org/simple packaging==26.3 twine==7.0.0
           python -m twine check --strict bundle/dist/*
-          python tools/distribution_manifest.py --directory bundle/dist --wheels 32 --sdists 1 --complete --output bundle/release-manifest.json
+          python tools/distribution_manifest.py --directory bundle/dist --wheels 48 --sdists 1 --complete --output bundle/release-manifest.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-distributions-${{ github.run_id }}-${{ github.run_attempt }}

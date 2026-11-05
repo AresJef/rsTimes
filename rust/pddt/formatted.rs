@@ -10,7 +10,7 @@ use pyo3::types::{PyBytes, PyString};
     clippy::too_many_arguments,
     reason = "Prepared format/rules and one-dimensional data boundary"
 )]
-#[pyo3(signature=(data,format,policy,cfg=None,size=None,column=false,unit=None,entry="Pddt.strptime"))]
+#[pyo3(signature=(data,format,policy,cfg=None,size=None,column=false,unit=None,entry="Pddt.strptime",target=None))]
 fn _pddt_strptime<'py>(
     py: Python<'py>,
     data: &Bound<'py, PyAny>,
@@ -21,6 +21,7 @@ fn _pddt_strptime<'py>(
     column: bool,
     unit: Option<&str>,
     entry: &str,
+    target: Option<&Bound<'py, PyAny>>,
 ) -> PyResult<(Bound<'py, PyBytes>, &'static str, Py<PyAny>)> {
     let context = Context::prepare(&format, cfg)?;
     let requested = unit.map(Unit::parse).transpose()?;
@@ -94,7 +95,7 @@ fn _pddt_strptime<'py>(
             })?;
         }
     }
-    finish_truncated(py, rows, requested, None, entry, &policy)
+    finish_truncated(py, rows, requested, target, entry, &policy)
 }
 
 pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {

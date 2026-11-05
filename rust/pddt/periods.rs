@@ -5,105 +5,19 @@ use crate::epoch::{Unit, Zone};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
-#[derive(Clone, Copy)]
-pub(super) enum Period {
-    Year,
-    Quarter,
-    Month,
-    Week,
-    Day,
-    Tick(i128),
-    NamedMonth(i64),
-    NamedWeekday(i64),
-}
-impl Period {
-    pub fn parse(text: &str, clock: bool) -> PyResult<Self> {
-        let value = match text {
-            "Y" => Self::Year,
-            "Q" => Self::Quarter,
-            "M" => Self::Month,
-            "W" => Self::Week,
-            "D" => Self::Day,
-            "h" => Self::Tick(3_600_000_000_000),
-            "m" | "min" => Self::Tick(60_000_000_000),
-            "s" => Self::Tick(1_000_000_000),
-            "ms" => Self::Tick(1_000_000),
-            "us" => Self::Tick(1000),
-            "ns" => Self::Tick(1),
-            _ => {
-                let (month, weekday) = crate::pydt::boundary_names(text);
-                if month > 0 {
-                    Self::NamedMonth(i64::from(month))
-                } else if clock && weekday >= 0 {
-                    Self::NamedWeekday(i64::from(weekday))
-                } else {
-                    return Err(crate::error_context::value_error(
-                        "unknown or empty period or stored name; use Y, Q, M, W and supported clock units or stored names",
-                    ));
-                }
-            }
-        };
-        if !clock && matches!(value, Self::Day | Self::Tick(_) | Self::NamedWeekday(_)) {
-            return Err(crate::error_context::value_error(
-                "first/last require Y, Q, M, W or a stored month name",
-            ));
+pub(super) use crate::period::Period;
+use crate::period::Snap;
+impl From<crate::period::Error> for PyErr {
+    fn from(error: crate::period::Error) -> Self {
+        match error {
+            crate::period::Error::Value(message) => crate::error_context::value_error(message),
+            crate::period::Error::Capacity(message) => crate::error_context::overflow(message),
+            crate::period::Error::Internal(message) => crate::error_context::runtime(message),
         }
-        Ok(value)
-    }
-    pub fn clock(self) -> bool {
-        matches!(self, Self::Tick(_))
-    }
-    pub fn bounds(self, wall: i128) -> PyResult<(i128, i128)> {
-        if let Self::Tick(step) = self {
-            let lower = wall.div_euclid(step) * step;
-            return Ok((
-                lower,
-                lower
-                    .checked_add(step)
-                    .ok_or_else(|| crate::error_context::overflow("period boundary overflow"))?,
-            ));
-        }
-        let day = wall.div_euclid(NS_DAY);
-        if matches!(self, Self::Day) {
-            return Ok((day * NS_DAY, (day + 1) * NS_DAY));
-        }
-        if matches!(self, Self::Week | Self::NamedWeekday(_)) {
-            let weekday = (day + 3).rem_euclid(7);
-            let lower = day - weekday;
-            return Ok(match self {
-                Self::NamedWeekday(value) => (
-                    (lower + i128::from(value)) * NS_DAY,
-                    (lower + i128::from(value) + 1) * NS_DAY,
-                ),
-                _ => (lower * NS_DAY, (lower + 7) * NS_DAY),
-            });
-        }
-        let f = super::operations::fields(wall)?;
-        let (month, width) = match self {
-            Self::Year => (1, 12),
-            Self::Quarter => ((f[1] - 1) / 3 * 3 + 1, 3),
-            Self::Month => (f[1], 1),
-            Self::NamedMonth(month) => (month, 1),
-            _ => return Err(crate::error_context::runtime("invalid calendar period")),
-        };
-        let first = crate::calendar::checked_ordinal(f[0], month, 1)
-            .map_err(crate::error_context::overflow)?;
-        let next = crate::calendar::move_date([f[0], month, 1], width, 0, None, None)
-            .map_err(crate::error_context::overflow)?;
-        let last = crate::calendar::checked_ordinal(next[0], next[1], next[2])
-            .map_err(crate::error_context::overflow)?;
-        Ok((
-            (i128::from(first) - 719_163) * NS_DAY,
-            (i128::from(last) - 719_163) * NS_DAY,
-        ))
     }
 }
-
 fn align(value: i128, unit: Unit, end: bool) -> PyResult<i128> {
-    let q = value.div_euclid(unit.nanos());
-    (q + i128::from(!end && value.rem_euclid(unit.nanos()) != 0))
-        .checked_mul(unit.nanos())
-        .ok_or_else(|| crate::error_context::overflow("period output overflow"))
+    crate::period::align(value, unit.nanos(), end).map_err(PyErr::from)
 }
 
 /// Actual candidates at a local bound, clipped to this period and output lattice.
@@ -205,7 +119,7 @@ fn _pddt_period<'py>(
     query: bool,
     entry: &str,
 ) -> PyResult<Output<'py>> {
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime("invalid date source buffer"));
     }
     let period = Period::parse(token, mode >= 2)?;
@@ -223,10 +137,8 @@ fn _pddt_period<'py>(
         values.reserve(data.len() / 8);
     }
     let mut changed = false;
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid date tick"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let tick = i64::from_ne_bytes(raw);
         if tick == i64::MIN {
             if query {
@@ -330,7 +242,7 @@ fn _pddt_fsp<'py>(
             "precision must be nonnegative",
         ));
     }
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime("invalid date source buffer"));
     }
     if precision >= 9 {
@@ -345,10 +257,8 @@ fn _pddt_fsp<'py>(
     )?;
     let mut values = Vec::with_capacity(data.len() / 8);
     let mut changed = false;
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid date tick"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let tick = i64::from_ne_bytes(raw);
         if tick == i64::MIN {
             values.push(None);
@@ -385,7 +295,7 @@ fn _pddt_fsp<'py>(
 }
 
 fn direction(value: i128, source: i128, mode: u8) -> bool {
-    (mode != 1 || value >= source) && (mode != 2 || value <= source)
+    crate::period::direction(value, source, mode)
 }
 fn rounded(
     wall: i128,
@@ -426,13 +336,13 @@ fn rounded(
     let upper = (first.div_euclid(step) + i128::from(first.rem_euclid(step) != 0)) * step;
     let mut best = None;
     for wall in [lower, upper] {
-        if let Some(value) = select(super::zones::candidates(wall, zone)?) {
-            if best.is_none_or(|previous: i128| {
+        if let Some(value) = select(super::zones::candidates(wall, zone)?)
+            && best.is_none_or(|previous: i128| {
                 (value - source).abs() < (previous - source).abs()
                     || ((value - source).abs() == (previous - source).abs() && value > previous)
-            }) {
-                best = Some(value);
-            }
+            })
+        {
+            best = Some(value);
         }
     }
     best.ok_or_else(|| {
@@ -452,7 +362,7 @@ fn _pddt_round<'py>(
     mode: u8,
     entry: &str,
 ) -> PyResult<Output<'py>> {
-    if data.len() % 8 != 0 || step <= 0 || mode > 2 {
+    if !data.len().is_multiple_of(8) || step <= 0 || mode > 2 {
         return Err(crate::error_context::value_error(
             "invalid rounding grid or mode",
         ));
@@ -465,10 +375,8 @@ fn _pddt_round<'py>(
     )?;
     let mut values = Vec::with_capacity(data.len() / 8);
     let mut changed = false;
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid date tick"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let ticks = i64::from_ne_bytes(raw);
         if ticks == i64::MIN {
             values.push(None);
@@ -484,20 +392,11 @@ fn _pddt_round<'py>(
                 None,
             )?
         };
-        let q = wall.div_euclid(step);
-        let r = wall.rem_euclid(step);
-        if r == 0 {
+        let target = crate::period::rounded(wall, step, mode)?;
+        if target == wall {
             values.push(Some(source));
             continue;
         }
-        let up = match mode {
-            0 => r > step - r || (r == step - r && q.rem_euclid(2) != 0),
-            1 => true,
-            _ => false,
-        };
-        let target = (q + i128::from(up))
-            .checked_mul(step)
-            .ok_or_else(|| crate::error_context::overflow("rounded date overflow"))?;
         let value = if let Some(offset) = fixed {
             target - i128::from(offset) * 1000
         } else {
@@ -514,15 +413,6 @@ fn _pddt_round<'py>(
         values.push(Some(value));
     }
     Ok((pack(py, &values, unit, true, entry)?, changed))
-}
-
-#[derive(Clone, Copy)]
-struct Snap {
-    period: Period,
-    months: i64,
-    step: i128,
-    width_months: i64,
-    width: i128,
 }
 
 #[derive(Clone, Copy)]
@@ -568,54 +458,6 @@ impl SnapCache {
 }
 
 impl Snap {
-    fn prepare(period: Period, wall: i128) -> PyResult<(Self, i128)> {
-        let (months, step, width_months, width) = match period {
-            Period::Year => (12, 0, 12, 0),
-            Period::Quarter => (3, 0, 3, 0),
-            Period::Month => (1, 0, 1, 0),
-            Period::NamedMonth(_) => (12, 0, 1, 0),
-            Period::Week => (0, 7 * NS_DAY, 0, 7 * NS_DAY),
-            Period::NamedWeekday(_) => (0, 7 * NS_DAY, 0, NS_DAY),
-            Period::Day => (0, NS_DAY, 0, NS_DAY),
-            Period::Tick(step) => (0, step, 0, step),
-        };
-        let spec = Self {
-            period,
-            months,
-            step,
-            width_months,
-            width,
-        };
-        let mut lower = period.bounds(wall)?.0;
-        if lower > wall {
-            lower = spec.shift(lower, -1)?;
-        }
-        Ok((spec, lower))
-    }
-    fn shift(self, start: i128, direction: i64) -> PyResult<i128> {
-        if self.months != 0 {
-            self.month_boundary(start, self.months * direction)
-        } else {
-            start
-                .checked_add(self.step * i128::from(direction))
-                .ok_or_else(|| crate::error_context::overflow("Snap period overflow"))
-        }
-    }
-    fn month_boundary(self, start: i128, months: i64) -> PyResult<i128> {
-        let f = super::operations::fields(start)?;
-        let date = crate::calendar::move_date([f[0], f[1], 1], i128::from(months), 0, None, None)
-            .map_err(crate::error_context::overflow)?;
-        super::operations::nanos([date[0], date[1], date[2], 0, 0, 0, 0, 0])
-    }
-    fn end(self, start: i128) -> PyResult<i128> {
-        if self.width_months != 0 {
-            self.month_boundary(start, self.width_months)
-        } else {
-            start
-                .checked_add(self.width)
-                .ok_or_else(|| crate::error_context::overflow("Snap period overflow"))
-        }
-    }
     fn candidates(
         self,
         mut start: i128,
@@ -670,7 +512,7 @@ fn _pddt_snap<'py>(
     token: &str,
     entry: &str,
 ) -> PyResult<Output<'py>> {
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime("invalid date source buffer"));
     }
     // Validate even empty/all-missing data; the actual alignment uses each row.
@@ -686,6 +528,36 @@ fn _pddt_snap<'py>(
         py,
         &zone.map_or(Zone::Naive, |z| Zone::Object(z.clone().unbind())),
     )?;
+    let spec = Snap::new(period);
+    if let Some(offset) = fixed
+        && let Some(grid) = spec.grid(i128::from(offset) * 1000, unit.nanos())?
+    {
+        let mut changed = false;
+        let output = PyBytes::new_with(py, data.len(), |output| {
+            for (row, (input, output)) in data
+                .as_chunks::<8>()
+                .0
+                .iter()
+                .zip(output.as_chunks_mut::<8>().0.iter_mut())
+                .enumerate()
+            {
+                let tick = i64::from_ne_bytes(*input);
+                let value = if tick == i64::MIN {
+                    tick
+                } else {
+                    let candidate = grid.nearest(tick);
+                    i64::try_from(candidate).ok().filter(|value| *value != i64::MIN).ok_or_else(|| {
+                        crate::error_context::location(py, crate::error_context::overflow(
+                            "date is outside the requested unit; explicitly choose a coarser unit"), entry, &format!("result[{row}]"))
+                    })?
+                };
+                changed |= value != tick;
+                output.copy_from_slice(&value.to_ne_bytes());
+            }
+            Ok(())
+        })?;
+        return Ok((output, changed));
+    }
     let mut cache = SnapCache {
         enabled: fixed.is_none() && zone.is_some_and(crate::pydt::is_exact_zoneinfo),
         choices: [None; 2],
@@ -693,10 +565,8 @@ fn _pddt_snap<'py>(
     };
     let mut values = Vec::with_capacity(data.len() / 8);
     let mut changed = false;
-    for (i, bytes) in data.chunks_exact(8).enumerate() {
-        let raw: [u8; 8] = bytes
-            .try_into()
-            .map_err(|_| crate::error_context::runtime("invalid date tick"))?;
+    for (i, bytes) in data.as_chunks::<8>().0.iter().enumerate() {
+        let raw: [u8; 8] = *bytes;
         let ticks = i64::from_ne_bytes(raw);
         if ticks == i64::MIN {
             values.push(None);
@@ -712,7 +582,7 @@ fn _pddt_snap<'py>(
                 None,
             )?
         };
-        let (spec, lower) = Snap::prepare(period, wall)?;
+        let lower = spec.lower(wall)?;
         let upper = spec.shift(lower, 1)?;
         let value = (|| -> PyResult<i128> {
             if let Some(offset) = fixed {
@@ -749,18 +619,20 @@ fn _pddt_snap<'py>(
                         best = Some(value);
                     }
                 }
-                if !expanded && spec.months == 0 && spec.step < NS_DAY {
-                    if let Candidates::Repeated(a, b) = super::zones::candidates(start, zone)? {
-                        expanded = true;
-                        for offset in [start - a, start - b] {
-                            let projected = source + offset;
-                            let aligned = spec.period.bounds(projected)?.0;
-                            for candidate in
-                                [spec.shift(aligned, -1)?, aligned, spec.shift(aligned, 1)?]
-                            {
-                                if !starts.contains(&candidate) {
-                                    starts.push(candidate);
-                                }
+                if !expanded
+                    && spec.months == 0
+                    && spec.step < NS_DAY
+                    && let Candidates::Repeated(a, b) = super::zones::candidates(start, zone)?
+                {
+                    expanded = true;
+                    for offset in [start - a, start - b] {
+                        let projected = source + offset;
+                        let aligned = spec.period.bounds(projected)?.0;
+                        for candidate in
+                            [spec.shift(aligned, -1)?, aligned, spec.shift(aligned, 1)?]
+                        {
+                            if !starts.contains(&candidate) {
+                                starts.push(candidate);
                             }
                         }
                     }

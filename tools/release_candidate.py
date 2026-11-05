@@ -29,17 +29,19 @@ def validate_ci(run, jobs, certificate):
     assert run["head_repository"]["full_name"] == REPOSITORY
     assert run["path"] == ".github/workflows/ci.yml"
     assert run["event"] in ("push", "workflow_dispatch")
+    assert run["head_branch"] == "main", "Release qualification must use the frozen main commit"
     assert run["head_sha"] == certificate["source_commit"]
     assert run["id"] == certificate["ci_run_id"]
     assert run["run_attempt"] == certificate["ci_attempt"]
     assert run["status"] == "completed" and run["conclusion"] == "success"
     assert jobs["total_count"] == len(jobs["jobs"]), "Incomplete job listing"
-    expected = {f"CPython {row['python']['minor']} / {row['platform']['id']}"
+    expected = {f"CPython {row['python']['label']} / {row['platform']['id']}"
                 for row in release_matrix()["include"]}
     expected.update({"Select approved native matrix", "Rust quality",
                      "Independent sdist / macos-arm64 / 3.13",
+                     "Independent sdist / macos-arm64 / 3.14t",
                      "Independent sdist / linux-musl-arm64 / 3.15",
-                     "Verify complete32-wheel and sdist bundle"})
+                     "Verify complete48-wheel and sdist bundle"})
     pythons = {row["python"]["minor"]: row["python"]["version"]
                for row in release_matrix()["include"]}
     expected.update(f"Frozen-upstream comparisons / {pythons[minor]} / NumPy 2.5.3"
@@ -53,22 +55,56 @@ def validate_ci(run, jobs, certificate):
 
 
 def validate_performance(receipt, certificate, manifest):
-    """Bind the local strict protection result to the actual CI macOS wheel."""
+    """Require the complete frozen contract on every actual measured CI ABI.
+
+    A signed-off receipt summarizes independently recomputed raw measurements;
+    it is not a replacement for that retained raw evidence. Historical tags
+    use the verifier frozen at their own source commit.
+    """
     assert digest_json(receipt) == certificate["performance_sha256"]
+    contract = json.loads((Path(__file__).resolve().parents[1] /
+                           ".github/release-performance-contract.json").read_text())
+    assert contract["schema"] == "rstimes-release-performance-contract-v1"
+    assert contract["limits_pct"] == {"precision_pct": 3, "stability_pct": 5, "max_increase_pct": 5}
+    assert contract["pairs_per_case"] == 216 and contract["workers_per_case"] == 36
+    assert contract["rounds"] == 2
+    assert receipt.get("schema") == "rstimes-performance-completion-v2"
     assert receipt["source_commit"] == manifest["source_commit"]
-    assert receipt["version"] == manifest["version"] and receipt["baseline"] == "0.2.0b1"
-    wheel, = [row for row in manifest["wheels"]
-              if row["filename"].endswith("cp313-cp313-macosx_11_0_arm64.whl")]
-    assert receipt["wheel_sha256"] == wheel["sha256"]
-    assert receipt["native_sha256"] == wheel["native_sha256"]
-    assert len(receipt["case_manifest_sha256"]) == len(receipt["raw_evidence_sha256"]) == 64
+    assert receipt["version"] == manifest["version"] == contract["version"]
+    assert receipt["baseline"] == contract["baseline"]
+    assert receipt["baseline_artifacts"] == contract["baseline_artifacts"]
+    assert receipt["contract_sha256"] == digest_json(contract)
+    assert receipt["raw_recomputation_passed"] is True
+    assert receipt["rounds"] == contract["rounds"]
+    for name in ("case_manifest_sha256", "raw_evidence_sha256", "raw_audit_sha256"):
+        value = receipt[name]
+        assert isinstance(value, str) and len(value) == 64
+        assert set(value) <= set("0123456789abcdef"), name
+    actual = {}
+    for wheel in manifest["wheels"]:
+        matching = [tag.split("-")[1] for tag in wheel["tags"]
+                    if tag.split("-")[2].startswith("macosx_") and tag.endswith("_arm64")]
+        if matching:
+            abi, = matching
+            assert abi not in actual, abi
+            actual[abi] = {"filename": wheel["filename"], "wheel_sha256": wheel["sha256"],
+                           "native_sha256": wheel["native_sha256"]}
+    assert set(actual) == set(contract["baseline_artifacts"])
+    assert receipt["artifacts"] == actual
     rows = receipt["items"]
-    assert rows and len({(row["group"], row["id"]) for row in rows}) == len(rows)
+    expected = {(row["group"], row["id"]): row["abi"] for row in contract["required_cases"]}
+    assert expected and len(expected) == len(contract["required_cases"])
+    assert len(rows) == len(expected)
+    assert {(row["group"], row["id"]): row["abi"] for row in rows} == expected
+    assert receipt["selected_pairs"] == len(expected) * contract["pairs_per_case"]
     for row in rows:
         assert row["status"] == "PASS", row
         assert row["pairs"] == 216 and row["workers"] == 36, row
-        for field, limit in (("precision_pct", 3), ("stability_pct", 5), ("max_increase_pct", 5)):
-            assert math.isfinite(row[field]) and row[field] <= limit, (field, row)
+        for field, limit in contract["limits_pct"].items():
+            value = row[field]
+            assert type(value) in (int, float) and math.isfinite(value) and value <= limit, (field, row)
+            if field != "max_increase_pct":
+                assert value >= 0, (field, row)
 
 
 def verify_bundle(bundle, certificate):
@@ -101,9 +137,12 @@ def main():
     assert os.environ["GITHUB_REPOSITORY"] == REPOSITORY
     assert os.environ["GITHUB_REF_TYPE"] == "tag"
     tag = os.environ["GITHUB_REF_NAME"]
-    ref = api(f"repos/{REPOSITORY}/git/ref/tags/{tag}")["object"]
+    reference = api(f"repos/{REPOSITORY}/git/ref/tags/{tag}")
+    assert reference is not None  # Only explicit missing_ok calls can returnNone.
+    ref = reference["object"]
     assert ref["type"] == "tag", "Release requires an annotated tag"
     annotated = api(f"repos/{REPOSITORY}/git/tags/{ref['sha']}")
+    assert annotated is not None
     certificate = json.loads(annotated["message"])
     assert certificate["schema"] == "rstimes-verified-release-v1"
     assert annotated["object"]["type"] == "commit"
@@ -121,7 +160,7 @@ def main():
        "--name", f"release-distributions-{run_id}-{attempt}", "--dir", str(bundle))
     manifest = verify_bundle(bundle, certificate)
     subprocess.run(["python3", "tools/distribution_manifest.py", "--directory", "bundle/dist",
-                    "--wheels", "32", "--sdists", "1", "--complete", "--output",
+                    "--wheels", str(len(release_matrix()["include"])), "--sdists", "1", "--complete", "--output",
                     "evidence/source-rechecked-manifest.json"], check=True)
     validate_performance(certificate["performance"], certificate, manifest)
     (bundle / "performance-receipt.json").write_text(json.dumps(certificate["performance"], indent=2) + "\n")

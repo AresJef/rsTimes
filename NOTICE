@@ -1,5 +1,8 @@
 rsTimes third-party notices
 
+The PLDT native plugin's additional locked Rust dependency license material is
+provided in NOTICE-PLDT-DEPENDENCIES.txt. The earlier notices below still apply.
+
 Delta's behavior and calendar rules were reimplemented in Rust using frozen
 cyTimes 3.1.0 as the reference. The cyTimes notices below are retained in full.
 For the dateutil-derived portions covered by both licenses, the BSD terms are

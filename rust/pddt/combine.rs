@@ -1,23 +1,18 @@
 //! Prepare separate date/clock sources once and assemble one final native column.
 use super::arguments::{Column, date_missing, length};
 use super::common::{NS_DAY, Rows, finish};
-use crate::epoch::{self, Options, Parsed, Unit, Zone};
-use crate::parser::fields::{Lenient, Nano};
+use crate::date_parts::{Piece, Reader};
+use crate::epoch::{self, Parsed, Unit, Zone};
 use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyString, PyTime, PyTimeAccess};
-
-#[derive(Clone, Copy)]
-struct Piece {
-    value: i128,
-    zone: usize,
-}
+use pyo3::types::{PyBytes, PyString};
 
 #[pyclass(frozen, name = "_PddtParts")]
 struct Parts {
     values: Column<Option<Piece>>,
     zones: Vec<Zone>,
     today: bool,
+    declared_zone: Option<usize>,
 }
 
 fn clone_zone(py: Python<'_>, zone: &Zone) -> Zone {
@@ -28,136 +23,12 @@ fn clone_zone(py: Python<'_>, zone: &Zone) -> Zone {
     }
 }
 
-struct Reader<'a, 'py> {
-    clock: bool,
-    zones: Vec<Zone>,
-    resolved: Vec<(Py<PyAny>, usize)>,
-    resolver: &'a Bound<'py, PyAny>,
-}
-impl<'a, 'py> Reader<'a, 'py> {
-    fn zone(&mut self, raw: Bound<'py, PyAny>) -> PyResult<usize> {
-        if raw.is_none() {
-            return Ok(0);
-        }
-        if let Some((_, id)) = self
-            .resolved
-            .iter()
-            .find(|(source, _)| source.bind(raw.py()).is(&raw))
-        {
-            return Ok(*id);
-        }
-        let zone = self
-            .resolver
-            .call1((&raw,))
-            .map_err(crate::error_context::external)?
-            .unbind();
-        let id = self.zones.len();
-        self.zones.push(Zone::Object(zone));
-        self.resolved.push((raw.unbind(), id));
-        Ok(id)
-    }
-    fn read(&mut self, value: &Bound<'py, PyAny>) -> PyResult<Option<Piece>> {
-        if !value.is_instance_of::<PyString>() && date_missing(value)? {
-            return Ok(None);
-        }
-        if crate::numeric::is_bool(value) {
-            return Err(crate::error_context::type_error(
-                "boolean values are not date or clock fields",
-            ));
-        }
-        if let Ok(clock) = value.cast::<PyTime>() {
-            if !self.clock {
-                return Err(crate::error_context::type_error(
-                    "a time supplies clock fields, not a date",
-                ));
-            }
-            let nanos = ((i128::from(clock.get_hour()) * 60 + i128::from(clock.get_minute())) * 60
-                + i128::from(clock.get_second()))
-                * 1_000_000_000
-                + i128::from(clock.get_microsecond()) * 1000;
-            // SAFETY: the validated live time retains its actual stored timezone.
-            let zone = unsafe {
-                Bound::from_borrowed_ptr(
-                    value.py(),
-                    ffi::PyDateTime_TIME_GET_TZINFO(value.as_ptr()),
-                )
-            };
-            return Ok(Some(Piece {
-                value: nanos,
-                zone: self.zone(zone)?,
-            }));
-        }
-        let opts = Options {
-            default: None,
-            yearfirst: None,
-            dayfirst: None,
-            ignoretz: true,
-            isoformat: true,
-            strict: false,
-            iso_only: false,
-            cfg: None,
-            input_unit: Unit::Second,
-        };
-        let mut parsed = if let Ok(text) = value.cast::<PyString>() {
-            let converted;
-            let text = if value.is_exact_instance_of::<PyString>() {
-                text
-            } else {
-                converted = value.str().map_err(crate::error_context::external)?;
-                &converted
-            };
-            if matches!(
-                text.to_str()?,
-                "" | "NaT" | "NAT" | "nat" | "NaN" | "NAN" | "nan"
-            ) {
-                return Ok(None);
-            }
-            let mut text_opts = opts;
-            text_opts.ignoretz = !self.clock;
-            super::prepare::text_fields::<Nano<Lenient>>(
-                value.py(),
-                text,
-                if self.clock { Some([1970, 1, 1]) } else { None },
-                &text_opts,
-            )?
-        } else {
-            epoch::read(value, &opts)?
-        };
-        if !self.clock {
-            return Ok(Some(Piece {
-                value: parsed.nanos.div_euclid(NS_DAY),
-                zone: 0,
-            }));
-        }
-        let zone = if unsafe { ffi::PyDateTime_Check(value.as_ptr()) != 0 } {
-            // SAFETY: actual datetime ancestry proves this timezone payload.
-            self.zone(unsafe {
-                Bound::from_borrowed_ptr(
-                    value.py(),
-                    ffi::PyDateTime_DATE_GET_TZINFO(value.as_ptr()),
-                )
-            })?
-        } else if matches!(parsed.zone, Zone::Naive) {
-            0
-        } else {
-            let id = self.zones.len();
-            self.zones
-                .push(std::mem::replace(&mut parsed.zone, Zone::Naive));
-            id
-        };
-        Ok(Some(Piece {
-            value: parsed.nanos.rem_euclid(NS_DAY),
-            zone,
-        }))
-    }
-}
-
 #[pyfunction]
 #[expect(
     clippy::too_many_arguments,
     reason = "Once-prepared date or clock component"
 )]
-#[pyo3(signature=(data,resolver,clock,column,entry,buffer=None,source=None,multiplier=1,source_zone=None,time_buffer=false))]
+#[pyo3(signature=(data,resolver,clock,column,entry,buffer=None,source=None,multiplier=1,source_zone=None,time_buffer=false,mask=None))]
 fn _pddt_parts<'py>(
     data: &Bound<'py, PyAny>,
     resolver: &Bound<'py, PyAny>,
@@ -169,21 +40,18 @@ fn _pddt_parts<'py>(
     multiplier: i32,
     source_zone: Option<&Bound<'py, PyAny>>,
     time_buffer: bool,
+    mask: Option<&[u8]>,
 ) -> PyResult<Parts> {
     let py = data.py();
     let parameter = if clock { "time" } else { "date" };
-    let mut reader = Reader {
-        clock,
-        zones: vec![Zone::Naive],
-        resolved: Vec::new(),
-        resolver,
-    };
+    let mut reader = Reader::new(clock, resolver);
     if let Some(bytes) = buffer {
         if bytes.len() % 8 != 0 || multiplier < 1 {
             return Err(crate::error_context::runtime(
                 "invalid date component buffer",
             ));
         }
+        let validity = super::validity::TemporalValidity::new(mask, bytes.len() / 8)?;
         let code = if time_buffer {
             10
         } else {
@@ -197,12 +65,10 @@ fn _pddt_parts<'py>(
         };
         let fixed = super::common::fixed_offset(py, &reader.zones[id])?;
         let mut values = Vec::with_capacity(bytes.len() / 8);
-        for (i, bytes) in bytes.chunks_exact(8).enumerate() {
-            let raw: [u8; 8] = bytes
-                .try_into()
-                .map_err(|_| crate::error_context::runtime("invalid date component bytes"))?;
+        for (i, bytes) in bytes.as_chunks::<8>().0.iter().enumerate() {
+            let raw: [u8; 8] = *bytes;
             let ticks = i64::from_ne_bytes(raw);
-            if ticks == i64::MIN {
+            if validity.missing(i, ticks) {
                 values.push(None);
                 continue;
             }
@@ -215,7 +81,7 @@ fn _pddt_parts<'py>(
                     }
                     return Ok(i128::from(ticks));
                 }
-                let mut ns = epoch::numpy_ticks(ticks, code, multiplier)?.nanos;
+                let mut ns = epoch::native_datetime_ticks(ticks, code, multiplier)?.nanos;
                 if let Some(zone) = source_zone {
                     ns = super::zones::utc_wall(ns, zone, fixed)?;
                 }
@@ -237,6 +103,11 @@ fn _pddt_parts<'py>(
             values: Column::Values(values),
             zones: reader.zones,
             today: false,
+            declared_zone: if clock && source_zone.is_some() {
+                Some(id)
+            } else {
+                None
+            },
         });
     }
     let scalar = !column
@@ -277,10 +148,19 @@ fn _pddt_parts<'py>(
         }
         Column::Values(values)
     };
+    let declared_zone = if clock {
+        match &values {
+            Column::Scalar(Some(piece)) => Some(piece.zone),
+            _ => None,
+        }
+    } else {
+        None
+    };
     Ok(Parts {
         values,
         zones: reader.zones,
         today,
+        declared_zone,
     })
 }
 
@@ -307,15 +187,15 @@ fn _pddt_combine<'py>(
     let mut today = None;
     let mut rows = Rows::new(Unit::Microsecond);
     rows.reserve(length)?;
-    if length == 0 {
-        if let Column::Scalar(Some(clock)) = &time.values {
-            if !replace {
-                rows.zones.push(clone_zone(py, &time.zones[clock.zone]));
-                rows.empty_zone = rows.zones.len() - 1;
-            }
-            if clock.value.rem_euclid(1000) != 0 {
-                rows.unit = Unit::Nanosecond;
-            }
+    if length == 0
+        && let Column::Scalar(Some(clock)) = &time.values
+    {
+        if !replace {
+            rows.zones.push(clone_zone(py, &time.zones[clock.zone]));
+            rows.empty_zone = rows.zones.len() - 1;
+        }
+        if clock.value.rem_euclid(1000) != 0 {
+            rows.unit = Unit::Nanosecond;
         }
     }
     for i in 0..length {
@@ -363,6 +243,16 @@ fn _pddt_combine<'py>(
             },
             false,
         )?;
+    }
+    // No valid combined row may reach push (empty/all-null date or clock),
+    // but a typed clock still declares a source zone. This O(1) fallback does
+    // not rescan data or change the actual-precision default unit.
+    if !replace
+        && rows.zones.len() == 1
+        && let Some(id) = time.declared_zone.filter(|&id| id != 0)
+    {
+        rows.zones.push(clone_zone(py, &time.zones[id]));
+        rows.empty_zone = rows.zones.len() - 1;
     }
     finish(py, rows, requested, target, entry, &policy)
 }

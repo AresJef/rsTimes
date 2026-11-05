@@ -2,6 +2,7 @@
 from datetime import datetime, date as _date, time as _time, timedelta, timezone, tzinfo as _tzinfo
 from zoneinfo import ZoneInfo, available_timezones
 from operator import index as _index
+from typing import cast
 from numpy import bool_ as _numpy_bool
 from ._native import (_pydt_register, _pydt_shift, _pydt_from_us, _pydt_compare_now,
                       _pydt_to_us, _pydt_to_seconds, _pydt_lookup, _pydt_calendar, _pydt_move,
@@ -9,7 +10,7 @@ from ._native import (_pydt_register, _pydt_shift, _pydt_from_us, _pydt_compare_
                       _pydt_from_ordinal, _pydt_from_doy, _pydt_from_iso, _pydt_leaps,
                       _pydt_copy_datetime, _pydt_copy_date, _pydt_from_instant, _pydt_from_calendar, _pydt_combine, _pydt_calendar_date, _pydt_repr_fields, _pydt_carrier, _pydt_replace, _pydt_replace_general, _pydt_stored_timezone, _pydt_millisecond,
                       _pydt_normalize, _pydt_add, _pydt_diff, _pydt_matches, _pydt_offset_seconds, _pydt_convert, _pydt_flag, _pydt_is_local, _pydt_is_utc, _pydt_name_matches, _pydt_iso, _pydt_from_numpy, _pydt_timedict, _pydt_from_seconds, _pydt_strptime, _pydt_from_numpy_zoned, _pydt_dst, _pydt_is_dst, _pydt_timetuple)
-from ._native import parse as _parse
+from ._native import parse as _parse, _pydt_strftime
 from ._native import _PydtBase, _pydt_binary, _pydt_clock, _pydt_copy_fold, _pydt_reduce
 from ._native import _bool_option, _pydt_create
 from ._native import _pydt_day_of_year, _pydt_days_in_month, _pydt_is_leap_year
@@ -345,7 +346,7 @@ class Pydt(_PydtBase):
             _raise_argument_context(error, "Pydt.utcnow", "arguments", None)
 
     @classmethod
-    def combine(cls, date=None, time=None, tz=None):
+    def combine(cls, date=None, time=None, tz=None):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY040; see tests/typing/pyright_exceptions.json.
         """Combine date and time fields; omitted fields use today and midnight.
 
         Parameters
@@ -562,7 +563,7 @@ class Pydt(_PydtBase):
             _raise_argument_context(error, "Pydt.frommicroseconds", "arguments", None)
 
     @classmethod
-    def fromtimestamp(cls, ts, tz=None):
+    def fromtimestamp(cls, ts, tz=None):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY041; see tests/typing/pyright_exceptions.json.
         """Build from a POSIX timestamp, converting to tz or naive local time.
 
         Parameters
@@ -677,7 +678,7 @@ class Pydt(_PydtBase):
             _raise_argument_context(error, "Pydt.fromisoformat", "arguments", None)
 
     @classmethod
-    def fromisocalendar(cls, year, week, weekday, tz=None):
+    def fromisocalendar(cls, year, week, weekday, tz=None):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY042; see tests/typing/pyright_exceptions.json.
         """Build an ISO date, limiting high weeks/days to the year's final week/day.
 
         Parameters
@@ -3043,7 +3044,7 @@ class Pydt(_PydtBase):
                 if base is None:
                     raise _own_error(ValueError("a naive value requires base_tz before timezone conversion"))
                 value = self.tz_localize(base)
-                result = Pydt.astimezone(value, target)
+                result = Pydt.astimezone(value, target)  # pyright: ignore[reportArgumentType] -- TY043; see tests/typing/pyright_exceptions.json.
             else:
                 result = _pydt_convert(value, target, offset)
                 if result is None:
@@ -3222,7 +3223,7 @@ class Pydt(_PydtBase):
         except Exception as error:
             _raise_argument_context(error, "Pydt.diff", "arguments", None)
 
-    def __add__(self, other):
+    def __add__(self, other):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY044; see tests/typing/pyright_exceptions.json.
         """Add a supported elapsed duration or calendar adjustment.
 
         Parameters
@@ -3247,7 +3248,7 @@ class Pydt(_PydtBase):
         except Exception as error:
             _raise_argument_context(error, "Pydt.__add__", "arguments", None)
 
-    def __radd__(self, other):
+    def __radd__(self, other):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY045; see tests/typing/pyright_exceptions.json.
         """Add a supported duration on the left, retaining this date class.
 
         Parameters
@@ -3265,7 +3266,7 @@ class Pydt(_PydtBase):
         except Exception as error:
             _raise_argument_context(error, "Pydt.__radd__", "arguments", None)
 
-    def __sub__(self, other):
+    def __sub__(self, other):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY046; see tests/typing/pyright_exceptions.json.
         """Subtract a date, elapsed duration, or calendar adjustment.
 
         Parameters
@@ -3348,6 +3349,43 @@ class Pydt(_PydtBase):
         except Exception as error:
             _raise_argument_context(error, "Pydt.__repr__", "arguments", None)
 
+    def strftime(self, format: str) -> str:
+        """Format with system directives and exact ``%f``/``%.0f``–``%.9f``.
+
+        ``%f`` uses six digits. Explicit dot precision truncates or pads the
+        stored microsecond value; ``%.0f`` emits nothing. Other system rules
+        and real subclass ``__format__``/``strftime`` dispatch stay intact.
+
+        Parameters
+        ----------
+        format : str
+            System format, including an empty string. ``%.1f`` through
+            ``%.9f`` emit a decimal dot and that many fraction digits.
+
+        Returns
+        -------
+        str
+            Formatted text. Pydt has microsecond precision, so digits beyond
+            six are zero padding; this does not invent measured nanoseconds.
+
+        Raises
+        ------
+        TypeError
+            The format is not text.
+        ValueError
+            An explicit fractional format is invalid, or the platform rejects
+            another system directive. Actual external exceptions propagate.
+
+        Examples
+        --------
+        >>> Pydt(2024, 1, 1, microsecond=123456).strftime("%f|%.3f|%.9f|%.0f")
+        '123456|.123|.123456000|'
+        """
+        try:
+            return _pydt_strftime(self, format)
+        except Exception as error:
+            _raise_argument_context(error, "Pydt.strftime", "format", format)
+
     def __format__(self, fmt):
         """Format this date with an empty or strftime-style specification.
 
@@ -3419,7 +3457,7 @@ class Pydt(_PydtBase):
             # A user setter (or __dict__ lookup) may mutate the supplied state.
             # Fix the entries before invoking either hook, as with Delta restore.
             slot_items = tuple(slots.items()) if slots is not None else ()
-            dictionary_items = tuple(dictionary.items()) if dictionary is not None else ()
+            dictionary_items = tuple(cast(dict[str, object], dictionary).items()) if dictionary is not None else ()
             if dictionary is not None:
                 try:
                     self.__dict__.update(dictionary_items)

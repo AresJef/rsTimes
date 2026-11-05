@@ -1,10 +1,12 @@
 {
-  "environment": ".local/dateutil-optional-platforms-16h-20261028/oracle-env",
+  "environment": ".local/r18-numpy-check-optimization-20261105/final01-oracle-demo",
   "version": "0.2.0b2",
-  "release_manifest": ".local/dateutil-optional-platforms-16h-20261028/public-release/release-manifest.json",
-  "status": "Release demonstration; requires the verified published wheel and its manifest",
-  "selection": "published_release",
+  "release_manifest": "tasks/evidence/r18-numpy-check-optimization-20261105/S04/demo-delivery-manifest.json",
+  "status": "Locally adopted R18 final01;94 necessary strictPASS, no performance exceptions",
+  "selection": "local_delivery",
   "environments": {
-    "pddt": ".local/dateutil-optional-platforms-16h-20261028/published-pd3"
-  }
+    "pddt": ".local/r18-numpy-check-optimization-20261105/final01-main"
+  },
+  "validation": "Six local ABI/differential tests and actual wheel payload/native; no new remote CI or publication",
+  "adoption_audit": "tasks/evidence/r18-numpy-check-optimization-20261105/adoption-completion-audit.json"
 }

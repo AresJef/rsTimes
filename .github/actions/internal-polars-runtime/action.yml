@@ -1,0 +1,66 @@
+name: Qualify official Polars runtime for internal validation
+description: Reuse or build fixed unmodified upstream sources; never a user distribution.
+inputs:
+  platform-id:
+    description: Approved physical platform identifier
+    required: true
+  python-version:
+    description: Exact interpreter version
+    required: true
+  abi-tag:
+    description: Actual free-threaded interpreter ABI
+    required: true
+  interpreter:
+    description: Native interpreter executable or Linux interpreter name
+    required: true
+  target:
+    description: Approved Rust target
+    required: true
+  container:
+    description: Fixed Linux container digest, or off
+    required: true
+  manylinux:
+    description: Approved libc policy, or off
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Prepare fixed official sources
+      shell: bash
+      run: python -I -B tools/prepare_polars_ci.py prepare
+    - name: Reuse this exact internal official runtime
+      id: cache
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+      with:
+        path: .local/internal-polars-wheels/
+        # Include only actual upstream build inputs. Unrelated rsTimes workflow
+        # edits must not invalidate a qualified dependency binary.
+        key: internal-polars-v2-${{ inputs.platform-id }}-${{ inputs.python-version }}-${{ inputs.abi-tag }}-${{ hashFiles('.github/polars-upstream.json', '.github/native-matrix.json', '.github/actions/internal-polars-runtime/action.yml', 'tools/prepare_polars_ci.py') }}
+    - name: Isolate a cold Windows upstream toolchain
+      if: runner.os == 'Windows' && steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        python - <<'PYCODE'
+        import os
+        from pathlib import Path
+        directory = Path(os.environ['RUNNER_TEMP']) / 'rstimes-official-polars-rustup'
+        directory.mkdir(exist_ok=True)
+        with Path(os.environ['GITHUB_ENV']).open('a') as output:
+            output.write('RUSTUP_HOME=' + str(directory) + '\n')
+        PYCODE
+    - name: Build official unmodified runtime only on a cache miss
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b
+      with:
+        command: build
+        maturin-version: v1.15.0
+        rust-toolchain: nightly-2026-09-01
+        target: ${{ inputs.target }}
+        manylinux: ${{ inputs.manylinux }}
+        container: ${{ inputs.container }}
+        args: >-
+          --release --locked --manifest-path .local/ci-polars-source/polars-7f902bd3ffd27ff82d14278a09a295ff2f7aed92/py-polars/runtime/polars-runtime-32/Cargo.toml
+          --out .local/internal-polars-wheels --interpreter "${{ inputs.interpreter }}"
+    - name: Prove unchanged source and actual cached or built runtime identity
+      shell: bash
+      run: python -I -B tools/prepare_polars_ci.py check

@@ -1,13 +1,14 @@
 name: Verify an existing published release
 
-# Read-only recovery/revalidation. This workflow never builds or publishes.
+# Read-only recovery/revalidation: never rebuild or publish rsTimes files.
+# A cold t integration may qualify the fixed official upstream dependency.
 on:
   workflow_dispatch:
     inputs:
       tag:
         description: Existing annotated release tag to verify
         required: true
-        default: v0.2.0b2
+        default: v0.2.0b3
         type: string
 permissions:
   contents: read
@@ -76,47 +77,65 @@ jobs:
           retention-days: 7
 
   public-install:
-    name: PyPI install / ${{ matrix.platform.id }} / ${{ matrix.python.minor }}
+    name: PyPI install / ${{ matrix.platform.id }} / ${{ matrix.python.label }}
     needs: select
     runs-on: ${{ matrix.platform.runner }}
-    timeout-minutes: 25
+    timeout-minutes: ${{ matrix.python.free_threaded && 180 || 25 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
     env:
       TZ: UTC
       PYTHONUTF8: "1"
+      CARGO_BUILD_JOBS: "2"
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_deployment_target }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ needs.select.outputs.source }}
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        id: python
         with:
           python-version: ${{ matrix.python.version }}
           architecture: ${{ matrix.platform.arch }}
+          freethreaded: ${{ matrix.python.free_threaded }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: ${{ needs.select.outputs.metadata-name }}
           path: bundle/
+      - name: Prepare fixed validation metadata tools
+        run: python -m pip install --index-url https://pypi.org/simple packaging==26.3
+      - name: Qualify official dependency only for internal t integration
+        if: matrix.python.free_threaded
+        uses: ./.github/actions/internal-polars-runtime
+        with:
+          platform-id: ${{ matrix.platform.id }}
+          python-version: ${{ matrix.python.version }}
+          abi-tag: ${{ matrix.python.abi_tag }}
+          interpreter: ${{ runner.os == 'Linux' && matrix.python.linux_interpreter || steps.python.outputs.python-path }}
+          target: ${{ matrix.platform.target }}
+          manylinux: ${{ matrix.platform.manylinux }}
+          container: ${{ matrix.platform.container }}
       - name: Download and verify public wheel on native desktop
         if: runner.os != 'Linux'
-        run: python -I -B tools/download_public.py --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}"
+        run: python -I -B tools/download_public.py --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" ${{ matrix.python.free_threaded && '--free-threaded --internal-polars .local/internal-polars-wheels' || '' }}
       - name: Download and verify public wheel in matching Linux libc
         if: runner.os == 'Linux'
         run: |
-          abi_tag="cp${{ matrix.python.minor }}"
-          abi_tag="${abi_tag//./}"
           docker run --rm --volume "$PWD:/project" --workdir /project \
             --env TZ=UTC --env PYTHONUTF8=1 \
             --env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory \
-            --env GIT_CONFIG_VALUE_0=/project "${{ matrix.platform.container }}" \
-            "/opt/python/${abi_tag}-${abi_tag}/bin/python" -I -B tools/download_public.py \
-            --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}"
+            --env GIT_CONFIG_VALUE_0=/project \
+            --env RSTIMES_VALIDATION_PYTHON="${{ matrix.python.linux_python }}" \
+            "${{ matrix.platform.container }}" /bin/bash -e -c '
+              "$RSTIMES_VALIDATION_PYTHON" -m pip install --index-url https://pypi.org/simple packaging==26.3
+              "$RSTIMES_VALIDATION_PYTHON" -I -B tools/download_public.py "$@"
+            ' -- --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" ${{ matrix.python.free_threaded && '--free-threaded --internal-polars .local/internal-polars-wheels' || '' }}
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: public-verification-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.platform.id }}-${{ matrix.python.minor }}
+          name: public-verification-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.platform.id }}-${{ matrix.python.label }}
           path: evidence/
           if-no-files-found: error
           retention-days: 7

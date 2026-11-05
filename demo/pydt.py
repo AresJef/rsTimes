@@ -134,6 +134,9 @@ def precision_demo():
     _show("Trim while keeping fold", lambda cls: cls(2024, 11, 3, 1, 30, 1, 123456,
            tzinfo=ZoneInfo("America/New_York"), fold=1).fsp(3),
           difference="The new fsp preserves repeated-time fold and uses the shared regional gap rule.")
+    formatted = PydtR(2024, 1, 1, microsecond=123456).strftime('%f|%.3f|%.0f')
+    assert formatted == '123456|.123|'
+    print('Shared fractional formatting:', formatted)
 
 
 def timezone_demo():
@@ -207,6 +210,8 @@ def parse_demo():
 class ChildR(PydtR):
     """A normal user subclass with writable extra state."""
     __slots__=("tag",)
+    extra: str
+    tag: dict[str, list[str]]
 
 
 def state_demo():

@@ -1,4 +1,4 @@
-//! Borrowed CPython Unicode storage, including lone surrogate code points.
+//! Shared static character views for CPython Unicode and native UTF8 columns.
 use pyo3::{ffi, prelude::*, types::PyString};
 use std::{ffi::c_void, marker::PhantomData};
 
@@ -12,6 +12,105 @@ fn ascii_four(word: u32) -> Option<i32> {
     }
     let pairs = (digits & 0x00ff_00ff) * 10 + ((digits >> 8) & 0x00ff_00ff);
     Some(((pairs & 0xffff) * 100 + (pairs >> 16)) as i32)
+}
+
+/// Static character access for the one grammar. Indices are Unicode code
+/// points; one-byte storage exposes the existing ASCII numeric shortcuts.
+pub(super) trait CharacterRead {
+    fn len(&self) -> usize;
+    fn get(&self, index: usize) -> u32;
+    fn truncate(&mut self, end: usize);
+    fn byte_slice(&self) -> Option<&[u8]> {
+        None
+    }
+
+    fn range(&self, start: usize, end: usize) -> Vec<u32> {
+        (start..end.min(self.len()))
+            .map(|index| self.get(index))
+            .collect()
+    }
+
+    #[inline(always)]
+    fn fractional_digits(&self, start: usize, digits: u32) -> (i32, u32, usize) {
+        let (mut value, mut count, mut pos) = (0, 0, start);
+        if let Some(bytes) = self.byte_slice() {
+            if start >= bytes.len() {
+                return (value, count, pos);
+            }
+            for &ch in &bytes[start..] {
+                if !ch.is_ascii_digit() {
+                    break;
+                }
+                if count < digits {
+                    value = value * 10 + i32::from(ch - b'0');
+                    count += 1;
+                }
+                pos += 1;
+            }
+        } else {
+            while pos < self.len() {
+                let ch = self.get(pos);
+                if !digit(ch) {
+                    break;
+                }
+                if count < digits {
+                    value = value * 10 + (ch - 48) as i32;
+                    count += 1;
+                }
+                pos += 1;
+            }
+        }
+        (value, count, pos)
+    }
+
+    #[inline(always)]
+    fn number(&self, start: usize, count: usize, min: i32, max: i32) -> i32 {
+        let Some(end) = start.checked_add(count) else {
+            return -1;
+        };
+        let mut value = 0;
+        if let Some(bytes) = self.byte_slice() {
+            if end > bytes.len() {
+                return -1;
+            }
+            if count == 4 {
+                // SAFETY: the complete four-byte span is checked against this
+                // exact borrowed slice. This preserves the original unaligned
+                // ASCII load without relying on equality of two view lengths.
+                let word = unsafe { bytes.as_ptr().add(start).cast::<u32>().read_unaligned() };
+                let Some(value) = ascii_four(u32::from_le(word)) else {
+                    return -1;
+                };
+                return if (min..=max).contains(&value) {
+                    value
+                } else {
+                    -1
+                };
+            }
+            for &ch in &bytes[start..end] {
+                if !ch.is_ascii_digit() {
+                    return -1;
+                }
+                value = value * 10 + i32::from(ch - b'0');
+            }
+        } else {
+            if end > self.len() {
+                return -1;
+            }
+            for index in start..end {
+                let ch = self.get(index);
+                if !digit(ch) {
+                    return -1;
+                }
+                value = value * 10 + (ch - 48) as i32;
+            }
+        }
+        if (min..=max).contains(&value) {
+            value
+        } else {
+            -1
+        }
+    }
 }
 
 pub(super) struct TextView<'a> {
@@ -57,96 +156,87 @@ impl<'a> TextView<'a> {
             }
         }
     }
-    /// Read one ASCII-digit run, retaining at most the requested precision.
-    /// The returned position consumes all digits, including discarded tails.
-    #[inline(always)]
-    pub(super) fn fractional_digits(&self, start: usize, digits: u32) -> (i32, u32, usize) {
-        let (mut value, mut count, mut pos) = (0, 0, start);
-        if start >= self.length {
-            return (value, count, pos);
-        }
-        if self.kind == 1 {
-            // SAFETY: start is in bounds, kind 1 establishes one-byte Unicode
-            // storage, and the immutable Python owner remains borrowed under
-            // the GIL for the complete lifetime of this local slice.
-            let bytes = unsafe { std::slice::from_raw_parts(self.data.cast::<u8>(), self.length) };
-            for &ch in &bytes[start..] {
-                if !ch.is_ascii_digit() {
-                    break;
-                }
-                if count < digits {
-                    value = value * 10 + i32::from(ch - b'0');
-                    count += 1;
-                }
-                pos += 1;
-            }
-        } else {
-            while pos < self.length {
-                let ch = self.get(pos);
-                if !digit(ch) {
-                    break;
-                }
-                if count < digits {
-                    value = value * 10 + (ch - 48) as i32;
-                    count += 1;
-                }
-                pos += 1;
-            }
-        }
-        (value, count, pos)
-    }
     pub(super) fn range(&self, start: usize, end: usize) -> Vec<u32> {
-        (start..end.min(self.length)).map(|i| self.get(i)).collect()
+        CharacterRead::range(self, start, end)
+    }
+}
+
+impl CharacterRead for TextView<'_> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.len()
+    }
+    #[inline]
+    fn get(&self, index: usize) -> u32 {
+        self.get(index)
+    }
+    fn truncate(&mut self, end: usize) {
+        self.truncate(end);
     }
     #[inline(always)]
-    pub(super) fn number(&self, start: usize, count: usize, min: i32, max: i32) -> i32 {
-        if start.checked_add(count).is_none_or(|end| end > self.length) {
-            return -1;
+    fn byte_slice(&self) -> Option<&[u8]> {
+        if self.kind != 1 {
+            return None;
         }
-        let mut value = 0;
-        if self.kind == 1 {
-            if count == 4 {
-                // SAFETY: the full four-byte span was checked above; kind 1
-                // proves the storage width and the borrowed owner stays live.
-                let word = unsafe {
-                    self.data
-                        .cast::<u8>()
-                        .add(start)
-                        .cast::<u32>()
-                        .read_unaligned()
-                };
-                let Some(number) = ascii_four(u32::from_le(word)) else {
-                    return -1;
-                };
-                return if (min..=max).contains(&number) {
-                    number
-                } else {
-                    -1
-                };
-            }
-            // SAFETY: ready CPython Unicode of kind 1 has one-byte storage.
-            // The complete range is checked above and the TextView borrow
-            // keeps the immutable owner alive throughout these reads.
-            for index in start..start + count {
-                let ch = unsafe { *self.data.cast::<u8>().add(index) };
-                if !ch.is_ascii_digit() {
-                    return -1;
-                }
-                value = value * 10 + i32::from(ch - b'0');
+        // SAFETY: the original Python view owns the immutable one-byte Unicode
+        // span for this lifetime, including any logical truncation.
+        Some(unsafe { std::slice::from_raw_parts(self.data.cast::<u8>(), self.length) })
+    }
+}
+
+enum Utf8Storage<'a> {
+    Bytes(&'a [u8]),
+    Points(&'a [u32]),
+}
+
+/// A worker-local UTF8 view. ASCII borrows the native string; other input is
+/// decoded once into a caller-owned reusable arena, never per random access.
+pub(super) struct Utf8View<'a> {
+    storage: Utf8Storage<'a>,
+    length: usize,
+}
+
+impl<'a> Utf8View<'a> {
+    pub(super) fn new(input: &'a str, scratch: &'a mut Vec<u32>) -> Self {
+        if input.is_ascii() {
+            Self {
+                storage: Utf8Storage::Bytes(input.as_bytes()),
+                length: input.len(),
             }
         } else {
-            for i in start..start + count {
-                let ch = self.get(i);
-                if !digit(ch) {
-                    return -1;
-                }
-                value = value * 10 + (ch - 48) as i32;
+            scratch.clear();
+            scratch.extend(input.chars().map(u32::from));
+            Self {
+                length: scratch.len(),
+                storage: Utf8Storage::Points(scratch),
             }
         }
-        if value >= min && value <= max {
-            value
-        } else {
-            -1
+    }
+}
+
+impl CharacterRead for Utf8View<'_> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.length
+    }
+    #[inline]
+    fn get(&self, index: usize) -> u32 {
+        if index >= self.length {
+            return 0;
+        }
+        match self.storage {
+            Utf8Storage::Bytes(bytes) => u32::from(bytes[index]),
+            Utf8Storage::Points(points) => points[index],
+        }
+    }
+    fn truncate(&mut self, end: usize) {
+        self.length = self.length.min(end);
+    }
+    #[inline]
+    fn byte_slice(&self) -> Option<&[u8]> {
+        match self.storage {
+            Utf8Storage::Bytes(bytes) => Some(&bytes[..self.length]),
+            Utf8Storage::Points(_) => None,
         }
     }
 }
@@ -191,27 +281,31 @@ pub(super) fn space(ch: u32) -> bool {
 pub(super) fn ascii_letter(ch: u32) -> bool {
     (65..=90).contains(&ch) || (97..=122).contains(&ch)
 }
-#[cfg(not(windows))]
-unsafe extern "C" {
-    fn _PyUnicode_IsAlpha(ch: u32) -> std::ffi::c_int;
-}
-#[cfg(windows)]
 mod python_unicode {
     include!(concat!(env!("OUT_DIR"), "/python_unicode_letters.rs"));
 }
-#[cfg(windows)]
 #[inline]
 fn non_ascii_alpha(ch: u32) -> bool {
-    let ranges = python_unicode::LETTERS;
-    let index = ranges.partition_point(|&(first, _)| first <= ch);
-    index != 0 && ch <= ranges[index - 1].1
+    if ch > 0x10ffff {
+        return false;
+    }
+    let block = usize::from(python_unicode::LETTER_BLOCKS[(ch >> 8) as usize]);
+    python_unicode::LETTER_BITS[block][((ch & 255) >> 6) as usize] & (1u64 << (ch & 63)) != 0
 }
-#[cfg(not(windows))]
+/// Exact target-Python decimal values prepared without a worker C-API call.
 #[inline]
-fn non_ascii_alpha(ch: u32) -> bool {
-    // SAFETY: CPython's exported classifier accepts every Unicode code point.
-    unsafe { _PyUnicode_IsAlpha(ch) != 0 }
+pub(super) fn decimal(ch: u32) -> Option<i64> {
+    if ch < 128 {
+        return digit(ch).then_some(i64::from(ch.wrapping_sub(48)));
+    }
+    let index = python_unicode::DECIMAL_STARTS.partition_point(|&start| start <= ch);
+    if index == 0 {
+        return None;
+    }
+    let value = ch - python_unicode::DECIMAL_STARTS[index - 1];
+    (value < 10).then_some(i64::from(value))
 }
+
 #[inline]
 pub(super) fn alpha(ch: u32) -> bool {
     ascii_letter(ch) || (ch > 127 && non_ascii_alpha(ch))
@@ -219,6 +313,7 @@ pub(super) fn alpha(ch: u32) -> bool {
 
 /// Native normalized code points and token boundaries. A scan allocates the
 /// arena once instead of allocating and growing a separate Vec for each token.
+#[derive(Default)]
 pub(super) struct Tokens {
     arena: Vec<u32>,
     ranges: Vec<std::ops::Range<usize>>,
@@ -245,15 +340,22 @@ impl Tokens {
 }
 
 /// Frozen timelex state transitions, with native normalized token storage.
-pub(super) fn tokenize(input: &TextView<'_>, mut pos: usize) -> Tokens {
+pub(super) fn tokenize(input: &impl CharacterRead, pos: usize) -> Tokens {
+    let mut tokens = Tokens::default();
+    tokenize_into(input, pos, &mut tokens);
+    tokens
+}
+
+/// Reuse only native storage for this call; no source reference survives a fill.
+pub(super) fn tokenize_into(input: &impl CharacterRead, mut pos: usize, tokens: &mut Tokens) {
     let remaining = input.len().saturating_sub(pos);
     // Normalization can only shorten the input. Each source code point is
     // written once; splitting records ranges within this immutable arena.
-    let mut tokens = Tokens {
-        arena: Vec::with_capacity(remaining),
-        ranges: Vec::with_capacity(remaining.min(32)),
-        region_candidate: false,
-    };
+    tokens.arena.clear();
+    tokens.ranges.clear();
+    tokens.region_candidate = false;
+    tokens.arena.reserve(remaining);
+    tokens.ranges.reserve(remaining.min(32));
     while pos < input.len() && space(input.get(pos)) {
         pos += 1;
     }
@@ -369,5 +471,4 @@ pub(super) fn tokenize(input: &TextView<'_>, mut pos: usize) -> Tokens {
             tokens.ranges.push(start..end);
         }
     }
-    tokens
 }

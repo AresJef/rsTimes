@@ -45,14 +45,14 @@ def test_official_shared_conveniences(unit,tz,name,args,kwargs):
     rust=Pddt(values,tz=tz);original=Original(values,tz=tz)
     if name in ('replace','to_time') and kwargs.get('hour') == 25:
         with pytest.raises(ValueError,match='hour'):
-            getattr(rust,name)(*args,**kwargs)
+            getattr(rust.pddt if name == "replace" else rust,name)(*args,**kwargs)
         return
     if (name == 'to_datetime' and unit != 'ns'
             or name in ('add','sub') and unit in ('s','ms')):
         with pytest.raises(ValueError,match='requested unit'):
-            getattr(rust,name)(*args,**kwargs)
+            getattr(rust.pddt if name == "replace" else rust,name)(*args,**kwargs)
         return
-    a=getattr(rust,name) if name == 'day_of_year' else getattr(rust,name)(*args,**kwargs)
+    a=getattr(rust.pddt if name == "replace" else rust,name) if name == 'day_of_year' else getattr(rust.pddt if name == "replace" else rust,name)(*args,**kwargs)
     b=getattr(original,name)(*args,**kwargs)
     if isinstance(a,pd.DatetimeIndex):
         assert a.unit==b.unit

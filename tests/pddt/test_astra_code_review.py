@@ -324,7 +324,7 @@ def test_cr06_new_date_result_requires_actual_subclass(operation):
 
     source = Child(["2024-01-01"])
     Child.wrong = True
-    calls = {"to_day": lambda: source.to_day(1), "replace": lambda: source.replace(day=2),
+    calls = {"to_day": lambda: source.to_day(1), "replace": lambda: source.pddt.replace(day=2),
              "add": lambda: source + timedelta(days=1), "parse": lambda: Child.parse(["2024-01-02"]),
              "ordinal": lambda: Child.fromordinal(738887, size=1),
              "strptime": lambda: Child.strptime("2024-01-02", "%Y-%m-%d", size=1),

@@ -11,18 +11,20 @@ use pyo3::PyTypeInfo;
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
+#[cfg(not(Py_GIL_DISABLED))]
+use pyo3::types::PyCapsule;
 use pyo3::types::{
-    PyBool, PyCapsule, PyDate, PyDateTime, PyDelta, PyDeltaAccess, PyDict, PyString, PyTuple,
-    PyType,
+    PyBool, PyDate, PyDateTime, PyDelta, PyDeltaAccess, PyDict, PyString, PyTuple, PyType,
 };
-use std::cell::UnsafeCell;
-use std::ffi::c_void;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::ptr;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicPtr, Ordering};
+#[cfg(not(Py_GIL_DISABLED))]
+use std::{cell::UnsafeCell, ffi::c_void};
 
 static ORIGINAL_NEW: OnceLock<ffi::newfunc> = OnceLock::new();
+#[cfg(not(Py_GIL_DISABLED))]
 static ORIGINAL_ALLOC: OnceLock<ffi::allocfunc> = OnceLock::new();
 static EXACT_ALLOC_TYPE: AtomicPtr<ffi::PyTypeObject> = AtomicPtr::new(ptr::null_mut());
 
@@ -31,30 +33,44 @@ static EXACT_ALLOC_TYPE: AtomicPtr<ffi::PyTypeObject> = AtomicPtr::new(ptr::null
 /// receiver must be a live Python object on its attached interpreter thread.
 #[inline(always)]
 pub(crate) unsafe fn is_cached_exact_delta(receiver: *mut ffi::PyObject) -> bool {
-    let class = EXACT_ALLOC_TYPE.load(Ordering::Relaxed);
-    !class.is_null() && unsafe { ffi::Py_TYPE(receiver) } == class
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        let class = EXACT_ALLOC_TYPE.load(Ordering::Relaxed);
+        !class.is_null() && unsafe { ffi::Py_TYPE(receiver) } == class
+    }
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        let _ = receiver;
+        false
+    }
 }
 
 /// Own dead, fixed-size storage under the ordinary CPython GIL.
+#[cfg(not(Py_GIL_DISABLED))]
 struct AllocationCache {
     blocks: Vec<ptr::NonNull<c_void>>,
     limit: usize,
 }
 
+#[cfg(not(Py_GIL_DISABLED))]
 struct AttachedCache(UnsafeCell<AllocationCache>);
 // SAFETY: Installation requires an enabled GIL. Allocation, tp_free and capsule
 // destruction all hold it. No borrow of the cache crosses any CPython call,
 // so callbacks cannot reenter while a mutable cache borrow is alive.
+#[cfg(not(Py_GIL_DISABLED))]
 unsafe impl Sync for AttachedCache {}
+#[cfg(not(Py_GIL_DISABLED))]
 static ALLOCATION_CACHE: AttachedCache = AttachedCache(UnsafeCell::new(AllocationCache {
     blocks: Vec::new(),
     limit: 0,
 }));
 
 /// Disable reuse and return every cached block when its module owner disappears.
+#[cfg(not(Py_GIL_DISABLED))]
 struct CacheGuard {
     _ownership: u8,
 }
+#[cfg(not(Py_GIL_DISABLED))]
 impl Drop for CacheGuard {
     /// Release the disabled module's dead storage while its capsule holds the GIL.
     fn drop(&mut self) {
@@ -74,6 +90,7 @@ impl Drop for CacheGuard {
 /// PyO3 calls tp_free after dropping the complete Rust contents. The type still
 /// has its instance reference until this callback returns. Subclasses and a
 /// disabled cache use the public allocator's corresponding release function.
+#[cfg(not(Py_GIL_DISABLED))]
 unsafe extern "C" fn free_exact(memory: *mut c_void) {
     let Some(block) = ptr::NonNull::new(memory) else {
         return;
@@ -102,6 +119,7 @@ unsafe extern "C" fn free_exact(memory: *mut c_void) {
 /// non-GC, no-dict/weakref, fixed-size Delta uses this path; all other requests
 /// delegate to the original allocator. Fresh storage is zeroed; reused storage
 /// receives a new header and PyO3 replaces every SDK-owned field before exposure.
+#[cfg(not(Py_GIL_DISABLED))]
 unsafe extern "C" fn allocate_exact(
     class: *mut ffi::PyTypeObject,
     count: ffi::Py_ssize_t,
@@ -157,6 +175,14 @@ impl SimpleMethod {
 /// Recognize the original Delta allocation slot without invoking Python hooks.
 /// Pickle can use NEWOBJ only when that slot accepts complete native payloads.
 pub(crate) fn uses_native_new(class: &Bound<'_, PyType>) -> bool {
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        // Use the public C API for a possibly mutable subclass. This does not
+        // assert that a Python attachment is a lock on that subclass.
+        return unsafe { ffi::PyType_GetSlot(class.as_type_ptr(), ffi::Py_tp_new) }
+            == allocate as *const () as *mut std::ffi::c_void;
+    }
+    #[cfg(not(Py_GIL_DISABLED))]
     // SAFETY: The owned ready type is read while attached. A Python __new__
     // override replaces this slot and therefore selects explicit reconstruction.
     unsafe {
@@ -538,26 +564,26 @@ unsafe fn compare_general(
     let result = catch_unwind(AssertUnwindSafe(|| -> PyResult<_> {
         let receiver = unsafe { Borrowed::from_ptr(py, receiver).cast_unchecked::<Delta>() };
         let other = unsafe { Borrowed::from_ptr(py, other) };
-        if matches!(operation, ffi::Py_EQ | ffi::Py_NE) && same_value_semantics(&receiver, &other)?
+        if matches!(operation, ffi::Py_EQ | ffi::Py_NE)
+            && same_value_semantics(&receiver, &other)?
+            && let Ok(right) = other.cast::<Delta>()
         {
-            if let Ok(right) = other.cast::<Delta>() {
-                let equal = receiver.get().native_eq(right.get());
-                return Ok(PyBool::new(
-                    py,
-                    if operation == ffi::Py_EQ {
-                        equal
-                    } else {
-                        !equal
-                    },
-                )
-                .to_owned()
-                .into_ptr());
-            }
+            let equal = receiver.get().native_eq(right.get());
+            return Ok(PyBool::new(
+                py,
+                if operation == ffi::Py_EQ {
+                    equal
+                } else {
+                    !equal
+                },
+            )
+            .to_owned()
+            .into_ptr());
         }
-        if operation == ffi::Py_NE {
-            if let Some(result) = inherited_inequality(&receiver, &other)? {
-                return Ok(result.into_ptr());
-            }
+        if operation == ffi::Py_NE
+            && let Some(result) = inherited_inequality(&receiver, &other)?
+        {
+            return Ok(result.into_ptr());
         }
         Ok(py.NotImplemented().into_ptr())
     }));
@@ -593,7 +619,7 @@ pub(crate) fn inherited_inequality<'py>(
     let base = py.get_type::<Delta>();
     // Special methods are looked up in the real MRO, bypassing instance and
     // metaclass __getattribute__. Retain the tuple before descriptor callbacks.
-    let mro = unsafe { Bound::from_borrowed_ptr(py, (*actual.as_type_ptr()).tp_mro) };
+    let mro = actual_mro(&actual)?;
     let mut equality = None;
     for ancestor in mro.cast::<PyTuple>()?.iter() {
         let ancestor = ancestor.cast::<PyType>()?;
@@ -602,12 +628,7 @@ pub(crate) fn inherited_inequality<'py>(
         if ancestor.is(&base) {
             return Ok(None);
         }
-        // SAFETY: a ready actual MRO type owns its namespace under the GIL.
-        let namespace = unsafe { Bound::from_borrowed_ptr(py, (*ancestor.as_type_ptr()).tp_dict) };
-        if let Some(entry) = namespace
-            .cast::<PyDict>()?
-            .get_item(pyo3::intern!(py, "__eq__"))?
-        {
+        if let Some(entry) = type_namespace(ancestor)?.get_item(pyo3::intern!(py, "__eq__"))? {
             equality = Some(entry);
             break;
         }
@@ -630,7 +651,7 @@ pub(crate) fn inherited_inequality<'py>(
     } else {
         // SAFETY: the owned descriptor and receiver remain live throughout
         // binding; its type owns this public slot. A null result propagates.
-        let get = unsafe { (*ffi::Py_TYPE(equality.as_ptr())).tp_descr_get };
+        let get = descriptor_get(&equality);
         let bound = if let Some(get) = get {
             unsafe {
                 Bound::from_owned_ptr_or_err(
@@ -668,23 +689,35 @@ pub(crate) fn same_value_semantics(
     let py = receiver.py();
     let base = py.get_type::<Delta>();
     for class in [receiver.get_type(), other.get_type()] {
-        let actual = class.as_type_ptr();
-        let base_pointer = base.as_type_ptr();
-        // SAFETY: Both owned ready types remain live under the GIL; reading
-        // their slots invokes no metaclass hooks or user comparison methods.
-        let (hash, comparison, base_hash, base_comparison) = unsafe {
-            (
-                (*actual).tp_hash.map(|slot| slot as *const ()),
-                (*actual).tp_richcompare.map(|slot| slot as *const ()),
-                (*base_pointer).tp_hash.map(|slot| slot as *const ()),
-                (*base_pointer).tp_richcompare.map(|slot| slot as *const ()),
-            )
-        };
-        if hash == base_hash && comparison == base_comparison {
-            continue;
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            // The immutable exact base needs no mutable-slot inspection. A
+            // subclass uses actual owned method definitions rather than racing
+            // its live comparison/hash slots for a speculative shortcut.
+            if !class.is(&base) && !inherits_value_methods(&class, &base)? {
+                return Ok(false);
+            }
         }
-        if !inherits_value_methods(&class, &base)? {
-            return Ok(false);
+        #[cfg(not(Py_GIL_DISABLED))]
+        {
+            let actual = class.as_type_ptr();
+            let base_pointer = base.as_type_ptr();
+            // SAFETY: Both owned ready types remain live under the GIL; reading
+            // their slots invokes no metaclass hooks or user comparison methods.
+            let (hash, comparison, base_hash, base_comparison) = unsafe {
+                (
+                    (*actual).tp_hash.map(|slot| slot as *const ()),
+                    (*actual).tp_richcompare.map(|slot| slot as *const ()),
+                    (*base_pointer).tp_hash.map(|slot| slot as *const ()),
+                    (*base_pointer).tp_richcompare.map(|slot| slot as *const ()),
+                )
+            };
+            if hash == base_hash && comparison == base_comparison {
+                continue;
+            }
+            if !inherits_value_methods(&class, &base)? {
+                return Ok(false);
+            }
         }
     }
     Ok(true)
@@ -694,13 +727,16 @@ pub(crate) fn same_value_semantics(
 #[inline]
 fn type_namespace<'py>(class: &Bound<'py, PyType>) -> PyResult<Bound<'py, PyDict>> {
     let py = class.py();
-    // SAFETY: the live ready type owns its actual dictionary when this public
-    // field is set. CPython 3.12+ may store builtin dictionaries per interpreter.
-    let direct = unsafe { (*class.as_type_ptr()).tp_dict };
-    if !direct.is_null() {
-        return unsafe { Bound::from_borrowed_ptr(py, direct) }
-            .cast_into::<PyDict>()
-            .map_err(PyErr::from);
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        // SAFETY: the live ready type owns its actual dictionary when this public
+        // field is set. CPython 3.12+ may store builtin dictionaries per interpreter.
+        let direct = unsafe { (*class.as_type_ptr()).tp_dict };
+        if !direct.is_null() {
+            return unsafe { Bound::from_borrowed_ptr(py, direct) }
+                .cast_into::<PyDict>()
+                .map_err(PyErr::from);
+        }
     }
     #[cfg(Py_3_12)]
     {
@@ -714,6 +750,55 @@ fn type_namespace<'py>(class: &Bound<'py, PyType>) -> PyResult<Bound<'py, PyDict
         Err(crate::error_context::runtime(
             "actual type namespace is unavailable",
         ))
+    }
+}
+
+/// Retain the actual MRO without accepting a metaclass's replacement property.
+///
+/// The builtin type descriptor owns CPython's metadata lookup on t builds;
+/// ordinary builds retain their direct, GIL-protected ready-type shortcut.
+fn actual_mro<'py>(class: &Bound<'py, PyType>) -> PyResult<Bound<'py, PyTuple>> {
+    let py = class.py();
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        // SAFETY: a live ready type owns its MRO under the conventional GIL.
+        if let Some(mro) =
+            unsafe { Bound::from_borrowed_ptr_or_opt(py, (*class.as_type_ptr()).tp_mro) }
+        {
+            return mro.cast_into::<PyTuple>().map_err(PyErr::from);
+        }
+    }
+    static DESCRIPTOR: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+    let descriptor = crate::python_cache::get_or_prepare(&DESCRIPTOR, py, || {
+        type_namespace(&py.get_type::<PyType>())?
+            .get_item(pyo3::intern!(py, "__mro__"))?
+            .map(Bound::unbind)
+            .ok_or_else(|| crate::error_context::runtime("builtin type MRO descriptor is missing"))
+    })?;
+    descriptor
+        .bind(py)
+        .call_method1("__get__", (class, py.get_type::<PyType>()))?
+        .cast_into::<PyTuple>()
+        .map_err(PyErr::from)
+}
+
+/// Read the descriptor binding slot through the public API on t interpreters.
+/// The descriptor's owned reference keeps its actual type and callback alive.
+fn descriptor_get(value: &Bound<'_, PyAny>) -> Option<ffi::descrgetfunc> {
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        let slot =
+            unsafe { ffi::PyType_GetSlot(value.get_type().as_type_ptr(), ffi::Py_tp_descr_get) };
+        if slot.is_null() {
+            None
+        } else {
+            // SAFETY: Py_tp_descr_get identifies this exact C callback type.
+            Some(unsafe { std::mem::transmute::<*mut std::ffi::c_void, ffi::descrgetfunc>(slot) })
+        }
+    }
+    #[cfg(not(Py_GIL_DISABLED))]
+    unsafe {
+        (*ffi::Py_TYPE(value.as_ptr())).tp_descr_get
     }
 }
 
@@ -744,20 +829,7 @@ pub(crate) fn method_definition<'py>(
 ) -> PyResult<Option<Bound<'py, PyAny>>> {
     let py = class.py();
     let key = method_key(py, name);
-    // Some CPython static types keep their metadata in interpreter state.
-    // The builtin type descriptor bypasses any user metaclass override.
-    let metadata = |name: &str| {
-        py.get_type::<PyType>()
-            .getattr("__getattribute__")
-            .map_err(crate::error_context::external)?
-            .call1((class, name))
-            .map_err(crate::error_context::external)
-    };
-    // SAFETY: a live ready heap type owns this MRO when its public field is set.
-    let mro = match unsafe { Bound::from_borrowed_ptr_or_opt(py, (*class.as_type_ptr()).tp_mro) } {
-        Some(mro) => mro,
-        None => metadata("__mro__")?,
-    };
+    let mro = actual_mro(class)?;
     for base in mro.cast::<PyTuple>()?.iter() {
         let base = base.cast::<PyType>()?;
         if let Some(method) = type_namespace(base)?.get_item(&key)? {
@@ -787,7 +859,7 @@ pub(crate) fn call_special<'py>(
     }
     // SAFETY: the retained descriptor, receiver and ready actual type remain
     // owned under the GIL, including throughout arbitrary descriptor callbacks.
-    let bound = if let Some(get) = unsafe { (*ffi::Py_TYPE(definition.as_ptr())).tp_descr_get } {
+    let bound = if let Some(get) = descriptor_get(&definition) {
         unsafe {
             Bound::from_owned_ptr_or_err(
                 py,
@@ -811,11 +883,9 @@ fn inherits_value_methods<'py>(
     class: &Bound<'py, PyType>,
     base: &Bound<'py, PyType>,
 ) -> PyResult<bool> {
-    let py = class.py();
     // SAFETY: ready types own their MRO and namespace. Own the MRO tuple and
     // each selected entry before any later descriptor lookup can run Python.
-    let mro = unsafe { Bound::from_borrowed_ptr(py, (*class.as_type_ptr()).tp_mro) }
-        .cast_into::<PyTuple>()?;
+    let mro = actual_mro(class)?;
     let names = ["__eq__", "__ne__", "__hash__"];
     let mut found = [false; 3];
     for ancestor in mro.iter() {
@@ -825,7 +895,11 @@ fn inherits_value_methods<'py>(
         }
         let namespace = type_namespace(ancestor)?;
         let mut entries: [Option<Bound<'py, PyAny>>; 3] = [None, None, None];
-        for (key, value) in namespace.cast::<PyDict>()?.iter() {
+        #[cfg(Py_GIL_DISABLED)]
+        let snapshot = namespace.copy()?;
+        #[cfg(Py_GIL_DISABLED)]
+        let namespace = snapshot;
+        for (key, value) in namespace.iter() {
             if !key.is_exact_instance_of::<PyString>() {
                 return Ok(false);
             }
@@ -979,7 +1053,7 @@ unsafe extern "C" fn getter<const INDEX: usize>(
         // alive. No Rust reference escapes, and no mutable borrow is held.
         let receiver = unsafe { Borrowed::from_ptr(py, receiver).cast_unchecked::<Delta>() };
         let value = receiver.get().relative(INDEX);
-        if INDEX >= 7 && value == -1 {
+        if INDEX >= 8 && value == -1 {
             return Ok(py.None().into_ptr());
         }
         Ok(unsafe { ffi::PyLong_FromLongLong(value) })
@@ -1306,7 +1380,7 @@ unsafe fn binary_builtin<'py, const SUBTRACT: bool>(
                     return Ok(Some(unsafe { ffi::Py_NewRef(other.as_ptr()) }));
                 }
                 crate::interop::apply_builtin_datetime_fields(
-                    &delta.get().calendar_snapshot(true),
+                    &delta.get().native_value(),
                     false,
                     other,
                     &datetime,
@@ -1376,26 +1450,18 @@ unsafe fn binary_foreign<'py, const SUBTRACT: bool>(
     right: Borrowed<'_, 'py, PyAny>,
     class: *mut ffi::PyTypeObject,
 ) -> PyResult<*mut ffi::PyObject> {
-    // Warm exact NumPy scalars can use the existing native conversion after
-    // builtin date/duration dispatch. Requiring both caches avoids changing
-    // first-import order; subclasses and cold calls retain normal callbacks.
+    // Preserve original temporal scalar identity before NumPy item conversion.
+    // The exact-type cache qualifies public layout; real subclasses retain the
+    // existing reflected protocol below. Both orientations share the ns model.
     if unsafe { ffi::Py_TYPE(left.as_ptr()) } == class
-        && crate::interop::exact_relative_type(py).is_some()
         && let Some(types) = crate::numpy_scalar::ExactTypes::cached(py)
-        && let Some((micros, datetime)) = types.microseconds_for_operation(&right, !SUBTRACT)?
+        && let Some(source) = types.delta_scalar(&right, !SUBTRACT)?
     {
         let delta = unsafe { left.cast_unchecked::<Delta>() };
-        if datetime {
-            return crate::numpy_scalar::apply_datetime_us(py, delta.get(), micros, 1)
-                .map(Bound::into_ptr);
-        }
-        return unsafe {
-            new_delta(
-                py,
-                delta.get().with_microseconds(micros, SUBTRACT, false)?,
-                class,
-            )
-        };
+        return delta
+            .get()
+            .apply_numpy(py, source, SUBTRACT, false, false)
+            .map(Bound::into_ptr);
     }
     // Exact native Delta/relativedelta operands bypass the generic date and
     // duration tests. Non-exact objects retain both original instance checks.
@@ -1410,17 +1476,17 @@ unsafe fn binary_foreign<'py, const SUBTRACT: bool>(
                 )
             };
         }
-    } else if unsafe { ffi::Py_TYPE(right.as_ptr()) } == class {
-        if let Some(fields) = crate::interop::exact_relative_fields(&left)? {
-            let delta = unsafe { right.cast_unchecked::<Delta>() };
-            return unsafe {
-                new_delta(
-                    py,
-                    delta.get().with_relative_fields(fields, SUBTRACT, true)?,
-                    class,
-                )
-            };
-        }
+    } else if unsafe { ffi::Py_TYPE(right.as_ptr()) } == class
+        && let Some(fields) = crate::interop::exact_relative_fields(&left)?
+    {
+        let delta = unsafe { right.cast_unchecked::<Delta>() };
+        return unsafe {
+            new_delta(
+                py,
+                delta.get().with_relative_fields(fields, SUBTRACT, true)?,
+                class,
+            )
+        };
     }
     let result = if unsafe { ffi::PyObject_TypeCheck(left.as_ptr(), class) } != 0 {
         let value = unsafe { left.cast_unchecked::<Delta>() };
@@ -1430,17 +1496,30 @@ unsafe fn binary_foreign<'py, const SUBTRACT: bool>(
             value.get().__add__(&right)
         }
     } else if unsafe { ffi::PyObject_TypeCheck(right.as_ptr(), class) } != 0 {
-        if let Some(original_item) = crate::numpy_scalar::reflected_item(&left)? {
-            // Normal scalars retain NumPy's original item-based dispatch;
-            // NaT has already been rejected without conflating it with None.
-            return if SUBTRACT {
-                original_item.sub(right)
-            } else {
-                original_item.add(right)
-            }
-            .map(Bound::into_ptr);
-        }
         let value = unsafe { right.cast_unchecked::<Delta>() };
+        let types = match crate::numpy_scalar::ExactTypes::cached(py) {
+            Some(types) => Some(types),
+            None => crate::numpy_scalar::ExactTypes::for_value(&left)?,
+        };
+        if let Some(source) = types
+            .map(|types| types.delta_scalar(&left, true))
+            .transpose()?
+            .flatten()
+        {
+            if matches!(
+                source,
+                crate::numpy_scalar::DeltaScalar::Duration {
+                    calendar_unit: true,
+                    ..
+                }
+            ) {
+                return Ok(py.NotImplemented().into_ptr());
+            }
+            return value
+                .get()
+                .apply_numpy(py, source, SUBTRACT, true, true)
+                .map(Bound::into_ptr);
+        }
         if SUBTRACT {
             value.get().__rsub__(&left)
         } else {
@@ -1570,13 +1649,13 @@ Repeated calls leave its value unchanged."
     // No instance data is retained by this definition.
 });
 
-struct Getters([ffi::PyGetSetDef; 15]);
+struct Getters([ffi::PyGetSetDef; 17]);
 // Static readonly names, docstrings and field-specific callback pointers.
 // CPython does not mutate this table.
 unsafe impl Sync for Getters {}
 /// Build a readonly field descriptor with static name and documentation.
 ///
-/// INDEX selects one of the 15 validated fields at compile time.
+/// INDEX selects one of the17 validated fields at compile time.
 const fn property<const INDEX: usize>(
     name: &'static std::ffi::CStr,
     doc: &'static std::ffi::CStr,
@@ -1610,52 +1689,56 @@ static GETTERS: Getters = Getters([
         c"int: Normalized relative microseconds, in 0..999999.",
     ),
     property::<7>(
+        c"nanoseconds",
+        c"int: Normalized relative nanosecond tail, in0..999.",
+    ),
+    property::<8>(
         c"year",
         c"int | None: Absolute year replacement, or None when unset.",
     ),
-    property::<8>(
+    property::<9>(
         c"month",
         c"int | None: Absolute month replacement (1..12), or None when unset.",
     ),
-    property::<9>(
+    property::<10>(
         c"day",
         c"int | None: Absolute day replacement (1..31), or None when unset.",
     ),
-    property::<10>(
+    property::<11>(
         c"weekday",
         c"int | None: Absolute weekday replacement (Monday=0 to Sunday=6), or None.",
     ),
-    property::<11>(
+    property::<12>(
         c"hour",
         c"int | None: Absolute hour replacement (0..23), or None when unset.",
     ),
-    property::<12>(
+    property::<13>(
         c"minute",
         c"int | None: Absolute minute replacement (0..59), or None when unset.",
     ),
-    property::<13>(
+    property::<14>(
         c"second",
         c"int | None: Absolute second replacement (0..59), or None when unset.",
     ),
-    property::<14>(
+    property::<15>(
         c"microsecond",
         c"int | None: Absolute microsecond replacement (0..999999), or None.",
     ),
+    property::<16>(
+        c"nanosecond",
+        c"int | None: Absolute nanosecond tail in0..999, or None.",
+    ),
 ]);
 
-/// Attach checked methods, getters and selected slots to this extension's Delta.
-///
-/// # Errors
-/// Propagates descriptor allocation/type-dictionary errors and raises RuntimeError
-/// if the expected PyO3 allocation or numeric tables are unavailable.
-///
-/// # Lifetime contract
-/// Descriptor names, docstrings and callback tables have static storage. Only
-/// this ready heap type is modified, then PyType_Modified invalidates its caches.
-pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
+/// Install only the conventional GIL allocator and its bounded dead-storage pool.
+/// Free-threaded builds compile out the pool rather than relying on runtime state.
+#[cfg(not(Py_GIL_DISABLED))]
+fn install_allocation_cache(
+    module: &Bound<'_, PyModule>,
+    class: &Bound<'_, PyType>,
+) -> PyResult<()> {
     let py = module.py();
-    let class = py.get_type::<Delta>();
-    let class_ptr = class.as_ptr().cast::<ffi::PyTypeObject>();
+    let class_ptr = class.as_type_ptr();
     let version = py.version_info();
     // The public fixed-object shortcut is guarded by observed type features,
     // not reproduced Rust layout. Genuine subclasses keep the SDK allocator.
@@ -1663,7 +1746,7 @@ pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
         version.major == 3
             && version.minor == 13
             && cfg!(target_pointer_width = "64")
-            && (*class_ptr).tp_flags & ffi::Py_TPFLAGS_HAVE_GC == 0
+            && ffi::PyType_HasFeature(class_ptr, ffi::Py_TPFLAGS_HAVE_GC) == 0
             && (*class_ptr).tp_dictoffset == 0
             && (*class_ptr).tp_weaklistoffset == 0
             && (*class_ptr).tp_itemsize == 0
@@ -1700,34 +1783,52 @@ pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
             .call0()
             .map_err(crate::error_context::external)?
             .extract::<bool>()?
+        && let Some(original) = unsafe { (*class_ptr).tp_alloc }
     {
-        if let Some(original) = unsafe { (*class_ptr).tp_alloc } {
-            // A byte budget bounds retained dead blocks and their pointer table;
-            // it is independent of benchmark case sizes and user input lengths.
-            let limit = (2 * 1024 * 1024)
-                / (unsafe { (*class_ptr).tp_basicsize as usize }
-                    + std::mem::size_of::<ptr::NonNull<c_void>>());
-            let cache = unsafe { &mut *ALLOCATION_CACHE.0.get() };
-            cache.blocks.try_reserve_exact(limit).map_err(|_| {
-                pyo3::exceptions::PyMemoryError::new_err("cannot allocate Delta cache")
-            })?;
-            cache.limit = limit;
-            module.add(
-                "_allocation_cache",
-                PyCapsule::new_with_value(
-                    py,
-                    CacheGuard { _ownership: 1 },
-                    c"rstimes._native._allocation_cache",
-                )?,
-            )?;
-            let _ = ORIGINAL_ALLOC.set(original);
-            EXACT_ALLOC_TYPE.store(class_ptr, Ordering::Relaxed);
-            unsafe {
-                (*class_ptr).tp_alloc = Some(allocate_exact);
-                (*class_ptr).tp_free = Some(free_exact);
-            };
-        }
+        // A byte budget bounds retained dead blocks and their pointer table;
+        // it is independent of benchmark case sizes and user input lengths.
+        let limit = (2 * 1024 * 1024)
+            / (unsafe { (*class_ptr).tp_basicsize as usize }
+                + std::mem::size_of::<ptr::NonNull<c_void>>());
+        let cache = unsafe { &mut *ALLOCATION_CACHE.0.get() };
+        cache
+            .blocks
+            .try_reserve_exact(limit)
+            .map_err(|_| pyo3::exceptions::PyMemoryError::new_err("cannot allocate Delta cache"))?;
+        cache.limit = limit;
+        module.add(
+            "_allocation_cache",
+            PyCapsule::new_with_value(
+                py,
+                CacheGuard { _ownership: 1 },
+                c"rstimes._native._allocation_cache",
+            )?,
+        )?;
+        let _ = ORIGINAL_ALLOC.set(original);
+        EXACT_ALLOC_TYPE.store(class_ptr, Ordering::Relaxed);
+        unsafe {
+            (*class_ptr).tp_alloc = Some(allocate_exact);
+            (*class_ptr).tp_free = Some(free_exact);
+        };
     }
+    Ok(())
+}
+
+/// Attach checked methods, getters and selected slots to this extension's Delta.
+///
+/// # Errors
+/// Propagates descriptor allocation/type-dictionary errors and raises RuntimeError
+/// if the expected PyO3 allocation or numeric tables are unavailable.
+///
+/// # Lifetime contract
+/// Descriptor names, docstrings and callback tables have static storage. Only
+/// this ready heap type is modified, then PyType_Modified invalidates its caches.
+pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let py = module.py();
+    let class = py.get_type::<Delta>();
+    let class_ptr = class.as_ptr().cast::<ffi::PyTypeObject>();
+    #[cfg(not(Py_GIL_DISABLED))]
+    install_allocation_cache(module, &class)?;
     let original = unsafe { (*class_ptr).tp_new }
         .ok_or_else(|| crate::error_context::runtime("Delta allocator is missing"))?;
     let _ = ORIGINAL_NEW.set(original);
@@ -1763,6 +1864,7 @@ pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
         "minutes",
         "seconds",
         "microseconds",
+        "nanoseconds",
         "year",
         "month",
         "day",
@@ -1771,6 +1873,7 @@ pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
         "minute",
         "second",
         "microsecond",
+        "nanosecond",
     ]
     .into_iter()
     .enumerate()

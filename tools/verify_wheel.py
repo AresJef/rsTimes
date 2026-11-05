@@ -29,6 +29,9 @@ def main():
     parser.add_argument("--directory", type=Path, default=Path("dist"))
     parser.add_argument("--platform-id", required=True)
     parser.add_argument("--python-minor", required=True)
+    parser.add_argument("--free-threaded", action="store_true")
+    parser.add_argument("--internal-polars", type=Path,
+                        help="Internal official-runtime build directory, required only for t validation")
     parser.add_argument("--mode", choices=("pilot", "full", "sdist", "public"), default="full")
     parser.add_argument("--evidence", type=Path, default=Path("evidence"))
     args = parser.parse_args()
@@ -47,7 +50,16 @@ def main():
         native_sha256 = hashlib.sha256(archive.read(native)).hexdigest()
     assert struct.calcsize("P") == 8 and sys.implementation.name == "cpython"
     assert f"{sys.version_info.major}.{sys.version_info.minor}" == args.python_minor
-    assert not sysconfig.get_config_var("Py_GIL_DISABLED")
+    free_threaded = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+    assert free_threaded is args.free_threaded, "interpreter ABI differs from the selected matrix lane"
+    if free_threaded:
+        assert "PYTHON_GIL" not in os.environ and "gil" not in sys._xoptions, "validation must not force the GIL state"
+        assert getattr(sys, "_is_gil_enabled")() is False, "validation interpreter already enabled the GIL"
+        assert args.internal_polars is not None, "t integration needs the qualified official runtime"
+        runtime_wheel, = args.internal_polars.resolve().glob("*.whl")
+    else:
+        assert args.internal_polars is None, "ordinary lanes use their published upstream dependency profile"
+        runtime_wheel = None
     machine = platform.machine().lower()
     assert machine in ({"aarch64", "arm64"} if args.platform_id.endswith("arm64") else {"amd64", "x86_64"})
     ldd = subprocess.run(["ldd", "--version"], capture_output=True, text=True) if sys.platform == "linux" else None
@@ -58,6 +70,12 @@ def main():
         "started_at": datetime.now(timezone.utc).isoformat(),
         "mode": args.mode, "platform_id": args.platform_id,
         "python": sys.version, "executable": sys.executable,
+        "free_threaded_build": free_threaded,
+        "internal_polars_runtime": None if runtime_wheel is None else {
+            "filename": runtime_wheel.name,
+            "sha256": hashlib.sha256(runtime_wheel.read_bytes()).hexdigest(),
+            "user_distribution": False,
+        },
         "pointer_bits": struct.calcsize("P") * 8, "machine": machine,
         "libc": platform.libc_ver(),
         "ldd": None if ldd is None else ldd.stdout + ldd.stderr,
@@ -86,7 +104,7 @@ def main():
             print(log.read_text(errors="replace")[-16000:], flush=True)
             raise subprocess.CalledProcessError(result.returncode, command)
 
-    def environment(label, requirements):
+    def environment(label, requirements, *, with_polars=False):
         folder = ROOT / ".local/wheel-verification" / args.mode / label
         # Only these tool-owned scratch environments are replaced on a new attempt.
         venv.EnvBuilder(with_pip=True, clear=True).create(folder)
@@ -94,7 +112,8 @@ def main():
         run(label + "-pip", [py, "-m", "pip", "install", "--index-url", "https://pypi.org/simple",
                             "--no-cache-dir", "pip==26.2.2"])
         run(label + "-install", [py, "-m", "pip", "install", "--index-url", "https://pypi.org/simple",
-                                "--no-cache-dir", "--only-binary=:all:", "-r", requirements, wheel])
+                                "--no-cache-dir", "--only-binary=:all:", "-r", requirements, wheel,
+                                *([runtime_wheel] if with_polars and runtime_wheel is not None else [])])
         return py
 
     def inspect(py, label, absent=()):
@@ -130,31 +149,53 @@ def main():
             smoke(core, "core", "--without-dateutil")
             regress(core, "core", core=True)
             run("core-polars-install", [core, "-m", "pip", "install", "--index-url",
-                "https://pypi.org/simple", "--no-cache-dir", "--only-binary=:all:", "polars==2.0.0"])
+                "https://pypi.org/simple", "--no-cache-dir", "--only-binary=:all:",
+                "polars==2.1.0" if free_threaded else "polars==2.0.0",
+                *([runtime_wheel] if runtime_wheel is not None else [])])
             inspect(core, "core-polars", ("python-dateutil", "pandas"))
             smoke(core, "core-polars", "--without-dateutil", "--with-polars")
             regress(core, "core-polars", core=True)
 
-        full = environment("pd3", ROOT / "requirements-test.txt")
+        full = environment("pd3", ROOT / ("requirements-free-threaded-test.txt" if free_threaded
+                                          else "requirements-test.txt"), with_polars=True)
         inspect(full, "pd3")
         smoke(full, "pd3", "--with-dateutil", "--with-pandas", "--with-polars")
         regress(full, "pd3", public=args.mode == "public")
         if args.mode == "full":
-            if args.python_minor != "3.15" and args.platform_id != "windows-arm64":
-                compatible = environment("pd2", ROOT / "requirements-pandas2-test.txt")
+            if not free_threaded and args.python_minor != "3.15" and args.platform_id != "windows-arm64":
+                compatible = environment("pd2", ROOT / "requirements-pandas2-test.txt", with_polars=True)
                 inspect(compatible, "pd2")
                 smoke(compatible, "pd2", "--with-dateutil", "--with-pandas", "--with-polars")
                 regress(compatible, "pd2")
             if args.python_minor == "3.15":
-                latest = environment("latest", ROOT / "requirements-latest-test.txt")
+                latest = environment("latest", ROOT / "requirements-latest-test.txt", with_polars=True)
                 inspect(latest, "latest")
                 smoke(latest, "latest", "--with-dateutil", "--with-pandas", "--with-polars")
                 regress(latest, "latest")
-            if args.platform_id == "macos-arm64" and args.python_minor == "3.13":
-                run("typing-install", [full, "-m", "pip", "install", "--index-url",
-                    "https://pypi.org/simple", "--no-cache-dir", "-r", ROOT / "requirements-dev.txt"])
-                run("public-docs", [full, "-I", "-B", ROOT / "tools/check_public_docs.py"])
-                run("public-typing", [full, "-I", "-B", ROOT / "tools/check_typing.py"])
+            if not free_threaded and args.platform_id == "macos-arm64" and args.python_minor == "3.13":
+                typing = environment("typing", ROOT / "requirements-typing.txt")
+                run("public-docs", [typing, "-I", "-B", ROOT / "tools/check_public_docs.py",
+                                    "--evidence-dir", output / "public-docs"])
+                # Only read the frozen upstream symbols. Its pandas<3 binary is
+                # never installed in the pandas3 product or typing environments.
+                oracle = ROOT / ".local/typing-oracle"
+                oracle.mkdir(parents=True, exist_ok=True)
+                run("typing-oracle-download", [typing, "-m", "pip", "download", "--index-url",
+                    "https://pypi.org/simple", "--only-binary=:all:", "--no-deps",
+                    "--dest", oracle, "cytimes==3.1.0"])
+                original, = oracle.glob("*.whl")
+                with zipfile.ZipFile(original) as archive:
+                    for name in archive.namelist():
+                        path = Path(name)
+                        if path.parent.as_posix() == "cytimes" and (path.suffix == ".pyi"
+                                or path.name in ("__init__.py", "errors.py")):
+                            target = oracle / path
+                            target.parent.mkdir(parents=True, exist_ok=True)
+                            target.write_bytes(archive.read(name))
+                for language in ("3.12", "3.14", "3.15"):
+                    run("public-typing-" + language, [typing, "-I", "-B", ROOT / "tools/check_typing.py",
+                        "--full", "--python-version", language, "--oracle-package", oracle / "cytimes",
+                        "--evidence-dir", output / ("typing-" + language)])
                 run("demo-manifest", [full, ROOT / "tools/distribution_manifest.py",
                     "--directory", args.directory.resolve(), "--wheels", "1",
                     "--sdists", str(len(list(args.directory.glob("*.tar.gz")))),

@@ -1,10 +1,11 @@
 """Public type information for integer-backed Pddt date columns."""
 from collections.abc import Iterable
 import datetime as _dt
-from typing import Hashable, Literal, SupportsIndex, SupportsFloat, TypeAlias, overload
+from typing import Generic, TypeVar, Hashable, Literal, SupportsIndex, SupportsFloat, TypeAlias, overload
 from types import NotImplementedType
 from typing_extensions import Self
 import numpy as np
+from numpy.typing import NDArray
 import pandas as pd
 from .parser import Configs
 from .delta import Delta
@@ -87,6 +88,24 @@ class Pddt(pd.DatetimeIndex):
     >>> Pddt(["0000-01-01"], unit="us").year.tolist()
     [0]
     """
+    @property
+    def asi8(self) -> NDArray[np.int64]:
+        """Return pandas' inherited int64 date storage view.
+
+        Returns
+        -------
+        numpy.ndarray
+            Integer ticks at this index's unit, using UTC coordinates for aware
+            dates and pandas' NaT sentinel for missing positions. This inherited
+            view does not convert dates or allocate a Pddt.
+
+        Examples
+        --------
+        >>> Pddt([1], unit="ms").asi8.tolist()
+        [1]
+        """
+        ...
+
     def __new__(cls, data: _DateCollection, *, unit: str | None = None, name: Hashable | None = None, copy: _Boolean = False, freq: object = None, tz: _dt.tzinfo | str | None = None, default: str | _dt.date | _dt.datetime | int | float | np.datetime64 | None = None, yearfirst: _Boolean | None = None, dayfirst: _Boolean | None = None, isoformat: _Boolean = True, strict: _Boolean = False, cfg: Configs | None = None, ambiguous: _Ambiguous = "raise", nonexistent: _Nonexistent = "raise") -> Self:
         """A date index with explicit resolution and shared Rust calendar rules.
 
@@ -267,7 +286,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     # P10 accepts named/actual zones, not pandas integer-offset shorthand.
-    def tz_convert(self, tz: _dt.tzinfo | str | None) -> Self:  # type: ignore[override]
+    def tz_convert(self, tz: _dt.tzinfo | str | None) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY011; see tests/typing/pyright_exceptions.json.
         """Convert aware dates to another timezone, preserving actual instants.
 
         Parameters
@@ -294,7 +313,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     # P10 accepts named/actual zones, not pandas integer-offset shorthand.
-    def tz_localize(self, tz: _dt.tzinfo | str | None, ambiguous: _Ambiguous = "raise", nonexistent: _Nonexistent = "raise") -> Self:  # type: ignore[override]
+    def tz_localize(self, tz: _dt.tzinfo | str | None, ambiguous: _Ambiguous = "raise", nonexistent: _Nonexistent = "raise") -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY012; see tests/typing/pyright_exceptions.json.
         """Interpret naive clocks in a region, or remove a zone without moving them.
 
         Parameters
@@ -764,9 +783,9 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     @classmethod
-    def fromisoformat(cls, dtstr: _IsoInput, *, size: SupportsIndex | None = None, unit: str | None = None, name: Hashable | None = None) -> Self:
+    def fromisoformat(cls, dtstr: _IsoInput, *, size: SupportsIndex | None = None, tz: _dt.tzinfo | str | None = None, unit: str | None = None, name: Hashable | None = None, ambiguous: _Ambiguous = 'raise', nonexistent: _Nonexistent = 'raise') -> Self:
         """Build from complete ISO text, without ordinary-text fallback.
-        
+
         Parameters
         ----------
         dtstr : str or one-dimensional text collection
@@ -775,23 +794,34 @@ class Pddt(pd.DatetimeIndex):
             numeric timezone offsets are preserved. Explicit dates must be valid.
         size : integer, optional
             Required for a scalar and omitted for a collection.
+        tz : datetime.tzinfo, str or None, default None
+            Optional common target. Naive fields are localized in this zone;
+            aware values retain their instant and convert to it. None preserves
+            a common source zone and rejects incompatible mixed sources.
         unit : {'s', 'ms', 'us', 'ns'}, optional
             Output resolution. Defaults to us, or ns for text beyond six digits;
             an explicitly selected resolution must retain the parsed value.
         name : hashable, optional
             Name of the resulting date column.
-        
+
+        ambiguous : bool, numpy.bool_, str or boolean collection, default 'raise'
+            Candidate policy when naive fields fall in a repeated local time.
+        nonexistent : str or timedelta, default 'raise'
+            Missing-local-time policy when naive fields are attached to tz.
+
         Returns
         -------
         Pddt
             ISO dates of this class, retaining order and date-missing positions.
-        
+
         Examples
         --------
         >>> Pddt.fromisoformat("2024-002", size=1).day.tolist()
         [2]
         >>> Pddt.fromisoformat("2024-01-02x12:30.5", size=1).microsecond.tolist()
         [500000]
+        >>> Pddt.fromisoformat(["2024-01-02T12:30+08:00", "2024-01-02T04:30Z"], tz="UTC").hour.tolist()
+        [4, 4]
         """
         ...
 
@@ -837,9 +867,9 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     @classmethod
-    def strptime(cls, dtstr: _IsoInput, fmt: str, *, size: SupportsIndex | None = None, unit: str | None = None, name: Hashable | None = None, cfg: Configs | None = None, ambiguous: _Ambiguous = "raise", nonexistent: _Nonexistent = "raise") -> Self:
+    def strptime(cls, dtstr: _IsoInput, fmt: str, *, size: SupportsIndex | None = None, tz: _dt.tzinfo | str | None = None, unit: str | None = None, name: Hashable | None = None, cfg: Configs | None = None, ambiguous: _Ambiguous = "raise", nonexistent: _Nonexistent = "raise") -> Self:
         """Read dates from a format using current Configs words and native fields.
-        
+
         Parameters
         ----------
         dtstr : str or one-dimensional text collection
@@ -850,6 +880,10 @@ class Pddt(pd.DatetimeIndex):
             and zero clock fields. Names use the effective Configs word rules.
         size : integer, optional
             Required for a scalar; omitted for a collection.
+        tz : datetime.tzinfo, str or None, default None
+            Optional common target. Naive fields are localized in this zone;
+            aware values retain their instant and convert to it. None preserves
+            a common source zone and rejects incompatible mixed sources.
         unit : {'s', 'ms', 'us', 'ns'}, optional
             Output resolution, default us or ns for an actual nanosecond tail.
             Fractional digits are read fully and truncated to this resolution
@@ -863,18 +897,20 @@ class Pddt(pd.DatetimeIndex):
             Candidate policy for a repeated local regional time.
         nonexistent : str or timedelta, default 'raise'
             Missing-local-time policy for the parsed regional fields.
-        
+
         Returns
         -------
         Pddt
             Formatted dates with original order, precision and missing positions.
-        
+
         Examples
         --------
         >>> Pddt.strptime("2024-05-07", "%Y-%m-%d", size=1).day.tolist()
         [7]
         >>> Pddt.strptime("1970-01-01 00:00:00.123456789", "%Y-%m-%d %H:%M:%S.%f", size=1, unit="us").asi8.tolist()
         [123456]
+        >>> Pddt.strptime(["2024-01-02 12:00+0800", "2024-01-02 12:00+0900"], "%Y-%m-%d %H:%M%z", tz="UTC").hour.tolist()
+        [4, 3]
         """
         ...
 
@@ -921,33 +957,14 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    def replace(self, year: _OptionalField = None, month: _OptionalField = None, day: _OptionalField = None, hour: _OptionalField = None, minute: _OptionalField = None, second: _OptionalField = None, microsecond: _OptionalField = None, nanosecond: _OptionalField = None, tzinfo: _dt.tzinfo | str | None = ..., *, ambiguous: _Ambiguous = 'raise', nonexistent: _Nonexistent = 'raise') -> Self:
-        """Replace selected fields exactly; every resulting date must be valid.
-        
-        Parameters
-        ----------
-        year, month, day, hour, minute, second, microsecond, nanosecond : integer or equal-length integer collection, optional
-            None retains each original field. Months are 1–12, days 1–31,
-            hours 0–23, minutes/seconds 0–59, microseconds 0–999999 and
-            nanosecond tails 0–999. Years may include zero and negative years.
-            Each combination must be a real date. Replacing microsecond clears
-            the old nanosecond tail unless nanosecond is also supplied.
-        tzinfo : tzinfo or str, optional
-            Omit to retain the zone; None removes it while keeping local fields.
-            A new zone reinterprets the local fields in that zone.
-        ambiguous, nonexistent : policy, default 'raise'
-            Policies for repeated or missing regional local times.
-        
+    @property
+    def pddt(self) -> _PddtNamespace[Self]:
+        """Return this index's date-field namespace; native value replace is inherited.
+
         Returns
         -------
-        Pddt
-            Updated dates with the same storage unit and name. Unchanged values
-            retain the original object. The source is never modified.
-        
-        Examples
-        --------
-        >>> Pddt(["2024-01-02"]).replace(day=3).day.tolist()
-        [3]
+        _PddtNamespace[Self]
+            Date-field replace preserves the corresponding owning Pddt class.
         """
         ...
 
@@ -1433,7 +1450,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    @overload  # type: ignore[override]
+    @overload
     def __add__(self, other: _dt.timedelta | np.timedelta64 | Delta) -> Self:
         """Add a fixed elapsed duration or a calendar Delta.
         
@@ -1469,7 +1486,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    @overload  # type: ignore[override]
+    @overload
     def __radd__(self, other: _dt.timedelta | np.timedelta64 | Delta) -> Self:
         """Add a duration or Delta on the left with the same date semantics.
         
@@ -1501,7 +1518,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    @overload  # type: ignore[override]
+    @overload
     def __sub__(self, other: _dt.timedelta | np.timedelta64 | Delta) -> Self:
         """Subtract a duration, calendar Delta or matching date values.
         
@@ -1540,7 +1557,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     @overload
-    def __sub__(self, other: object) -> Self | pd.DatetimeIndex | pd.TimedeltaIndex | NotImplementedType:
+    def __sub__(self, other: object) -> Self | pd.DatetimeIndex | pd.TimedeltaIndex | NotImplementedType:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY013; see tests/typing/pyright_exceptions.json.
         """Subtract a duration, calendar Delta or matching date values.
         
         Parameters
@@ -1731,7 +1748,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     # P13 uses automatic DST rules without pandas per-call policy arguments.
-    def round(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # type: ignore[override]
+    def round(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY014; see tests/typing/pyright_exceptions.json.
         """Round to the nearest grid, with ties to even.
         
         Parameters
@@ -1750,7 +1767,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     # P13 uses automatic DST rules without pandas per-call policy arguments.
-    def ceil(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # type: ignore[override]
+    def ceil(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY015; see tests/typing/pyright_exceptions.json.
         """Round upward without moving earlier.
         
         Parameters
@@ -1769,7 +1786,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     # P13 uses automatic DST rules without pandas per-call policy arguments.
-    def floor(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # type: ignore[override]
+    def floor(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY016; see tests/typing/pyright_exceptions.json.
         """Round downward without moving later.
         
         Parameters
@@ -1788,7 +1805,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     # P13 has the shared single-period/name interface, not arbitrary offsets.
-    def snap(self, unit: str = 's') -> Self:  # type: ignore[override]
+    def snap(self, unit: str = 's') -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY017; see tests/typing/pyright_exceptions.json.
         """Select the nearest valid period start; an equal distance goes later.
         
         Parameters
@@ -2126,7 +2143,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    def diff(self, dtobj: _DateValue | _DateCollection, unit: str, absolute: _Boolean = False, inclusive: Literal["one", "both", "neither"] = "one") -> pd.Index:
+    def diff(self, dtobj: _DateValue | _DateCollection, unit: str, absolute: _Boolean = False, inclusive: Literal["one", "both", "neither"] = "one") -> pd.Index:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY018; see tests/typing/pyright_exceptions.json.
         """Count unit boundaries between dates and scalar or positional targets.
         
         Parameters
@@ -2290,19 +2307,26 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    def strftime(self, format: str) -> pd.Index:
-        """Format dates with the platform's complete strftime rules.
+    def strftime(self, format: str) -> pd.Index:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY019; see tests/typing/pyright_exceptions.json.
+        """Format with complete system rules and exact fractional directives.
         
         Parameters
         ----------
         format : str
-            System format string. An empty format string is valid.
+            An empty string is valid. %f emits nine digits for ns and six for
+            s/ms/us; %.1f through %.9f emit a dot and a truncated/padded fraction,
+            and %.0f emits nothing. Other system rules remain delegated.
         
         Returns
         -------
         pandas.Index
-            Formatted strings using pandas' mature formatter. Supported system
-            directives and wide-year limits depend on the platform.
+            Formatted strings with source name/missing positions. Supported
+            system directives and wide-year limits depend on the platform.
+
+        Examples
+        --------
+        >>> Pddt([123456789], unit="ns").strftime("%f|%.3f|%.0f").tolist()
+        ['123456789|.123|']
         """
         ...
 
@@ -2420,7 +2444,15 @@ class Pddt(pd.DatetimeIndex):
         Pddt
             A new shell of the same class under the default protocol. Custom
             reduction hooks keep their normal Python choices and exceptions.
-        """
+        
+
+        Notes
+        -----
+        Custom shallow-copy hooks are looked up on the class and receive the source;
+        custom deep-copy hooks are looked up on the instance and receive the memo,
+        as in Python's copy module. Real descriptors, return choices and exceptions
+        are preserved. Static discovery reads actual class definitions; the state
+        hooks themselves retain their normal Python behavior."""
         ...
 
     def __copy__(self) -> Self:
@@ -2478,7 +2510,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    def __reduce__(self) -> tuple:
+    def __reduce__(self) -> tuple[object, ...]:
         """Return the new versioned Pddt pickle recipe and business state.
         
         Returns
@@ -2489,7 +2521,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    def __reduce_ex__(self, protocol: SupportsIndex) -> str | tuple:
+    def __reduce_ex__(self, protocol: SupportsIndex) -> str | tuple[object, ...]:
         """Return the pickle recipe, respecting a live custom reduce hook.
         
         Parameters
@@ -2503,3 +2535,60 @@ class Pddt(pd.DatetimeIndex):
             A valid pickle recipe, including the result of a real user hook.
         """
         ...
+
+
+_PddtT = TypeVar("_PddtT", bound=Pddt)
+
+class _PddtNamespace(Generic[_PddtT]):
+    """Date-field namespace owned by a Pddt; no global pandas registration.
+
+    Parameters
+    ----------
+    index : _PddtT
+        Owning Pddt object whose date fields are replaced atomically.
+    """
+    def __init__(self, index: _PddtT) -> None:
+        """Retain the owning Pddt without constructing another date index.
+
+        Parameters
+        ----------
+        index : _PddtT
+            Immutable source date index.
+
+        Returns
+        -------
+        None
+            The namespace is ready for field operations.
+        """
+        ...
+
+    def replace(self, year: _OptionalField = None, month: _OptionalField = None, day: _OptionalField = None, hour: _OptionalField = None, minute: _OptionalField = None, second: _OptionalField = None, microsecond: _OptionalField = None, nanosecond: _OptionalField = None, tzinfo: _dt.tzinfo | str | None = ..., *, ambiguous: _Ambiguous = 'raise', nonexistent: _Nonexistent = 'raise') -> _PddtT:
+        """Replace selected fields exactly; every resulting date must be valid.
+        
+        Parameters
+        ----------
+        year, month, day, hour, minute, second, microsecond, nanosecond : integer or equal-length integer collection, optional
+            None retains each original field. Months are 1–12, days 1–31,
+            hours 0–23, minutes/seconds 0–59, microseconds 0–999999 and
+            nanosecond tails 0–999. Years may include zero and negative years.
+            Each combination must be a real date. Replacing microsecond clears
+            the old nanosecond tail unless nanosecond is also supplied.
+        tzinfo : tzinfo or str, optional
+            Omit to retain the zone; None removes it while keeping local fields.
+            A new zone reinterprets the local fields in that zone.
+        ambiguous, nonexistent : policy, default 'raise'
+            Policies for repeated or missing regional local times.
+        
+        Returns
+        -------
+        Pddt
+            Updated dates with the same storage unit and name. Unchanged values
+            retain the original object. The source is never modified.
+        
+        Examples
+        --------
+        >>> Pddt(["2024-01-02"]).pddt.replace(day=3).day.tolist()
+        [3]
+        """
+        ...
+

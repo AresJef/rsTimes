@@ -13,7 +13,7 @@ from .delta import Delta
 from .parser import Configs, parse_str, parse, parse_to_epoch
 from .errors import _own_error, _external_error, _raise_argument_context
 
-__all__ = ["Pddt", "Pydt", "Delta", "Configs", "parse_str", "parse", "parse_to_epoch", "to_unix_ms", "from_unix_ms"]
+__all__ = ["Pddt", "Pldt", "Pydt", "Delta", "Configs", "parse_str", "parse", "parse_to_epoch", "to_unix_ms", "from_unix_ms"]
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
@@ -96,6 +96,10 @@ def from_unix_ms(value: int) -> datetime:
 
 
 def __getattr__(name):
+    if name == "Pldt":
+        from .pldt import Pldt
+        globals()[name] = Pldt
+        return Pldt
     if name == "Pddt":
         from .pddt import Pddt
         globals()[name] = Pddt

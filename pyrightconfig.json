@@ -1,0 +1,29 @@
+{
+  "typeCheckingMode": "standard",
+  "pythonVersion": "3.12",
+  "analyzeUnannotatedFunctions": true,
+  "include": [
+    "src/rstimes",
+    "tools/check_typing.py",
+    "tools/check_documentation.py",
+    "tools/check_public_docs.py",
+    "tools/distribution_manifest.py",
+    "tools/download_public.py",
+    "tools/prepare_polars_ci.py",
+    "tools/release_candidate.py",
+    "tools/github_release.py",
+    "tools/run_release_tests.py",
+    "tools/verify_wheel.py",
+    "tools/wheel_smoke.py",
+    "demo/delta.py",
+    "demo/parser.py",
+    "demo/pydt.py",
+    "demo/pddt.py",
+    "demo/_runtime.py"
+  ],
+  "exclude": [
+    "**/__pycache__"
+  ],
+  "enableTypeIgnoreComments": false,
+  "reportUnnecessaryTypeIgnoreComment": "error"
+}

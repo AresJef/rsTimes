@@ -234,7 +234,7 @@ Pydt
         ...
 
     @classmethod
-    def combine(cls, date: DatetimeLike | None=None, time: DatetimeLike | datetime.time | None=None, tz: datetime.tzinfo | str | None=None) -> Self:
+    def combine(cls, date: DatetimeLike | None=None, time: DatetimeLike | datetime.time | None=None, tz: datetime.tzinfo | str | None=None) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY047; see tests/typing/pyright_exceptions.json.
         """Combine date and time fields; omitted fields use today and midnight.
 
 Parameters
@@ -378,7 +378,7 @@ Examples
         ...
 
     @classmethod
-    def fromtimestamp(cls, ts: int | float, tz: datetime.tzinfo | str | None=None) -> Self:
+    def fromtimestamp(cls, ts: int | float, tz: datetime.tzinfo | str | None=None) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY048; see tests/typing/pyright_exceptions.json.
         """Build from a POSIX timestamp, converting to tz or naive local time.
 
 Parameters
@@ -455,7 +455,7 @@ OverflowError
         ...
 
     @classmethod
-    def fromisocalendar(cls, year: SupportsIndex, week: SupportsIndex, weekday: SupportsIndex, tz: datetime.tzinfo | str | None=None) -> Self:
+    def fromisocalendar(cls, year: SupportsIndex, week: SupportsIndex, weekday: SupportsIndex, tz: datetime.tzinfo | str | None=None) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY049; see tests/typing/pyright_exceptions.json.
         """Build an ISO date, limiting high weeks/days to the year's final week/day.
 
 Parameters
@@ -2581,7 +2581,7 @@ OverflowError
         ...
 
     # Deliberate operand extension; keep precise duration/result overloads.
-    @overload  # type: ignore[override]
+    @overload
     def __sub__(self, other: datetime.datetime | datetime.date | str | np.datetime64) -> datetime.timedelta:
         """Return the datetime difference as a standard timedelta.
 
@@ -2698,7 +2698,7 @@ OverflowError
     An integer conversion or result exceeds the supported range."""
         ...
 
-    def __reduce__(self) -> str | tuple:
+    def __reduce__(self) -> str | tuple[object, ...]:
         """Return the versioned pickle representation.
 
 Returns
@@ -2708,7 +2708,7 @@ str | tuple
     state."""
         ...
 
-    def __reduce_ex__(self, protocol: SupportsIndex, /) -> str | tuple:
+    def __reduce_ex__(self, protocol: SupportsIndex, /) -> str | tuple[object, ...]:
         """Save date fields separately from independent instance metadata.
 
 Parameters
@@ -2834,4 +2834,37 @@ ValueError
     An input is invalid or cannot retain the requested date/time meaning.
 OverflowError
     An integer conversion or result exceeds the supported range."""
+        ...
+
+    def strftime(self, format: str) -> str:
+        """Format with system directives and exact ``%f``/``%.0f``–``%.9f``.
+        
+        ``%f`` uses six digits. Explicit dot precision truncates or pads the
+        stored microsecond value; ``%.0f`` emits nothing. Other system rules
+        and real subclass ``__format__``/``strftime`` dispatch stay intact.
+        
+        Parameters
+        ----------
+        format : str
+            System format, including an empty string. ``%.1f`` through
+            ``%.9f`` emit a decimal dot and that many fraction digits.
+        
+        Returns
+        -------
+        str
+            Formatted text. Pydt has microsecond precision, so digits beyond
+            six are zero padding; this does not invent measured nanoseconds.
+        
+        Raises
+        ------
+        TypeError
+            The format is not text.
+        ValueError
+            An explicit fractional format is invalid, or the platform rejects
+            another system directive. Actual external exceptions propagate.
+        
+        Examples
+        --------
+        >>> Pydt(2024, 1, 1, microsecond=123456).strftime("%f|%.3f|%.9f|%.0f")
+        '123456|.123|.123456000|'"""
         ...

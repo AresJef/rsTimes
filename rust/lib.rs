@@ -7,7 +7,8 @@
 //!
 //! Calendar behavior follows this package's approved contracts, derived from
 //! the frozen cyTimes 3.1.0 reference with explicit safety and behavior changes. The
-//! release matrix targets ordinary, GIL-enabled 64-bit CPython 3.12 through 3.15.
+//! targets ordinary 64-bit CPython 3.12 through 3.15 and the free-threaded
+//! 3.14/3.15 ABIs from this same source.
 
 #![deny(missing_docs)]
 
@@ -17,22 +18,47 @@ compile_error!(
 );
 
 use pyo3::prelude::*;
+mod batch_shape;
+mod boundary_count;
 mod bulk;
 mod calendar;
+mod calendar_query;
+mod civil;
+mod clock;
+mod date_input;
+mod date_parts;
+mod date_transform;
 mod delta;
 mod epoch;
 mod error_context;
+mod host_zone;
 mod interop;
+mod local_infer;
 mod localization;
 mod numeric;
+mod numeric_epoch;
 mod numpy_scalar;
 mod parser;
 mod pddt;
+mod period;
+#[allow(missing_docs, unsafe_op_in_unsafe_fn)] // Official plugin macro generates C ABI wrappers.
+mod pldt;
+mod precision;
 mod protocol;
 mod pydt;
 mod pydt_compare;
 mod python_cache;
+mod range_calendar;
+mod range_frequency;
+mod range_generate;
+mod serde_values;
 mod state;
+mod strftime_output;
+mod strftime_plan;
+mod temporal_operand;
+mod temporal_output;
+mod temporal_target;
+mod temporal_zone;
 
 /// Return the native implementation label for installation diagnostics.
 #[pyfunction]
@@ -48,11 +74,17 @@ fn release_build() -> bool {
     !cfg!(debug_assertions)
 }
 
+/// Report the binary's compiled free-threaded ABI, independently of runtime GIL state.
+#[pyfunction]
+fn _free_threaded_build() -> bool {
+    cfg!(Py_GIL_DISABLED)
+}
+
 /// Register Delta and diagnostic helpers in the rstimes native module.
 ///
 /// # Errors
 /// Propagates type registration and descriptor installation errors.
-#[pymodule(gil_used = true)]
+#[pymodule(gil_used = false)]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     delta::configure_hash(module.py());
     module.add_class::<delta::Delta>()?;
@@ -65,9 +97,13 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     pydt_compare::configure(module)?;
     epoch::configure(module)?;
     pddt::configure(module)?;
+    pldt::configure(module)?;
+    range_frequency::configure(module)?;
+    strftime_output::configure(module)?;
     module.add_function(wrap_pyfunction!(state::_restore_delta, module)?)?;
     module.add_function(wrap_pyfunction!(interop::_configure_optional, module)?)?;
     module.add_function(wrap_pyfunction!(runtime_info, module)?)?;
     module.add_function(wrap_pyfunction!(release_build, module)?)?;
+    module.add_function(wrap_pyfunction!(_free_threaded_build, module)?)?;
     Ok(())
 }

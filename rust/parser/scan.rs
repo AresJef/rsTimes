@@ -1,6 +1,6 @@
 //! Function-based scanner over native Unicode tokens.
 use super::fields::{Fields, ParseError, ParseResult, Policy, Precision, Rule, RuleLookup};
-use super::text::{TextView, Tokens, ascii_letter, digit, space};
+use super::text::{CharacterRead, Tokens, ascii_letter, digit, space};
 
 #[inline]
 fn date_sep(ch: u32) -> bool {
@@ -74,7 +74,10 @@ fn ordinal_day<P: Policy>(f: &Fields<P>, year: i32, day: i32) -> ParseResult<i32
     )
 }
 
-fn iso_date<P: Policy>(input: &TextView<'_>, f: &mut Fields<P>) -> ParseResult<Option<usize>> {
+fn iso_date<P: Policy>(
+    input: &impl CharacterRead,
+    f: &mut Fields<P>,
+) -> ParseResult<Option<usize>> {
     let n = input.len();
     if n < 7 {
         return Ok(None);
@@ -261,7 +264,7 @@ fn iso_date<P: Policy>(input: &TextView<'_>, f: &mut Fields<P>) -> ParseResult<O
 }
 /// Returns the continuation position and whether only post-time handlers apply.
 fn iso_time<P: Policy>(
-    input: &TextView<'_>,
+    input: &impl CharacterRead,
     start: usize,
     f: &mut Fields<P>,
     ignore: bool,
@@ -618,7 +621,7 @@ fn hms_known<P: Policy>(f: &mut Fields<P>, flag: i32, t: &[u32], k: i32) -> Pars
             } else {
                 0
             },
-            P::Fraction::NANO && fraction % 1000 != 0,
+            P::Fraction::NANO && !fraction.is_multiple_of(1000),
         )?;
     }
     Ok(true)
@@ -1438,7 +1441,7 @@ fn tzname<P: Policy>(
 }
 /// Read the configuration-independent prefix before selecting a rule adapter.
 pub(super) fn prefix<P: Policy>(
-    input: &TextView<'_>,
+    input: &impl CharacterRead,
     fields: &mut Fields<P>,
     ignoretz: bool,
     isoformat: bool,

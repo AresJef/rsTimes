@@ -20,8 +20,8 @@ def test_month_year_and_day_moves(unit,year,month,day):
 def test_clipped_absolute_fields_and_nat(unit):
     x=Pddt(['2024-01-31 12:34:56',None],unit=unit)
     # P11: invalid explicit fields are rejected; convenient selection still clamps month-end.
-    with pytest.raises(ValueError):x.replace(month=2,hour=50,minute=99)
-    with pytest.raises(ValueError):x.replace(month=2)
+    with pytest.raises(ValueError):x.pddt.replace(month=2,hour=50,minute=99)
+    with pytest.raises(ValueError):x.pddt.replace(month=2)
     y=x.to_date(month=2).to_time(hour=23,minute=59)
     assert y[0]==pd.Timestamp('2024-02-29 23:59:56')
     assert pd.isna(y[1])
@@ -66,8 +66,8 @@ def test_dst_calendar_adjustment_requires_explicit_choice():
     x=Pddt(['2024-03-09 02:30'],tz='America/New_York')
     # P10/P11: automatic calendar operations and explicit strict replacement differ.
     assert x.to_day(1)[0]==pd.Timestamp('2024-03-10 03:30',tz='America/New_York')
-    with pytest.raises(ValueError):x.replace(day=10)
-    result=x.replace(day=10,nonexistent='shift_forward')
+    with pytest.raises(ValueError):x.pddt.replace(day=10)
+    result=x.pddt.replace(day=10,nonexistent='shift_forward')
     assert result.hour[0]==3 and result.minute[0]==0
 
 def test_strided_int_input_is_processed_safely():
@@ -100,8 +100,14 @@ def test_calendar_cache_is_correct_for_shuffled_and_repeated_days():
         pytest.skip('fixed official comparison environment')
     from cytimes import Pddt as Original
     y=Original(data.view('datetime64[ns]'))
-    for action in [lambda z:z.add(months=1,days=2,microseconds=-3),lambda z:z.replace(month=2,day=28,hour=9),lambda z:z.to_end_of('M')]:
-        np.testing.assert_array_equal(action(x).asi8,action(y).asi8)
+    # Only the new library moved date-field replacement to its namespace.
+    # The frozen original retains its public replace method.
+    for own, original in [
+        (lambda z:z.add(months=1,days=2,microseconds=-3), lambda z:z.add(months=1,days=2,microseconds=-3)),
+        (lambda z:z.pddt.replace(month=2,day=28,hour=9), lambda z:z.replace(month=2,day=28,hour=9)),
+        (lambda z:z.to_end_of('M'), lambda z:z.to_end_of('M')),
+    ]:
+        np.testing.assert_array_equal(own(x).asi8,original(y).asi8)
 
 def test_valid_nanosecond_lower_boundary_does_not_degrade_for_midnight_intermediate():
     source=np.array([np.iinfo('i8').min+1],dtype='i8').view('datetime64[ns]')

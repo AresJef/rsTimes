@@ -16,12 +16,12 @@ except ModuleNotFoundError as error:
 
 HAS_POLARS = POLARS is not None
 HAS_PANDAS = PANDAS is not None
-PANDAS_TIMESTAMP = PANDAS.Timestamp if HAS_PANDAS else None
-PANDAS_TIMEDELTA = PANDAS.Timedelta if HAS_PANDAS else None
-PANDAS_NAT_TYPE = type(PANDAS.NaT) if HAS_PANDAS else None
-POLARS_SERIES = POLARS.Series if HAS_POLARS else None
+PANDAS_TIMESTAMP = PANDAS.Timestamp if PANDAS is not None else None
+PANDAS_TIMEDELTA = PANDAS.Timedelta if PANDAS is not None else None
+PANDAS_NAT_TYPE = type(PANDAS.NaT) if PANDAS is not None else None
+POLARS_SERIES = POLARS.Series if POLARS is not None else None
 # Prepare this upstream compatibility fact once, alongside the real type objects.
-PANDAS_REPLACE_NEEDS_TAIL = HAS_PANDAS and PANDAS.__version__.split(".", 1)[0] == "2"
+PANDAS_REPLACE_NEEDS_TAIL = PANDAS is not None and PANDAS.__version__.split(".", 1)[0] == "2"
 
 # Retain the same type objects on both sides of the Python/Rust boundary.
 # This extension has finished initialization before the shared adapter is loaded.

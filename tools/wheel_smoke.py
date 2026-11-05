@@ -10,6 +10,11 @@ import pickle
 import platform
 import sys
 import sysconfig
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # The identical --with-pandas branch performs the actual optional import.
+    from rstimes import Pddt
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--require-macos-arm64-313", action="store_true")
@@ -20,6 +25,10 @@ dateutil = parser.add_mutually_exclusive_group()
 dateutil.add_argument("--with-dateutil", action="store_true")
 dateutil.add_argument("--without-dateutil", action="store_true")
 args = parser.parse_args()
+free_threaded = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+gil_at_start = getattr(sys, "_is_gil_enabled", lambda: True)()
+if free_threaded:
+    assert gil_at_start is False, "GIL was enabled before installed-package imports"
 if args.require_macos_arm64_313:
     assert sys.platform == "darwin" and platform.machine() == "arm64"
     assert sys.version_info[:2] == (3, 13)
@@ -29,6 +38,9 @@ import numpy as np
 import rstimes
 from rstimes import Configs, Delta, Pydt, parse, parse_str, parse_to_epoch, from_unix_ms, to_unix_ms
 import rstimes._native as native
+assert native._free_threaded_build() is free_threaded
+if free_threaded:
+    assert getattr(sys, "_is_gil_enabled")() is False, "installed imports enabled the GIL"
 
 assert Path(rstimes.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
 assert Path(native.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
@@ -45,7 +57,9 @@ for source in source_package.iterdir():
         payload_sha256[source.name] = hashlib.sha256(installed.read_bytes()).hexdigest()
 for filename in ("__init__.pyi", "delta.pyi", "errors.pyi", "parser.pyi", "pydt.pyi", "pddt.pyi", "py.typed", "_localization_sources.json"):
     assert (package / filename).is_file(), filename
-installed_files = [str(path) for path in distribution("rsTimes").files]
+distribution_files = distribution("rsTimes").files
+assert distribution_files is not None, "Installed wheel is missing its file manifest"
+installed_files = [str(path) for path in distribution_files]
 for filename in ("LICENSE", "NOTICE", "NOTICE-CPYTHON.txt", "NOTICE-UNICODE.txt", "NOTICE-IANA-TIME-ZONE.txt", "NOTICE-RUST-STDLIB.html"):
     assert any(path.endswith("/" + filename) for path in installed_files), filename
 assert date(2024, 1, 31) + Delta(months=1) == date(2024, 2, 29)
@@ -91,7 +105,7 @@ assert parse_to_epoch(1e-9, unit="ns") == 1
 assert parse_to_epoch(np.datetime64(-1, "ns"), unit="ns") == -1
 for number in (True, np.bool_(False)):
     try:
-        parse(number)
+        parse(number)  # pyright: ignore[reportArgumentType, reportCallIssue] -- TY052; see tests/typing/pyright_exceptions.json.
     except TypeError:
         pass
     else:
@@ -100,7 +114,8 @@ cfg = Configs()
 cfg.add_month("releasemonth", 2)
 assert parse_str("29 releasemonth 2024", cfg=cfg) == datetime(2024, 2, 29)
 cfg.add_tzone("Asia/Shanghai")
-assert parse_str("2024-01-02 12:00 Asia/Shanghai", cfg=cfg, ignoretz=False).utcoffset().total_seconds() == 28_800
+offset = parse_str("2024-01-02 12:00 Asia/Shanghai", cfg=cfg, ignoretz=False).utcoffset()
+assert offset is not None and offset.total_seconds() == 28_800
 assert parse_str("29 releasemonth 2024", cfg=pickle.loads(pickle.dumps(cfg))) == datetime(2024, 2, 29)
 assert issubclass(Pydt, datetime)
 assert Pydt(2024, 1, 31).add(months=1) == datetime(2024, 2, 29)
@@ -127,13 +142,20 @@ if args.with_pandas:
     assert Pddt(["2024-11-03 01:30"], tz="America/New_York", ambiguous=False)[0].fold == 1
 if args.with_polars:
     import polars as pl
+    from rstimes import Pldt
     column = pl.Series("events", [1, None], dtype=pl.Int64).cast(pl.Datetime("ns"))
     assert parse_to_epoch(column.head(1), unit="ns") == 1
+    assert (Pldt(column) + Delta(nanoseconds=1)).to_physical().to_list() == [2, None]
     if args.with_pandas:
         result = Pddt(column)
         assert result.unit == "ns" and result.asi8[0] == 1 and result.isna().tolist() == [False, True]
+gil_after_work = getattr(sys, "_is_gil_enabled", lambda: True)()
+if free_threaded:
+    assert gil_after_work is False, "actual installed-package work enabled the GIL"
 print(json.dumps({"status": "passed", "package": rstimes.__file__,
                   "native": native.__file__, "release": True,
+                  "free_threaded_build": free_threaded,
+                  "gil_at_start": gil_at_start, "gil_after_work": gil_after_work,
                   "version": version("rsTimes"),
                   "native_sha256": hashlib.sha256(Path(native.__file__).read_bytes()).hexdigest(),
                   "python_payload_sha256": payload_sha256,
