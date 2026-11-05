@@ -1,0 +1,11 @@
+{
+  "version": "0.2.0b3",
+  "expected_release": "0.2.0b3",
+  "status": "released",
+  "description": "Published rsTimes0.2.0b3, independently bound to public bytes. Publication requires the complete current workflow gate; this configuration alone is not a verification pass.",
+  "publication_allowed": true,
+  "source_commit": "dc878ef53f531f09c3bfe22348850bf9f163c7ee",
+  "source_tag": "v0.2.0b3",
+  "github_release_url": "https://github.com/AresJef/rsTimes/releases/tag/v0.2.0b3",
+  "pypi_url": "https://pypi.org/project/rsTimes/0.2.0b3/"
+}
