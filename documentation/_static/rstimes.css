@@ -1,0 +1,13 @@
+/* Keep the PyData reading system. Restrict long signatures to their own region. */
+.bd-article-container { max-width: 76ch; }
+.bd-article { line-height: 1.65; }
+.bd-article h1, .bd-article h2, .bd-article h3 { text-wrap: balance; }
+.bd-article h2 { margin-top: 2.25rem; }
+dl.py > dt { max-width: 100%; overflow-wrap: anywhere; }
+.highlight pre { overflow-x: auto; }
+:focus-visible { outline: 3px solid var(--pst-color-primary); outline-offset: 3px; }
+a { text-underline-offset: .15em; }
+@media (max-width: 575px) {
+  .bd-article-container { min-width: 0; }
+  .bd-article h1 { font-size: 2rem; }
+}

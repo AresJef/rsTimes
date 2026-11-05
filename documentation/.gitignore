@@ -1,0 +1,7 @@
+_build/
+_generated/
+_stubs/
+__pycache__/
+/api/reference/
+/api/polars-series.rst
+/api/polars-expressions.rst

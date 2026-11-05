@@ -1,0 +1,7 @@
+{
+  "version": "development",
+  "expected_release": "0.2.0b3",
+  "status": "candidate",
+  "description": "Latest adopted implementation; final public release identity pending.",
+  "publication_allowed": false
+}
