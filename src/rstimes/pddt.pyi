@@ -5,6 +5,7 @@ from typing import Generic, TypeVar, Hashable, Literal, SupportsIndex, SupportsF
 from types import NotImplementedType
 from typing_extensions import Self
 import numpy as np
+from numpy.typing import NDArray
 import pandas as pd
 from .parser import Configs
 from .delta import Delta
@@ -87,6 +88,24 @@ class Pddt(pd.DatetimeIndex):
     >>> Pddt(["0000-01-01"], unit="us").year.tolist()
     [0]
     """
+    @property
+    def asi8(self) -> NDArray[np.int64]:
+        """Return pandas' inherited int64 date storage view.
+
+        Returns
+        -------
+        numpy.ndarray
+            Integer ticks at this index's unit, using UTC coordinates for aware
+            dates and pandas' NaT sentinel for missing positions. This inherited
+            view does not convert dates or allocate a Pddt.
+
+        Examples
+        --------
+        >>> Pddt([1], unit="ms").asi8.tolist()
+        [1]
+        """
+        ...
+
     def __new__(cls, data: _DateCollection, *, unit: str | None = None, name: Hashable | None = None, copy: _Boolean = False, freq: object = None, tz: _dt.tzinfo | str | None = None, default: str | _dt.date | _dt.datetime | int | float | np.datetime64 | None = None, yearfirst: _Boolean | None = None, dayfirst: _Boolean | None = None, isoformat: _Boolean = True, strict: _Boolean = False, cfg: Configs | None = None, ambiguous: _Ambiguous = "raise", nonexistent: _Nonexistent = "raise") -> Self:
         """A date index with explicit resolution and shared Rust calendar rules.
 
@@ -267,7 +286,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     # P10 accepts named/actual zones, not pandas integer-offset shorthand.
-    def tz_convert(self, tz: _dt.tzinfo | str | None) -> Self:  # type: ignore[override]
+    def tz_convert(self, tz: _dt.tzinfo | str | None) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY011; see tests/typing/pyright_exceptions.json.
         """Convert aware dates to another timezone, preserving actual instants.
 
         Parameters
@@ -294,7 +313,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     # P10 accepts named/actual zones, not pandas integer-offset shorthand.
-    def tz_localize(self, tz: _dt.tzinfo | str | None, ambiguous: _Ambiguous = "raise", nonexistent: _Nonexistent = "raise") -> Self:  # type: ignore[override]
+    def tz_localize(self, tz: _dt.tzinfo | str | None, ambiguous: _Ambiguous = "raise", nonexistent: _Nonexistent = "raise") -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY012; see tests/typing/pyright_exceptions.json.
         """Interpret naive clocks in a region, or remove a zone without moving them.
 
         Parameters
@@ -1431,7 +1450,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    @overload  # type: ignore[override]
+    @overload
     def __add__(self, other: _dt.timedelta | np.timedelta64 | Delta) -> Self:
         """Add a fixed elapsed duration or a calendar Delta.
         
@@ -1467,7 +1486,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    @overload  # type: ignore[override]
+    @overload
     def __radd__(self, other: _dt.timedelta | np.timedelta64 | Delta) -> Self:
         """Add a duration or Delta on the left with the same date semantics.
         
@@ -1499,7 +1518,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    @overload  # type: ignore[override]
+    @overload
     def __sub__(self, other: _dt.timedelta | np.timedelta64 | Delta) -> Self:
         """Subtract a duration, calendar Delta or matching date values.
         
@@ -1538,7 +1557,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     @overload
-    def __sub__(self, other: object) -> Self | pd.DatetimeIndex | pd.TimedeltaIndex | NotImplementedType:
+    def __sub__(self, other: object) -> Self | pd.DatetimeIndex | pd.TimedeltaIndex | NotImplementedType:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY013; see tests/typing/pyright_exceptions.json.
         """Subtract a duration, calendar Delta or matching date values.
         
         Parameters
@@ -1729,7 +1748,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     # P13 uses automatic DST rules without pandas per-call policy arguments.
-    def round(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # type: ignore[override]
+    def round(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY014; see tests/typing/pyright_exceptions.json.
         """Round to the nearest grid, with ties to even.
         
         Parameters
@@ -1748,7 +1767,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     # P13 uses automatic DST rules without pandas per-call policy arguments.
-    def ceil(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # type: ignore[override]
+    def ceil(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY015; see tests/typing/pyright_exceptions.json.
         """Round upward without moving earlier.
         
         Parameters
@@ -1767,7 +1786,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     # P13 uses automatic DST rules without pandas per-call policy arguments.
-    def floor(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # type: ignore[override]
+    def floor(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY016; see tests/typing/pyright_exceptions.json.
         """Round downward without moving later.
         
         Parameters
@@ -1786,7 +1805,7 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     # P13 has the shared single-period/name interface, not arbitrary offsets.
-    def snap(self, unit: str = 's') -> Self:  # type: ignore[override]
+    def snap(self, unit: str = 's') -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY017; see tests/typing/pyright_exceptions.json.
         """Select the nearest valid period start; an equal distance goes later.
         
         Parameters
@@ -2124,7 +2143,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    def diff(self, dtobj: _DateValue | _DateCollection, unit: str, absolute: _Boolean = False, inclusive: Literal["one", "both", "neither"] = "one") -> pd.Index:
+    def diff(self, dtobj: _DateValue | _DateCollection, unit: str, absolute: _Boolean = False, inclusive: Literal["one", "both", "neither"] = "one") -> pd.Index:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY018; see tests/typing/pyright_exceptions.json.
         """Count unit boundaries between dates and scalar or positional targets.
         
         Parameters
@@ -2288,7 +2307,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    def strftime(self, format: str) -> pd.Index:
+    def strftime(self, format: str) -> pd.Index:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY019; see tests/typing/pyright_exceptions.json.
         """Format with complete system rules and exact fractional directives.
         
         Parameters
@@ -2425,7 +2444,15 @@ class Pddt(pd.DatetimeIndex):
         Pddt
             A new shell of the same class under the default protocol. Custom
             reduction hooks keep their normal Python choices and exceptions.
-        """
+        
+
+        Notes
+        -----
+        Custom shallow-copy hooks are looked up on the class and receive the source;
+        custom deep-copy hooks are looked up on the instance and receive the memo,
+        as in Python's copy module. Real descriptors, return choices and exceptions
+        are preserved. Static discovery reads actual class definitions; the state
+        hooks themselves retain their normal Python behavior."""
         ...
 
     def __copy__(self) -> Self:
@@ -2483,7 +2510,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    def __reduce__(self) -> tuple:
+    def __reduce__(self) -> tuple[object, ...]:
         """Return the new versioned Pddt pickle recipe and business state.
         
         Returns
@@ -2494,7 +2521,7 @@ class Pddt(pd.DatetimeIndex):
         """
         ...
 
-    def __reduce_ex__(self, protocol: SupportsIndex) -> str | tuple:
+    def __reduce_ex__(self, protocol: SupportsIndex) -> str | tuple[object, ...]:
         """Return the pickle recipe, respecting a live custom reduce hook.
         
         Parameters

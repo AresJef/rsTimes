@@ -448,6 +448,93 @@ fn python_objects<'py>(
     }
     Ok(output)
 }
+fn check_numpy_date_match(
+    source: Option<i128>,
+    target: Option<i128>,
+    row: usize,
+) -> Result<(), Failure> {
+    if source == target {
+        Ok(())
+    } else {
+        Err(Failure::new(
+            if target.is_none() && source.is_some() {
+                Kind::Capacity
+            } else {
+                Kind::Value
+            },
+            "requested NumPy dtype cannot preserve the date value, precision or missing position",
+        )
+        .at(row))
+    }
+}
+
+/// Compare actual date bits without repeating the target dtype/unit dispatch.
+/// Calendar units retain their scalar decoder; linear units prepare it once.
+fn check_numpy_date_values(
+    source: &Series,
+    code: i32,
+    multiplier: i32,
+    mut raw_at: impl FnMut(usize) -> Result<i64, Failure>,
+) -> Result<(), Failure> {
+    if (-3..=-1).contains(&code) {
+        let denominator = 10_i128.pow((-code * 3) as u32);
+        return super::input::visit_nanos(source, |row, value| {
+            let raw = raw_at(row)?;
+            let equal = match value {
+                None => raw == i64::MIN,
+                Some(nanos) => {
+                    raw != i64::MIN
+                        && i128::from(raw) * i128::from(multiplier) == nanos * denominator
+                }
+            };
+            if equal {
+                Ok(())
+            } else {
+                Err(Failure::new(
+                    Kind::Capacity,
+                    "requested subnanosecond NumPy dtype cannot preserve the date within int64 capacity",
+                )
+                .at(row))
+            }
+        });
+    }
+    let scale = if multiplier > 0 && matches!(code, 2 | 4..=10) {
+        Some(
+            crate::epoch::native_datetime_ticks(1, code, multiplier)
+                .map_err(|e| Failure::new(Kind::Capacity, e.to_string()))?
+                .nanos,
+        )
+    } else {
+        None
+    };
+    if let Some(scale) = scale.and_then(|value| i64::try_from(value).ok()) {
+        return super::input::visit_nanos(source, |row, value| {
+            let raw = raw_at(row)?;
+            // The product of two signed64 values always fits signed128.
+            // Widen both operands first; no per-row overflow check is needed.
+            let target = (raw != i64::MIN).then(|| i128::from(raw) * i128::from(scale));
+            check_numpy_date_match(value, target, row)
+        });
+    }
+    super::input::visit_nanos(source, |row, value| {
+        let raw = raw_at(row)?;
+        let target = if raw == i64::MIN {
+            None
+        } else if let Some(nanos) = scale.and_then(|scale| i128::from(raw).checked_mul(scale)) {
+            Some(nanos)
+        } else {
+            // This is also the cold linear-overflow path, preserving the
+            // scalar decoder's exact error rather than inventing a new one.
+            Some(
+                crate::epoch::native_datetime_ticks(raw, code, multiplier)
+                    .map_err(|e| Failure::new(Kind::Capacity, e.to_string()))?
+                    .nanos,
+            )
+        };
+        check_numpy_date_match(value, target, row)
+    })
+}
+
 /// Validate an explicitly requested NumPy dtype against real source values.
 /// Native dtype conversion has already run; this does not replace its protocol.
 #[pyfunction]
@@ -471,19 +558,37 @@ fn _pldt_check_numpy(
             ));
         }
     };
-    py.detach(||super::input::visit_nanos(&source.0,|row,value|{
-        let actual=target.0.get(row).map_err(|e|Failure::new(Kind::Value,e.to_string()))?;
-        if let Some((code,multiplier))=numpy{
-            let raw=match actual{AnyValue::Int64(v)=>v,AnyValue::Null=>i64::MIN,_=>return Err(Failure::new(Kind::Type,"expected actual NumPy datetime64 bits"))};
-            if (-3..=-1).contains(&code) {
-                let denominator=10_i128.pow((-code*3)as u32);
-                let equal=match value {None=>raw==i64::MIN,Some(nanos)=>raw!=i64::MIN&&i128::from(raw)*i128::from(multiplier)==nanos*denominator};
-                if !equal {return Err(Failure::new(Kind::Capacity,"requested subnanosecond NumPy dtype cannot preserve the date within int64 capacity").at(row));}
-                return Ok(());
+    if source.0.is_empty() {
+        return Ok(());
+    }
+    py.detach(|| {
+        if let Some((code, multiplier)) = numpy {
+            if let Ok(values) = target.0.i64() {
+                if values.null_count() == 0 {
+                    let mut values = values.into_no_null_iter();
+                    return check_numpy_date_values(&source.0, code, multiplier, |_| {
+                        // Equal lengths and native chunk iterators prove a
+                        // value for every source row, without a random lookup.
+                        Ok(values.next().unwrap_or(i64::MIN))
+                    });
+                }
+                let mut values = values.iter();
+                return check_numpy_date_values(&source.0, code, multiplier, |_| {
+                    Ok(values.next().flatten().unwrap_or(i64::MIN))
+                });
             }
-            let target=if raw==i64::MIN{None}else{Some(crate::epoch::native_datetime_ticks(raw,code,multiplier).map_err(|e|Failure::new(Kind::Capacity,e.to_string()))?.nanos)};
-            if value!=target{return Err(Failure::new(if target.is_none()&&value.is_some(){Kind::Capacity}else{Kind::Value},"requested NumPy dtype cannot preserve the date value, precision or missing position").at(row));}
-        }else{
+            // Preserve the prior Null/invalid-target and lazy error behavior
+            // for private callers outside the real int64 NumPy output path.
+            return check_numpy_date_values(&source.0, code, multiplier, |row| {
+                match target.0.get(row).map_err(|e| Failure::new(Kind::Value, e.to_string()))? {
+                    AnyValue::Int64(value) => Ok(value),
+                    AnyValue::Null => Ok(i64::MIN),
+                    _ => Err(Failure::new(Kind::Type, "expected actual NumPy datetime64 bits")),
+                }
+            });
+        }
+        super::input::visit_nanos(&source.0, |row, value| {
+            let actual=target.0.get(row).map_err(|e|Failure::new(Kind::Value,e.to_string()))?;
             let Some(nanos)=value else{return Err(Failure::new(Kind::Value,"requested numeric NumPy dtype cannot preserve a missing date; keep datetime64 or use an explicit object output").at(row));};
             let expected=nanos/quantum;
             let equal=match actual{
@@ -494,9 +599,9 @@ fn _pldt_check_numpy(
                 _=>false,
             };
             if !equal{return Err(Failure::new(Kind::Value,"requested NumPy dtype cannot preserve the complete date tick").at(row));}
-        }
-        Ok(())
-    })).map_err(|e|e.python(py,"Pldt.__array__"))
+            Ok(())
+        })
+    }).map_err(|e|e.python(py,"Pldt.__array__"))
 }
 /// Validate actual Arrow/pandas temporal metadata and its independent validity.
 #[pyfunction]
@@ -545,4 +650,52 @@ pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_pldt_check_numpy, module)?)?;
     module.add_function(wrap_pyfunction!(_pldt_check_temporal, module)?)?;
     module.add_function(wrap_pyfunction!(_pldt_python_output, module)?)
+}
+
+#[cfg(test)]
+mod numpy_guard_tests {
+    use super::*;
+
+    fn dates(values: &[Option<i64>]) -> Series {
+        Int64Chunked::from_slice_options("time".into(), values)
+            .into_datetime(TimeUnit::Nanoseconds, None)
+            .into_series()
+    }
+
+    #[test]
+    fn linear_target_keeps_negative_ticks_nulls_and_multiplier() {
+        let source = dates(&[Some(-2000), None, Some(0), Some(2000)]);
+        let raw = [-1, i64::MIN, 0, 1];
+        assert!(check_numpy_date_values(&source, 9, 2, |row| Ok(raw[row])).is_ok());
+    }
+
+    #[test]
+    fn linear_target_rejects_fractional_ticks_at_the_first_row() {
+        let source = dates(&[Some(0), Some(-1001), Some(2001)]);
+        let raw = [0, -2, 2];
+        let error = check_numpy_date_values(&source, 9, 1, |row| Ok(raw[row])).unwrap_err();
+        assert!(matches!(error.kind, Kind::Value));
+        assert_eq!(error.row, Some(1));
+    }
+
+    #[test]
+    fn valid_date_cannot_become_the_numpy_nat_tick() {
+        let source = dates(&[Some(0)]);
+        let error = check_numpy_date_values(&source, 9, 1, |_| Ok(i64::MIN)).unwrap_err();
+        assert!(matches!(error.kind, Kind::Capacity));
+        assert_eq!(error.row, Some(0));
+    }
+
+    #[test]
+    fn all_nulls_keep_lazy_invalid_unit_decoder_behavior() {
+        let source = dates(&[None, None]);
+        assert!(check_numpy_date_values(&source, 9, 0, |_| Ok(i64::MIN)).is_ok());
+    }
+
+    #[test]
+    fn subnanosecond_target_preserves_exact_values_and_missing_positions() {
+        let source = dates(&[Some(-1), None, Some(1)]);
+        let raw = [-1000, i64::MIN, 1000];
+        assert!(check_numpy_date_values(&source, -1, 1, |row| Ok(raw[row])).is_ok());
+    }
 }

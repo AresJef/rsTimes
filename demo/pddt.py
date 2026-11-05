@@ -5,6 +5,10 @@ interactive comparison; the acceptance report contains formal measurements.
 """
 from pathlib import Path
 import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from rstimes import Pldt
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))

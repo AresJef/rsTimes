@@ -22,11 +22,12 @@ def successful_ci():
     run = {"repository": {"full_name": gate.REPOSITORY}, "head_repository": {"full_name": gate.REPOSITORY},
            "path": ".github/workflows/ci.yml", "event": "push", "head_sha": "a" * 40,
            "id": 123, "run_attempt": 1, "status": "completed", "conclusion": "success"}
-    names = [f"CPython {row['python']['minor']} / {row['platform']['id']}"
+    names = [f"CPython {row['python']['label']} / {row['platform']['id']}"
              for row in gate.release_matrix()["include"]]
     names += ["Select approved native matrix", "Rust quality",
               "Independent sdist / macos-arm64 / 3.13", "Independent sdist / linux-musl-arm64 / 3.15",
-              "Verify complete32-wheel and sdist bundle",
+              "Independent sdist / macos-arm64 / 3.14t",
+              "Verify complete48-wheel and sdist bundle",
               "Frozen-upstream comparisons / 3.12.10 / NumPy 2.5.3",
               "Frozen-upstream comparisons / 3.13.17 / NumPy 2.5.3"]
     return run, {"total_count": len(names), "jobs": [
@@ -59,19 +60,31 @@ def test_ci_gate_requires_same_successful_complete_attempt(change):
             gate.validate_ci(run, jobs, certificate())
 
 
+@pytest.mark.parametrize("minor", ["3.14t", "3.15t"])
+def test_ci_gate_does_not_substitute_an_ordinary_job_for_a_t_job(minor):
+    run, jobs = successful_ci()
+    name = f"verify / CPython {minor} / windows-x86_64"
+    jobs["jobs"] = [job for job in jobs["jobs"] if job["name"] != name]
+    jobs["total_count"] -= 1
+    with pytest.raises((AssertionError, ValueError)):
+        gate.validate_ci(run, jobs, certificate())
+
+
 @pytest.mark.parametrize("change", [None, "wrong-manifest", "wrong-source", "missing-wheel", "wrong-abi"])
 def test_payload_gate_rejects_mixed_source_or_missing_files(tmp_path, change):
     dist = tmp_path / "dist"
     dist.mkdir()
     rows = []
     for position in gate.release_matrix()["include"]:
-        py = "cp" + position["python"]["minor"].replace(".", "")
+        py = position["python"]["interpreter_tag"]
+        abi = position["python"]["abi_tag"]
         platform = position["platform"]
-        tag = platform.get("wheel_platform", "macosx_11_0" + platform.get("wheel_suffix", ""))
-        name = f"rstimes-0.2.0b2-{py}-{py}-{tag}.whl"
+        macos = "macosx_" + position["macos_deployment_target"].replace(".", "_")
+        tag = platform.get("wheel_platform", macos + platform.get("wheel_suffix", ""))
+        name = f"rstimes-0.2.0b2-{py}-{abi}-{tag}.whl"
         content = name.encode()
         (dist / name).write_bytes(content)
-        rows.append({"filename": name, "tags": [f"{py}-{py}-{tag}"],
+        rows.append({"filename": name, "tags": [f"{py}-{abi}-{tag}"],
                      "sha256": hashlib.sha256(content).hexdigest()})
     sdist = {"filename": "rstimes-0.2.0b2.tar.gz", "sha256": hashlib.sha256(b"sdist").hexdigest()}
     (dist / sdist["filename"]).write_bytes(b"sdist")

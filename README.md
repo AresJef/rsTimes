@@ -123,10 +123,11 @@ One source tree supports ordinary GIL-enabled CPython 3.12,3.13,3.14 and3.15:
 | Linux musl | x86_64 | musllinux_1_2 | ubuntu-24.04, matching pinned container |
 | Linux musl | ARM64 | musllinux_1_2 | ubuntu-24.04-arm, matching pinned container |
 
-The release contains32 wheels and one complete sdist. Linux installation tests
-run inside the matching libc, not only on the host. 32-bit, PyPy and free-threaded
-CPython are unsupported. Runner testing does not claim physical testing on every
-historical OS release permitted by a wheel tag.
+The published 0.2.0b2 release contains32 ordinary-GIL wheels and one complete
+sdist. Linux installation tests run inside the matching libc, not only on the
+host. That published release does not provide free-threaded wheels. 32-bit and
+PyPy are outside the supported matrix. Runner testing does not claim physical
+testing on every historical OS release permitted by a wheel tag.
 
 Every position verifies real isolated core-only, core+Polars and pandas3
 installations. Applicable pandas2 positions use the same wheel. Additional
@@ -135,6 +136,16 @@ are NumPy 2.5.3, pandas 3.0.6 and Polars 2.0.0; pandas2 compatibility uses2.3.3.
 The frozen cytimes3.1.0 oracle runs separately with pandas2.3.3 and NumPy2.5.3.
 It is a test-only dependency. The 4,588 independent frozen string expectations
 remain protected. Shared cloud runners do not establish strict performance ratios.
+
+## Free-threaded development builds
+
+The current development source also targets CPython 3.14t and 3.15t, alongside
+the ordinary interpreters, using one source tree for Delta, Parser / Configs,
+Pydt, Pddt and Pldt. These builds have their own installed-wheel, concurrency
+and performance qualification. They are distinct from the older public b2
+artifacts even where the version strings match. See
+[the free-threaded guide](docs/free-threaded-python.md) for actual GIL checks,
+configuration sharing, dependency requirements and upstream Polars ownership.
 
 ## Development
 
@@ -148,12 +159,14 @@ python -m pip install --no-deps dist/*.whl
 python -I -B tools/wheel_smoke.py --expect-version 0.2.0b2 --with-dateutil --with-pandas --with-polars
 python -I -B tools/run_release_tests.py --junitxml evidence/tests.xml
 python -I -B tools/check_public_docs.py
-python -I -B tools/check_typing.py
 ```
 
 Use separate output directories after source changes. Source-tree imports do not
 replace installed-wheel verification. On PowerShell, install wheels with
 `Get-ChildItem dist\*.whl | ForEach-Object { python -m pip install --no-deps $_.FullName }`.
+
+For Python type checks, prepare the separate analysis environment and pinned
+Node/Pyright toolchain described in the [type-checking guide](docs/type-checking.md).
 
 ## Demonstrations
 
@@ -172,11 +185,12 @@ silently loads another wheel or compiles a temporary replacement. See the
 - Only a pushed annotated `v*` tag triggers `publish.yml`. The tag binds the exact
   source commit, successful complete CI run/attempt, manifest SHA256 and local
   performance completion receipt.
-- Publication downloads that original tested32-wheel/sdist bundle. It does not
+- Publication downloads that original tested wheel/sdist bundle. It does not
   rebuild files. All gates must pass before GitHub Release, followed by PyPI
   Trusted Publishing/OIDC. No long-lived PyPI token is used.
-- All32 positions download the published version from PyPI, check the original
-  SHA256, install it in clean provider environments and exercise functionality.
+- Every release-matrix position downloads the published version from PyPI,
+  checks the original SHA256, installs it in clean provider environments and
+  exercises functionality.
 - The publisher identity is `AresJef/rsTimes`, `publish.yml`, environment `pypi`.
 
 After a partial publication, retain the tag and original files. Verify remote

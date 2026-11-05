@@ -203,3 +203,5 @@ assert y.asi8.tolist() == wall.asi8.tolist()
 ```
 
 copy.copy／copy(deep=False) 新外壳按安全规则共享日期缓冲，业务 dict／slots 保原引用；deepcopy／copy(deep=True) 独立日期缓冲并保共享别名和自身循环。pickle 使用新版本化核心格式，保合法业务状态、时区、单位、name 和有效 freq。真实自定义复制／保存钩子及其原错误保持，不重复业务 init，不迁移旧 Pddt pickle。
+
+显式 `copy` 与标准库采用相同绑定：浅复制从类取得 `__copy__` 并传入来源对象，深复制从实例取得 `__deepcopy__` 并传入同一 memo。真实 staticmethod、classmethod、descriptor 和 property 深复制钩子按此执行；自定义返回值与原异常保留。查找协议时读取真实 MRO／类字典，不由元类的展示属性替代；实际状态钩子（包括 Python 默认状态协议）自身的行为和异常仍保留。

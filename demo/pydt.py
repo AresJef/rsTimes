@@ -210,6 +210,8 @@ def parse_demo():
 class ChildR(PydtR):
     """A normal user subclass with writable extra state."""
     __slots__=("tag",)
+    extra: str
+    tag: dict[str, list[str]]
 
 
 def state_demo():

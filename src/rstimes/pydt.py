@@ -2,6 +2,7 @@
 from datetime import datetime, date as _date, time as _time, timedelta, timezone, tzinfo as _tzinfo
 from zoneinfo import ZoneInfo, available_timezones
 from operator import index as _index
+from typing import cast
 from numpy import bool_ as _numpy_bool
 from ._native import (_pydt_register, _pydt_shift, _pydt_from_us, _pydt_compare_now,
                       _pydt_to_us, _pydt_to_seconds, _pydt_lookup, _pydt_calendar, _pydt_move,
@@ -345,7 +346,7 @@ class Pydt(_PydtBase):
             _raise_argument_context(error, "Pydt.utcnow", "arguments", None)
 
     @classmethod
-    def combine(cls, date=None, time=None, tz=None):
+    def combine(cls, date=None, time=None, tz=None):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY040; see tests/typing/pyright_exceptions.json.
         """Combine date and time fields; omitted fields use today and midnight.
 
         Parameters
@@ -562,7 +563,7 @@ class Pydt(_PydtBase):
             _raise_argument_context(error, "Pydt.frommicroseconds", "arguments", None)
 
     @classmethod
-    def fromtimestamp(cls, ts, tz=None):
+    def fromtimestamp(cls, ts, tz=None):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY041; see tests/typing/pyright_exceptions.json.
         """Build from a POSIX timestamp, converting to tz or naive local time.
 
         Parameters
@@ -677,7 +678,7 @@ class Pydt(_PydtBase):
             _raise_argument_context(error, "Pydt.fromisoformat", "arguments", None)
 
     @classmethod
-    def fromisocalendar(cls, year, week, weekday, tz=None):
+    def fromisocalendar(cls, year, week, weekday, tz=None):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY042; see tests/typing/pyright_exceptions.json.
         """Build an ISO date, limiting high weeks/days to the year's final week/day.
 
         Parameters
@@ -3043,7 +3044,7 @@ class Pydt(_PydtBase):
                 if base is None:
                     raise _own_error(ValueError("a naive value requires base_tz before timezone conversion"))
                 value = self.tz_localize(base)
-                result = Pydt.astimezone(value, target)
+                result = Pydt.astimezone(value, target)  # pyright: ignore[reportArgumentType] -- TY043; see tests/typing/pyright_exceptions.json.
             else:
                 result = _pydt_convert(value, target, offset)
                 if result is None:
@@ -3222,7 +3223,7 @@ class Pydt(_PydtBase):
         except Exception as error:
             _raise_argument_context(error, "Pydt.diff", "arguments", None)
 
-    def __add__(self, other):
+    def __add__(self, other):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY044; see tests/typing/pyright_exceptions.json.
         """Add a supported elapsed duration or calendar adjustment.
 
         Parameters
@@ -3247,7 +3248,7 @@ class Pydt(_PydtBase):
         except Exception as error:
             _raise_argument_context(error, "Pydt.__add__", "arguments", None)
 
-    def __radd__(self, other):
+    def __radd__(self, other):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY045; see tests/typing/pyright_exceptions.json.
         """Add a supported duration on the left, retaining this date class.
 
         Parameters
@@ -3265,7 +3266,7 @@ class Pydt(_PydtBase):
         except Exception as error:
             _raise_argument_context(error, "Pydt.__radd__", "arguments", None)
 
-    def __sub__(self, other):
+    def __sub__(self, other):  # pyright: ignore[reportIncompatibleMethodOverride] -- TY046; see tests/typing/pyright_exceptions.json.
         """Subtract a date, elapsed duration, or calendar adjustment.
 
         Parameters
@@ -3456,7 +3457,7 @@ class Pydt(_PydtBase):
             # A user setter (or __dict__ lookup) may mutate the supplied state.
             # Fix the entries before invoking either hook, as with Delta restore.
             slot_items = tuple(slots.items()) if slots is not None else ()
-            dictionary_items = tuple(dictionary.items()) if dictionary is not None else ()
+            dictionary_items = tuple(cast(dict[str, object], dictionary).items()) if dictionary is not None else ()
             if dictionary is not None:
                 try:
                     self.__dict__.update(dictionary_items)

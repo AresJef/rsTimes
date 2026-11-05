@@ -373,7 +373,9 @@ pub(crate) fn standard_region(zone: &Bound<'_, PyAny>) -> PyResult<bool> {
         crate::python_cache::get_or_prepare(&REGION_METHODS, zone.py(), || -> PyResult<_> {
             // SAFETY: base is a live type. C methods can be reused only while its
             // public immutable-type flag forbids replacing these definitions.
-            if unsafe { (*base.as_type_ptr()).tp_flags & ffi::Py_TPFLAGS_IMMUTABLETYPE } == 0 {
+            if unsafe { ffi::PyType_HasFeature(base.as_type_ptr(), ffi::Py_TPFLAGS_IMMUTABLETYPE) }
+                == 0
+            {
                 return Ok(None);
             }
             let mut methods = Vec::with_capacity(2);
@@ -1026,7 +1028,7 @@ fn call_datetime_fields<'py>(
 ) -> PyResult<Bound<'py, PyAny>> {
     static KEYWORDS: PyOnceLock<Py<PyTuple>> = PyOnceLock::new();
     let py = class.py();
-    let names = KEYWORDS.get_or_try_init(py, || -> PyResult<_> {
+    let names = crate::python_cache::get_or_prepare(&KEYWORDS, py, || -> PyResult<_> {
         Ok(PyTuple::new(py, ["tzinfo", "fold"])?.unbind())
     })?;
     let [year, month, day, hour, minute, second, microsecond] = fields;
@@ -1420,7 +1422,7 @@ fn _pydt_copy_date<'py>(
     let [year, month, day] = calendar_date_parts(value, "Pydt.fromdate", "date")?;
     if !CLASS.get(py).is_some_and(|base| class.is(base.bind(py))) {
         static KEYWORDS: PyOnceLock<Py<PyTuple>> = PyOnceLock::new();
-        let names = KEYWORDS.get_or_try_init(py, || -> PyResult<_> {
+        let names = crate::python_cache::get_or_prepare(&KEYWORDS, py, || -> PyResult<_> {
             Ok(PyTuple::new(py, ["tzinfo"])?.unbind())
         })?;
         let args = [
@@ -2439,11 +2441,10 @@ fn _pydt_timedict<'py>(
         "tm_year", "tm_mon", "tm_mday", "tm_hour", "tm_min", "tm_sec", "tm_wday", "tm_yday",
         "tm_isdst",
     ];
-    let keys = KEY_OBJECTS
-        .get_or_try_init(py, || -> PyResult<_> {
-            Ok(PyTuple::new(py, KEYS)?.unbind())
-        })?
-        .bind(py);
+    let keys = crate::python_cache::get_or_prepare(&KEY_OBJECTS, py, || -> PyResult<_> {
+        Ok(PyTuple::new(py, KEYS)?.unbind())
+    })?
+    .bind(py);
     for (key, field) in keys.iter().zip(fields) {
         dictionary.set_item(key, field)?;
     }
@@ -3823,10 +3824,6 @@ fn _pydt_convert<'py>(
     }
     // SAFETY: the datetime capsule was initialized at module registration.
     let utc = unsafe { ffi::PyDateTime_TimeZone_UTC() };
-    let fixed = unsafe { ffi::Py_TYPE(target.as_ptr()) == ffi::Py_TYPE(utc) };
-    let zone = ZONEINFO
-        .get(py)
-        .is_some_and(|class| target.get_type().is(class.bind(py)));
     let implicit_offset;
     let offset = match offset {
         Some(offset) => offset,
@@ -3879,6 +3876,10 @@ fn _pydt_convert<'py>(
         )
         .map(Some);
     }
+    let fixed = unsafe { ffi::Py_TYPE(target.as_ptr()) == ffi::Py_TYPE(utc) };
+    let zone = ZONEINFO
+        .get(py)
+        .is_some_and(|class| target.get_type().is(class.bind(py)));
     // SAFETY: a real live datetime owns its borrowed timezone.
     if output_class.is_none()
         && unsafe { ffi::PyDateTime_DATE_GET_TZINFO(value.as_ptr()) } == target.as_ptr()

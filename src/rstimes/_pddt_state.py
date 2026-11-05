@@ -2,8 +2,10 @@
 
 Only copy/save operations enter this module. Date operations never scan state.
 """
-from copy import _reconstruct
+from copy import _reconstruct  # pyright: ignore[reportAttributeAccessIssue] -- TY050; see tests/typing/pyright_exceptions.json.
+from typing import cast
 from ._class_protocol import definition as _definition
+from ._class_protocol import copy_hook as _copy_hook
 
 from .errors import _own_error, _external_error
 from ._range import _ARRAY_HAS_FREQ
@@ -22,7 +24,7 @@ def capture(value):
     if state is None:
         return None
     dictionary,slots=state if isinstance(state,tuple) else (state,None)
-    dictionary=None if dictionary is None else {key:item for key,item in dict.items(dictionary) if key not in _CORE_KEYS}
+    dictionary=None if dictionary is None else {key:item for key,item in dict.items(cast("dict[str, object]", dictionary)) if key not in _CORE_KEYS}
     slots=None if slots is None else {key:item for key,item in dict.items(slots) if key not in _CORE_KEYS}
     if slots:
         return dictionary or None,slots
@@ -76,14 +78,17 @@ def copy_value(value,base,restore_copy,deep,memo=None,name=None,honor_copy=False
     cls=type(value)
     if deep and memo is None:
         memo={}
-    hook="__deepcopy__" if deep else "__copy__"
-    if honor_copy and _definition(cls,hook) not in (None,_definition(base,hook)):
+    if honor_copy:
         try:
-            callable=getattr(cls,hook)
-            result=callable(value,memo) if deep else callable(value)
+            copier=_copy_hook(value,base,deep)
         except Exception as error:
             raise _external_error(error)
-        return _named_result(value,result,name)
+        if copier is not None:
+            try:
+                result=copier(memo) if deep else copier(value)
+            except Exception as error:
+                raise _external_error(error)
+            return _named_result(value,result,name)
     custom=(_definition(cls,"__reduce_ex__") is not base.__reduce_ex__
         or _definition(cls,"__reduce__") is not base.__reduce__)
     if custom:

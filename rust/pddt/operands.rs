@@ -195,7 +195,7 @@ fn _pddt_operand(
         {
             None
         } else {
-            let version = unsafe { (*actual).tp_version_tag };
+            let version = unsafe { crate::temporal_operand::current_protocol_version(actual) };
             if let Some((class, cached_version, decision)) = &previous
                 && version != 0
                 && version == *cached_version

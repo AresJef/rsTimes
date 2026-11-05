@@ -1,0 +1,263 @@
+{
+  "purpose": "Exact expected diagnostics in active demos; no source file exclusion and no broad ignore. Ordinary source/tool errors must remain zero.",
+  "fixed_profile": "Pyright1.1.414/Node26.7.0/NumPy2.5.3/pandas3.0.6/stubs3.0.5.260914/Polars2.1.0/dateutil2.9.0.post0 plus read-only frozen cyTimes3.1.0 symbols",
+  "entries": [
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 426,
+      "statement": "(\"小数单位归一化\", relativedelta(days=-1.5, hours=2.25, seconds=1.25)),",
+      "occurrence": 0,
+      "kind": "upstream_oracle_annotation_limit",
+      "reason": "These actual dateutil/cytimes numeric protocols support this input in the frozen comparison; their published integer-only annotations are narrower than real behavior. Do not edit upstream types or cast inputs.",
+      "expected_rules": {
+        "reportArgumentType": 3
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 439,
+      "statement": "rd = relativedelta(days=1.5, hour=9)",
+      "occurrence": 0,
+      "kind": "upstream_oracle_annotation_limit",
+      "reason": "These actual dateutil/cytimes numeric protocols support this input in the frozen comparison; their published integer-only annotations are narrower than real behavior. Do not edit upstream types or cast inputs.",
+      "expected_rules": {
+        "reportArgumentType": 1
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 449,
+      "statement": "precise = relativedelta(hours=1.1, microseconds=-1.5)",
+      "occurrence": 0,
+      "kind": "upstream_oracle_annotation_limit",
+      "reason": "These actual dateutil/cytimes numeric protocols support this input in the frozen comparison; their published integer-only annotations are narrower than real behavior. Do not edit upstream types or cast inputs.",
+      "expected_rules": {
+        "reportArgumentType": 2
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 460,
+      "statement": "raw = RawSource(days=1.5)",
+      "occurrence": 0,
+      "kind": "upstream_oracle_annotation_limit",
+      "reason": "These actual dateutil/cytimes numeric protocols support this input in the frozen comparison; their published integer-only annotations are narrower than real behavior. Do not edit upstream types or cast inputs.",
+      "expected_rules": {
+        "reportArgumentType": 1
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 481,
+      "statement": "_Case(\"NumPy 日期减 Delta\", \"numpy_datetime - delta\", lambda: stamp - d_o, lambda: stamp - d_r),",
+      "occurrence": 0,
+      "kind": "external_operator_or_callback_correlation_limit",
+      "reason": "Real NumPy reflected/date arithmetic or a same-source calendar result is verified by the demo; third-party closed overloads cannot express the complete external operator/callback relation.",
+      "expected_rules": {
+        "reportOperatorIssue": 1
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 490,
+      "statement": "_Case(f\"{unit} 日期标量的原生反向减法\", f\"delta.__rsub__({scalar!r})\", lambda s=scalar: d_o.__rsub__(s), lambda s=scalar: d_r.__rsub__(s),",
+      "occurrence": 0,
+      "kind": "external_operator_or_callback_correlation_limit",
+      "reason": "Real NumPy reflected/date arithmetic or a same-source calendar result is verified by the demo; third-party closed overloads cannot express the complete external operator/callback relation.",
+      "expected_rules": {
+        "reportCallIssue": 1,
+        "reportArgumentType": 1
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 530,
+      "statement": "_Case(\"绝对字段不截小数\", \"Delta(hour=9.8)\", lambda: DeltaO(hour=9.8), lambda: _expect_error(lambda: DeltaR(hour=9.8), TypeError), difference=\"T08\", rust_expected=lambda: \"TypeError\"),",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportArgumentType": 3
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 533,
+      "statement": "_Case(\"整数转换与保留小数\", \"Delta(days=np.int64(2), hours=-1.9)\", lambda: DeltaO(days=np.int64(2), hours=-1.9), lambda: DeltaR(days=np.int64(2), hours=-1.9), difference=\"H08\", rust_expected=lambda: DeltaR(days=1, hours=22, minutes=6)),",
+      "occurrence": 0,
+      "kind": "upstream_oracle_annotation_limit",
+      "reason": "These actual dateutil/cytimes numeric protocols support this input in the frozen comparison; their published integer-only annotations are narrower than real behavior. Do not edit upstream types or cast inputs.",
+      "expected_rules": {
+        "reportArgumentType": 2
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 745,
+      "statement": "_Case(\"未知构造参数\", \"Delta(unknown=1)\", lambda: _expect_error(lambda: DeltaO(unknown=1), TypeError), lambda: _expect_error(lambda: DeltaR(unknown=1), TypeError)),",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportCallIssue": 2
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 746,
+      "statement": "_Case(\"重复构造参数\", \"Delta(1, years=2)\", lambda: _expect_error(lambda: DeltaO(1, years=2), TypeError), lambda: _expect_error(lambda: DeltaR(1, years=2), TypeError)),",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportCallIssue": 2
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 748,
+      "statement": "lambda: _expect_error(lambda: DeltaO.from_relativedelta(None), TypeError),",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportArgumentType": 1
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 749,
+      "statement": "lambda: _expect_error(lambda: DeltaR.from_relativedelta(None), TypeError),",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportArgumentType": 1
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 752,
+      "statement": "_Case(\"不支持排序\", \"delta < other_delta\", lambda: _expect_error(lambda: d_o < DeltaO(days=2), TypeError), lambda: _expect_error(lambda: d_r < DeltaR(days=2), TypeError)),",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportOperatorIssue": 2
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 754,
+      "statement": "_Case(\"不支持的普通加法\", \"delta + object()\", lambda: _expect_error(lambda: d_o + object(), TypeError), lambda: _expect_error(lambda: d_r + object(), TypeError)),",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportOperatorIssue": 2
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 755,
+      "statement": "_Case(\"原生方法返回 NotImplemented\", \"delta.__add__(object())\", lambda: d_o.__add__(object()), lambda: d_r.__add__(object())),",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportCallIssue": 2,
+        "reportArgumentType": 2
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 756,
+      "statement": "_Case(\"反向 Delta 加减不接收 Delta\", \"delta.__radd__(other_delta), delta.__rsub__(other_delta)\", lambda: (d_o.__radd__(DeltaO()), d_o.__rsub__(DeltaO())), lambda: (d_r.__radd__(DeltaR()), d_r.__rsub__(DeltaR()))),",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportCallIssue": 2,
+        "reportArgumentType": 2
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 757,
+      "statement": "_Case(\"NumPy 数组不是标量入口\", \"delta.__add__(np.array([1, 2]))\", lambda: d_o.__add__(array), lambda: d_r.__add__(array)),",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportCallIssue": 2,
+        "reportArgumentType": 2
+      }
+    },
+    {
+      "file": "demo/delta.py",
+      "line_at_review": 801,
+      "statement": "return ((start + original) - start if start is not None else timedelta(",
+      "occurrence": 0,
+      "kind": "external_operator_or_callback_correlation_limit",
+      "reason": "Real NumPy reflected/date arithmetic or a same-source calendar result is verified by the demo; third-party closed overloads cannot express the complete external operator/callback relation.",
+      "expected_rules": {
+        "reportOperatorIssue": 1
+      }
+    },
+    {
+      "file": "demo/parser.py",
+      "line_at_review": 78,
+      "statement": "original.add_month('floating', 1.9)",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportArgumentType": 1
+      }
+    },
+    {
+      "file": "demo/pddt.py",
+      "line_at_review": 162,
+      "statement": "assert adjusted.asi8.tolist() == [1704240000, 1704412800]",
+      "occurrence": 0,
+      "kind": "external_stub_or_registered_namespace_limit",
+      "reason": "Actual inherited pandas integer storage or the official dynamically registered Polars namespace; existing parallel-Polars demo and storage assertions validate the real operation.",
+      "expected_rules": {
+        "reportAttributeAccessIssue": 1
+      }
+    },
+    {
+      "file": "demo/pddt.py",
+      "line_at_review": 183,
+      "statement": "expr = pl.col('time').pldt.to_next_month()",
+      "occurrence": 0,
+      "kind": "external_stub_or_registered_namespace_limit",
+      "reason": "Actual inherited pandas integer storage or the official dynamically registered Polars namespace; existing parallel-Polars demo and storage assertions validate the real operation.",
+      "expected_rules": {
+        "reportAttributeAccessIssue": 1
+      }
+    },
+    {
+      "file": "demo/pydt.py",
+      "line_at_review": 80,
+      "statement": "PydtR.combine(date(2024, 5, 7), pd.NaT)",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportArgumentType": 1
+      }
+    },
+    {
+      "file": "demo/pydt.py",
+      "line_at_review": 202,
+      "statement": "numeric.to_date(month=\"February\")",
+      "occurrence": 0,
+      "kind": "intentional_rejected_input_or_NotImplemented",
+      "reason": "The existing example deliberately demonstrates this rejected input or unsupported direct arithmetic negotiation; it must remain rejected by typing and runtime.",
+      "expected_rules": {
+        "reportArgumentType": 1
+      }
+    }
+  ]
+}

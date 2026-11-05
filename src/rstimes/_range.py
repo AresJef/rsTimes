@@ -1,6 +1,7 @@
 """Prepare complete static frequency metadata for the native range generator."""
 from datetime import timedelta,timezone
 from zoneinfo import ZoneInfo
+from typing import TYPE_CHECKING, Literal, cast
 import sys
 import re
 import numpy as np
@@ -10,12 +11,23 @@ from .errors import _own_error, _external_error
 
 _MONTHS = {name: i for i, name in enumerate(
     ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"), 1)}
-_WEEKDAYS = {name: i for i, name in enumerate(("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"))}
+_Weekday = Literal[0, 1, 2, 3, 4, 5, 6]
+_WEEKDAYS: dict[str, _Weekday] = {"MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6}
 _SIMPLE = re.compile(r"^([+-]?\d*)\s*([A-Za-z]+)(?:-([A-Za-z0-9-]+))?$")
 _FIXED_PART = re.compile(r"(\d+(?:\.\d*)?|\.\d+)\s*(min|ms|us|ns|D|h|s)")
 _SCALES = {"D": 86400_000_000_000, "h": 3600_000_000_000,
            "min": 60_000_000_000, "s": 1_000_000_000,
            "ms": 1_000_000, "us": 1000, "ns": 1}
+
+if TYPE_CHECKING:
+    from typing import Protocol
+
+    class _NativeOffset(Protocol):
+        """Actual public offset fields omitted by some pandas stub releases."""
+
+        normalize: bool
+        kwds: dict[str, object]
+        n: int
 
 _INVALID_METADATA=(ValueError,)
 _ARRAY_HAS_FREQ = pd is not None and hasattr(pd.arrays.DatetimeArray, "freq")
@@ -187,10 +199,12 @@ def frequency(value):
         # stay wholly with the mature executor, with their original parameters.
         return None, offset, True
     kind, detail = spec
-    props = {"normalize": offset.normalize}
-    kwargs = offset.kwds
+    # A successful real-type table lookup proves this complete offset protocol.
+    native_offset = cast("_NativeOffset", offset)
+    props: dict[str, object] = {"normalize": native_offset.normalize}
+    kwargs = native_offset.kwds
     if kind == "fixed":
-        props["tick"] = offset.n * detail
+        props["tick"] = native_offset.n * detail
         props["precision"] = {1:"ns",1000:"us",1_000_000:"ms"}.get(detail,"s")
     elif kind == "week":
         props["weekday"] = kwargs.get("weekday")
@@ -210,7 +224,7 @@ def frequency(value):
         props["holidays"] = calendar.holidays.view("int64").tobytes()
     if "offset" in kwargs:
         props["duration"] = kwargs["offset"]
-    return _pddt_frequency(kind, offset.n, props), offset, False
+    return _pddt_frequency(kind, native_offset.n, props), offset, False
 
 
 def attach_frequency(array, metadata):

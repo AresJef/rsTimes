@@ -3,11 +3,11 @@
 Only explicit copy/save operations enter here. Ordinary date kernels do not
 inspect business dictionaries, slots, reduction hooks or namespace caches.
 """
-from copy import _reconstruct
+from copy import _reconstruct  # pyright: ignore[reportAttributeAccessIssue] -- TY051; see tests/typing/pyright_exceptions.json.
 
 from ._optional import POLARS as pl
 from ._native import _pldt_core, _pldt_restore_core, _pldt_copy_core
-from ._class_protocol import definition
+from ._class_protocol import definition, copy_hook as _copy_hook
 from ._polars import plain_series
 from .errors import _own_error, _external_error
 
@@ -74,7 +74,7 @@ def _class(cls):
 
 
 def _sorted(value):
-    flags = pl.Series.flags.fget(value)
+    flags = pl.Series.flags.fget(value)  # pyright: ignore[reportOptionalCall] -- TY001; see tests/typing/pyright_exceptions.json.
     return 1 if flags['SORTED_ASC'] else 2 if flags['SORTED_DESC'] else 0
 
 
@@ -131,13 +131,17 @@ def copy_value(value, deep, memo=None, *, name=None, honor_copy=False):
     cls = type(value)
     if deep and memo is None:
         memo = {}
-    hook = '__deepcopy__' if deep else '__copy__'
-    if honor_copy and definition(cls, hook) is not definition(_BASE, hook):
+    if honor_copy:
         try:
-            result = getattr(value, hook)(memo) if deep else getattr(value, hook)()
+            copier = _copy_hook(value, _BASE, deep)
         except Exception as error:
             raise _external_error(error)
-        return _named_result(value, result, name)
+        if copier is not None:
+            try:
+                result = copier(memo) if deep else copier(value)
+            except Exception as error:
+                raise _external_error(error)
+            return _named_result(value, result, name)
     custom = (definition(cls, '__reduce_ex__') is not _BASE.__reduce_ex__
               or definition(cls, '__reduce__') is not _BASE.__reduce__)
     if custom:
@@ -159,7 +163,7 @@ def copy_value(value, deep, memo=None, *, name=None, honor_copy=False):
 
 def _named_result(source, result, name):
     if name is not None:
-        if result is source and pl.Series.name.fget(source) != name:
+        if result is source and pl.Series.name.fget(source) != name:  # pyright: ignore[reportOptionalCall] -- TY002; see tests/typing/pyright_exceptions.json.
             raise _own_error(ValueError('the copy hook returned the original object; it cannot be renamed without changing the source'), 'name', name)
         try:
             if isinstance(result, pl.Series):

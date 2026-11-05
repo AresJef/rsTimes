@@ -47,7 +47,7 @@ from datetime import date, datetime, timedelta, timezone
 from pprint import pformat
 from statistics import median
 from time import perf_counter_ns
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -76,9 +76,12 @@ class MeetingDate(date):
 class OriginalDeltaChild(DeltaO):
     """Original Delta subtype with metadata for pickle and copy examples."""
 
+    extra: dict[str, list[str]]
+
 
 class RustDeltaChild(DeltaR):
     """Rust Delta subtype with metadata for pickle and copy examples."""
+    extra: dict[str, list[str]]
 
 
 class _Case(NamedTuple):
@@ -477,7 +480,8 @@ def numpy_demo(iterations: int = DEFAULT_ITERATIONS, repeats: int = DEFAULT_REPE
         _Case("Delta 加 NumPy 日期", "delta + numpy_datetime", lambda: d_o + stamp, lambda: d_r + stamp),
         _Case("NumPy 日期减 Delta", "numpy_datetime - delta", lambda: stamp - d_o, lambda: stamp - d_r),
     ]
-    for unit, value in (("ns", -1), ("M", 648), ("Y", 54)):
+    source_units: tuple[tuple[Literal["ns", "M", "Y"], int], ...] = (("ns", -1), ("M", 648), ("Y", 54))
+    for unit, value in source_units:
         scalar = np.datetime64(value, unit)
         cases.extend([
             _Case(f"{unit} 日期标量的原生加法", f"delta.__add__({scalar!r})", lambda s=scalar: d_o.__add__(s), lambda s=scalar: d_r.__add__(s),

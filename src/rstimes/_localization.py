@@ -1,16 +1,19 @@
 """Shared names and timezone boundaries, independent of Pydt and Pddt."""
 
+from __future__ import annotations
+
 from datetime import timezone, tzinfo
 from functools import lru_cache
 from os import environ
 from zoneinfo import ZoneInfo
+from typing import overload
 
 from ._native import _local_timezone_name, _localized_name, _resolve_optional_timezone
 from .errors import _own_error, _external_error, _preview, _raise_argument_context
 
 
 @lru_cache(maxsize=1)
-def local_timezone():
+def local_timezone() -> ZoneInfo:
     """Resolve the first actual local request; failed attempts remain retryable."""
     name = environ.get("TZ")
     if name is None:
@@ -32,7 +35,7 @@ _UTC_ALIASES = frozenset({"z", "utc", "gmt", "gmt0", "gmt+0", "gmt-0", "zulu",
 
 
 @lru_cache(maxsize=128)
-def named_timezone(name):
+def named_timezone(name) -> ZoneInfo | timezone:
     """Reuse standard timezone objects for actual name inputs."""
     try:
         lower = name.lower()
@@ -48,6 +51,12 @@ def named_timezone(name):
         raise _own_error(ValueError(f"timezone name {_preview(name)} is invalid or timezone data is unavailable")) from error
 
 
+@overload
+def resolve_timezone(value: None, parameter: str = "tz") -> None: ...
+@overload
+def resolve_timezone(value: str | tzinfo, parameter: str = "tz") -> tzinfo: ...
+@overload
+def resolve_timezone(value: object, parameter: str = "tz") -> tzinfo | None: ...
 def resolve_timezone(value, parameter="tz"):
     """Keep valid tzinfo values; convert real named pytz zones only."""
     try:

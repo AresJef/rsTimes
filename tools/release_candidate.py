@@ -34,12 +34,13 @@ def validate_ci(run, jobs, certificate):
     assert run["run_attempt"] == certificate["ci_attempt"]
     assert run["status"] == "completed" and run["conclusion"] == "success"
     assert jobs["total_count"] == len(jobs["jobs"]), "Incomplete job listing"
-    expected = {f"CPython {row['python']['minor']} / {row['platform']['id']}"
+    expected = {f"CPython {row['python']['label']} / {row['platform']['id']}"
                 for row in release_matrix()["include"]}
     expected.update({"Select approved native matrix", "Rust quality",
                      "Independent sdist / macos-arm64 / 3.13",
+                     "Independent sdist / macos-arm64 / 3.14t",
                      "Independent sdist / linux-musl-arm64 / 3.15",
-                     "Verify complete32-wheel and sdist bundle"})
+                     "Verify complete48-wheel and sdist bundle"})
     pythons = {row["python"]["minor"]: row["python"]["version"]
                for row in release_matrix()["include"]}
     expected.update(f"Frozen-upstream comparisons / {pythons[minor]} / NumPy 2.5.3"
@@ -101,9 +102,12 @@ def main():
     assert os.environ["GITHUB_REPOSITORY"] == REPOSITORY
     assert os.environ["GITHUB_REF_TYPE"] == "tag"
     tag = os.environ["GITHUB_REF_NAME"]
-    ref = api(f"repos/{REPOSITORY}/git/ref/tags/{tag}")["object"]
+    reference = api(f"repos/{REPOSITORY}/git/ref/tags/{tag}")
+    assert reference is not None  # Only explicit missing_ok calls can returnNone.
+    ref = reference["object"]
     assert ref["type"] == "tag", "Release requires an annotated tag"
     annotated = api(f"repos/{REPOSITORY}/git/tags/{ref['sha']}")
+    assert annotated is not None
     certificate = json.loads(annotated["message"])
     assert certificate["schema"] == "rstimes-verified-release-v1"
     assert annotated["object"]["type"] == "commit"
@@ -121,7 +125,7 @@ def main():
        "--name", f"release-distributions-{run_id}-{attempt}", "--dir", str(bundle))
     manifest = verify_bundle(bundle, certificate)
     subprocess.run(["python3", "tools/distribution_manifest.py", "--directory", "bundle/dist",
-                    "--wheels", "32", "--sdists", "1", "--complete", "--output",
+                    "--wheels", str(len(release_matrix()["include"])), "--sdists", "1", "--complete", "--output",
                     "evidence/source-rechecked-manifest.json"], check=True)
     validate_performance(certificate["performance"], certificate, manifest)
     (bundle / "performance-receipt.json").write_text(json.dumps(certificate["performance"], indent=2) + "\n")

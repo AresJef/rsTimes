@@ -27,6 +27,28 @@ struct TimestampAccess {
 }
 static TIMESTAMP_ACCESS: PyOnceLock<Option<TimestampAccess>> = PyOnceLock::new();
 
+/// Read live comparison metadata through the public type-slot API on t builds.
+///
+/// # Safety
+/// The caller retains the actual ready type through its live operand or owner.
+#[inline(always)]
+unsafe fn comparison_slot(kind: *mut ffi::PyTypeObject) -> Option<ffi::richcmpfunc> {
+    #[cfg(Py_GIL_DISABLED)]
+    {
+        let slot = unsafe { ffi::PyType_GetSlot(kind, ffi::Py_tp_richcompare) };
+        if slot.is_null() {
+            None
+        } else {
+            // SAFETY: the public slot ID fixes this exact callback signature.
+            Some(unsafe { std::mem::transmute::<*mut std::ffi::c_void, ffi::richcmpfunc>(slot) })
+        }
+    }
+    #[cfg(not(Py_GIL_DISABLED))]
+    unsafe {
+        (*kind).tp_richcompare
+    }
+}
+
 /// Cache only a type whose own instances have datetime storage.
 fn cache_timestamp_type(py: Python<'_>) {
     if let Some(kind) = crate::interop::timestamp_type(py) {
@@ -83,7 +105,7 @@ fn prepare_timestamp_access(value: &Bound<'_, PyAny>) -> PyResult<()> {
                 return Ok(None);
             }
         }
-        let Some(comparator) = (unsafe { (*kind).tp_richcompare }) else {
+        let Some(comparator) = (unsafe { comparison_slot(kind) }) else {
             return Ok(None);
         };
         let getset = unsafe { &*definition.d_getset };
@@ -242,7 +264,7 @@ unsafe fn compare_foreign(
             // pandas' own comparator handles ordinary real years and nanos
             // directly, including reflected user comparisons. Its wide-year
             // datetime carrier needs the explicit integer path below instead.
-            if let Some(slot) = unsafe { (*ffi::Py_TYPE(right)).tp_richcompare } {
+            if let Some(slot) = unsafe { comparison_slot(ffi::Py_TYPE(right)) } {
                 let standard_timestamp = TIMESTAMP_ACCESS
                     .get(py)
                     .and_then(Option::as_ref)
@@ -401,8 +423,7 @@ unsafe extern "C" fn compare(
         let kind = ffi::Py_TYPE(right);
         if kind == ffi::Py_TYPE(left)
             || kind == (*ffi::PyDateTimeAPI()).DateTimeType
-            || (*kind)
-                .tp_richcompare
+            || comparison_slot(kind)
                 .is_some_and(|slot| std::ptr::fn_addr_eq(slot, compare as ffi::richcmpfunc))
         {
             if let Some(answer) = same_zone_compare(left, right, operation) {
@@ -413,8 +434,7 @@ unsafe extern "C" fn compare(
             if !matches!(year, 1970 | 1972) {
                 let py = Python::assume_attached();
                 if let Some(Some(access)) = TIMESTAMP_ACCESS.get(py) {
-                    let original = (*kind)
-                        .tp_richcompare
+                    let original = comparison_slot(kind)
                         .is_some_and(|slot| std::ptr::fn_addr_eq(slot, access.comparator));
                     let zone = ffi::PyDateTime_DATE_GET_TZINFO(left);
                     if original && zone == ffi::PyDateTime_DATE_GET_TZINFO(right) {
@@ -479,10 +499,7 @@ unsafe extern "C" fn compare(
             // A normal datetime subclass inheriting the original native
             // comparator has no foreign precision to inspect. Its Python
             // subclass hooks still get CPython's normal dispatch priority.
-            if (*kind)
-                .tp_richcompare
-                .is_some_and(|slot| std::ptr::fn_addr_eq(slot, standard))
-            {
+            if comparison_slot(kind).is_some_and(|slot| std::ptr::fn_addr_eq(slot, standard)) {
                 if let Some(answer) = same_zone_compare(left, right, operation) {
                     return answer;
                 }

@@ -12,6 +12,7 @@ from pathlib import Path, PurePosixPath
 import subprocess
 import tarfile
 import tomllib
+from typing import cast
 import zipfile
 
 from packaging.utils import canonicalize_name, parse_wheel_filename
@@ -29,16 +30,32 @@ PLATFORM_IDS = {
 
 
 def release_matrix(profile="full"):
-    """Read the single approved32-position definition, or four new pilot positions."""
+    """Select the approved32 ordinary plus16t ABI positions, or eight pilots."""
     config = json.loads((ROOT / ".github/native-matrix.json").read_text())
     assert [row["minor"] for row in config["pythons"]] == ["3.12", "3.13", "3.14", "3.15"]
+    assert [row["minor"] for row in config["free_threaded_pythons"]] == ["3.14", "3.15"]
     assert len(config["platforms"]) == 8
     assert {row["id"] for row in config["platforms"]} == PLATFORM_IDS
     assert profile in ("full", "pilot"), profile
+    pythons = []
+    for free_threaded, definitions in ((False, config["pythons"]),
+                                       (True, config["free_threaded_pythons"])):
+        for definition in definitions:
+            py = dict(definition, free_threaded=free_threaded)
+            py["label"] = py["minor"] + ("t" if free_threaded else "")
+            py["interpreter_tag"] = "cp" + py["minor"].replace(".", "")
+            py["abi_tag"] = py["interpreter_tag"] + ("t" if free_threaded else "")
+            py["linux_python"] = f"/opt/python/{py['interpreter_tag']}-{py['abi_tag']}/bin/python"
+            py["linux_interpreter"] = "python" + py["label"]
+            pythons.append(py)
+    t_pilots = {("3.14t", "macos-arm64"), ("3.14t", "windows-x86_64"),
+                ("3.15t", "linux-x86_64"), ("3.15t", "linux-musl-arm64")}
     return {"include": [
-        {"python": py, "platform": platform}
-        for py, platform in itertools.product(config["pythons"], config["platforms"])
-        if profile == "full" or (py["minor"] == "3.13" and platform["new"])
+        {"python": py, "platform": platform,
+         "macos_deployment_target": "14.0" if py["free_threaded"] and platform["id"] == "macos-x86_64" else "11.0"}
+        for py, platform in itertools.product(pythons, config["platforms"])
+        if profile == "full" or (not py["free_threaded"] and py["minor"] == "3.13" and platform["new"])
+        or (py["label"], platform["id"]) in t_pilots
     ]}
 
 
@@ -76,7 +93,9 @@ def validate_requirements(project, metadata):
     for row, extra in itertools.product(release_matrix()["include"], ["", *sorted(extras), "unknown"]):
         position = row["platform"]
         system = position["id"].split("-", 1)[0]
-        environment = default_environment()
+        # Marker evaluation also supplies the explicit extra, beyond packaging's
+        # closed default-environment TypedDict. Keep one ordinary string map.
+        environment = cast(dict[str, str], default_environment())
         environment.update(
             python_version=row["python"]["minor"],
             python_full_version=row["python"]["version"],
@@ -161,14 +180,19 @@ def check_sdist(path, sources):
 def matrix_key(tag):
     """Reduce a supported native wheel tag to its single approved matrix position."""
     interpreter, abi, platform = tag.split("-", 2)
-    assert interpreter in {"cp312", "cp313", "cp314", "cp315"} and abi == interpreter, tag
+    allowed = {(row["python"]["interpreter_tag"], row["python"]["abi_tag"])
+               for row in release_matrix()["include"]}
+    assert (interpreter, abi) in allowed, tag
     platforms = [row["platform"] for row in release_matrix()["include"]
                  if row["python"]["minor"] == "3.13"]
     for row in platforms:
         if row.get("wheel_platform") == platform:
-            return interpreter, row["id"]
+            return abi, row["id"]
         if row.get("wheel_prefix") and platform.startswith(row["wheel_prefix"]) and platform.endswith(row["wheel_suffix"]):
-            return interpreter, row["id"]
+            if abi.endswith("t") and row["id"] == "macos-x86_64":
+                major, minor = platform.removeprefix("macosx_").split("_", 2)[:2]
+                assert (int(major), int(minor)) >= (14, 0), tag
+            return abi, row["id"]
     raise AssertionError("Unsupported wheel tag: " + tag)
 
 
@@ -181,13 +205,13 @@ def validate_matrix(wheel_rows, complete=False):
         actual.append(key)
     assert len(actual) == len(set(actual)), "Duplicate native matrix position"
     if complete or len(actual) != 1:
-        expected = {("cp" + row["python"]["minor"].replace(".", ""), row["platform"]["id"])
+        expected = {(row["python"]["abi_tag"], row["platform"]["id"])
                     for row in release_matrix()["include"]}
-        assert len(actual) == 32 and set(actual) == expected, (actual, expected)
+        assert len(actual) == 48 and set(actual) == expected, (actual, expected)
 
 
 def main():
-    """Validate a job's files, the complete32-wheel bundle, or emit its CI matrix."""
+    """Validate a job's files, the complete48-wheel bundle, or emit its CI matrix."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--print-matrix", choices=("full", "pilot"))
     parser.add_argument("--directory", type=Path)

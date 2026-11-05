@@ -1,8 +1,10 @@
 # Pldt: native Polars date columns and expressions
 
-This guide describes the current **local PLDT development candidate**. The
+This guide describes the current **locally adopted R18 optimization final01**. The
 previously published `0.2.0b2` is the frozen reference; publication of this work
 is a separate action. The public classes are `Delta`, `Pydt`, `Pddt` and `Pldt`.
+The [R18 qualification report](/Users/jef/ResilioSync/code/rsTimes/docs/R18检查器优化与验收-20261105.md)
+records the complete export checks, measured gains and local ABI coverage.
 
 Install the optional Polars capability to use `Pldt`. NumPy remains a default
 dependency. Ordinary Pldt calculations require neither pandas nor dateutil,
@@ -120,6 +122,52 @@ replacement cannot change a separately constructed Pldt's shell. Keeping an
 owner or a read-only NumPy view does not freeze a writable base alias; arbitrary
 external raw-pointer writes are outside the concurrent snapshot promise.
 
+The NumPy export protocol has its own stricter copy option:
+`np.asarray(x, copy=False)` and `x.__array__(copy=False)` prohibit copying and
+raise when the requested dtype or null representation requires it. Likewise,
+`to_numpy(allow_copy=False)` requires an available zero-copy export. These
+options differ from the constructor's permission to share safely.
+
+Pandas timestamp columns backed by PyArrow are accepted as real date sources,
+including their ExtensionArray and Index forms. Their declared unit, timezone
+and separate validity are retained even for empty or entirely missing columns.
+The same adaptation is used by construction, `parse`, date factories, combine,
+date subtraction and diff. A seconds timestamp is converted losslessly to
+milliseconds, because Polars has no Datetime(s); an actual capacity overflow
+raises OverflowError. This does not add a PyArrow requirement to ordinary use.
+
+```python
+import pandas as pd
+import pyarrow as pa  # Optional: required to create this pandas source.
+
+source = pd.Series([], dtype=pd.ArrowDtype(pa.timestamp("ns", tz="UTC")))
+assert Pldt(source).dtype == pl.Datetime("ns", "UTC")
+assert Pldt.fromdatetime(source).dtype == pl.Datetime("ns", "UTC")
+```
+
+Factory roles remain distinct: `fromdate` takes local year/month/day and
+constructs midnight without inheriting the source timezone. `fromdatetime`
+keeps source instants when no target is supplied; an explicit target replaces
+the local-clock timezone. In `combine`, the clock source supplies timezone
+metadata, including an empty or entirely missing clock column.
+
+An explicit dtype requested through `np.asarray` must preserve the source
+values, precision and missing positions when the actual exporter is the
+library's `to_numpy`. A neutral subclass attribute-lookup wrapper does not
+disable these checks. A genuine user exporter retains its returned values and
+exceptions, and is bound and called once.
+
+The library's native export and requested-dtype check use one captured source
+owner. For repeated exports at one resolution, explicitly convert once with
+`as_unit("us", round_ok=False)` and reuse that result to avoid repeating the
+same lossless conversion checks.
+
+```python
+assert np.asarray(Pldt([1000], unit="ns"), dtype="datetime64[us]").view("i8").tolist() == [1]
+# np.asarray(Pldt([1], unit="ns"), dtype="datetime64[us]") raises ValueError.
+# np.asarray(Pldt([0, None], unit="ns"), dtype="int64") raises ValueError.
+```
+
 ## Parser and named factories
 
 Ordinary text uses the existing Rust Parser grammar, Configs and strict rules.
@@ -160,6 +208,11 @@ source roles and do not become general string parsers.
 | `combine` | Independent date and clock roles; one final native column |
 | `now` / `today` / `utcnow` | Current time at requested resolution; today retains the clock, no fabricated ns |
 | `date_range` | Native common elapsed/calendar generation; only approved special rules delegate to optional pandas |
+
+The three integer-calendar factories default to `unit="us"`; explicitly pass
+`"ms"`, `"us"` or `"ns"`, not `None`. The same rule applies to their Series
+and Expr namespace entries. This differs from the general constructor, where
+`unit=None` retains its initial unit-selection role.
 
 ```python
 clock = Pldt(["1970-01-01 08:00:00"], tz="Asia/Shanghai")
@@ -202,6 +255,21 @@ assert Pldt([1], unit="us").add(microseconds=1, nanoseconds=-1000).to_physical()
 DST. Date subtraction returns native Duration; named `add_delta/sub_delta`
 retain actual Delta absolute fields and ns. Unknown operands and genuine
 subclass operator callbacks retain Python negotiation; no DateOffset guessing.
+
+For named eager `add_delta/sub_delta`, a genuine whole-column callback must
+return a date collection with the complete source length. That result owns
+its values and nulls: it can fill a formerly null source position or return a
+new null. Projection checks every returned value for awareness, exact source
+unit and capacity, then constructs one result using the source zone/name.
+Ordinary native operations and per-row callbacks still skip source-null rows.
+
+```python
+class Fill(Delta):
+    def __radd__(self, column):
+        return Pldt([7, None], unit="us")
+
+assert Pldt([None, 0], unit="us").pldt.add_delta(Fill()).to_physical().to_list() == [7, None]
+```
 
 First/last/start/end and their four queries use the same period boundaries.
 Snap accepts one natural unit or a saved month/weekday name, compares real
@@ -248,6 +316,13 @@ memo and physically distinct buffers; restore/copy does not rerun business
 initialization. Ordinary new date results of a real Pldt subclass invoke its
 normal constructor once. Native Expr serialization remains Polars' protocol;
 rsTimes does not download plugins or execute arbitrary plans on load.
+
+Named `copy` follows Python's hook binding: shallow hooks are obtained from the
+class and receive the source, deep hooks from the instance and receive one
+memo. Static/class methods and real descriptors retain those same rules and
+return choices. Protocol discovery reads actual class definitions rather than
+metaclass display properties; genuine state hooks keep their own behavior and
+exceptions, including Python's default state protocol.
 
 The installed `pldt.pyi` documents every own eager/namespace method. Concrete
 Pldt operations retain type information, including its typed `.pldt` and
