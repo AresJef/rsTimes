@@ -97,7 +97,7 @@ combine 的两侧可用已支持的完整来源，分别只贡献日期和时钟
 
 ## 时区、fold 和有效当地时间
 
-可传标准 tzinfo／timezone／ZoneInfo、已支持的地区名，或合法自定义tzinfo。真实pytz对象只按有效地区名转成ZoneInfo；无有效地区名报错。pytz不是必装依赖。本机地区只在实际需要时发现，成功后缓存；失败不会悄悄改成UTC。
+可传标准 tzinfo／timezone／ZoneInfo、已支持的地区名，或合法自定义tzinfo。真实pytz对象只按有效地区名转成ZoneInfo；无有效地区名报错。pytz不是必装依赖。本库使用local服务的Pydt／Pddt／Pldt入口共享首次成功的地区身份，Python时区对象和Rust规则各保留自己的表示缓存。本次需要的后端验证失败不会占位，可更正TZ后重试；身份成功后，另一后端不可用仍报该后端错误，不改选新地区或兜底UTC。后续修改TZ不改变已成功身份。Expr按各入口约定在创建时捕获；Pydt继承的timestamp仍遵循datetime系统协议，不纳入这项服务承诺。
 
 Pydt严格创建、replace及相关工厂遇地区不存在时间会报错；fold只选重复时间的前后，不让缺失时间变合法。标准UTC、固定偏移和无区值没有地区缺口检查。
 

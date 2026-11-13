@@ -8,18 +8,13 @@ from os import environ
 from zoneinfo import ZoneInfo
 from typing import overload
 
-from ._native import _local_timezone_name, _localized_name, _resolve_optional_timezone
+from ._native import (_local_timezone_name, _localized_name, _resolve_optional_timezone,
+                      _local_timezone_identity, _publish_local_timezone_identity)
 from .errors import _own_error, _external_error, _preview, _raise_argument_context
 
 
-@lru_cache(maxsize=1)
-def local_timezone() -> ZoneInfo:
-    """Resolve the first actual local request; failed attempts remain retryable."""
-    name = environ.get("TZ")
-    if name is None:
-        name = _local_timezone_name()
-    elif name.startswith(":"):
-        name = name[1:]
+def _local_from_name(name: str) -> ZoneInfo:
+    """Validate this backend without reserving the shared successful identity."""
     try:
         return ZoneInfo(name)
     except (KeyError, ValueError) as error:
@@ -27,6 +22,21 @@ def local_timezone() -> ZoneInfo:
             f"local timezone {_preview(name)} is unavailable; provide installed timezone data "
             "or set TZ to a valid IANA name such as 'Asia/Shanghai'"
         )) from error
+
+
+@lru_cache(maxsize=1)
+def local_timezone() -> ZoneInfo:
+    """Resolve the shared first successful identity; failed attempts stay retryable."""
+    name = _local_timezone_identity()
+    if name is None:
+        name = environ.get("TZ")
+        if name is None:
+            name = _local_timezone_name()
+        elif name.startswith(":"):
+            name = name[1:]
+    zone = _local_from_name(name)
+    winner = _publish_local_timezone_identity(name)
+    return zone if winner == name else _local_from_name(winner)
 
 
 _UTC_ALIASES = frozenset({"z", "utc", "gmt", "gmt0", "gmt+0", "gmt-0", "zulu",

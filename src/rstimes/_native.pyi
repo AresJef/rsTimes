@@ -219,6 +219,19 @@ def _integer_arg(value: object, entry: str, parameter: str) -> int:
     :returns: int; errors preserve the native or external exception contract.
     """
 
+def _local_timezone_identity() -> str | None:
+    """Read the immutable first successful local name without discovering one.
+
+    :returns: str after a successful backend request, otherwise None.
+    """
+
+def _publish_local_timezone_identity(name: str) -> str:
+    """Publish a local name only after the caller validated its needed backend.
+
+    :param name: The prepared IANA name validated by this host or native request.
+    :returns: The winning immutable name, possibly published by another caller.
+    """
+
 def _local_timezone_name() -> str:
     """Resolve a process system IANA name only when the Python local service asks.
 

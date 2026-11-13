@@ -85,35 +85,48 @@ fn meta(source: &Field, options: &Options) -> Result<Field, Failure> {
     }
     Ok(Field::new(source.name().clone(), dtype))
 }
-/// Same mature detector and TZ override as the host local service, successful
-/// native rule caching only. Invoked during naive-query preparation, never per
-/// row, and never for aware comparison. No interpreter access is involved.
+/// Validate native rules before publishing the shared first successful identity.
+/// Workers retain only Rust rules; no Python access or discovery occurs per row.
 pub(super) fn local_rules() -> Result<Zone, Failure> {
     static LOCAL: OnceLock<Zone> = OnceLock::new();
     if let Some(zone) = LOCAL.get() {
         return Ok(zone.clone());
     }
-    let key = match std::env::var("TZ") {
-        Ok(name) => name.strip_prefix(':').unwrap_or(&name).to_owned(),
-        Err(std::env::VarError::NotPresent) => iana_time_zone::get_timezone().map_err(|e| {
-            Failure::new(Kind::Value, format!("local timezone is unavailable: {e}"))
-        })?,
-        Err(error) => {
-            return Err(Failure::new(
-                Kind::Value,
-                format!("local timezone is invalid: {error}"),
-            ));
-        }
+    let key = if let Some(key) = crate::localization::local_timezone_identity() {
+        std::borrow::Cow::Borrowed(key)
+    } else {
+        std::borrow::Cow::Owned(match std::env::var("TZ") {
+            Ok(name) => name.strip_prefix(':').unwrap_or(&name).to_owned(),
+            Err(std::env::VarError::NotPresent) => iana_time_zone::get_timezone().map_err(|e| {
+                Failure::new(Kind::Value, format!("local timezone is unavailable: {e}"))
+            })?,
+            Err(error) => {
+                return Err(Failure::new(
+                    Kind::Value,
+                    format!("local timezone is invalid: {error}"),
+                ));
+            }
+        })
     };
-    let zone = Zone::named(&key).map_err(|e| {
-        Failure::new(
-            Kind::Value,
-            format!("local timezone {key:?} is unavailable: {e}"),
-        )
-    })?;
+    let load = |key: &str| {
+        Zone::named(key).map_err(|e| {
+            Failure::new(
+                Kind::Value,
+                format!("local timezone {key:?} is unavailable: {e}"),
+            )
+        })
+    };
+    let zone = load(&key)?;
+    let winner = crate::localization::publish_local_timezone_identity(&key);
+    let zone = if winner == key.as_ref() {
+        zone
+    } else {
+        load(winner)?
+    };
     let _ = LOCAL.set(zone.clone());
     Ok(LOCAL.get().cloned().unwrap_or(zone))
 }
+
 use super::input::visit_nanos as visit;
 fn single<const Q: u8>(inputs: &[Series], options: &Options) -> Result<Series, Failure> {
     let source = &inputs[0];
