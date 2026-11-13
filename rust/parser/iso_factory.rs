@@ -1,5 +1,6 @@
 //! Dedicated ISO factory grammar; ordinary text parsing retains its own policy.
 //! No Python date carrier is needed to retain zero/wide years or nanoseconds.
+use super::text::{CharacterRead, digit};
 use crate::epoch::{Parsed, Unit, Zone};
 use pyo3::prelude::*;
 
@@ -27,17 +28,20 @@ fn invalid() -> Error {
     Error::Invalid
 }
 
-fn digits(input: &[u8], position: &mut usize, count: usize) -> Result<i64, Error> {
+fn digits(input: &impl CharacterRead, position: &mut usize, count: usize) -> Result<i64, Error> {
     let end = position.checked_add(count).ok_or_else(invalid)?;
-    let bytes = input.get(*position..end).ok_or_else(invalid)?;
+    if end > input.len() {
+        return Err(invalid());
+    }
     let mut value = 0_i64;
-    for &digit in bytes {
-        if !digit.is_ascii_digit() {
+    for index in *position..end {
+        let ch = input.get(index);
+        if !digit(ch) {
             return Err(invalid());
         }
         value = value
             .checked_mul(10)
-            .and_then(|v| v.checked_add(i64::from(digit - b'0')))
+            .and_then(|v| v.checked_add(i64::from(ch - 48)))
             .ok_or(Error::Overflow("ISO year exceeds native integer range"))?;
     }
     *position = end;
@@ -45,13 +49,17 @@ fn digits(input: &[u8], position: &mut usize, count: usize) -> Result<i64, Error
 }
 
 /// Read every fractional digit, retaining only the target's meaningful prefix.
-fn fraction(input: &[u8], position: &mut usize, precision: usize) -> Result<(i64, usize), Error> {
+fn fraction(
+    input: &impl CharacterRead,
+    position: &mut usize,
+    precision: usize,
+) -> Result<(i64, usize), Error> {
     *position += 1;
     let start = *position;
     let mut value = 0;
-    while input.get(*position).is_some_and(u8::is_ascii_digit) {
+    while *position < input.len() && digit(input.get(*position)) {
         if *position - start < precision {
-            value = value * 10 + i64::from(input[*position] - b'0');
+            value = value * 10 + i64::from(input.get(*position) - 48);
         }
         *position += 1;
     }
@@ -63,20 +71,20 @@ fn fraction(input: &[u8], position: &mut usize, precision: usize) -> Result<(i64
     Ok((value, count))
 }
 
-fn clock(input: &[u8], position: &mut usize) -> Result<(i64, i64, i64), Error> {
+fn clock(input: &impl CharacterRead, position: &mut usize) -> Result<(i64, i64, i64), Error> {
     let hour = digits(input, position, 2)?;
     let mut minute = 0;
     let mut second = 0;
-    if input.get(*position) == Some(&b':') {
+    if input.get(*position) == 58 {
         *position += 1;
         minute = digits(input, position, 2)?;
-        if input.get(*position) == Some(&b':') {
+        if input.get(*position) == 58 {
             *position += 1;
             second = digits(input, position, 2)?;
         }
-    } else if input.get(*position).is_some_and(u8::is_ascii_digit) {
+    } else if digit(input.get(*position)) {
         minute = digits(input, position, 2)?;
-        if input.get(*position).is_some_and(u8::is_ascii_digit) {
+        if digit(input.get(*position)) {
             second = digits(input, position, 2)?;
         }
     }
@@ -87,10 +95,11 @@ fn clock(input: &[u8], position: &mut usize) -> Result<(i64, i64, i64), Error> {
 }
 
 /// Decode one complete ISO factory value into local native fields and timezone.
-pub(crate) fn read_native(text: &str) -> Result<NativeParsed, Error> {
-    let input = text.as_bytes();
-    let run = input.iter().take_while(|v| v.is_ascii_digit()).count();
-    let width = if run >= 4 && input.get(run) == Some(&b'-') {
+pub(crate) fn read_native(input: &impl CharacterRead) -> Result<NativeParsed, Error> {
+    let run = (0..input.len())
+        .take_while(|&index| digit(input.get(index)))
+        .count();
+    let width = if run >= 4 && input.get(run) == 45 {
         run
     } else {
         4
@@ -100,17 +109,17 @@ pub(crate) fn read_native(text: &str) -> Result<NativeParsed, Error> {
     }
     let mut position = 0;
     let year = digits(input, &mut position, width)?;
-    let dashed = input.get(position) == Some(&b'-');
+    let dashed = input.get(position) == 45;
     if dashed {
         position += 1;
     }
-    let ordinal = if matches!(input.get(position), Some(b'W' | b'w')) {
+    let ordinal = if matches!(input.get(position), 87 | 119) {
         position += 1;
         let week = digits(input, &mut position, 2)?;
-        let weekday = if input.get(position) == Some(&b'-') {
+        let weekday = if input.get(position) == 45 {
             position += 1;
             digits(input, &mut position, 1)?
-        } else if input.get(position).is_some_and(u8::is_ascii_digit) {
+        } else if digit(input.get(position)) {
             digits(input, &mut position, 1)?
         } else {
             1
@@ -123,11 +132,10 @@ pub(crate) fn read_native(text: &str) -> Result<NativeParsed, Error> {
         }
         crate::calendar::iso_ordinal(year, week, weekday).map_err(Error::Overflow)?
     } else {
-        let remaining = input[position..]
-            .iter()
-            .take_while(|v| v.is_ascii_digit())
+        let remaining = (position..input.len())
+            .take_while(|&index| digit(input.get(index)))
             .count();
-        if (dashed && input.get(position + 2) != Some(&b'-') && remaining == 3)
+        if (dashed && input.get(position + 2) != 45 && remaining == 3)
             || (!dashed && remaining == 3)
         {
             let day = digits(input, &mut position, 3)?;
@@ -138,7 +146,7 @@ pub(crate) fn read_native(text: &str) -> Result<NativeParsed, Error> {
         } else {
             let month = digits(input, &mut position, 2)?;
             if dashed {
-                if input.get(position) != Some(&b'-') {
+                if input.get(position) != 45 {
                     return Err(invalid());
                 }
                 position += 1;
@@ -156,11 +164,11 @@ pub(crate) fn read_native(text: &str) -> Result<NativeParsed, Error> {
     let mut unit = Unit::Microsecond;
     let mut offset = None;
     if position < input.len() {
-        let separator = text[position..].chars().next().ok_or_else(invalid)?;
-        position += separator.len_utf8();
+        // Exactly one separator code point; the view retains its input owner.
+        position += 1;
         let (h, m, s) = clock(input, &mut position)?;
         nanos += ((i128::from(h) * 60 + i128::from(m)) * 60 + i128::from(s)) * 1_000_000_000;
-        if matches!(input.get(position), Some(b'.' | b',')) {
+        if matches!(input.get(position), 46 | 44) {
             let (part, count) = fraction(input, &mut position, 9)?;
             nanos += i128::from(part);
             if count > 6 {
@@ -168,16 +176,16 @@ pub(crate) fn read_native(text: &str) -> Result<NativeParsed, Error> {
             }
         }
         match input.get(position) {
-            Some(b'Z' | b'z') => {
+            90 | 122 => {
                 position += 1;
                 offset = Some(0);
             }
-            Some(b'+' | b'-') => {
-                let negative = input[position] == b'-';
+            43 | 45 => {
+                let negative = input.get(position) == 45;
                 position += 1;
                 let (h, m, s) = clock(input, &mut position)?;
                 let mut value = ((h * 60 + m) * 60 + s) * 1_000_000;
-                if matches!(input.get(position), Some(b'.' | b',')) {
+                if matches!(input.get(position), 46 | 44) {
                     value += fraction(input, &mut position, 6)?.0;
                 }
                 if negative {
@@ -199,8 +207,8 @@ pub(crate) fn read_native(text: &str) -> Result<NativeParsed, Error> {
 }
 
 /// Existing scalar adapter preserves its original error and timezone contracts.
-pub(crate) fn read(text: &str) -> PyResult<Parsed> {
-    let parsed = read_native(text).map_err(|error| match error {
+pub(crate) fn read(input: &impl CharacterRead) -> PyResult<Parsed> {
+    let parsed = read_native(input).map_err(|error| match error {
         Error::Invalid => crate::error_context::value_error(error.to_string()),
         Error::Overflow(message) => crate::error_context::overflow(message),
     })?;
@@ -214,6 +222,11 @@ pub(crate) fn read(text: &str) -> PyResult<Parsed> {
 #[cfg(test)]
 mod native_tests {
     use super::*;
+
+    fn read_native(text: &str) -> Result<NativeParsed, Error> {
+        let mut scratch = Vec::new();
+        super::read_native(&crate::parser::text::Utf8View::new(text, &mut scratch))
+    }
     #[test]
     fn strict_iso_and_source_width_run_without_python_on_a_worker() {
         std::thread::spawn(|| {

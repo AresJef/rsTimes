@@ -16,7 +16,7 @@ fn ascii_four(word: u32) -> Option<i32> {
 
 /// Static character access for the one grammar. Indices are Unicode code
 /// points; one-byte storage exposes the existing ASCII numeric shortcuts.
-pub(super) trait CharacterRead {
+pub(crate) trait CharacterRead {
     fn len(&self) -> usize;
     fn get(&self, index: usize) -> u32;
     fn truncate(&mut self, end: usize);
@@ -113,7 +113,7 @@ pub(super) trait CharacterRead {
     }
 }
 
-pub(super) struct TextView<'a> {
+pub(crate) struct TextView<'a> {
     data: *const c_void,
     kind: u32,
     length: usize,
@@ -121,7 +121,7 @@ pub(super) struct TextView<'a> {
 }
 
 impl<'a> TextView<'a> {
-    pub(super) fn new(input: &'a Bound<'_, PyString>) -> PyResult<Self> {
+    pub(crate) fn new(input: &'a Bound<'_, PyString>) -> PyResult<Self> {
         // SAFETY: PyString is ready immutable Unicode; the borrowed Bound keeps
         // its storage alive even while configuration callbacks execute.
         unsafe {
@@ -134,7 +134,7 @@ impl<'a> TextView<'a> {
         }
     }
     #[inline]
-    pub(super) fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.length
     }
     /// Limit the view while retaining its borrowed Python owner.
@@ -191,13 +191,13 @@ enum Utf8Storage<'a> {
 
 /// A worker-local UTF8 view. ASCII borrows the native string; other input is
 /// decoded once into a caller-owned reusable arena, never per random access.
-pub(super) struct Utf8View<'a> {
+pub(crate) struct Utf8View<'a> {
     storage: Utf8Storage<'a>,
     length: usize,
 }
 
 impl<'a> Utf8View<'a> {
-    pub(super) fn new(input: &'a str, scratch: &'a mut Vec<u32>) -> Self {
+    pub(crate) fn new(input: &'a str, scratch: &'a mut Vec<u32>) -> Self {
         if input.is_ascii() {
             Self {
                 storage: Utf8Storage::Bytes(input.as_bytes()),
@@ -322,7 +322,7 @@ pub(super) struct Tokens {
 
 impl Tokens {
     #[inline]
-    pub(super) fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.ranges.len()
     }
     #[inline]

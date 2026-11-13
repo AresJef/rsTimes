@@ -3,6 +3,7 @@ use super::finish::{Failure, Kind, Rows};
 use super::zones::{Context, Policies, PolicyContext};
 use crate::epoch::Unit;
 use crate::parser::iso_factory;
+use crate::parser::text::{CharacterRead, TextView, Utf8View};
 use crate::temporal_zone::{Zone, ZoneData};
 use polars::prelude::*;
 use pyo3::prelude::*;
@@ -30,14 +31,10 @@ fn selected(value: Option<&str>) -> Result<Option<Unit>, Failure> {
 }
 fn read(
     rows: &mut Rows,
-    text: &str,
+    text: &impl CharacterRead,
     expression: bool,
     target: Option<&Zone>,
 ) -> Result<(), Failure> {
-    if super::text::missing(text) {
-        rows.missing();
-        return Ok(());
-    }
     let parsed = iso_factory::read_native(text).map_err(|error| {
         Failure::new(
             if matches!(error, iso_factory::Error::Overflow(_)) {
@@ -77,14 +74,16 @@ fn column(
             }
         }
         DataType::String => {
+            let mut scratch = Vec::new();
             for (row, value) in source
                 .str()
                 .map_err(|error| Failure::new(Kind::Type, error.to_string()))?
                 .iter()
                 .enumerate()
             {
-                if let Some(value) = value {
-                    read(&mut rows, value, expression, target).map_err(|error| error.at(row))?;
+                if let Some(value) = value.filter(|value| !super::text::missing(value)) {
+                    let view = Utf8View::new(value, &mut scratch);
+                    read(&mut rows, &view, expression, target).map_err(|error| error.at(row))?;
                 } else {
                     rows.missing();
                 }
@@ -184,7 +183,12 @@ fn _pldt_iso_objects<'py>(
                 "fromisoformat requires ISO text values, not dates or numbers",
             )
         })?;
-        read(&mut rows, text.to_str()?, false, zone).map_err(|error| error.python(py, entry))
+        let view = TextView::new(text)?;
+        if view.len() <= 3 && crate::date_input::missing_text(text)? {
+            rows.missing();
+            return Ok(());
+        }
+        read(&mut rows, &view, false, zone).map_err(|error| error.python(py, entry))
     };
     if !column && crate::numeric_epoch::scalar(data)? {
         let count = size

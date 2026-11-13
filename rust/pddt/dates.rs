@@ -15,13 +15,11 @@ fn role(value: &Bound<'_, PyAny>, kind: &str, replace: bool) -> PyResult<Option<
         let text = value.cast::<pyo3::types::PyString>().map_err(|_| {
             crate::error_context::type_error("fromisoformat requires ISO text values")
         })?;
-        if matches!(
-            text.to_str()?,
-            "" | "NaT" | "NAT" | "nat" | "NaN" | "NAN" | "nan"
-        ) {
+        let view = crate::parser::text::TextView::new(text)?;
+        if view.len() <= 3 && crate::date_input::missing_text(text)? {
             return Ok(None);
         }
-        return crate::parser::iso_factory::read(text.to_str()?).map(|p| Some((p, false)));
+        return crate::parser::iso_factory::read(&view).map(|p| Some((p, false)));
     }
     crate::date_input::named_date(
         value,

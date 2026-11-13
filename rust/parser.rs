@@ -11,7 +11,7 @@ pub(crate) mod objects;
 pub(crate) mod prepared;
 mod resolve;
 mod scan;
-mod text;
+pub(crate) mod text;
 pub(crate) mod zones;
 
 use config::Configs;
