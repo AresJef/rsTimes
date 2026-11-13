@@ -409,8 +409,16 @@ def cases(package):
         records.append(Case("dateutil:callback:"+cls.__name__,"dateutil",("M02","K08"),lambda cls=cls:Delta.from_relativedelta(cls())))
     def relative_error_shape():
         errors=import_module(package+".errors")
-        return [issubclass(errors.InvalidRelativeDelta,parent) for parent in
-                (TypeError,errors.DeltaError,errors.cyTimesTypeError,errors.cyTimesError,Exception)]
+        if package == "cytimes":
+            return [issubclass(errors.InvalidRelativeDelta,parent) for parent in
+                    (TypeError,errors.DeltaError,errors.cyTimesTypeError,errors.cyTimesError,Exception)]
+        # Standard argument errors are deliberately outside the three domain classes.
+        try:
+            Delta.from_relativedelta(object())
+        except TypeError as error:
+            return [type(error) is TypeError, isinstance(error, Exception),
+                    not isinstance(error, errors.RstimesError)]
+        raise AssertionError("from_relativedelta accepted an unsupported input")
     records.append(Case("dateutil:error-hierarchy","dateutil",("K08",),relative_error_shape))
     numpy_units = ("Y","M","W","D","h","m","s","ms","us","ns","ps","fs","as")
     for kind,constructor in (("datetime",np.datetime64),("timedelta",np.timedelta64)):
@@ -881,7 +889,6 @@ def revision_contract_cases(package, selected):
             return True
         def wide_input_overflow():
             for kwargs in ({"days": 2**63}, {"year": 2**63}, {"weeks": 2**62},
-                           {"quarters": 2**62}, {"milliseconds": 2**63-1},
                            {"days": 2**63-1, "hours": 24}):
                 try:
                     Delta(**kwargs)
@@ -979,8 +986,11 @@ def revision_contract_cases(package, selected):
             state = value.__getstate__()
             other = Delta(days=2).__getstate__()
             bad_cache = hash(tuple(state[2])) ^ 8
-            malformed = [((state[0], state[1], state[2], bad_cache, state[4]), ValueError),
-                         (other, ValueError),
+            # D09: a derived cache may be discarded; fields and immutability
+            # remain independently validated.
+            value.__setstate__((state[0], state[1], state[2], bad_cache, state[4]))
+            assert mapping[value] == "stable"
+            malformed = [(other, ValueError),
                          ((state[0], 99, state[2], state[3], state[4]), ValueError),
                          ((state[0], state[1], tuple([True] + list(state[2][1:])), -1, None), TypeError)]
             for bad, error_type in malformed:
@@ -993,17 +1003,14 @@ def revision_contract_cases(package, selected):
                 assert value.days == 1 and mapping[value] == "stable"
             value.__setstate__(value.__getstate__())
             assert value.days == 1
-            try:
-                _restore_delta(Delta, state[2], bad_cache)
-            except ValueError:
-                pass
-            else:
-                raise AssertionError("Reconstructor accepted a forged cache")
+            restored = _restore_delta(Delta, state[2], bad_cache)
+            assert restored == value and hash(restored) == hash(value)
             payload = value.__reduce__()[1][1]
             assert type(payload) is bytes
             bad_payloads = [payload[:40], payload[:7] + b"\x63" + payload[8:],
-                            payload[:16] + (12).to_bytes(8, "little", signed=True) + payload[24:],
-                            payload[:-8] + bad_cache.to_bytes(8, "little", signed=True)]
+                            payload[:16] + (12).to_bytes(8, "little", signed=True) + payload[24:]]
+            stale_cache = payload[:-8] + bad_cache.to_bytes(8, "little", signed=True)
+            assert hash(_restore_delta(Delta, stale_cache)) == hash(value)
             for bad in bad_payloads:
                 for restore in (lambda: _restore_delta(Delta, bad), lambda: Delta.__new__(Delta, bad)):
                     try:
@@ -1120,7 +1127,8 @@ def revision_contract_cases(package, selected):
             class DateChild(date):
                 def __sub__(self, other): return SpecialSpan(days=7)
             start = DateChild(2024,1,1)
-            assert type(Delta(days=1).to_timedelta(start)) is SpecialSpan
+            assert type(Delta(days=1).to_timedelta(start)) is timedelta
+            assert Delta(days=1).to_timedelta(start) == timedelta(days=7)
             class DeltaChild(Delta):
                 def __radd__(self, start): return start + timedelta(days=7)
             assert DeltaChild(days=1).to_timedelta(date(2024,1,1)) == timedelta(days=7)
@@ -1453,6 +1461,15 @@ def candidate_cases(package, revision=False):
         ("dict-key",lambda state:change(state,4,{1:"bad"}),TypeError),
     ]
     for label,make,exception in malformed:
+        if revision and label in ("hash-type", "hash-mismatch"):
+            def discard_cache(make=make):
+                value=Delta(days=1); before=value.__getstate__(); expected=hash(value)
+                value.__setstate__(make(value.__getstate__()))
+                assert value.days == 1 and hash(value) == expected
+                assert value.__getstate__()[2] == before[2]
+                return True
+            records.append(Case("state:discard:"+label,"state",("G09",),discard_cache))
+            continue
         records.append(Case("state:reject:"+label,"state",("G09",),lambda make=make,exception=exception:invalid_state(make,exception)))
     def reject_base_dictionary():
         value=Delta(days=1);before=value.__getstate__();bad=change(before,4,{"x":1})
@@ -1513,7 +1530,7 @@ def candidate_cases(package, revision=False):
         assert loaded.Delta is submodule.Delta and Delta.__module__=="rstimes.delta"
         package_root=Path(loaded.__file__).parent
         assert (package_root/"py.typed").is_file()
-        tree=ast.parse((package_root/"delta.pyi").read_text())
+        tree=ast.parse((package_root/"delta.pyi").read_text(encoding='utf-8'))
         klass=next(node for node in tree.body if isinstance(node,ast.ClassDef) and node.name=="Delta")
         methods={node.name for node in klass.body if isinstance(node,ast.FunctionDef)}
         required=set(FIELDS)|{"__init__","from_relativedelta","__add__","__radd__","__sub__","__rsub__","__neg__","__abs__","__eq__","__bool__","__repr__","__hash__"}
@@ -1646,3 +1663,425 @@ def revision_expectations():
         for method in ("add", "radd", "sub", "rsub", "method-add", "method-radd", "method-sub", "method-rsub"):
             error(f"dateutil:arithmetic:{label}:{method}", "H05", "ValueError")
     return expected
+
+
+def correction_contract_cases(package):
+    """Return the approved maintenance contracts, with independent expected values."""
+    import copy
+    import pickle
+    from pathlib import Path
+    import numpy as np
+    import pandas as pd
+    from dateutil.relativedelta import relativedelta, MO
+
+    Delta = import_module(package).Delta
+    records = []
+
+    def add(label, group, run):
+        records.append(Case("correction:" + label, group, (group,), run))
+
+    def raises(kind, call):
+        try:
+            call()
+        except kind:
+            return True
+        raise AssertionError(f"Expected {kind.__name__}")
+
+    def wide(kwargs):
+        factors = {"weeks": 604_800_000_000, "days": 86_400_000_000,
+                   "hours": 3_600_000_000, "minutes": 60_000_000,
+                   "seconds": 1_000_000, "milliseconds": 1_000, "microseconds": 1}
+        total = sum(value * factors[key] for key, value in kwargs.items())
+        days, remainder = divmod(total, 86_400_000_000)
+        hours, remainder = divmod(remainder, 3_600_000_000)
+        minutes, remainder = divmod(remainder, 60_000_000)
+        seconds, micros = divmod(remainder, 1_000_000)
+        result = Delta(**kwargs)
+        assert tuple(getattr(result, key) for key in FIELDS[:7]) == (
+            0, 0, days, hours, minutes, seconds, micros)
+        return True
+
+    for label, kwargs in (
+        ("max-ms", {"milliseconds": 2**63-1}),
+        ("min-ms", {"milliseconds": -2**63}),
+        ("us-plus-ms", {"microseconds": 2**63-1, "milliseconds": 1}),
+        ("cancel", {"milliseconds": 2**63-1, "microseconds": -2**63}),
+        ("clock-cancel", {"seconds": 2**63-1, "minutes": -(2**63-1)//60}),
+    ):
+        add("wide:" + label, "F04", lambda kwargs=kwargs: wide(kwargs))
+    add("wide:final-overflow", "F04", lambda: raises(
+        OverflowError, lambda: Delta(days=2**63-1, hours=24)))
+
+    def fractional_boundary(positive):
+        amount = 2**63-1 if positive else -(2**63)
+        extra = 1_800_000_000 if positive else -1_800_000_000
+        days, rest = divmod(amount + extra, 86_400_000_000)
+        hours, rest = divmod(rest, 3_600_000_000)
+        minutes, rest = divmod(rest, 60_000_000)
+        seconds, micros = divmod(rest, 1_000_000)
+        result = Delta(microseconds=amount, hours=0.5 if positive else -0.5)
+        assert tuple(getattr(result, name) for name in FIELDS[:7]) == (
+            0, 0, days, hours, minutes, seconds, micros)
+        return True
+    for positive in (False, True):
+        add(f"wide:fraction:{positive}", "F04", lambda positive=positive: fractional_boundary(positive))
+
+    def wide_native(operation):
+        if operation == "year-subtract":
+            result = Delta(years=2**63-1) - Delta(years=-1, months=11)
+            assert result.years == 2**63-1 and result.months == 1
+        elif operation == "year-negate":
+            result = -Delta(years=-2**63, months=1)
+            assert result.years == 2**63-1 and result.months == 11
+        elif operation == "day-negate":
+            result = -Delta(days=-2**63, microseconds=1)
+            assert result.days == 2**63-1 and (result.hours, result.minutes, result.seconds, result.microseconds) == (23, 59, 59, 999999)
+        else:
+            left, right = Delta(days=-2**63, hours=23), Delta(days=-1, hours=1)
+            result = left + right if operation == "day-add" else right.apply_many([left])[0]
+            assert result == Delta(days=-2**63)
+        return True
+    for operation in ("year-subtract", "year-negate", "day-negate", "day-add", "day-many"):
+        add("wide:native:" + operation, "F04", lambda operation=operation: wide_native(operation))
+
+    def wide_duration(reverse):
+        if reverse:
+            value = Delta(days=-2**63, microseconds=1)
+            result = timedelta() - value
+            expected = Delta(days=2**63-1, hours=23, minutes=59, seconds=59, microseconds=999999)
+        else:
+            value = Delta(days=-2**63, hours=23)
+            result = value + timedelta(days=-1, hours=1)
+            expected = Delta(days=-2**63)
+        assert result == expected
+        return True
+    for reverse in (False, True):
+        add(f"wide:duration:{reverse}", "F04", lambda reverse=reverse: wide_duration(reverse))
+
+    def custom_comparison():
+        class Child(Delta):
+            def __eq__(self, other):
+                return False
+            __hash__ = None
+        base, child = Delta(days=1), Child(days=1)
+        assert (base == child, base != child, child == base, child != base) == (
+            False, True, False, True)
+        assert Delta.__eq__(base, child) is NotImplemented
+        assert Delta.__ne__(base, child) is NotImplemented
+        assert Delta.__eq__(child, base) is NotImplemented
+        return True
+
+    def inherited_comparison():
+        class Child(Delta):
+            pass
+        class Ordered(Delta):
+            def __lt__(self, other):
+                return False
+        for cls in (Child, Ordered):
+            value = cls(days=1)
+            assert value == Delta(days=1) and not (value != Delta(days=1))
+            assert hash(value) == hash(Delta(days=1))
+        class HashChild(Delta):
+            __hash__ = None
+        # R08: disabling hash alone does not cancel inherited field equality.
+        assert Delta.__eq__(Delta(days=1), HashChild(days=1)) is True
+        return True
+
+    add("comparison:custom", "F05", custom_comparison)
+    add("comparison:inherited", "F05", inherited_comparison)
+
+    def timestamp_relative(micros, suffix, tz):
+        start = pd.Timestamp("2024-01-31 23:59:59.999999" + suffix, tz=tz)
+        delta = Delta(microseconds=micros)
+        expected = start + pd.Timedelta(microseconds=micros)
+        assert start + delta == expected
+        assert delta + start == expected
+        assert start - delta == start - pd.Timedelta(microseconds=micros)
+        assert delta.apply_many([start, start]) == [expected, expected]
+        assert type(start + delta) is pd.Timestamp
+        return True
+
+    for micros in (-2, -1, 0, 1, 2):
+        for suffix in ("123", "999"):
+            add(f"nano:relative:{micros}:{suffix}", "F07a",
+                lambda micros=micros, suffix=suffix: timestamp_relative(micros, suffix, None))
+    add("nano:timezone", "F07a", lambda: timestamp_relative(1, "123", "UTC"))
+
+    def calendar_nanoseconds():
+        start = pd.Timestamp("2024-01-31 12:00:00.000000123")
+        assert start + Delta(months=1) == pd.Timestamp("2024-02-29 12:00:00.000000123")
+        assert (start + Delta(hour=9)).nanosecond == 123
+        assert (start + Delta(days=1, microsecond=-2)).nanosecond == 123
+        return True
+
+    def absolute_nanoseconds():
+        start = pd.Timestamp("2024-01-01 00:00:00.000000123")
+        for delta, microsecond in ((Delta(microsecond=0), 0),
+                                   (Delta(millisecond=2, microsecond=123456), 2456)):
+            result = start + delta
+            assert result.microsecond == microsecond and result.nanosecond == 0
+            assert delta.apply_many([start])[0] == result
+        return True
+
+    add("nano:calendar", "F07a", calendar_nanoseconds)
+    add("nano:absolute", "F07a", absolute_nanoseconds)
+
+    def duration_subclass():
+        class Span(timedelta):
+            pass
+        class DateSpan(date):
+            def __sub__(self, other):
+                return Span(days=7)
+        result = Delta(days=1).to_timedelta(DateSpan(2024, 1, 1))
+        assert type(result) is timedelta and result == timedelta(days=7)
+        return True
+
+    def rounded_duration(nanos):
+        class DateSpan(date):
+            def __sub__(self, other):
+                return pd.Timedelta(nanos, unit="ns")
+        magnitude, remainder = divmod(abs(nanos), 1000)
+        magnitude += int(remainder > 500 or (remainder == 500 and magnitude % 2))
+        expected = timedelta(microseconds=magnitude if nanos >= 0 else -magnitude)
+        result = Delta(days=1).to_timedelta(DateSpan(2024, 1, 1))
+        assert type(result) is timedelta and result == expected
+        return True
+
+    add("duration:subclass", "F06", duration_subclass)
+    for nanos in (0, 499, 500, 501, 877, 1500, 2500, 999_999_500,
+                  86_400_000_000_000-500, -499, -500, -501, -877, -1500, -2500):
+        add(f"duration:round:{nanos}", "F07b", lambda nanos=nanos: rounded_duration(nanos))
+
+    def timestamp_duration():
+        start = pd.Timestamp("2024-01-01 00:00:00.000000123")
+        result = Delta(microseconds=1).to_timedelta(start)
+        assert type(result) is timedelta and result == timedelta(microseconds=1)
+        return True
+    add("duration:timestamp", "F07b", timestamp_duration)
+
+    parent = type("CorrectionSlotParent", (Delta,), {
+        "__slots__": ("label",), "__module__": __name__})
+    child = type("CorrectionSlotChild", (parent,), {
+        "__slots__": ("payload", "owner", "unset", "__private"), "__module__": __name__})
+    mixed = type("CorrectionMixedChild", (child,), {
+        "__slots__": ("__dict__",), "__module__": __name__})
+    globals().update(CorrectionSlotParent=parent, CorrectionSlotChild=child,
+                     CorrectionMixedChild=mixed)
+
+    def copied_slots(method, cls, protocol=None):
+        value = cls(days=1, hour=9)
+        value.label, value.payload, value.owner = "saved", [1, 2], value
+        value._CorrectionSlotChild__private = 3
+        if cls is mixed:
+            value.extra = value.payload
+        hash(value)
+        result = (pickle.loads(pickle.dumps(value, protocol=protocol)) if method == "pickle"
+                  else getattr(copy, method)(value))
+        assert type(result) is cls and result is not value
+        assert result.label == "saved" and result.payload == [1, 2]
+        assert result._CorrectionSlotChild__private == 3 and not hasattr(result, "unset")
+        assert result.days == 1 and result.hour == 9 and hash(result) == hash(value)
+        assert (result.payload is value.payload) == (method == "copy")
+        assert result.owner is (value if method == "copy" else result)
+        if cls is mixed:
+            assert result.extra is result.payload
+        return True
+
+    for cls in (child, mixed):
+        for method in ("copy", "deepcopy"):
+            add(f"slots:{cls.__name__}:{method}", "F08",
+                lambda cls=cls, method=method: copied_slots(method, cls))
+        for protocol in range(pickle.HIGHEST_PROTOCOL+1):
+            add(f"slots:{cls.__name__}:pickle:{protocol}", "F08",
+                lambda cls=cls, protocol=protocol: copied_slots("pickle", cls, protocol))
+
+    def cache_restore():
+        from rstimes._native import _restore_delta
+        original = Delta(days=1)
+        state = original.__getstate__()
+        restored = _restore_delta(Delta, state[2], hash(original)+1)
+        assert restored == original and hash(restored) == hash(original)
+        original.__setstate__((state[0], state[1], state[2], hash(original)+1, state[4]))
+        assert hash(original) == hash(Delta(days=1))
+        return True
+
+    def previous_pickle():
+        path = Path(__file__).with_name("data") / "baseline97.pkl"
+        value = pickle.loads(path.read_bytes())
+        assert value == Delta(days=1, hour=9)
+        return True
+
+    add("restore:cache", "F09", cache_restore)
+    add("restore:previous", "F11", previous_pickle)
+
+    def relative_rule(rule, direction):
+        calls = []
+        class Clears(relativedelta):
+            def normalized(self):
+                calls.append(True)
+                return relativedelta(days=1)
+        value = Clears(**({"weekday": MO(1)} if rule == "weekday" else {"leapdays": 1}))
+        operations = {
+            "factory": lambda: Delta.from_relativedelta(value),
+            "add": lambda: Delta() + value, "radd": lambda: value + Delta(),
+            "sub": lambda: Delta() - value, "rsub": lambda: value - Delta(),
+            "many": lambda: Delta().apply_many([value]),
+        }
+        raises(ValueError, operations[direction])
+        assert not calls
+        return True
+
+    for rule in ("weekday", "leapdays"):
+        for direction in ("factory", "add", "radd", "sub", "rsub", "many"):
+            add(f"dateutil:{rule}:{direction}", "F10",
+                lambda rule=rule, direction=direction: relative_rule(rule, direction))
+
+    def relative_callbacks():
+        class Introduces(relativedelta):
+            def normalized(self):
+                return relativedelta(weekday=MO(1))
+        class Raises(relativedelta):
+            def normalized(self):
+                raise RuntimeError("normalization callback")
+        raises(ValueError, lambda: Delta.from_relativedelta(Introduces(days=1)))
+        raises(RuntimeError, lambda: Delta.from_relativedelta(Raises(days=1)))
+        return True
+    add("dateutil:callbacks", "F10", relative_callbacks)
+
+    for cls in (np.datetime64, np.timedelta64):
+        for unit in ("D", "M", "us", "ns"):
+            value = cls("NaT", unit)
+            operations = {
+                "add": lambda value=value: Delta(days=1) + value,
+                "radd": lambda value=value: value + Delta(days=1),
+                "rsub": lambda value=value: value - Delta(days=1),
+                "method-radd": lambda value=value: Delta(days=1).__radd__(value),
+                "many": lambda value=value: Delta(days=1).apply_many([value]),
+            }
+            if cls is np.timedelta64:
+                operations["sub"] = lambda value=value: Delta(days=1) - value
+            for direction, operation in operations.items():
+                add(f"nat:{cls.__name__}:{unit}:{direction}", "F12",
+                    lambda operation=operation: raises(ValueError, operation))
+
+    def normal_numpy():
+        delta = Delta(days=1)
+        assert type(delta + np.datetime64("2024-01-01", "D")) is datetime
+        assert delta + np.timedelta64(2, "D") == Delta(days=3)
+        raises(TypeError, lambda: delta + None)
+        raises(OverflowError, lambda: delta + np.timedelta64(2**63-1, "D"))
+        return True
+    add("nat:normal-values", "F12", normal_numpy)
+
+    def stable_method_entries():
+        """Protect the public signatures and parser fallback of direct method entries."""
+        import inspect
+        value = Delta(days=1)
+        assert str(inspect.signature(Delta.to_timedelta)) == "(self, /, start=None)"
+        assert str(inspect.signature(Delta.apply_many)) == "(self, /, values)"
+        assert value.to_timedelta() == value.to_timedelta(None) == value.to_timedelta(start=None)
+        assert value.apply_many([]) == value.apply_many(values=[]) == []
+        result = value.apply_many(iter([timedelta(days=1)]))
+        assert result == [Delta(days=2)] and type(result) is list
+        for call in (
+            lambda: value.to_timedelta(None, None),
+            lambda: value.to_timedelta(None, start=None),
+            lambda: value.to_timedelta(unknown=None),
+            lambda: Delta.to_timedelta(None),
+            lambda: value.apply_many(),
+            lambda: value.apply_many([], []),
+            lambda: value.apply_many([], values=[]),
+            lambda: value.apply_many(items=[]),
+            lambda: Delta.apply_many(None, []),
+        ):
+            raises(TypeError, call)
+        return True
+
+    add("entries:public-calls", "F13", stable_method_entries)
+    return Delta, records
+
+
+def correction_performance_cases(package):
+    """Return the fixed 66 maintenance inputs and seven equivalent float pairs."""
+    import copy
+    import pickle
+    import numpy as np
+    import pandas as pd
+    from cytimes import Pydt
+    from dateutil.relativedelta import relativedelta
+    from zoneinfo import ZoneInfo
+
+    Delta = import_module(package).Delta
+    records, float_pairs = [], []
+
+    def add(label, group, run):
+        records.append(Case(label, group, ("performance-protection",), run))
+
+    ordinary = {"empty": {}, "days": {"days": 1}, "negative": {"microseconds": -1},
+                "mixed": {"days": 2, "hours": 25, "seconds": 61},
+                "months": {"months": 13}, "absolute": {"hour": 25}}
+    for label, kwargs in ordinary.items():
+        add("construct:" + label, "construct", lambda kwargs=kwargs: Delta(**kwargs))
+    equivalent = {"weeks": {"days": 10, "hours": 12}, "days": {"days": 1, "hours": 12},
+                  "hours": {"hours": 1, "minutes": 30}, "minutes": {"minutes": 1, "seconds": 30},
+                  "seconds": {"seconds": 1, "microseconds": 500000},
+                  "milliseconds": {"microseconds": 1500}, "microseconds": {"microseconds": 2}}
+    for unit, kwargs in equivalent.items():
+        float_id, integer_id = "construct:float:" + unit, "construct:equivalent:" + unit
+        add(float_id, "construct", lambda kwargs={unit: 1.5}: Delta(**kwargs))
+        add(integer_id, "construct", lambda kwargs=kwargs: Delta(**kwargs))
+        float_pairs.append((float_id, integer_id))
+
+    left, right = Delta(days=2, hours=3), Delta(days=1, minutes=5)
+    for label, run in (("add", lambda: left+right), ("sub", lambda: left-right),
+                       ("neg", lambda: -left), ("abs", lambda: abs(left)),
+                       ("timedelta-add", lambda: left+timedelta(days=1)),
+                       ("timedelta-rsub", lambda: timedelta(days=1)-left)):
+        add("arithmetic:" + label, "arithmetic", run)
+    dt = datetime(2024, 1, 15, 12)
+    fold = datetime(2024, 11, 3, 1, 30, tzinfo=ZoneInfo("America/New_York"), fold=1)
+    pydt = Pydt(2024, 1, 15, 12)
+    stamp = pd.Timestamp(dt)
+    for label, value, increment in (("date-month", date(2024, 1, 31), Delta(months=1)),
+                                   ("datetime-hour", dt, Delta(hours=1)),
+                                   ("fold-reuse", fold, Delta()),
+                                   ("fold-change", fold, Delta(hours=1)),
+                                   ("pydt", pydt, Delta(months=1)),
+                                   ("timestamp", stamp, Delta(hours=1))):
+        add("date:" + label, "date", lambda value=value, increment=increment: value+increment)
+    equal = Delta(days=2, hours=3)
+    hash(left)
+    for label, run in (("eq", lambda: left==equal), ("ne", lambda: left!=right),
+                       ("hash-first", lambda: hash(Delta(days=2, hours=3))),
+                       ("hash-cached", lambda: hash(left)), ("getter", lambda: left.days)):
+        add("value:" + label, "value", run)
+    cls = type("CorrectionBenchmarkChild", (Delta,), {"__module__": __name__})
+    globals()["CorrectionBenchmarkChild"] = cls
+    child = cls(days=1)
+    child.label = "saved"
+    payload, child_payload = pickle.dumps(left), pickle.dumps(child)
+    for label, run in (("copy", lambda: copy.copy(left)), ("deepcopy", lambda: copy.deepcopy(left)),
+                       ("write", lambda: pickle.dumps(left)), ("read", lambda: pickle.loads(payload)),
+                       ("child-copy", lambda: copy.copy(child)),
+                       ("child-read", lambda: pickle.loads(child_payload))):
+        add("state:" + label, "state", run)
+    rd, nd, nt = relativedelta(days=2), np.datetime64("2024-01-15", "us"), np.timedelta64(2, "D")
+    for label, run in (("rd-convert", lambda: Delta.from_relativedelta(rd)),
+                       ("rd-add", lambda: left+rd), ("numpy-date", lambda: left+nd),
+                       ("numpy-span", lambda: left+nt)):
+        add("thirdparty:" + label, "thirdparty", run)
+    for label, run in (("fixed", lambda: left.to_timedelta()),
+                       ("date", lambda: Delta(months=1).to_timedelta(date(2024, 1, 31))),
+                       ("datetime", lambda: left.to_timedelta(dt))):
+        add("duration:" + label, "duration", run)
+    increment = Delta(days=1)
+    kinds = {"date-datetime": (date(2024, 1, 15), dt), "delta": (left,),
+             "timedelta": (timedelta(days=2),), "pydt": (pydt,), "dateutil": (rd,),
+             "numpy": (nd, nt), "mixed": (dt, left, timedelta(days=2), rd, nd, pydt, stamp),
+             "timestamp": (stamp,)}
+    for label, examples in kinds.items():
+        for size in (1024, 10000):
+            values = [examples[index % len(examples)] for index in range(size)]
+            add(f"many:{label}:{size}", "many", lambda values=values: increment.apply_many(values))
+    assert len(records) == 66 and len({case.id for case in records}) == 66
+    return Delta, records, float_pairs

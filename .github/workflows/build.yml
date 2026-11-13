@@ -1,0 +1,400 @@
+name: Verify native distributions
+
+on:
+  workflow_call:
+    inputs:
+      profile:
+        type: string
+        default: full
+    outputs:
+      bundle-name:
+        value: ${{ jobs.bundle.outputs.name }}
+      metadata-name:
+        value: ${{ jobs.bundle.outputs.metadata-name }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  matrix:
+    name: Select approved native matrix
+    runs-on: ubuntu-24.04
+    outputs:
+      native: ${{ steps.matrix.outputs.native }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13.17"
+      - id: matrix
+        env:
+          VERIFICATION_PROFILE: ${{ inputs.profile }}
+        run: |
+          python -m pip install --index-url https://pypi.org/simple packaging==26.3
+          python - <<'PYCODE'
+          import json, os
+          from tools.distribution_manifest import release_matrix
+          matrix = release_matrix(os.environ["VERIFICATION_PROFILE"])
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("native=" + json.dumps(matrix, separators=(",", ":")) + "\n")
+          PYCODE
+
+  rust:
+    name: Rust quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13.17"
+      - name: Verify pinned Rust toolchain
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy
+          rustc --version
+          cargo fmt --all -- --check
+          cargo clippy --all-targets --locked -- -D warnings
+          cargo test --locked --lib
+          cargo test --release --locked --lib
+
+  native:
+    name: CPython ${{ matrix.python.label }} / ${{ matrix.platform.id }}
+    needs: matrix
+    runs-on: ${{ matrix.platform.runner }}
+    # Some cold full-featured upstream t builds alone reach the old75min cap.
+    # Bound the whole t build/install/test job at3h; ordinary lanes stay at75min.
+    timeout-minutes: ${{ matrix.python.free_threaded && 180 || 75 }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.native) }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_deployment_target }}
+      CARGO_BUILD_JOBS: "2"
+      TZ: UTC
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: python
+        with:
+          python-version: ${{ matrix.python.version }}
+          architecture: ${{ matrix.platform.arch }}
+          freethreaded: ${{ matrix.python.free_threaded }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        if: matrix.platform.id == 'macos-arm64' && matrix.python.label == '3.13' && inputs.profile == 'full'
+        with:
+          node-version: "26.7.0"
+      - name: Isolate Windows Rustup from preinstalled runner toolchains
+        if: runner.os == 'Windows'
+        run: |
+          python - <<'PYCODE'
+          import os
+          from pathlib import Path
+          rustup_home = Path(os.environ["RUNNER_TEMP"]) / "rstimes-rustup"
+          rustup_home.mkdir()
+          with Path(os.environ["GITHUB_ENV"]).open("a") as output:
+              output.write("RUSTUP_HOME=" + str(rustup_home) + "\n")
+          PYCODE
+      - name: Prepare fixed build tools and release identity
+        run: |
+          rustup set profile minimal
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy
+            rustup default 1.99.0
+          fi
+          python -m pip install --index-url https://pypi.org/simple --upgrade pip==26.2.2
+          python -m pip install --index-url https://pypi.org/simple maturin==1.15.0 twine==7.0.0 packaging==26.3
+          python - <<'PYCODE'
+          import os, tomllib
+          from pathlib import Path
+          from packaging.version import Version
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          cargo = tomllib.loads(Path('Cargo.toml').read_text())['package']['version']
+          assert Version(version).local is None and Version(cargo) == Version(version)
+          tag = 'v' + version
+          assert (Path('docs/releases') / (tag + '.md')).is_file()
+          if os.environ['GITHUB_REF_TYPE'] == 'tag':
+              assert os.environ['GITHUB_REF_NAME'] == tag
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write('PACKAGE_VERSION=' + version + '\n')
+          Path('evidence').mkdir(exist_ok=True)
+          PYCODE
+      - name: Install the sole pinned Python checker
+        if: matrix.platform.id == 'macos-arm64' && matrix.python.label == '3.13' && inputs.profile == 'full'
+        run: npm --prefix tools/typing ci --ignore-scripts --omit=optional
+      - name: Qualify the fixed official runtime for internal t validation
+        if: matrix.python.free_threaded
+        uses: ./.github/actions/internal-polars-runtime
+        with:
+          platform-id: ${{ matrix.platform.id }}
+          python-version: ${{ matrix.python.version }}
+          abi-tag: ${{ matrix.python.abi_tag }}
+          interpreter: ${{ runner.os == 'Linux' && matrix.python.linux_interpreter || steps.python.outputs.python-path }}
+          target: ${{ matrix.platform.target }}
+          manylinux: ${{ matrix.platform.manylinux }}
+          container: ${{ matrix.platform.container }}
+      - name: Build the actual release wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1 resolved commit
+        with:
+          command: build
+          maturin-version: v1.15.0
+          rust-toolchain: "1.99.0"
+          target: ${{ matrix.platform.target }}
+          manylinux: ${{ matrix.platform.manylinux }}
+          container: ${{ matrix.platform.container }}
+          args: --release --locked --out dist --interpreter "${{ runner.os == 'Linux' && matrix.python.linux_interpreter || steps.python.outputs.python-path }}"
+      - name: Build the single source distribution
+        if: matrix.platform.id == 'macos-arm64' && matrix.python.minor == '3.13'
+        run: maturin sdist --out dist
+      - name: Check archive metadata
+        run: python -m twine check --strict dist/*
+      - name: Verify installed wheel on native desktop
+        if: runner.os != 'Linux'
+        run: python -I -B tools/verify_wheel.py --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode "${{ inputs.profile }}" ${{ matrix.python.free_threaded && '--free-threaded --internal-polars .local/internal-polars-wheels' || '' }}
+      - name: Verify installed wheel in the matching Linux libc
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm --volume "$PWD:/project" --workdir /project \
+            --env TZ=UTC --env PYTHONUTF8=1 "${{ matrix.platform.container }}" \
+            "${{ matrix.python.linux_python }}" -I -B tools/verify_wheel.py \
+            --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode "${{ inputs.profile }}" ${{ matrix.python.free_threaded && '--free-threaded --internal-polars .local/internal-polars-wheels' || '' }}
+      - name: Bind tested files to source
+        run: python tools/distribution_manifest.py --directory dist --wheels 1 --sdists ${{ matrix.platform.id == 'macos-arm64' && matrix.python.minor == '3.13' && '1' || '0' }} --output evidence/distributions.json
+      - name: Save only verified distributions
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wheel-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.platform.id }}-${{ matrix.python.label }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+      - name: Save verification evidence including failures
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.platform.id }}-${{ matrix.python.label }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Retain one qualified upstream dependency only for the t sdist check
+        if: matrix.platform.id == 'macos-arm64' && matrix.python.label == '3.14t'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: internal-polars-${{ github.run_id }}-${{ github.run_attempt }}-macos-arm64-3.14t
+          path: .local/internal-polars-wheels/*.whl
+          if-no-files-found: error
+          retention-days: 1
+
+  sdist:
+    name: Independent sdist / ${{ matrix.platform.id }} / ${{ matrix.python.label }}
+    if: inputs.profile == 'full'
+    needs: [matrix, native]
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: { minor: "3.13", label: "3.13", version: "3.13.17", free_threaded: false, linux_interpreter: "python3.13" }
+            platform:
+              id: macos-arm64
+              runner: macos-15
+              arch: arm64
+              target: aarch64-apple-darwin
+              container: "off"
+              manylinux: "off"
+          - python: { minor: "3.14", label: "3.14t", version: "3.14.10", free_threaded: true }
+            platform:
+              id: macos-arm64
+              runner: macos-15
+              arch: arm64
+              target: aarch64-apple-darwin
+              container: "off"
+              manylinux: "off"
+          - python: { minor: "3.15", label: "3.15", version: "3.15.2", free_threaded: false, linux_interpreter: "python3.15", linux_python: "/opt/python/cp315-cp315/bin/python" }
+            platform:
+              id: linux-musl-arm64
+              runner: ubuntu-24.04-arm
+              arch: arm64
+              target: aarch64-unknown-linux-musl
+              container: quay.io/pypa/musllinux_1_2_aarch64@sha256:1db347533f8a7ea39aa20b0203f4e4af00630cdb621216a2b43771523c9983c5
+              manylinux: musllinux_1_2
+    env:
+      TZ: UTC
+      PYTHONUTF8: "1"
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        id: python
+        with:
+          python-version: ${{ matrix.python.version }}
+          architecture: ${{ matrix.platform.arch }}
+          freethreaded: ${{ matrix.python.free_threaded }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: wheel-${{ github.run_id }}-${{ github.run_attempt }}-macos-arm64-3.13
+          path: source-artifact/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        if: matrix.python.free_threaded
+        with:
+          name: internal-polars-${{ github.run_id }}-${{ github.run_attempt }}-macos-arm64-3.14t
+          path: .local/internal-polars-wheels/
+      - name: Extract original sdist with a fresh target
+        run: |
+          python - <<'PYCODE'
+          from pathlib import Path
+          import tarfile
+          source, = Path("source-artifact").glob("*.tar.gz")
+          with tarfile.open(source) as archive:
+              archive.extractall("sdist-extracted", filter="data")
+          project, = Path("sdist-extracted").iterdir()
+          project.rename(".sdist-project")
+          assert not Path(".sdist-project/target").exists() and not Path("target").exists()
+          assert not list(Path(".sdist-project").rglob("*.so"))
+          assert not list(Path(".sdist-project").rglob("*.pyd"))
+          Path("evidence").mkdir()
+          Path("evidence/sdist-fresh-target.txt").write_text(str(source) + "\nNo native or target existed before build.\n")
+          PYCODE
+      - name: Build independent wheel from the source distribution
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b
+        with:
+          command: build
+          working-directory: .sdist-project
+          maturin-version: v1.15.0
+          rust-toolchain: "1.99.0"
+          target: ${{ matrix.platform.target }}
+          manylinux: ${{ matrix.platform.manylinux }}
+          container: ${{ matrix.platform.container }}
+          args: --release --locked --out ../sdist-rebuilt --interpreter "${{ runner.os == 'Linux' && matrix.python.linux_interpreter || steps.python.outputs.python-path }}"
+      - name: Verify independent desktop wheel
+        if: runner.os != 'Linux'
+        run: python -I -B tools/verify_wheel.py --directory sdist-rebuilt --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode sdist ${{ matrix.python.free_threaded && '--free-threaded --internal-polars .local/internal-polars-wheels' || '' }}
+      - name: Verify independent musl wheel
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm --volume "$PWD:/project" --workdir /project \
+            --env TZ=UTC --env PYTHONUTF8=1 "${{ matrix.platform.container }}" \
+            "${{ matrix.python.linux_python }}" -I -B tools/verify_wheel.py \
+            --directory sdist-rebuilt --platform-id "${{ matrix.platform.id }}" --python-minor "${{ matrix.python.minor }}" --mode sdist
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: evidence-${{ github.run_id }}-${{ github.run_attempt }}-sdist-${{ matrix.platform.id }}-${{ matrix.python.label }}
+          path: evidence/
+          retention-days: 7
+
+  oracle:
+    if: inputs.profile == 'full'
+    name: Frozen-upstream comparisons / ${{ matrix.python }} / NumPy ${{ matrix.numpy }}
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { python: "3.13.17", minor: "3.13", numpy: "2.5.3", requirements: "requirements-oracle.txt" }
+          - { python: "3.12.10", minor: "3.12", numpy: "2.5.3", requirements: "requirements-oracle.txt" }
+    env:
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: wheel-${{ github.run_id }}-${{ github.run_attempt }}-linux-x86_64-${{ matrix.minor }}
+          path: dist/
+      - name: Select a compatible oracle environment
+        run: |
+          python -m venv .wheel-test
+          echo "$PWD/.wheel-test/bin" >> "$GITHUB_PATH"
+      - name: Exercise complete original regression suite
+        run: |
+          python -m pip install --index-url https://pypi.org/simple --upgrade pip==26.2.2
+          python -m pip install --index-url https://pypi.org/simple -r ${{ matrix.requirements }} dist/*.whl
+          mkdir -p evidence
+          python -I -B tools/wheel_smoke.py --with-dateutil --with-pandas --with-polars > evidence/oracle-installed.json
+          python -I -B tools/run_release_tests.py --with-oracle --junitxml evidence/oracle-tests.xml
+          python -m pip check
+          python -m pip freeze > evidence/dependencies.txt
+      - name: Exercise original-comparison demos in the compatible environment
+        if: matrix.minor == '3.13'
+        run: |
+          python tools/distribution_manifest.py --directory dist --wheels 1 --sdists 0 --output evidence/demo-distributions.json
+          python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          version = json.loads(Path('evidence/demo-distributions.json').read_text())['version']
+          Path('demo/runtime.json').write_text(json.dumps({'environment': '.wheel-test', 'version': version,
+              'release_manifest': 'evidence/demo-distributions.json', 'selection': 'ci_installed_wheel'}))
+          PYCODE
+          python -I -B demo/delta.py > evidence/delta-demo.log
+          python -I -B demo/parser.py > evidence/parser-demo.log
+          python -I -B demo/pydt.py > evidence/pydt-demo.log
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: evidence-${{ github.run_id }}-${{ github.run_attempt }}-oracle-${{ matrix.minor }}
+          path: evidence/
+          retention-days: 7
+
+  bundle:
+    if: inputs.profile == 'full'
+    name: Verify complete48-wheel and sdist bundle
+    needs: [native, rust, oracle, sdist]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      name: ${{ steps.bundle.outputs.name }}
+      metadata-name: ${{ steps.bundle.outputs.metadata-name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13.17"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: wheel-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: bundle/dist/
+          merge-multiple: true
+      - name: Validate source versions matrix and checksums
+        run: |
+          python -m pip install --index-url https://pypi.org/simple packaging==26.3 twine==7.0.0
+          python -m twine check --strict bundle/dist/*
+          python tools/distribution_manifest.py --directory bundle/dist --wheels 48 --sdists 1 --complete --output bundle/release-manifest.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-distributions-${{ github.run_id }}-${{ github.run_attempt }}
+          path: bundle/
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-metadata-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            bundle/release-manifest.json
+            bundle/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+      - id: bundle
+        run: |
+          echo "name=release-distributions-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+          echo "metadata-name=release-metadata-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"

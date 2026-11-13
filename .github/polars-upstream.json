@@ -1,0 +1,9 @@
+{
+  "version": "2.1.0",
+  "commit": "7f902bd3ffd27ff82d14278a09a295ff2f7aed92",
+  "source_url": "https://codeload.github.com/pola-rs/polars/tar.gz/7f902bd3ffd27ff82d14278a09a295ff2f7aed92",
+  "source_sha256": "358e2eb761890bd8a3c91bde80d1e1b9d28363b1bd4d4474c192626e3d3ce48e",
+  "rust_toolchain": "nightly-2026-09-01",
+  "build_jobs": 2,
+  "scope": "Internal development and CI only. Never a user runtime distribution."
+}

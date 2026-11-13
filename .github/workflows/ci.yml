@@ -1,73 +1,30 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+    # These follow-up records do not change a frozen distribution. Their
+    # documentation/demo checks are recorded by the release procedure.
+    paths-ignore: ["docs/**", "AGENTS.md", "README.md", "demo/README.md", "demo/runtime.json", "tasks/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      profile:
+        type: choice
+        options: [full, pilot]
+        default: full
+        description: Native verification scope; pilot cannot produce a release bundle.
 
 permissions:
   contents: read
 
-jobs:
-  test-and-build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.13"]
-    steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v7.0.0
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Activate the pinned Rust toolchain
-        run: rustup show active-toolchain
-      - name: Install test and build tools
-        run: python -m pip install --index-url https://pypi.org/simple -e ".[test]" build twine
-      - name: Test
-        run: python -m pytest
-      - name: Build sdist and wheel
-        run: python -m build
-      - name: Check distribution metadata
-        run: python -m twine check --strict dist/*
-      - name: Smoke test the installed wheel
-        run: |
-          python -m venv .wheel-test
-          .wheel-test/bin/python -m pip install dist/*.whl
-          .wheel-test/bin/python -I tools/wheel_smoke.py
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}-${{ inputs.profile || 'full' }}
+  cancel-in-progress: true
 
-  # First Delta acceptance is this single platform. The historical Ubuntu
-  # matrix above remains as a separate regression check, not acceptance evidence.
-  native-macos-arm64:
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v7.0.0
-        with:
-          python-version: "3.13"
-      - name: Activate the pinned Rust toolchain
-        run: rustup show active-toolchain
-      - name: Check native code
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy --all-targets --all-features --locked -- -D warnings
-          cargo test --locked --lib
-          cargo test --release --locked --lib
-      - name: Install locked build tools
-        run: python -m pip install --index-url https://pypi.org/simple maturin==1.15.0 twine==7.0.0
-      - name: Build locked release wheel and source distribution
-        run: |
-          maturin build --release --locked --interpreter python --out dist
-          maturin sdist --out dist
-          python -m twine check --strict dist/*
-      - name: Check the installed release wheel
-        run: |
-          python -m venv .delta-oracle
-          python -m venv .wheel-test
-          .delta-oracle/bin/python -m pip install --index-url https://pypi.org/simple -r tests/delta/requirements.txt
-          .wheel-test/bin/python -m pip install --index-url https://pypi.org/simple -r tests/delta/requirements.txt
-          python tools/delta_check.py --group installed --candidate-env .wheel-test --wheel dist/*.whl --report evidence/installed.json
-          .wheel-test/bin/python -I tools/wheel_smoke.py --require-macos-arm64-313
-          .wheel-test/bin/python -I -m pip check
-          python tools/delta_check.py --group all --oracle-env .delta-oracle --candidate-env .wheel-test --report evidence/delta.json
-          python tools/delta_check.py --group existing --candidate-env .wheel-test --report evidence/existing.json
+jobs:
+  verify:
+    uses: ./.github/workflows/build.yml
+    with:
+      profile: ${{ inputs.profile || (github.event_name == 'pull_request' && 'pilot' || 'full') }}

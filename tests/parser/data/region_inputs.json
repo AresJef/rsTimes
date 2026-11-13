@@ -1,0 +1,341 @@
+{
+  "description": "Frozen public calls for F0/F1 regional and strict protection; expected values fixed before optimization.",
+  "rows": [
+    {
+      "id": "Z01",
+      "label": "Shanghai winter",
+      "text": "2024-01-02 12:30 Asia/Shanghai",
+      "regions": [
+        "Asia/Shanghai"
+      ],
+      "kwargs": {
+        "ignoretz": false,
+        "strict": false
+      },
+      "default": null,
+      "expected": {
+        "fields": [
+          2024,
+          1,
+          2,
+          12,
+          30,
+          0,
+          0
+        ],
+        "fold": 0,
+        "zone_key": "Asia/Shanghai",
+        "offset_seconds": 28800
+      }
+    },
+    {
+      "id": "Z02",
+      "label": "Shanghai summer",
+      "text": "2024-07-02 12:30 Asia/Shanghai",
+      "regions": [
+        "Asia/Shanghai"
+      ],
+      "kwargs": {
+        "ignoretz": false,
+        "strict": false
+      },
+      "default": null,
+      "expected": {
+        "fields": [
+          2024,
+          7,
+          2,
+          12,
+          30,
+          0,
+          0
+        ],
+        "fold": 0,
+        "zone_key": "Asia/Shanghai",
+        "offset_seconds": 28800
+      }
+    },
+    {
+      "id": "Z03",
+      "label": "New York winter",
+      "text": "2024-01-02 12:30 America/New_York",
+      "regions": [
+        "America/New_York"
+      ],
+      "kwargs": {
+        "ignoretz": false,
+        "strict": false
+      },
+      "default": null,
+      "expected": {
+        "fields": [
+          2024,
+          1,
+          2,
+          12,
+          30,
+          0,
+          0
+        ],
+        "fold": 0,
+        "zone_key": "America/New_York",
+        "offset_seconds": -18000
+      }
+    },
+    {
+      "id": "Z04",
+      "label": "New York summer",
+      "text": "2024-07-02 12:30 America/New_York",
+      "regions": [
+        "America/New_York"
+      ],
+      "kwargs": {
+        "ignoretz": false,
+        "strict": false
+      },
+      "default": null,
+      "expected": {
+        "fields": [
+          2024,
+          7,
+          2,
+          12,
+          30,
+          0,
+          0
+        ],
+        "fold": 0,
+        "zone_key": "America/New_York",
+        "offset_seconds": -14400
+      }
+    },
+    {
+      "id": "Z05",
+      "label": "First repeated time",
+      "text": "2024-11-03 01:30 America/New_York",
+      "regions": [
+        "America/New_York"
+      ],
+      "kwargs": {
+        "ignoretz": false,
+        "strict": false
+      },
+      "default": [
+        2000,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": {
+        "fields": [
+          2024,
+          11,
+          3,
+          1,
+          30,
+          0,
+          0
+        ],
+        "fold": 0,
+        "zone_key": "America/New_York",
+        "offset_seconds": -14400
+      }
+    },
+    {
+      "id": "Z06",
+      "label": "Second repeated time",
+      "text": "2024-11-03 01:30 America/New_York",
+      "regions": [
+        "America/New_York"
+      ],
+      "kwargs": {
+        "ignoretz": false,
+        "strict": false
+      },
+      "default": [
+        2000,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "expected": {
+        "fields": [
+          2024,
+          11,
+          3,
+          1,
+          30,
+          0,
+          0
+        ],
+        "fold": 1,
+        "zone_key": "America/New_York",
+        "offset_seconds": -18000
+      }
+    },
+    {
+      "id": "Z07",
+      "label": "One-hour forward gap",
+      "text": "2024-03-10 02:30 America/New_York",
+      "regions": [
+        "America/New_York"
+      ],
+      "kwargs": {
+        "ignoretz": false,
+        "strict": false
+      },
+      "default": null,
+      "expected": {
+        "fields": [
+          2024,
+          3,
+          10,
+          3,
+          30,
+          0,
+          0
+        ],
+        "fold": 0,
+        "zone_key": "America/New_York",
+        "offset_seconds": -14400
+      }
+    },
+    {
+      "id": "Z08",
+      "label": "Half-hour forward gap",
+      "text": "2024-10-06 02:15 Australia/Lord_Howe",
+      "regions": [
+        "Australia/Lord_Howe"
+      ],
+      "kwargs": {
+        "ignoretz": false,
+        "strict": false
+      },
+      "default": null,
+      "expected": {
+        "fields": [
+          2024,
+          10,
+          6,
+          2,
+          45,
+          0,
+          0
+        ],
+        "fold": 0,
+        "zone_key": "Australia/Lord_Howe",
+        "offset_seconds": 39600
+      }
+    },
+    {
+      "id": "S01",
+      "label": "Strict ISO",
+      "text": "2024-01-02T12:30:45",
+      "regions": [],
+      "kwargs": {
+        "ignoretz": false,
+        "strict": true
+      },
+      "default": null,
+      "expected": {
+        "fields": [
+          2024,
+          1,
+          2,
+          12,
+          30,
+          45,
+          0
+        ],
+        "fold": 0,
+        "zone_key": null,
+        "offset_seconds": null
+      }
+    },
+    {
+      "id": "S02",
+      "label": "Strict textual month",
+      "text": "14 October 2026 3:30 pm",
+      "regions": [],
+      "kwargs": {
+        "ignoretz": false,
+        "strict": true
+      },
+      "default": null,
+      "expected": {
+        "fields": [
+          2026,
+          10,
+          14,
+          15,
+          30,
+          0,
+          0
+        ],
+        "fold": 0,
+        "zone_key": null,
+        "offset_seconds": null
+      }
+    },
+    {
+      "id": "S03",
+      "label": "Strict fixed offset",
+      "text": "2024-01-02T12:30+05:30",
+      "regions": [],
+      "kwargs": {
+        "ignoretz": false,
+        "strict": true
+      },
+      "default": null,
+      "expected": {
+        "fields": [
+          2024,
+          1,
+          2,
+          12,
+          30,
+          0,
+          0
+        ],
+        "fold": 0,
+        "zone_key": null,
+        "offset_seconds": 19800
+      }
+    },
+    {
+      "id": "S04",
+      "label": "Strict normal region",
+      "text": "2024-01-02 12:30 Asia/Shanghai",
+      "regions": [
+        "Asia/Shanghai"
+      ],
+      "kwargs": {
+        "ignoretz": false,
+        "strict": true
+      },
+      "default": null,
+      "expected": {
+        "fields": [
+          2024,
+          1,
+          2,
+          12,
+          30,
+          0,
+          0
+        ],
+        "fold": 0,
+        "zone_key": "Asia/Shanghai",
+        "offset_seconds": 28800
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# Product test matrix; intentionally independent of the pandas<3 upstream oracle.
+pytest==9.2.0
+numpy==2.5.3
+pandas==3.0.6
+polars==2.0.0
+python-dateutil==2.9.0.post0
+tzdata==2026.5
+pytz==2026.5
+packaging==26.3

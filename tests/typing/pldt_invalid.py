@@ -1,0 +1,16 @@
+from datetime import date, datetime
+from rstimes import Pldt
+Pldt([1], unit='s')
+Pldt([1], as_unit='ns')
+Pldt.fromdatetime('2024-01-01', size=1)
+Pldt.fromdatetime64(datetime(2024, 1, 1), size=1)
+Pldt([1]).pldt.replace(day=1.5)
+Pldt([1]).pldt.round(unit='s')
+Pldt([1]).pldt.diff('2024-01-01', 'D', absolute='yes')
+Pldt([1]).fsp([3])
+Pldt([1]).copy(name=1)
+Pldt([1]).snap(freq='D')
+Pldt.utcnow(None)
+Pldt([1]).pldt.diff(None, 'D')
+Pldt([1]).is_month(None)
+Pldt([1]).to_next_quarter(month='February')

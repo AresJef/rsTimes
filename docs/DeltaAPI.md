@@ -13,9 +13,8 @@ span = Delta(hours=1.5).to_timedelta()    # timedelta(hours=1, minutes=30)
 
 ## Calendar moves and absolute settings
 
-`hours=25` adds one day and one hour. `hour=25` sets the hour to 23.
-Negative absolute settings mean unset; year/month/day zero also mean unset.
-Setting an absolute clock part to zero is meaningful.
+`hours=25` adds one day and one hour. `hour=25` raises `ValueError`: an absolute hour must be in 0 through 23.
+Use `None` to leave an absolute setting unset. Absolute year/month/day values must be positive; their existing upper limits (9999/12/31) remain. Weekday must be in 0 through 6. An absolute clock zero is a real setting; negative clock values are rejected.
 
 Month ends use the last available day. January 31 plus one month becomes
 February 29 in a leap year. Subtracting one month then gives January 29.
@@ -27,8 +26,8 @@ none. Thus `Delta(hour=9) - Delta(hour=9)` still sets hour 9 and is truthy.
 
 Fractional weeks through microseconds are combined and rounded once to the
 nearest microsecond, with half values rounded to even. Integer parts remain
-exact even above `2**53`. Fractional years, quarters, months and absolute
-settings keep their existing integer conversion rule.
+exact even above `2**53`. Relative years, quarters and months require the integer index protocol; floats including 1.0 and booleans are rejected.
+Absolute settings require the integer index protocol: even an integral float such as `hour=9.0` is rejected.
 
 ## Values, equality and dictionary keys
 
@@ -87,10 +86,17 @@ Delta(months=1).to_timedelta(date(2024, 1, 31))  # timedelta(days=29)
 
 ## Converting relativedelta
 
-`Delta.from_relativedelta(rd)` keeps supported fields and applies Delta's usual
-absolute limits. Any weekday setting and any nonzero leapdays value raise
+`Delta.from_relativedelta(rd)` reads the source's actual fields; it does not call
+`normalized()`. Supported fractions are combined and rounded once. Calendar
+fields are interpreted under the source's meaning before checking whether Delta
+can express them; the resulting value then follows Delta's own date rules. Any weekday setting and any nonzero leapdays value raise
 `ValueError`; their date rules cannot be represented by Delta. The same checks
 apply to arithmetic involving relativedelta. `leapdays=0` is accepted.
+
+The dateutil adapter is optional. Install `rsTimes[dateutil]` before starting
+Python to use `from_relativedelta()` or relativedelta arithmetic. Without it,
+the explicit factory raises `ImportError` with an installation hint; ordinary
+Delta construction and standard-library arithmetic remain available.
 
 ## Copying and saving
 
@@ -103,8 +109,9 @@ before its additional attributes. Only load pickle from trusted sources.
 
 Integers and checked arithmetic use the signed 64-bit range. Absolute settings
 are limited as described below; relative months and clock parts are normalized.
-A date result must fit Python's supported date range. This project's acceptance
-covers ordinary CPython 3.13 on macOS arm64.
+A date result must fit Python's supported date range. The beta supports ordinary 64-bit CPython 3.12–3.15 on the native platforms listed
+in README. Older CPython 3.11 results are historical evidence, not current release
+support. The release report records exact dependency versions and tested wheels.
 
 Run `python demo/delta.py` from the project root. Each `xxx_demo` function can be
 run independently, including `datetime_demo`, `pydt_demo`, `apply_many_demo`,
@@ -142,27 +149,30 @@ milliseconds : int or float, default 0
 microseconds : int or float, default 0
     Microseconds to add. Combined fractions round once to the nearest microsecond;
     an exact halfway value rounds to the even microsecond.
-year : int, default -1
-    Year to set. Positive values above 9999 become 9999; zero or negative means unset.
-month : int, default -1
-    Month to set. Positive values above 12 become 12; zero or negative means unset.
-day : int, default -1
-    Day to set. Positive values above 31 become 31; zero or negative means unset.
-weekday : int, default -1
-    Day of the week to set, Monday=0 through Sunday=6. Larger values become 6;
-    negative means unset. This selects a day in the same Monday-to-Sunday week.
-hour : int, default -1
-    Hour to set, limited to 23. Negative means unset; zero is a real setting.
-minute : int, default -1
-    Minute to set, limited to 59. Negative means unset.
-second : int, default -1
-    Second to set, limited to 59. Negative means unset.
-millisecond : int, default -1
-    Millisecond part to set, limited to 999. If set, it replaces the millisecond
-    part of microsecond, which then supplies only its last three digits.
-microsecond : int, default -1
-    Microsecond to set, limited to 999999 when millisecond is unset.
-    Negative means unset.
+year : int | None, default None
+    Year to set. Positive values above 9999 become 9999. None leaves it unset;
+    zero and negative values are rejected.
+month : int | None, default None
+    Month to set. Positive values above 12 become 12. None leaves it unset;
+    zero and negative values are rejected.
+day : int | None, default None
+    Day to set. Positive values above 31 become 31; a valid day may then be
+    limited to the destination month end. None leaves it unset.
+weekday : int | None, default None
+    Monday=0 through Sunday=6, selecting within the same week. None leaves it
+    unset. Values outside 0 through 6 are rejected.
+hour : int | None, default None
+    Hour in 0 through 23, or None to leave it unset.
+minute : int | None, default None
+    Minute in 0 through 59, or None to leave it unset.
+second : int | None, default None
+    Second in 0 through 59, or None to leave it unset.
+millisecond : int | None, default None
+    Millisecond part in 0 through 999, or None to leave it unset. When present,
+    it supplies the millisecond part; microsecond supplies only its last three digits.
+microsecond : int | None, default None
+    Microsecond in 0 through 999999, or None to leave it unset. Zero is a real
+    setting. All absolute fields require integers; floats are rejected.
 
 Raises
 ------
@@ -171,14 +181,14 @@ TypeError
 OverflowError
     An integer or a calculation is outside the signed 64-bit range.
 ValueError
-    A fractional duration is NaN.
+    A fractional duration is NaN or an absolute setting is outside its documented range.
 
 Notes
 -----
 Relative amounts are carried into larger units. For example, 25 hours become
-one day and one hour; -1 hour becomes -1 day and 23 hours. Fractional years,
-quarters, months and absolute settings discard their fractional part.
-Objects providing __int__ can supply integer values.
+one day and one hour; -1 hour becomes -1 day and 23 hours. Relative years, quarters and months reject floats instead of truncating them.
+Integer amounts accept __index__. Absolute settings also use __index__, reject floats,
+and accept None only for an unset field.
 
 Date operations set absolute parts, add relative amounts, then adjust weekday.
 A missing day at month end becomes that month's last day. These moves need not
@@ -209,29 +219,29 @@ datetime.date(2024, 2, 29)
 
 Create a Delta from supported relativedelta fields.
 
+Source date zero means no absolute replacement; clock zero remains an explicit setting. Relative years/months are interpreted before limiting the destination day. Unsupported or unrepresentable rules raise ValueError instead of silently changing their meaning.
+
+Reads the source fields directly, including real subclass attributes, without calling normalized(). Fractional fixed durations use the same microsecond rounding as Delta construction. The returned Delta follows Delta's date, fold and arithmetic rules; conversion does not promise that every operation can replace the source object unchanged.
+
 Parameters
 ----------
-rd : dateutil.relativedelta
-    Relative amounts and absolute settings to convert.
+rd : relativedelta
+    A dateutil.relativedelta whose supported date meaning can be represented
+    exactly. A nonempty weekday or nonzero leapdays is not supported.
 
 Returns
 -------
 Delta
-    A new Delta, including when called through a Delta subclass.
+    A Delta from supported relativedelta fields.
 
 Raises
 ------
-InvalidRelativeDelta
-    rd is not a relativedelta instance.
+TypeError
+    An argument has an unsupported type.
 ValueError
-    weekday is set or leapdays is nonzero; Delta cannot preserve those rules.
+    An input is invalid or cannot retain the requested date/time meaning.
 OverflowError
-    A converted value or calculation is outside the supported integer range.
-
-Notes
------
-The usual Delta rules for absolute settings still apply. Errors from custom
-normalization or numeric conversion are passed to the caller.
+    An integer conversion or result exceeds the supported range.
 
 Examples
 --------
@@ -327,7 +337,8 @@ Raises
 OverflowError
     Numeric conversion or calendar arithmetic overflows.
 ValueError
-    Invalid dates or a failing custom date constructor.
+    Invalid dates or missing date scalars, including NumPy NaT. Custom
+    constructors retain their original exception.
 Exception
     Third-party conversion and other Python callback errors propagate.
 
@@ -530,3 +541,13 @@ trusted sources. Errors from subclass attribute handling are passed through.
 | `minute` | int | None: Absolute minute replacement (0..59), or None when unset. |
 | `second` | int | None: Absolute second replacement (0..59), or None when unset. |
 | `microsecond` | int | None: Absolute microsecond replacement (0..999999), or None. |
+
+## Errors
+
+See [Handling errors](错误处理使用说明.md) for standard exceptions, the three
+domain classes, callback exceptions and batch positions.
+
+
+### Large Timestamp spans
+
+A standard pandas Timestamp anchor may span more than pandas Timedelta can store. `Delta.to_timedelta()` still succeeds when the resulting span fits standard `datetime.timedelta`. Nanoseconds are kept through the difference and rounded to microseconds once, with ties to even. Custom addition and subtraction methods remain in control of their own results.

@@ -1,5 +1,13 @@
 {
-  "environment": ".local/delta/revision-20261012/final-env97",
-  "version": "0.1.0+delta.3",
-  "native_sha256": "bdadd54566d4ad41ceed5591d57a6fa789cee9d09eaff4d2e5a84345d326bb73"
+  "environment": ".local/review-triage-fix-30h-20261111/final04/env-oracle-demo",
+  "version": "0.2.0b3",
+  "release_manifest": "tasks/evidence/review-triage-fix-30h-20261111/Q06/final04-validation/distributions.json",
+  "status": "Adopted local final04: 325 strict PASS; 12 artifact-specific stability conditions and 3 speed-cost conditions; eight direct demos passed",
+  "selection": "local_development",
+  "environments": {
+    "pddt": ".local/review-triage-fix-30h-20261111/final04/env-313"
+  },
+  "validation": "Six macOS ARM64 ABIs, twelve installed views, rebuilt sdist, 325 strict performance passes plus 12 individually accepted stability conditions and 3 speed conditions",
+  "adoption_audit": "tasks/evidence/review-triage-fix-30h-20261111/adoption-completion-audit.json",
+  "adoption_acceptance": "tasks/evidence/review-triage-fix-30h-20261111/Z01/adoption-ready.json"
 }

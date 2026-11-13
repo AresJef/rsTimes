@@ -150,6 +150,7 @@ def runtime_checks(methods):
              "timezone": timezone, "Delta": Delta}
     parser = doctest.DocTestParser()
     for name, doc in documents.items():
+        assert doc is not None, f"Missing installed docstring: {name}"
         test = parser.get_doctest(doc, dict(globs), name, rstimes.__file__, 0)
         runner.run(test)
     summary = runner.summarize()

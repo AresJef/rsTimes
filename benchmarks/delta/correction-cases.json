@@ -1,0 +1,118 @@
+{
+  "groups": {
+    "construct": [
+      "construct:empty",
+      "construct:days",
+      "construct:negative",
+      "construct:mixed",
+      "construct:months",
+      "construct:absolute",
+      "construct:float:weeks",
+      "construct:equivalent:weeks",
+      "construct:float:days",
+      "construct:equivalent:days",
+      "construct:float:hours",
+      "construct:equivalent:hours",
+      "construct:float:minutes",
+      "construct:equivalent:minutes",
+      "construct:float:seconds",
+      "construct:equivalent:seconds",
+      "construct:float:milliseconds",
+      "construct:equivalent:milliseconds",
+      "construct:float:microseconds",
+      "construct:equivalent:microseconds"
+    ],
+    "arithmetic": [
+      "arithmetic:add",
+      "arithmetic:sub",
+      "arithmetic:neg",
+      "arithmetic:abs",
+      "arithmetic:timedelta-add",
+      "arithmetic:timedelta-rsub"
+    ],
+    "date": [
+      "date:date-month",
+      "date:datetime-hour",
+      "date:fold-reuse",
+      "date:fold-change",
+      "date:pydt",
+      "date:timestamp"
+    ],
+    "value": [
+      "value:eq",
+      "value:ne",
+      "value:hash-first",
+      "value:hash-cached",
+      "value:getter"
+    ],
+    "state": [
+      "state:copy",
+      "state:deepcopy",
+      "state:write",
+      "state:read",
+      "state:child-copy",
+      "state:child-read"
+    ],
+    "thirdparty": [
+      "thirdparty:rd-convert",
+      "thirdparty:rd-add",
+      "thirdparty:numpy-date",
+      "thirdparty:numpy-span"
+    ],
+    "duration": [
+      "duration:fixed",
+      "duration:date",
+      "duration:datetime"
+    ],
+    "many": [
+      "many:date-datetime:1024",
+      "many:date-datetime:10000",
+      "many:delta:1024",
+      "many:delta:10000",
+      "many:timedelta:1024",
+      "many:timedelta:10000",
+      "many:pydt:1024",
+      "many:pydt:10000",
+      "many:dateutil:1024",
+      "many:dateutil:10000",
+      "many:numpy:1024",
+      "many:numpy:10000",
+      "many:mixed:1024",
+      "many:mixed:10000",
+      "many:timestamp:1024",
+      "many:timestamp:10000"
+    ]
+  },
+  "float_pairs": [
+    [
+      "construct:float:weeks",
+      "construct:equivalent:weeks"
+    ],
+    [
+      "construct:float:days",
+      "construct:equivalent:days"
+    ],
+    [
+      "construct:float:hours",
+      "construct:equivalent:hours"
+    ],
+    [
+      "construct:float:minutes",
+      "construct:equivalent:minutes"
+    ],
+    [
+      "construct:float:seconds",
+      "construct:equivalent:seconds"
+    ],
+    [
+      "construct:float:milliseconds",
+      "construct:equivalent:milliseconds"
+    ],
+    [
+      "construct:float:microseconds",
+      "construct:equivalent:microseconds"
+    ]
+  ],
+  "input_count": 66,
+  "comparison_count": 73
+}

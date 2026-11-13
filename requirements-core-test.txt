@@ -1,0 +1,5 @@
+# Test-only tools/data for a core install without dateutil, pandas or Polars.
+pytest==9.2.0
+numpy==2.5.3
+tzdata==2026.5
+packaging==26.3

@@ -1,0 +1,9 @@
+# Product compatibility lane; the same wheel and NumPy floor as pandas3.
+pytest==9.2.0
+numpy==2.5.3
+pandas==2.3.3
+polars==2.0.0
+python-dateutil==2.9.0.post0
+tzdata==2026.5
+pytz==2026.5
+packaging==26.3

@@ -15,3 +15,7 @@ htmlcov/
 /target/
 
 .delta-oracle/
+/evidence/
+/sdist-wheels/
+/sdist-source/
+/tools/typing/node_modules/

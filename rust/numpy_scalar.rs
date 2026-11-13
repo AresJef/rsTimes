@@ -1,13 +1,12 @@
 //! Read NumPy's checked public datetime scalar prefix and convert its units.
 //!
 //! Only actual datetime64/timedelta64 scalar types reach the layout cast. This
-//! module preserves the frozen multiplier, NaT and unsupported-unit behavior;
-//! it does not add an array interface or promise arbitrary NumPy ABI compatibility.
+//! module applies dtype multipliers before precision conversion and retains unsupported-unit errors;
+//! NaT is explicitly rejected. No array interface or arbitrary NumPy ABI promise is added.
 
-use pyo3::exceptions::{PyOverflowError, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::{PyDateTime, PyType};
+use pyo3::types::{PyDate, PyDateTime, PyType};
 
 static TYPES: PyOnceLock<(Py<PyType>, Py<PyType>)> = PyOnceLock::new();
 
@@ -18,6 +17,27 @@ pub(crate) struct ExactTypes {
 }
 
 impl ExactTypes {
+    /// Read a proven exact temporal scalar into the Delta ns model. The caller
+    /// decides direction and date-only output without using item conversion.
+    pub(crate) fn delta_scalar(
+        &self,
+        value: &Bound<'_, PyAny>,
+        allow_date: bool,
+    ) -> PyResult<Option<DeltaScalar>> {
+        let actual = unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) };
+        if actual == self.date {
+            if allow_date {
+                decode_delta_scalar(value, true).map(Some)
+            } else {
+                Ok(None)
+            }
+        } else if actual == self.duration {
+            decode_delta_scalar(value, false).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Reuse initialized identities without importing or touching Python values.
     pub(crate) fn cached(py: Python<'_>) -> Option<Self> {
         TYPES.get(py).map(|(date, duration)| Self {
@@ -33,18 +53,11 @@ impl ExactTypes {
         actual == self.date || actual == self.duration
     }
 
-    /// Initialize only for a plausible NumPy first item; identity remains the gate.
+    /// Prepare trusted identities once, without relying on a value's type name.
     /// # Errors
     /// Propagates the same NumPy import/type errors as ordinary scalar conversion.
-    pub(crate) fn for_first(value: &Bound<'_, PyAny>) -> PyResult<Option<Self>> {
+    pub(crate) fn for_value(value: &Bound<'_, PyAny>) -> PyResult<Option<Self>> {
         let py = value.py();
-        // SAFETY: A live ready Python type owns a null-terminated tp_name. This
-        // name is only an import hint; exact cached identity guards payload reads.
-        let name =
-            unsafe { std::ffi::CStr::from_ptr((*pyo3::ffi::Py_TYPE(value.as_ptr())).tp_name) };
-        if !matches!(name.to_bytes(), b"numpy.datetime64" | b"numpy.timedelta64") {
-            return Ok(None);
-        }
         let (date, duration) = scalar_types(py)?;
         let types = Self {
             date: date.bind(py).as_type_ptr(),
@@ -54,38 +67,71 @@ impl ExactTypes {
         let actual = unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) };
         Ok((actual == types.date || actual == types.duration).then_some(types))
     }
-
-    /// Decode a proven exact scalar without repeated Python type/cache operations.
-    /// # Errors
-    /// Retains all unit conversion, overflow and unsupported-unit errors.
-    #[inline]
-    pub(crate) fn microseconds(&self, value: &Bound<'_, PyAny>) -> PyResult<Option<(i64, bool)>> {
-        // SAFETY: The live actual type is compared to interpreter-owned identities
-        // before reading the verified public scalar prefix. Subclasses fall back.
-        let actual = unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) };
-        if actual != self.date && actual != self.duration {
-            return Ok(None);
-        }
-        convert_scalar(value, actual == self.date).map(Some)
-    }
 }
 
 /// Cache the real NumPy scalar types without changing dependency versions.
 /// # Errors
 /// Preserves module and attribute errors from the existing scalar entrance.
 fn scalar_types(py: Python<'_>) -> PyResult<&(Py<PyType>, Py<PyType>)> {
-    TYPES.get_or_try_init(py, || -> PyResult<_> {
-        let module = py.import("numpy")?;
-        Ok((
-            module
-                .getattr("datetime64")?
-                .cast_into::<PyType>()?
-                .unbind(),
-            module
-                .getattr("timedelta64")?
-                .cast_into::<PyType>()?
-                .unbind(),
-        ))
+    if let Some(types) = TYPES.get(py) {
+        return Ok(types);
+    }
+    // Import and attribute access may reenter rstimes. Never perform them while
+    // owning an initialization lock: a nested call may publish the same cache.
+    let module = match py.import("numpy._core._multiarray_umath") {
+        Ok(module) => module,
+        Err(error) if error.is_instance_of::<pyo3::exceptions::PyModuleNotFoundError>(py) => {
+            let missing = error
+                .value(py)
+                .getattr("name")
+                .map_err(crate::error_context::external)?;
+            let name = missing.extract::<String>()?;
+            if name != "numpy._core" && name != "numpy._core._multiarray_umath" {
+                return Err(error);
+            }
+            py.import("numpy.core._multiarray_umath")?
+        }
+        Err(error) => return Err(error),
+    };
+    let capsule = module
+        .getattr("_ARRAY_API")
+        .map_err(crate::error_context::external)?;
+    // SAFETY: NumPy's public multiarray API is a nameless exact capsule. Its
+    // documented entries 215/216 are the actual scalar PyTypeObjects, including
+    // in the supported NumPy 1.x/2.x tables. Mutable Python aliases are not used.
+    let candidate = unsafe {
+        if pyo3::ffi::PyCapsule_CheckExact(capsule.as_ptr()) == 0 {
+            return Err(crate::error_context::type_error(
+                "NumPy _ARRAY_API must be a capsule",
+            ));
+        }
+        let api = pyo3::ffi::PyCapsule_GetPointer(capsule.as_ptr(), std::ptr::null());
+        if api.is_null() {
+            return Err(crate::error_context::fetch(py));
+        }
+        let table = api.cast::<*mut pyo3::ffi::PyObject>();
+        let date = Bound::from_borrowed_ptr_or_err(py, *table.add(215))?.cast_into::<PyType>()?;
+        let duration =
+            Bound::from_borrowed_ptr_or_err(py, *table.add(216))?.cast_into::<PyType>()?;
+        (date.unbind(), duration.unbind())
+    };
+    // Publication itself invokes no user code. If a nested prepare won, retain
+    // its complete value and drop only our redundant owned type references.
+    let _ = TYPES.set(py, candidate);
+    TYPES
+        .get(py)
+        .ok_or_else(|| crate::error_context::type_error("NumPy scalar types were not prepared"))
+}
+
+/// Prove genuine datetime64 ancestry without consulting names or Python aliases.
+pub(crate) fn is_datetime(value: &Bound<'_, PyAny>) -> PyResult<bool> {
+    let (date, _) = scalar_types(value.py())?;
+    // SAFETY: the value and retained real type are live on this interpreter.
+    Ok(unsafe {
+        pyo3::ffi::PyType_IsSubtype(
+            pyo3::ffi::Py_TYPE(value.as_ptr()),
+            date.bind(value.py()).as_type_ptr(),
+        ) != 0
     })
 }
 #[repr(C)]
@@ -100,18 +146,421 @@ struct Scalar {
     metadata: Metadata,
 }
 
-/// Create the common OverflowError for checked NumPy scalar conversion.
-fn overflow() -> PyErr {
-    PyOverflowError::new_err("integer overflow in NumPy scalar conversion")
+/// Validated source metadata, decoded only after the date operation is accepted.
+/// Scaled ticks fit i128; no Python pointer or container is retained here.
+#[derive(Clone, Copy)]
+pub(crate) struct DateSource {
+    ticks: i128,
+    unit: i32,
 }
-/// Multiply NumPy ticks by a unit factor using checked i64 arithmetic.
-///
-/// # Errors
-/// Raises OverflowError when the product cannot be represented.
-fn mul(value: i64, factor: i64) -> PyResult<i64> {
-    value.checked_mul(factor).ok_or_else(overflow)
+impl DateSource {
+    pub(crate) fn coarse(self) -> bool {
+        self.unit <= 4
+    }
+
+    // One consumer owns this decode. Inline its native result so it does not
+    // introduce a parts-array transfer before the required final constructor.
+    #[inline(always)]
+    fn parts(self) -> PyResult<([i64; 7], u16)> {
+        if self.unit == 9
+            && let Ok(micros) = i64::try_from(self.ticks)
+        {
+            let parts = crate::parser::objects::microsecond_fields(micros)?;
+            if !(1..=9999).contains(&parts[0]) {
+                return Err(Self::source_year_error(i128::from(parts[0])));
+            }
+            return Ok((parts, 0));
+        }
+        let (year, month, day, micros, tail) = if self.unit <= 1 {
+            let (year, month) = if self.unit == 0 {
+                (1970 + self.ticks, 1)
+            } else {
+                (
+                    1970 + self.ticks.div_euclid(12),
+                    (self.ticks.rem_euclid(12) + 1) as u8,
+                )
+            };
+            (year, month, 1, 0, 0)
+        } else {
+            let (days, clock) = match self.unit {
+                2 => (self.ticks * 7, 0),
+                4 => (self.ticks, 0),
+                _ => split_clock(self.ticks, self.unit),
+            };
+            let (year, month, day) = crate::civil::from_ordinal(days + 719_163)
+                .map_err(crate::error_context::overflow)?;
+            let (micros, tail) = if self.unit == 10 {
+                (clock / 1000, (clock % 1000) as u16)
+            } else if self.unit >= 5 {
+                let scale =
+                    [3_600_000_000u64, 60_000_000, 1_000_000, 1000, 1][(self.unit - 5) as usize];
+                (clock * scale, 0)
+            } else {
+                (0, 0)
+            };
+            (year, month, day, micros, tail)
+        };
+        if !(1..=9999).contains(&year) {
+            return Err(Self::source_year_error(year));
+        }
+        Ok((
+            [
+                year as i64,
+                i64::from(month),
+                i64::from(day),
+                (micros / 3_600_000_000) as i64,
+                (micros / 60_000_000 % 60) as i64,
+                (micros / 1_000_000 % 60) as i64,
+                (micros % 1_000_000) as i64,
+            ],
+            tail,
+        ))
+    }
+
+    fn source_year_error(year: i128) -> PyErr {
+        crate::error_context::value_error(format!(
+            "NumPy date arithmetic source year must be from1 through9999; got{year}"
+        ))
+    }
 }
 
+/// A source's exact native value, independent of its final Python container.
+pub(crate) enum DeltaScalar {
+    Date(DateSource),
+    Duration {
+        days: i128,
+        clock_ns: u64,
+        calendar_unit: bool,
+    },
+}
+
+/// Resolve disjoint exact NumPy scalars before an unrelated Python type lookup.
+/// Keep the general bulk/subclass route unchanged; both paths use the same
+/// retained real types and the one validated scalar decoder.
+#[inline]
+pub(crate) fn exact_delta_scalar(
+    value: &Bound<'_, PyAny>,
+    allow_date: bool,
+) -> PyResult<Option<DeltaScalar>> {
+    let py = value.py();
+    let (date, duration) = scalar_types(py)?;
+    // SAFETY: the bound object and retained native types are live under the GIL.
+    let actual = unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) };
+    if actual == date.bind(py).as_type_ptr() {
+        return if allow_date {
+            decode_delta_scalar(value, true).map(Some)
+        } else {
+            Ok(None)
+        };
+    }
+    if actual == duration.bind(py).as_type_ptr() {
+        return decode_delta_scalar(value, false).map(Some);
+    }
+    Ok(None)
+}
+
+/// Qualify genuine temporal inheritance before decoding its public scalar data.
+pub(crate) fn delta_scalar(
+    value: &Bound<'_, PyAny>,
+    allow_date: bool,
+) -> PyResult<Option<DeltaScalar>> {
+    let py = value.py();
+    let (date, duration) = scalar_types(py)?;
+    // The retained real types and source are live under the GIL. Exact native
+    // scalars need no owned type wrapper or subtype walk; genuine subclasses
+    // retain the same ancestry-authorized decoder below.
+    let actual = unsafe { pyo3::ffi::Py_TYPE(value.as_ptr()) };
+    let date = date.bind(py).as_type_ptr();
+    let duration = duration.bind(py).as_type_ptr();
+    if actual == date {
+        return if allow_date {
+            decode_delta_scalar(value, true).map(Some)
+        } else {
+            Ok(None)
+        };
+    }
+    if actual == duration {
+        return decode_delta_scalar(value, false).map(Some);
+    }
+    if unsafe { pyo3::ffi::PyType_IsSubtype(actual, date) != 0 } {
+        if allow_date {
+            decode_delta_scalar(value, true).map(Some)
+        } else {
+            Ok(None)
+        }
+    } else if unsafe { pyo3::ffi::PyType_IsSubtype(actual, duration) != 0 } {
+        decode_delta_scalar(value, false).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
+/// Decode after real ancestry was proved, avoiding tick*multiplier*ns overflow.
+fn decode_delta_scalar(value: &Bound<'_, PyAny>, datetime: bool) -> PyResult<DeltaScalar> {
+    // SAFETY: callers prove real datetime64/timedelta64 scalar ancestry.
+    // The input remains owned and the GIL held through these immutable reads.
+    let scalar = unsafe { &*value.as_ptr().cast::<Scalar>() };
+    if scalar.value == i64::MIN {
+        return Err(crate::error_context::value_error(
+            "NumPy NaT has no valid date or duration",
+        ));
+    }
+    let unit = scalar.metadata.unit;
+    let ticks = scaled_ticks(scalar.value, scalar.metadata.multiplier)?;
+    if !matches!(unit, 0 | 1 | 2 | 4..=10) {
+        return Err(unsupported_unit(unit, datetime));
+    }
+    if datetime {
+        return Ok(DeltaScalar::Date(DateSource { ticks, unit }));
+    }
+    let (days, clock_ns) = match unit {
+        // The largest ticks product is below2^95; seconds below2^120.
+        // Splitting seconds before scaling the remainder keeps ns below a day.
+        0 | 1 => {
+            let seconds = ticks * if unit == 0 { 31_556_952 } else { 2_629_746 };
+            (
+                seconds.div_euclid(86_400),
+                (seconds.rem_euclid(86_400) * 1_000_000_000) as u64,
+            )
+        }
+        2 => (ticks * 7, 0),
+        4 => (ticks, 0),
+        5..=10 => {
+            let scale = [
+                3_600_000_000_000i128,
+                60_000_000_000,
+                1_000_000_000,
+                1_000_000,
+                1000,
+                1,
+            ][(unit - 5) as usize];
+            let (days, clock) = split_clock(ticks, unit);
+            (days, clock * scale as u64)
+        }
+        _ => unreachable!("supported NumPy unit"),
+    };
+    Ok(DeltaScalar::Duration {
+        days,
+        clock_ns,
+        calendar_unit: unit <= 1,
+    })
+}
+
+/// Split a supported h..ns source before scaling its bounded day remainder.
+#[inline]
+fn split_clock(ticks: i128, unit: i32) -> (i128, u64) {
+    if let Ok(ticks) = i64::try_from(ticks) {
+        // Each supported unit has a constant day length. Keep these native
+        // divisions constant without narrowing a larger dtype multiplier.
+        #[inline(always)]
+        fn native<const PER_DAY: i64>(ticks: i64) -> (i128, u64) {
+            (
+                i128::from(ticks.div_euclid(PER_DAY)),
+                ticks.rem_euclid(PER_DAY) as u64,
+            )
+        }
+        return match unit {
+            5 => native::<24>(ticks),
+            6 => native::<1440>(ticks),
+            7 => native::<86_400>(ticks),
+            8 => native::<86_400_000>(ticks),
+            9 => native::<86_400_000_000>(ticks),
+            10 => native::<86_400_000_000_000>(ticks),
+            _ => unreachable!("supported NumPy clock unit"),
+        };
+    }
+    let per_day = [
+        24i64,
+        1440,
+        86_400,
+        86_400_000,
+        86_400_000_000,
+        86_400_000_000_000,
+    ][(unit - 5) as usize];
+    (
+        ticks.div_euclid(i128::from(per_day)),
+        ticks.rem_euclid(i128::from(per_day)) as u64,
+    )
+}
+
+/// Apply exact NumPy wall fields and construct only its required final object.
+pub(crate) fn apply_delta_date<'py>(
+    py: Python<'py>,
+    fields: &crate::delta::value::DeltaValue,
+    input: DateSource,
+    sign: i64,
+    date_only: bool,
+) -> PyResult<Bound<'py, PyAny>> {
+    apply_delta_date_impl::<false>(py, fields, input, sign, date_only, None)
+}
+
+/// Apply a NumPy item using only data derived from the same immutable batch.
+/// Real ns tails still use the exact civil core and one final us projection.
+#[inline(always)]
+pub(crate) fn apply_delta_date_batch<'py>(
+    py: Python<'py>,
+    fields: &crate::delta::value::DeltaValue,
+    input: DateSource,
+    sign: i64,
+    date_only: bool,
+    hours: Option<i64>,
+) -> PyResult<Bound<'py, PyAny>> {
+    apply_delta_date_impl::<true>(py, fields, input, sign, date_only, hours)
+}
+
+/// Share exact projection while compiling batch preparation out of scalar calls.
+#[inline(always)]
+fn apply_delta_date_impl<'py, const BATCH: bool>(
+    py: Python<'py>,
+    fields: &crate::delta::value::DeltaValue,
+    input: DateSource,
+    sign: i64,
+    date_only: bool,
+    hours: Option<i64>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let (parts, tail) = input.parts()?;
+    let parts = if tail == 0 {
+        // The complete calendar adapter already handles every Delta, including
+        // subsecond values and absolute clock replacements. A source without
+        // an ns tail needs no duplicate clock-kind checks before that dispatch.
+        let result = match hours {
+            Some(hours) if BATCH => {
+                crate::calendar::apply_hours(fields, parts, sign, !date_only, hours)
+            }
+            _ => crate::calendar::apply(fields, parts, sign, !date_only),
+        };
+        result.map_err(crate::error_context::overflow)?.0
+    } else {
+        let clock = ((parts[3] * 3600 + parts[4] * 60 + parts[5]) * 1_000_000_000 + parts[6] * 1000)
+            as u64
+            + u64::from(tail);
+        let input = crate::civil::CivilNs {
+            year: i128::from(parts[0]),
+            month: parts[1] as u8,
+            day: parts[2] as u8,
+            clock_ns: clock,
+        };
+        let result =
+            crate::civil::apply(fields, input, sign).map_err(crate::error_context::overflow)?;
+        if date_only {
+            [
+                i64::try_from(result.year).map_err(|_| overflow())?,
+                i64::from(result.month),
+                i64::from(result.day),
+                0,
+                0,
+                0,
+                0,
+            ]
+        } else {
+            crate::civil::project_microseconds(result).map_err(crate::error_context::overflow)?
+        }
+    };
+    let year = i32::try_from(parts[0]).map_err(|_| overflow())?;
+    if date_only {
+        return PyDate::new(py, year, parts[1] as u8, parts[2] as u8).map(Bound::into_any);
+    }
+    native_datetime(py, parts).map(Bound::into_any)
+}
+
+/// Read a real datetime64 scalar without reducing its precision.
+/// The public scalar prefix is unchanged across the supported NumPy 1/2 ABIs.
+pub(crate) fn datetime_ticks(value: &Bound<'_, PyAny>) -> PyResult<Option<(i64, i32, i32)>> {
+    let (date, _) = scalar_types(value.py())?;
+    if !value.get_type().is_subclass(date.bind(value.py()))? {
+        return Ok(None);
+    }
+    // SAFETY: actual datetime64 ancestry authorizes the public scalar prefix;
+    // the bound value keeps its storage alive and the GIL remains held.
+    let scalar = unsafe { &*value.as_ptr().cast::<Scalar>() };
+    if scalar.metadata.multiplier <= 0 {
+        return Err(crate::error_context::value_error(
+            "invalid NumPy datetime unit multiplier",
+        ));
+    }
+    Ok(Some((
+        scalar.value,
+        scalar.metadata.unit,
+        scalar.metadata.multiplier,
+    )))
+}
+
+/// Read actual duration scalar storage without narrowing or importing display fields.
+pub(crate) fn duration_ticks(value: &Bound<'_, PyAny>) -> PyResult<Option<(i64, i32, i32)>> {
+    let (_, duration) = scalar_types(value.py())?;
+    if !value.get_type().is_subclass(duration.bind(value.py()))? {
+        return Ok(None);
+    }
+    // SAFETY: actual initialized NumPy duration ancestry proves its scalar prefix;
+    // the attached GIL and retained input keep the immutable storage alive.
+    let scalar = unsafe { &*value.as_ptr().cast::<Scalar>() };
+    if scalar.metadata.multiplier < 1 {
+        return Err(crate::error_context::value_error(
+            "invalid NumPy duration unit multiplier",
+        ));
+    }
+    Ok(Some((
+        scalar.value,
+        scalar.metadata.unit,
+        scalar.metadata.multiplier,
+    )))
+}
+
+/// Decode a genuine timedelta64 exported by pandas without an i64 microsecond limit.
+pub(crate) fn duration_nanoseconds(value: &Bound<'_, PyAny>) -> PyResult<Option<i128>> {
+    let (_, duration) = scalar_types(value.py())?;
+    if !value.get_type().is_subclass(duration.bind(value.py()))? {
+        return Ok(None);
+    }
+    // SAFETY: actual timedelta64 ancestry proves the public NumPy scalar prefix.
+    let scalar = unsafe { &*value.as_ptr().cast::<Scalar>() };
+    if scalar.value == i64::MIN {
+        return Err(crate::error_context::value_error(
+            "NumPy NaT has no valid duration",
+        ));
+    }
+    let ticks = scaled_ticks(scalar.value, scalar.metadata.multiplier)?;
+    let scale: i128 = match scalar.metadata.unit {
+        2 => 604_800_000_000_000,
+        4 => 86_400_000_000_000,
+        5 => 3_600_000_000_000,
+        6 => 60_000_000_000,
+        7 => 1_000_000_000,
+        8 => 1_000_000,
+        9 => 1000,
+        10 => 1,
+        _ => {
+            return Err(crate::error_context::value_error(
+                "pandas duration requires a fixed unit from weeks through nanoseconds",
+            ));
+        }
+    };
+    ticks.checked_mul(scale).map(Some).ok_or_else(overflow)
+}
+
+/// Create the common OverflowError for checked NumPy scalar conversion.
+fn overflow() -> PyErr {
+    crate::error_context::overflow("integer overflow in NumPy scalar conversion")
+}
+
+/// Unsupported temporal dtypes are type failures, with their actual unit named.
+fn unsupported_unit(unit: i32, datetime: bool) -> PyErr {
+    let name = match unit {
+        11 => "ps",
+        12 => "fs",
+        13 => "as",
+        14 => "generic",
+        _ => "unknown",
+    };
+    crate::error_context::type_error(format!(
+        "unsupported NumPy {} unit '{name}' (code {unit}); supported units are Y, M, W, D, h, m, s, ms, us and ns",
+        if datetime {
+            "datetime64"
+        } else {
+            "timedelta64"
+        },
+    ))
+}
 /// Read a checked NumPy datetime64/timedelta64 scalar as microseconds.
 ///
 /// # Arguments
@@ -120,11 +569,11 @@ fn mul(value: i64, factor: i64) -> PyResult<i64> {
 /// # Returns
 /// Some((microseconds, is_datetime)) for a supported scalar; None for other types
 /// or a datetime scalar rejected by allow_datetime. Negative nanoseconds use
-/// floor division. Frozen unit-multiplier and NaT behavior are retained rather
-/// than replaced with NumPy array semantics.
+/// floor division. Dtype multipliers are applied before precision conversion; NaT is
+/// rejected rather than converted into a date or duration.
 ///
 /// # Errors
-/// Raises OverflowError on unrepresentable conversions and TypeError for the
+/// Raises ValueError for NaT, OverflowError on unrepresentable conversions and TypeError for the
 /// frozen unsupported-unit path. NumPy import/type-check errors propagate.
 ///
 /// # Layout contract
@@ -165,6 +614,19 @@ pub fn microseconds(
     convert_scalar(value, datetime).map(Some)
 }
 
+/// Decode only datetime scalars, rejecting other objects before inspecting payloads.
+///
+/// # Errors
+/// Preserves NumPy import errors, NaT rejection and checked conversion overflow.
+pub(crate) fn datetime_microseconds(value: &Bound<'_, PyAny>) -> PyResult<Option<i64>> {
+    let (date, _) = scalar_types(value.py())?;
+    let actual = value.get_type();
+    if !actual.is(date.bind(value.py())) && !actual.is_subclass(date.bind(value.py()))? {
+        return Ok(None);
+    }
+    convert_scalar(value, true).map(|(micros, _)| Some(micros))
+}
+
 /// Read the verified scalar prefix after actual type identity/inheritance checks.
 /// # Preconditions
 /// The caller proved the actual object has the NumPy scalar layout.
@@ -178,7 +640,36 @@ fn convert_scalar(value: &Bound<'_, PyAny>, datetime: bool) -> PyResult<(i64, bo
     // Only read, and only while CPython is attached. ABI offsets were checked
     // against the installed public C headers (numpy-layout-c.json).
     let scalar = unsafe { &*value.as_ptr().cast::<Scalar>() };
-    let (ticks, unit) = (scalar.value, scalar.metadata.unit);
+    if scalar.value == i64::MIN {
+        return Err(crate::error_context::value_error(
+            "NumPy NaT has no valid date or duration",
+        ));
+    }
+    let unit = scalar.metadata.unit;
+    if scalar.metadata.multiplier == 1 {
+        return convert_narrow(scalar.value, unit, datetime);
+    }
+    let ticks = scaled_ticks(scalar.value, scalar.metadata.multiplier)?;
+    if let Ok(narrow) = i64::try_from(ticks) {
+        return convert_narrow(narrow, unit, datetime);
+    }
+    // Only sub-microsecond division can bring a wider product back into i64.
+    // Every supported calendar/coarser unit instead increases its magnitude.
+    match unit {
+        10 => Ok((
+            i64::try_from(ticks.div_euclid(1_000)).map_err(|_| overflow())?,
+            datetime,
+        )),
+        0 | 1 | 2 | 4..=9 => Err(overflow()),
+        _ => Err(unsupported_unit(unit, datetime)),
+    }
+}
+
+/// Convert representable ticks with ordinary checked integer arithmetic.
+/// # Errors
+/// Rejects unsupported units and results outside the final microsecond range.
+#[inline]
+fn convert_narrow(ticks: i64, unit: i32, datetime: bool) -> PyResult<(i64, bool)> {
     let converted = match unit {
         10 => ticks.div_euclid(1_000),
         9 => ticks,
@@ -208,7 +699,7 @@ fn convert_scalar(value: &Bound<'_, PyAny>, datetime: bool) -> PyResult<(i64, bo
                 ticks.rem_euclid(12) + 1
             };
             let year = years.checked_add(1970).ok_or_else(overflow)?;
-            // Preserve the source's original-width intermediate overflow policy.
+            // A failure here necessarily exceeds the final microsecond range.
             mul(years, 365)?;
             let previous = year.checked_sub(1).ok_or_else(overflow)?;
             let before_year = mul(previous, 365)?
@@ -231,101 +722,28 @@ fn convert_scalar(value: &Bound<'_, PyAny>, datetime: bool) -> PyResult<(i64, bo
             mul(days, 86_400_000_000)?
         }
         _ => {
-            // The frozen helper assigns type(value) to a Cython str before
-            // formatting its error. Preserve this observable TypeError.
-            return Err(PyTypeError::new_err("Expected str, got type"));
+            return Err(unsupported_unit(unit, datetime));
         }
     };
-    // Deliberately ignore metadata.multiplier, as the frozen Delta does.
     Ok((converted, datetime))
 }
 
-// NumPy scalars always produce a builtin naive datetime. Work on its validated
-// parts directly, so the ordinary path allocates only the final result rather
-// than an intermediate datetime followed by a second datetime.
-/// Apply Delta to Unix microseconds and allocate only the final naive datetime.
-///
-/// # Errors
-/// Propagates conversion/calendar overflow and Python datetime range errors.
-/// The source date's range is checked before absolute Delta replacements.
-pub fn apply_datetime_us<'py>(
-    py: Python<'py>,
-    delta: &crate::delta::Delta,
-    value: i64,
-    sign: i64,
-) -> PyResult<Bound<'py, PyAny>> {
-    apply_datetime_fields_us(py, &delta.snapshot(), !delta.__bool__(), value, sign)
+/// Checked scaling for coarser units; no valid final result can hide an overflow.
+#[inline]
+fn mul(value: i64, factor: i64) -> PyResult<i64> {
+    value.checked_mul(factor).ok_or_else(overflow)
 }
 
-/// Apply a captured immutable field set to a verified NumPy instant.
-/// # Errors
-/// Preserves original input date checks, calendar overflow and allocation errors.
-pub(crate) fn apply_datetime_fields_us<'py>(
-    py: Python<'py>,
-    fields: &[i64; 15],
-    empty: bool,
-    value: i64,
-    sign: i64,
-) -> PyResult<Bound<'py, PyAny>> {
-    let parts = datetime_parts(value)?;
-    if !(1..=9999).contains(&parts[0]) {
-        // Preserve the original Python constructor's exact range error before
-        // applying any Delta replacement, including extreme NumPy dates.
-        return datetime_from_us(py, value).map(Bound::into_any);
+/// Apply NumPy's positive dtype multiplier before precision conversion.
+/// The input widths prove the product fits i128, even when it exceeds i64.
+#[inline]
+pub(crate) fn scaled_ticks(ticks: i64, multiplier: i32) -> PyResult<i128> {
+    if multiplier <= 0 {
+        return Err(crate::error_context::value_error(
+            "invalid NumPy unit multiplier",
+        ));
     }
-    let result = if !empty {
-        crate::calendar::apply(fields, parts, sign, true)
-            .map_err(PyOverflowError::new_err)?
-            .0
-    } else {
-        parts
-    };
-    let [year, month, day, hour, minute, second, microsecond] = result;
-    let year = i32::try_from(year)
-        .map_err(|_| PyOverflowError::new_err("integer overflow in Delta date arithmetic"))?;
-    native_datetime(
-        py,
-        [
-            i64::from(year),
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            microsecond,
-        ],
-    )
-    .map(Bound::into_any)
-}
-
-/// Split Unix microseconds into Gregorian date and normalized clock parts.
-///
-/// # Errors
-/// Converts ordinal decoding failures to OverflowError; final Python year bounds
-/// are left to the constructor.
-fn datetime_parts(value: i64) -> PyResult<[i64; 7]> {
-    let days = value.div_euclid(86_400_000_000);
-    let time = value.rem_euclid(86_400_000_000);
-    let [year, month, day] =
-        crate::calendar::from_ordinal(days + 719_163).map_err(PyOverflowError::new_err)?;
-    Ok([
-        year,
-        month,
-        day,
-        time / 3_600_000_000,
-        time / 60_000_000 % 60,
-        time / 1_000_000 % 60,
-        time % 1_000_000,
-    ])
-}
-
-/// Construct a builtin naive datetime from signed Unix microseconds.
-///
-/// # Errors
-/// Propagates ordinal overflow or Python's invalid-year/date constructor errors.
-pub fn datetime_from_us(py: Python<'_>, value: i64) -> PyResult<Bound<'_, PyDateTime>> {
-    let [year, month, day, hour, minute, second, microsecond] = datetime_parts(value)?;
-    native_datetime(py, [year, month, day, hour, minute, second, microsecond])
+    Ok(i128::from(ticks) * i128::from(multiplier))
 }
 
 /// Construct the same builtin datetime through the initialized public C API.
@@ -382,6 +800,36 @@ fn native_datetime<'py>(py: Python<'py>, parts: [i64; 7]) -> PyResult<Bound<'py,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clock_split_preserves_sign_and_wide_dtype_multipliers() {
+        let values = [
+            -(1_i128 << 94),
+            i128::from(i64::MIN) - 1,
+            i128::from(i64::MIN),
+            -1,
+            0,
+            1,
+            i128::from(i64::MAX),
+            i128::from(i64::MAX) + 1,
+            1_i128 << 94,
+        ];
+        for (unit, per_day) in (5..=10).zip([
+            24_i128,
+            1440,
+            86_400,
+            86_400_000,
+            86_400_000_000,
+            86_400_000_000_000,
+        ]) {
+            for ticks in values {
+                let (days, clock) = split_clock(ticks, unit);
+                assert!(i128::from(clock) < per_day);
+                assert_eq!(days * per_day + i128::from(clock), ticks);
+            }
+        }
+    }
+
     #[test]
     fn scalar_layout_matches_public_numpy_headers() {
         assert_eq!(std::mem::size_of::<Scalar>(), 32);

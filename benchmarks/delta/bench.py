@@ -76,8 +76,8 @@ def observe(shared, case, Delta):
     # D2 permits different pickle bytes. Validate the restored object and its
     # dictionary before timing the original write/read/copy callable.
     """Record one workload's result and serialization diagnostics before timing."""
-    if case.group != "B9":
-        if case.group.startswith("A"):
+    if case.group not in ("B9", "state"):
+        if case.group.startswith("A") or case.group == "many":
             # Compare the complete output before timing without transporting a
             # 10000-element tree for every scene. No elements are omitted.
             value = case.run()
@@ -108,7 +108,8 @@ def workloads(package, groups, selected_ids, qos, process_model, warmup_ms, vari
 
     Returns:
         tuple: Shared case module, ID-to-case mapping and metadata."""
-    manifest_path = MANIFEST if variant == "legacy" else SELF.with_name("revision-cases.json")
+    manifest_path = (MANIFEST if variant == "legacy" else SELF.with_name(
+        "correction-cases.json" if variant == "correction" else "revision-cases.json"))
     manifest = json.loads(manifest_path.read_text())
     known = manifest["groups"]
     chosen = list(known) if groups == "all" else groups.split(",")
@@ -121,6 +122,7 @@ def workloads(package, groups, selected_ids, qos, process_model, warmup_ms, vari
         identifiers = [identifier for identifier in identifiers if identifier in selected_ids]
     shared = load_cases()
     Delta, cases = (shared.benchmark_cases(package) if variant == "legacy"
+                    else shared.correction_performance_cases(package)[:2] if variant == "correction"
                     else shared.revision_benchmark_cases(package, variant))
     lookup = {case.id: case for case in cases}
     if len(lookup) != len(cases) or any(identifier not in lookup for identifier in identifiers):
@@ -220,7 +222,7 @@ class Process:
     Construct with an installed environment and fixed group/case selection;
     close the worker after all measurements, including unsuccessful runs.
     """
-    def __init__(self, env, package, groups, selected_ids=(), warmup_ms=0, qos_policy="initiated", variant="legacy"):
+    def __init__(self, env, package, groups, selected_ids=(), warmup_ms=0, qos_policy="initiated", variant="legacy", hash_seed=None):
         """Start an isolated package worker and read its initial metadata.
 
         env is the installed environment; group/case selections and QoS are passed
@@ -228,11 +230,19 @@ class Process:
         interpreter = Path(env).resolve() / "bin/python"
         command = [str(interpreter), "-I", str(SELF), "--worker", package, "--group", groups,
                    "--warmup-ms", str(warmup_ms), "--measurement-qos", qos_policy, "--variant", variant]
+        process_env = None
+        if hash_seed is not None:
+            # -I ignores PYTHONHASHSEED. Keep user paths disabled while allowing
+            # this one explicitly controlled Python setting in the child.
+            command[1:2] = ["-s", "-P"]
+            process_env = {key: value for key, value in os.environ.items()
+                           if not key.startswith("PYTHON")}
+            process_env["PYTHONHASHSEED"] = str(hash_seed)
         for identifier in selected_ids:
             command.extend(("--case", identifier))
         self.process = subprocess.Popen(command,
                                         text=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE, bufsize=1)
+                                        stderr=subprocess.PIPE, bufsize=1, env=process_env)
         self.selector = selectors.DefaultSelector()
         self.selector.register(self.process.stdout, selectors.EVENT_READ)
         try:
@@ -430,7 +440,7 @@ def main():
     """Parse benchmark CLI options and dispatch quick, formal or worker execution."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worker", choices=("cytimes", "rstimes", "paired"))
-    parser.add_argument("--variant", choices=("legacy", "revision-reference", "revision-candidate", "template-reference", "template-candidate"), default="legacy")
+    parser.add_argument("--variant", choices=("legacy", "revision-reference", "revision-candidate", "template-reference", "template-candidate", "correction"), default="legacy")
     parser.add_argument("--mode", choices=("quick", "formal"), default="quick")
     parser.add_argument("--group", default="all")
     parser.add_argument("--case", action="append", default=[], help="Only these fixed IDs; partial runs cannot pass all-group acceptance")

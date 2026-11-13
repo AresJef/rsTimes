@@ -1,0 +1,7 @@
+# Release verification uses the same dependency versions on every platform.
+-r requirements-test.txt
+maturin==1.15.0
+twine==7.0.0
+# Pyright is the only Python checker. Its pinned npm lock and isolated Python
+# analysis dependencies are tools/typing/package-lock.json and requirements-typing.txt.
+PyYAML==6.0.3
