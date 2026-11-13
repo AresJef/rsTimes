@@ -148,78 +148,76 @@ fn _pddt_period<'py>(
             };
             continue;
         }
-        let instant = i128::from(tick) * unit.nanos();
-        let wall = if let Some(offset) = fixed {
-            instant + i128::from(offset) * 1000
-        } else {
-            super::zones::utc_wall(
-                instant,
-                zone.ok_or_else(|| crate::error_context::runtime("missing period region"))?,
-                None,
-            )?
-        };
-        let (lower, upper) = period.bounds(wall)?;
-        let end = mode % 2 == 1;
-        let target = if mode < 2 {
-            let day = (if end { upper - 1 } else { lower }).div_euclid(NS_DAY);
-            if query {
-                flags.push(u8::from(day == wall.div_euclid(NS_DAY)));
-                continue;
-            }
-            let result = day * NS_DAY + wall.rem_euclid(NS_DAY);
-            Some(if result == wall {
-                instant
-            } else if let Some(offset) = fixed {
-                result - i128::from(offset) * 1000
+        (|| -> PyResult<()> {
+            let instant = i128::from(tick) * unit.nanos();
+            let wall = if let Some(offset) = fixed {
+                instant + i128::from(offset) * 1000
             } else {
-                super::operations::automatic(
-                    result,
+                super::zones::utc_wall(
                     instant,
-                    wall,
                     zone.ok_or_else(|| crate::error_context::runtime("missing period region"))?,
+                    None,
                 )?
-            })
-        } else {
+            };
+            let (lower, upper) = period.bounds(wall)?;
+            let end = mode % 2 == 1;
+            let target = if mode < 2 {
+                let day = (if end { upper - 1 } else { lower }).div_euclid(NS_DAY);
+                if query {
+                    flags.push(u8::from(day == wall.div_euclid(NS_DAY)));
+                    return Ok(());
+                }
+                let result = day * NS_DAY + wall.rem_euclid(NS_DAY);
+                Some(if result == wall {
+                    instant
+                } else if let Some(offset) = fixed {
+                    result - i128::from(offset) * 1000
+                } else {
+                    super::operations::automatic(
+                        result,
+                        instant,
+                        wall,
+                        zone.ok_or_else(|| crate::error_context::runtime("missing period region"))?,
+                    )?
+                })
+            } else {
+                if query {
+                    let edge_day = (if end { upper - 1 } else { lower }).div_euclid(NS_DAY);
+                    if !(lower..upper).contains(&wall) {
+                        flags.push(0);
+                        return Ok(());
+                    }
+                    if wall.div_euclid(NS_DAY) != edge_day
+                        && (fixed.is_some() || (wall.div_euclid(NS_DAY) - edge_day).abs() > 2)
+                    {
+                        flags.push(0);
+                        return Ok(());
+                    }
+                }
+                edge(
+                    (lower, upper),
+                    end,
+                    period.clock(),
+                    (instant, wall),
+                    zone,
+                    fixed,
+                    unit,
+                )?
+            };
             if query {
-                let edge_day = (if end { upper - 1 } else { lower }).div_euclid(NS_DAY);
-                if !(lower..upper).contains(&wall) {
-                    flags.push(0);
-                    continue;
-                }
-                if wall.div_euclid(NS_DAY) != edge_day
-                    && (fixed.is_some() || (wall.div_euclid(NS_DAY) - edge_day).abs() > 2)
-                {
-                    flags.push(0);
-                    continue;
-                }
-            }
-            edge(
-                (lower, upper),
-                end,
-                period.clock(),
-                (instant, wall),
-                zone,
-                fixed,
-                unit,
-            )
-            .map_err(|e| crate::error_context::location(py, e, entry, &format!("result[{i}]")))?
-        };
-        if query {
-            flags.push(u8::from(target == Some(instant)));
-        } else {
-            let value = target.ok_or_else(|| {
-                crate::error_context::location(
-                    py,
+                flags.push(u8::from(target == Some(instant)));
+            } else {
+                let value = target.ok_or_else(|| {
                     crate::error_context::value_error(
                         "the requested period has no existing representable local time",
-                    ),
-                    entry,
-                    &format!("result[{i}]"),
-                )
-            })?;
-            changed |= value != instant;
-            values.push(Some(value));
-        }
+                    )
+                })?;
+                changed |= value != instant;
+                values.push(Some(value));
+            }
+            Ok(())
+        })()
+        .map_err(|error| crate::error_context::item(py, error, entry, "result", i, None, false))?;
     }
     if query {
         Ok((PyBytes::new(py, &flags), false))
@@ -264,32 +262,35 @@ fn _pddt_fsp<'py>(
             values.push(None);
             continue;
         }
-        let source = i128::from(tick) * unit.nanos();
-        let wall = if let Some(offset) = fixed {
-            source + i128::from(offset) * 1000
-        } else {
-            super::zones::utc_wall(
-                source,
-                zone.ok_or_else(|| crate::error_context::runtime("missing fractional region"))?,
-                None,
-            )?
-        };
-        let selected = wall.div_euclid(factor) * factor;
-        let value = if selected == wall {
-            source
-        } else if let Some(offset) = fixed {
-            selected - i128::from(offset) * 1000
-        } else {
-            super::operations::automatic(
-                selected,
-                source,
-                wall,
-                zone.ok_or_else(|| crate::error_context::runtime("missing fractional region"))?,
-            )
-            .map_err(|e| crate::error_context::location(py, e, entry, &format!("result[{i}]")))?
-        };
-        changed |= value != source;
-        values.push(Some(value));
+        (|| -> PyResult<()> {
+            let source = i128::from(tick) * unit.nanos();
+            let wall = if let Some(offset) = fixed {
+                source + i128::from(offset) * 1000
+            } else {
+                super::zones::utc_wall(
+                    source,
+                    zone.ok_or_else(|| crate::error_context::runtime("missing fractional region"))?,
+                    None,
+                )?
+            };
+            let selected = wall.div_euclid(factor) * factor;
+            let value = if selected == wall {
+                source
+            } else if let Some(offset) = fixed {
+                selected - i128::from(offset) * 1000
+            } else {
+                super::operations::automatic(
+                    selected,
+                    source,
+                    wall,
+                    zone.ok_or_else(|| crate::error_context::runtime("missing fractional region"))?,
+                )?
+            };
+            changed |= value != source;
+            values.push(Some(value));
+            Ok(())
+        })()
+        .map_err(|error| crate::error_context::item(py, error, entry, "result", i, None, false))?;
     }
     Ok((pack(py, &values, unit, true, entry)?, changed))
 }
@@ -382,35 +383,38 @@ fn _pddt_round<'py>(
             values.push(None);
             continue;
         }
-        let source = i128::from(ticks) * unit.nanos();
-        let wall = if let Some(offset) = fixed {
-            source + i128::from(offset) * 1000
-        } else {
-            super::zones::utc_wall(
-                source,
-                zone.ok_or_else(|| crate::error_context::runtime("missing rounding region"))?,
-                None,
-            )?
-        };
-        let target = crate::period::rounded(wall, step, mode)?;
-        if target == wall {
-            values.push(Some(source));
-            continue;
-        }
-        let value = if let Some(offset) = fixed {
-            target - i128::from(offset) * 1000
-        } else {
-            rounded(
-                target,
-                source,
-                step,
-                mode,
-                zone.ok_or_else(|| crate::error_context::runtime("missing rounding region"))?,
-            )
-            .map_err(|e| crate::error_context::location(py, e, entry, &format!("result[{i}]")))?
-        };
-        changed |= source != value;
-        values.push(Some(value));
+        (|| -> PyResult<()> {
+            let source = i128::from(ticks) * unit.nanos();
+            let wall = if let Some(offset) = fixed {
+                source + i128::from(offset) * 1000
+            } else {
+                super::zones::utc_wall(
+                    source,
+                    zone.ok_or_else(|| crate::error_context::runtime("missing rounding region"))?,
+                    None,
+                )?
+            };
+            let target = crate::period::rounded(wall, step, mode)?;
+            if target == wall {
+                values.push(Some(source));
+                return Ok(());
+            }
+            let value = if let Some(offset) = fixed {
+                target - i128::from(offset) * 1000
+            } else {
+                rounded(
+                    target,
+                    source,
+                    step,
+                    mode,
+                    zone.ok_or_else(|| crate::error_context::runtime("missing rounding region"))?,
+                )?
+            };
+            changed |= source != value;
+            values.push(Some(value));
+            Ok(())
+        })()
+        .map_err(|error| crate::error_context::item(py, error, entry, "result", i, None, false))?;
     }
     Ok((pack(py, &values, unit, true, entry)?, changed))
 }
@@ -547,8 +551,8 @@ fn _pddt_snap<'py>(
                 } else {
                     let candidate = grid.nearest(tick);
                     i64::try_from(candidate).ok().filter(|value| *value != i64::MIN).ok_or_else(|| {
-                        crate::error_context::location(py, crate::error_context::overflow(
-                            "date is outside the requested unit; explicitly choose a coarser unit"), entry, &format!("result[{row}]"))
+                        crate::error_context::item(py, crate::error_context::overflow(
+                            "date is outside the requested unit; explicitly choose a coarser unit"), entry, "result", row, None, false)
                     })?
                 };
                 changed |= value != tick;
@@ -572,77 +576,83 @@ fn _pddt_snap<'py>(
             values.push(None);
             continue;
         }
-        let source = i128::from(ticks) * unit.nanos();
-        let wall = if let Some(offset) = fixed {
-            source + i128::from(offset) * 1000
-        } else {
-            super::zones::utc_wall(
-                source,
-                zone.ok_or_else(|| crate::error_context::runtime("missing Snap region"))?,
-                None,
-            )?
-        };
-        let lower = spec.lower(wall)?;
-        let upper = spec.shift(lower, 1)?;
-        let value = (|| -> PyResult<i128> {
-            if let Some(offset) = fixed {
-                let offset = i128::from(offset) * 1000;
-                let first = align(lower - offset, unit, false)?;
-                if first == source {
-                    return Ok(source);
-                }
-                let second = align(upper - offset, unit, false)?;
-                return Ok(if (source - first).abs() < (second - source).abs() {
-                    first
-                } else {
-                    second
-                });
-            }
-            let zone = zone.ok_or_else(|| crate::error_context::runtime("missing Snap region"))?;
-            let mut starts = vec![lower, upper];
-            let mut best = None;
-            let mut expanded = false;
-            let mut next = 0;
-            while next < starts.len() {
-                let start = starts[next];
-                next += 1;
-                let choices = cache.get(spec, start, start >= wall, zone, unit)?;
-                for value in choices.into_iter().flatten() {
-                    if value == source {
+        (|| -> PyResult<()> {
+            let source = i128::from(ticks) * unit.nanos();
+            let wall = if let Some(offset) = fixed {
+                source + i128::from(offset) * 1000
+            } else {
+                super::zones::utc_wall(
+                    source,
+                    zone.ok_or_else(|| crate::error_context::runtime("missing Snap region"))?,
+                    None,
+                )?
+            };
+            let lower = spec.lower(wall)?;
+            let upper = spec.shift(lower, 1)?;
+            let value = (|| -> PyResult<i128> {
+                if let Some(offset) = fixed {
+                    let offset = i128::from(offset) * 1000;
+                    let first = align(lower - offset, unit, false)?;
+                    if first == source {
                         return Ok(source);
                     }
-                    if best.is_none_or(|previous: i128| {
-                        (value - source).abs() < (previous - source).abs()
-                            || ((value - source).abs() == (previous - source).abs()
-                                && value > previous)
-                    }) {
-                        best = Some(value);
-                    }
+                    let second = align(upper - offset, unit, false)?;
+                    return Ok(if (source - first).abs() < (second - source).abs() {
+                        first
+                    } else {
+                        second
+                    });
                 }
-                if !expanded
-                    && spec.months == 0
-                    && spec.step < NS_DAY
-                    && let Candidates::Repeated(a, b) = super::zones::candidates(start, zone)?
-                {
-                    expanded = true;
-                    for offset in [start - a, start - b] {
-                        let projected = source + offset;
-                        let aligned = spec.period.bounds(projected)?.0;
-                        for candidate in
-                            [spec.shift(aligned, -1)?, aligned, spec.shift(aligned, 1)?]
-                        {
-                            if !starts.contains(&candidate) {
-                                starts.push(candidate);
+                let zone =
+                    zone.ok_or_else(|| crate::error_context::runtime("missing Snap region"))?;
+                let mut starts = vec![lower, upper];
+                let mut best = None;
+                let mut expanded = false;
+                let mut next = 0;
+                while next < starts.len() {
+                    let start = starts[next];
+                    next += 1;
+                    let choices = cache.get(spec, start, start >= wall, zone, unit)?;
+                    for value in choices.into_iter().flatten() {
+                        if value == source {
+                            return Ok(source);
+                        }
+                        if best.is_none_or(|previous: i128| {
+                            (value - source).abs() < (previous - source).abs()
+                                || ((value - source).abs() == (previous - source).abs()
+                                    && value > previous)
+                        }) {
+                            best = Some(value);
+                        }
+                    }
+                    if !expanded
+                        && spec.months == 0
+                        && spec.step < NS_DAY
+                        && let Candidates::Repeated(a, b) = super::zones::candidates(start, zone)?
+                    {
+                        expanded = true;
+                        for offset in [start - a, start - b] {
+                            let projected = source + offset;
+                            let aligned = spec.period.bounds(projected)?.0;
+                            for candidate in
+                                [spec.shift(aligned, -1)?, aligned, spec.shift(aligned, 1)?]
+                            {
+                                if !starts.contains(&candidate) {
+                                    starts.push(candidate);
+                                }
                             }
                         }
                     }
                 }
-            }
-            best.ok_or_else(|| crate::error_context::value_error("no valid adjacent Snap start"))
+                best.ok_or_else(|| {
+                    crate::error_context::value_error("no valid adjacent Snap start")
+                })
+            })()?;
+            changed |= value != source;
+            values.push(Some(value));
+            Ok(())
         })()
-        .map_err(|e| crate::error_context::location(py, e, entry, &format!("result[{i}]")))?;
-        changed |= value != source;
-        values.push(Some(value));
+        .map_err(|error| crate::error_context::item(py, error, entry, "result", i, None, false))?;
     }
     Ok((pack(py, &values, unit, true, entry)?, changed))
 }

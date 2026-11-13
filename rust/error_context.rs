@@ -221,7 +221,15 @@ pub(crate) fn text_item(
     }
     let parameter = format!("data[{index}]");
     match text_preview(py, value).and_then(|preview| {
-        helper(py, 2)?.call1((error.value(py), entry, parameter, py.None(), true, preview))
+        helper(py, 2)?.call1((
+            error.value(py),
+            entry,
+            parameter,
+            py.None(),
+            true,
+            preview,
+            ("data", index),
+        ))
     }) {
         Ok(value) => PyErr::from_value(value),
         Err(secondary) => secondary,
@@ -266,9 +274,25 @@ pub(crate) fn item(
     } else {
         format!("{group}[{index}]")
     };
-    match value {
-        Some(value) => argument(py, error, entry, &parameter, value),
-        None => location(py, error, entry, &parameter),
+    let annotated = match value {
+        Some(value) => helper(py, 2).and_then(|f| {
+            f.call1((
+                error.value(py),
+                entry,
+                parameter,
+                value,
+                true,
+                py.None(),
+                (group, index),
+            ))
+        }),
+        None => {
+            helper(py, 3).and_then(|f| f.call1((error.value(py), entry, parameter, (group, index))))
+        }
+    };
+    match annotated {
+        Ok(value) => PyErr::from_value(value),
+        Err(secondary) => secondary,
     }
 }
 

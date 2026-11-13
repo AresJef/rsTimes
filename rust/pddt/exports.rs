@@ -200,9 +200,8 @@ fn _pddt_export<'py>(
                 }
                 Ok(())
             })();
-            result.map_err(|e| {
-                crate::error_context::location(py, e, entry, &format!("result[{i}]"))
-            })?;
+            result
+                .map_err(|e| crate::error_context::item(py, e, entry, "result", i, None, false))?;
         }
         Ok(())
     })?;
@@ -347,9 +346,8 @@ fn objects<'py, const K: u8>(
             crate::localization::calendar_name(py, options.group, position).map(Bound::into_any)
         })();
         out.append(
-            result.map_err(|e| {
-                crate::error_context::location(py, e, entry, &format!("result[{i}]"))
-            })?,
+            result
+                .map_err(|e| crate::error_context::item(py, e, entry, "result", i, None, false))?,
         )?;
     }
     Ok(out)
