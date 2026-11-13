@@ -1,5 +1,6 @@
 //! Host adapters around the shared pure fractional output plan.
-use crate::strftime_plan::Plan;
+use crate::parser::text::{CharacterRead, TextView};
+use crate::strftime_plan::{Plan, SystemFormat};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
 use pyo3::types::{PyAny, PyBytes, PyDateTime, PyDict, PyList, PyString, PyTimeAccess};
@@ -35,15 +36,29 @@ impl Context {
 }
 #[pyfunction]
 fn _strftime_prepare(format: &Bound<'_, PyAny>) -> PyResult<Context> {
-    let format = format
-        .cast::<PyString>()
-        .map_err(|_| {
-            crate::error_context::type_error("format must be a string; an empty string is allowed")
-        })?
-        .to_str()?;
+    let format = format.cast::<PyString>().map_err(|_| {
+        crate::error_context::type_error("format must be a string; an empty string is allowed")
+    })?;
+    let view = TextView::new(format)?;
     Ok(Context {
-        plan: Plan::parse(format).map_err(crate::error_context::value_error)?,
+        plan: Plan::parse_points((0..view.len()).map(|index| CharacterRead::get(&view, index)))
+            .map_err(crate::error_context::value_error)?,
     })
+}
+
+/// Host-only reconstruction; worker plans contain Rust-owned data exclusively.
+pub(crate) fn system_format<'py>(
+    py: Python<'py>,
+    plan: &Plan,
+    nanos: u32,
+    digits: u8,
+) -> PyResult<Bound<'py, PyAny>> {
+    match plan.system_format(nanos, digits) {
+        SystemFormat::Utf8(text) => Ok(PyString::new(py, &text).into_any()),
+        SystemFormat::Codepoints(points) => {
+            crate::parser::text::unicode(py, &points).map(Bound::into_any)
+        }
+    }
 }
 #[pyfunction]
 fn _pydt_strftime<'py>(
@@ -64,7 +79,7 @@ fn _pydt_strftime<'py>(
     } else {
         0
     };
-    let prepared = context.plan.system_format(nanos, 6);
+    let prepared = system_format(py, &context.plan, nanos, 6)?;
     standard
         .bind(py)
         .call1((value, prepared))
@@ -202,7 +217,7 @@ fn _pddt_strftime<'py>(
             } else {
                 0
             };
-            let format = context.plan.system_format(fraction, digits);
+            let format = system_format(py, &context.plan, fraction, digits)?;
             out.append(
                 value
                     .call_method1("strftime", (format,))

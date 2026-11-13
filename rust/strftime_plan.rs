@@ -4,9 +4,50 @@ use std::fmt::Write;
 #[derive(Clone, Serialize, Deserialize)]
 enum Node {
     Literal(String),
+    Codepoints(Vec<u32>),
     Field(u8),
     Fraction { digits: u8, dot: bool },
     System(String),
+}
+
+/// Common formats keep their UTF8 buffer; Python-only literals upgrade once.
+pub(crate) enum SystemFormat {
+    Utf8(String),
+    Codepoints(Vec<u32>),
+}
+impl SystemFormat {
+    fn push(&mut self, value: char) {
+        match self {
+            Self::Utf8(out) => out.push(value),
+            Self::Codepoints(out) => out.push(u32::from(value)),
+        }
+    }
+    fn push_str(&mut self, value: &str) {
+        match self {
+            Self::Utf8(out) => out.push_str(value),
+            Self::Codepoints(out) => out.extend(value.chars().map(u32::from)),
+        }
+    }
+    fn push_points(&mut self, value: &[u32]) {
+        match self {
+            Self::Utf8(out) => {
+                let mut points: Vec<_> = out.chars().map(u32::from).collect();
+                points.extend_from_slice(value);
+                *self = Self::Codepoints(points);
+            }
+            Self::Codepoints(out) => out.extend_from_slice(value),
+        }
+    }
+}
+impl std::fmt::Write for SystemFormat {
+    fn write_str(&mut self, value: &str) -> std::fmt::Result {
+        self.push_str(value);
+        Ok(())
+    }
+    fn write_char(&mut self, value: char) -> std::fmt::Result {
+        self.push(value);
+        Ok(())
+    }
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -16,14 +57,21 @@ pub(crate) struct Plan {
     modified: bool,
 }
 impl Plan {
-    pub(crate) fn parse(format: &str) -> Result<Self, String> {
+    pub(crate) fn parse_points(format: impl Iterator<Item = u32>) -> Result<Self, String> {
         let mut nodes = Vec::new();
         let mut modified = false;
-        let mut chars = format.chars().peekable();
+        let mut chars = format.peekable();
         let mut text = String::new();
         while let Some(c) = chars.next() {
-            if c != '%' {
-                text.push(c);
+            if c != 37 {
+                if let Some(c) = char::from_u32(c) {
+                    text.push(c);
+                } else {
+                    if !text.is_empty() {
+                        nodes.push(Node::Literal(std::mem::take(&mut text)));
+                    }
+                    nodes.push(Node::Codepoints(vec![c]));
+                }
                 continue;
             }
             if !text.is_empty() {
@@ -33,18 +81,19 @@ impl Plan {
                 nodes.push(Node::System("%".into()));
                 break;
             };
-            if c == 'f' {
+            if c == 102 {
                 modified = true;
                 nodes.push(Node::Fraction {
                     digits: 0,
                     dot: false,
                 });
-            } else if c == '.' {
+            } else if c == 46 {
                 modified = true;
                 let digit = chars
                     .next()
+                    .and_then(char::from_u32)
                     .and_then(|v| v.to_digit(10))
-                    .filter(|_| chars.peek() == Some(&'f'))
+                    .filter(|_| chars.peek() == Some(&102))
                     .ok_or("fraction precision must use exactly %.0f through %.9f")?;
                 chars.next();
                 if digit != 0 {
@@ -53,10 +102,12 @@ impl Plan {
                         dot: true,
                     });
                 }
-            } else if c.is_ascii() && b"YymdHIMSjwuUWGVzZ%".contains(&(c as u8)) {
+            } else if c <= 127 && b"YymdHIMSjwuUWGVzZ%".contains(&(c as u8)) {
                 nodes.push(Node::Field(c as u8));
-            } else {
+            } else if let Some(c) = char::from_u32(c) {
                 nodes.push(Node::System(format!("%{c}")));
+            } else {
+                nodes.push(Node::Codepoints(vec![37, c]));
             }
         }
         if !text.is_empty() {
@@ -68,12 +119,19 @@ impl Plan {
             modified,
         })
     }
+    #[cfg(test)]
+    fn parse(format: &str) -> Result<Self, String> {
+        Self::parse_points(format.chars().map(u32::from))
+    }
     pub(crate) fn validate(&self) -> Result<(), String> {
         if self.version != 1 {
             return Err("unsupported strftime preparation version".into());
         }
         for node in &self.nodes {
             match node {
+                Node::Codepoints(points) if points.iter().any(|&point| point > 0x10ffff) => {
+                    return Err("invalid prepared Unicode code point".into());
+                }
                 Node::Fraction { digits, dot } if *digits > 9 || (*digits == 0 && *dot) => {
                     return Err("invalid fraction preparation".into());
                 }
@@ -86,7 +144,10 @@ impl Plan {
         Ok(())
     }
     pub(crate) fn native(&self) -> bool {
-        !self.nodes.iter().any(|v| matches!(v, Node::System(_)))
+        !self
+            .nodes
+            .iter()
+            .any(|v| matches!(v, Node::System(_) | Node::Codepoints(_)))
     }
     /// Universally supported system numeric forms, without locale or platform
     /// extensions. Small/wide years and unusual zone names are host concerns.
@@ -95,7 +156,7 @@ impl Plan {
             Node::Literal(text) => text.is_ascii() && !text.contains('\0'),
             Node::Field(code) => b"YymdHIMSjwUWzZ%".contains(code),
             Node::Fraction { .. } => true,
-            Node::System(_) => false,
+            Node::System(_) | Node::Codepoints(_) => false,
         })
     }
     pub(crate) fn modified(&self) -> bool {
@@ -117,10 +178,10 @@ impl Plan {
     pub(crate) fn needs_name(&self) -> bool {
         self.nodes.iter().any(|v| matches!(v, Node::Field(b'Z')))
     }
-    fn fraction(out: &mut String, nanos: u32, digits: u8, dot: bool, default: u8) {
+    fn fraction(out: &mut impl Write, nanos: u32, digits: u8, dot: bool, default: u8) {
         let digits = if digits == 0 { default } else { digits };
         if dot {
-            out.push('.');
+            let _ = out.write_char('.');
         }
         let _ = write!(
             out,
@@ -129,8 +190,8 @@ impl Plan {
             width = usize::from(digits)
         );
     }
-    pub(crate) fn system_format(&self, nanos: u32, default: u8) -> String {
-        let mut out = String::new();
+    pub(crate) fn system_format(&self, nanos: u32, default: u8) -> SystemFormat {
+        let mut out = SystemFormat::Utf8(String::new());
         for node in &self.nodes {
             match node {
                 Node::Literal(text) => {
@@ -149,6 +210,7 @@ impl Plan {
                     Self::fraction(&mut out, nanos, *digits, *dot, default)
                 }
                 Node::System(text) => out.push_str(text),
+                Node::Codepoints(points) => out.push_points(points),
             }
         }
         out
@@ -179,7 +241,7 @@ impl Plan {
                     *dot,
                     default,
                 ),
-                Node::System(_) => {
+                Node::System(_) | Node::Codepoints(_) => {
                     return Err(Error::Internal("system formats require the eager adapter"));
                 }
                 Node::Field(code) => match code {
@@ -241,6 +303,30 @@ impl Plan {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn python_only_literal_keeps_codepoints_and_fraction_in_host_plan() {
+        let input = "%Y|"
+            .chars()
+            .map(u32::from)
+            .chain([0xd800])
+            .chain("|%.3f|%%f".chars().map(u32::from));
+        let plan = Plan::parse_points(input).unwrap();
+        assert!(!plan.native());
+        assert!(plan.validate().is_ok());
+        let SystemFormat::Codepoints(actual) = plan.system_format(123_456_789, 9) else {
+            panic!("Python literal must retain its code point");
+        };
+        let expected: Vec<_> = "%Y|"
+            .chars()
+            .map(u32::from)
+            .chain([0xd800])
+            .chain("|.123|%%f".chars().map(u32::from))
+            .collect();
+        assert_eq!(actual, expected);
+        let mut invalid = plan.clone();
+        invalid.nodes.push(Node::Codepoints(vec![0x110000]));
+        assert!(invalid.validate().is_err());
+    }
     #[test]
     fn rendering_into_scratch_overwrites_previous_value_and_keeps_exact_fraction() {
         let plan = Plan::parse("%Y %.9f %Z").unwrap();

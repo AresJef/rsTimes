@@ -66,3 +66,27 @@ def test_iso_python_codepoint_and_representable_native_expression(separator, sca
             pl.col("time").pldt.fromisoformat(unit="ns"))
         for engine in ("auto", "streaming"):
             assert query.collect(engine=engine)["time"].to_physical().to_list() == [expected]
+
+
+@pytest.mark.parametrize("literal", ["", "日期", "🌏", "\0", "\ud800", "\udfff"])
+def test_formatted_python_literals_and_native_string_domain_remain_distinct(literal):
+    text = "2024-01-02" + literal
+    fmt = "%Y-%m-%d" + literal
+    result = Pldt.strptime([text, None], fmt, unit="us")
+    assert result.to_physical().to_list() == [1704153600000000, None]
+    if literal not in ("\ud800", "\udfff"):
+        query = pl.DataFrame({"time": [text, None]}).lazy().select(
+            pl.col("time").pldt.strptime(fmt, unit="us"))
+        for engine in ("auto", "streaming"):
+            assert query.collect(engine=engine)["time"].to_physical().to_list() == [1704153600000000, None]
+    else:
+        # Python format text may contain a surrogate; actual Polars String output may not.
+        with pytest.raises(UnicodeEncodeError):
+            result.strftime(literal + "%Y %f")
+
+
+@pytest.mark.parametrize("values", [[], [None]])
+def test_invalid_format_is_not_hidden_by_empty_or_null_polars_data(values):
+    with pytest.raises(ValueError, match="fraction precision") as observed:
+        Pldt(values, unit="us").strftime("\ud800%.12f")
+    assert not isinstance(observed.value, UnicodeEncodeError)

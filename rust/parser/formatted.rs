@@ -26,7 +26,7 @@ enum Step {
 #[pyclass(frozen, skip_from_py_object, name = "_StrptimeFormat")]
 pub(crate) struct Format {
     steps: Vec<Step>,
-    label: String,
+    label: Vec<u32>,
     locale: bool,
     system_words: HashMap<char, Vec<(Vec<u32>, usize, i32)>>,
 }
@@ -60,7 +60,7 @@ impl Format {
 }
 
 fn compile(
-    text: &str,
+    text: impl Iterator<Item = u32>,
     steps: &mut Vec<Step>,
     seen: &mut std::collections::HashSet<char>,
     templates: Option<&HashMap<String, String>>,
@@ -72,26 +72,42 @@ fn compile(
             "LC_TIME templates contain a recursive format",
         ));
     }
-    let mut chars = text.chars();
+    let mut chars = text;
     while let Some(c) = chars.next() {
-        if c.is_whitespace() {
+        if char::from_u32(c).is_some_and(char::is_whitespace) {
             if !matches!(steps.last(), Some(Step::Space)) {
                 steps.push(Step::Space);
             }
-        } else if c != '%' {
+        } else if c != 37 {
             if let Some(Step::Literal(value)) = steps.last_mut() {
-                value.push(u32::from(c));
+                value.push(c);
             } else {
-                steps.push(Step::Literal(vec![u32::from(c)]));
+                steps.push(Step::Literal(vec![c]));
             }
         } else {
-            let mut code = chars.next().ok_or_else(|| {
-                crate::error_context::value_error("format ends with an incomplete '%' directive")
-            })?;
-            if code == ':' {
-                code = chars.next().ok_or_else(|| {
-                    crate::error_context::value_error("incomplete timezone directive")
+            let mut code = chars
+                .next()
+                .ok_or_else(|| {
+                    crate::error_context::value_error(
+                        "format ends with an incomplete '%' directive",
+                    )
+                })
+                .and_then(|point| {
+                    char::from_u32(point).ok_or_else(|| {
+                        crate::error_context::value_error("unsupported strptime directive")
+                    })
                 })?;
+            if code == ':' {
+                code = chars
+                    .next()
+                    .ok_or_else(|| {
+                        crate::error_context::value_error("incomplete timezone directive")
+                    })
+                    .and_then(|point| {
+                        char::from_u32(point).ok_or_else(|| {
+                            crate::error_context::value_error("unsupported strptime directive")
+                        })
+                    })?;
                 if code != 'z' {
                     return Err(crate::error_context::value_error(
                         "':' is supported only with %z",
@@ -107,7 +123,14 @@ fn compile(
                 _ => None,
             };
             if let Some(value) = expansion {
-                compile(value, steps, seen, templates, system, depth + 1)?;
+                compile(
+                    value.chars().map(u32::from),
+                    steps,
+                    seen,
+                    templates,
+                    system,
+                    depth + 1,
+                )?;
                 continue;
             }
             if matches!(code, 'c' | 'x' | 'X' | 'r') {
@@ -122,7 +145,14 @@ fn compile(
                             "LC_TIME provides an empty %{code} template"
                         )));
                     }
-                    compile(template, steps, seen, Some(templates), true, depth + 1)?;
+                    compile(
+                        template.chars().map(u32::from),
+                        steps,
+                        seen,
+                        Some(templates),
+                        true,
+                        depth + 1,
+                    )?;
                 } else {
                     steps.push(Step::Composite(code));
                 }
@@ -190,13 +220,14 @@ fn _strptime_compile(
     templates: Option<&Bound<'_, PyDict>>,
     words: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<Format> {
-    let label = fmt.to_str()?.to_owned();
+    let view = TextView::new(fmt)?;
+    let label = view.range(0, view.len());
     let mut steps = Vec::new();
     let templates = templates
         .map(|v| v.extract::<HashMap<String, String>>())
         .transpose()?;
     compile(
-        &label,
+        label.iter().copied(),
         &mut steps,
         &mut std::collections::HashSet::new(),
         templates.as_ref(),
@@ -777,7 +808,7 @@ pub(crate) fn read(context: &Context<'_>, text: &Bound<'_, PyString>) -> PyResul
     })
 }
 
-fn python_error(error: FormatError, text: &Bound<'_, PyString>, format: &str) -> PyErr {
+fn python_error(error: FormatError, text: &Bound<'_, PyString>, format: &[u32]) -> PyErr {
     match error {
         FormatError::Mismatch => mismatch(text, format),
         FormatError::Value(message) => crate::error_context::value_error(message),
@@ -786,12 +817,22 @@ fn python_error(error: FormatError, text: &Bound<'_, PyString>, format: &str) ->
     }
 }
 
-fn mismatch(text: &Bound<'_, PyString>, fmt: &str) -> PyErr {
-    match crate::error_context::preview(text.as_any()) {
-        Ok(value) => crate::error_context::value_error(format!(
-            "time data {value} does not match format {:?}",
-            fmt.chars().take(120).collect::<String>()
-        )),
+fn mismatch(text: &Bound<'_, PyString>, fmt: &[u32]) -> PyErr {
+    let description = (|| -> PyResult<String> {
+        let value = crate::error_context::preview(text.as_any())?;
+        let points = &fmt[..fmt.len().min(120)];
+        let ordinary: Option<String> = points.iter().map(|&point| char::from_u32(point)).collect();
+        let label = if let Some(format) = ordinary {
+            // Retain the existing Rust-quoted diagnostic for ordinary formats.
+            format!("{format:?}")
+        } else {
+            let format = super::text::unicode(text.py(), points)?;
+            crate::error_context::preview(format.as_any())?
+        };
+        Ok(format!("time data {value} does not match format {label}"))
+    })();
+    match description {
+        Ok(message) => crate::error_context::value_error(message),
         Err(error) => error,
     }
 }
@@ -864,7 +905,15 @@ mod native_tests {
 
     fn format(text: &str) -> Format {
         let mut steps = Vec::new();
-        compile(text, &mut steps, &mut HashSet::new(), None, false, 0).unwrap();
+        compile(
+            text.chars().map(u32::from),
+            &mut steps,
+            &mut HashSet::new(),
+            None,
+            false,
+            0,
+        )
+        .unwrap();
         for i in 0..steps.len() {
             let tail = minimum_numeric_tail(&steps[i + 1..]);
             if let Step::Field { tail: stored, .. } = &mut steps[i] {
@@ -873,7 +922,7 @@ mod native_tests {
         }
         Format {
             steps,
-            label: text.into(),
+            label: text.chars().map(u32::from).collect(),
             locale: false,
             system_words: HashMap::new(),
         }

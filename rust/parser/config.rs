@@ -813,17 +813,7 @@ fn copy_display<'py>(
 }
 
 fn decode<'py>(py: Python<'py>, s: &[u32]) -> PyResult<Bound<'py, PyAny>> {
-    // SAFETY: input is valid Python code points and the slice remains alive during copying.
-    unsafe {
-        Bound::from_owned_ptr_or_err(
-            py,
-            ffi::PyUnicode_FromKindAndData(
-                ffi::PyUnicode_4BYTE_KIND as i32,
-                s.as_ptr().cast(),
-                s.len() as isize,
-            ),
-        )
-    }
+    super::text::unicode(py, s).map(Bound::into_any)
 }
 const NAMES: [&str; 8] = [
     "jump", "pertain", "utc", "tzoffset", "month", "weekday", "hms", "ampm",

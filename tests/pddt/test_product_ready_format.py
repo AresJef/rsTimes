@@ -35,3 +35,24 @@ def test_format_subclass_has_same_admission_on_system_and_fraction_paths(factory
             assert type(output) is float and math.isnan(output)
         else:
             assert type(output) is str and output == expected
+
+
+@pytest.mark.parametrize("literal", ["", "日期", "🌏", "\0", "\ud800", "\udfff"])
+def test_python_format_literals_preserve_dates_fraction_and_missing(literal):
+    stamp = pd.Timestamp("2024-01-02T03:04:05.123456789")
+    source = Pddt([stamp, None], unit="ns", name="stamp")
+    expected = stamp.strftime(literal + "%Y|123456789|.123|")
+    result = source.strftime(literal + "%Y|%f|%.3f|%.0f")
+    assert result.name == "stamp" and result[0] == expected
+    assert pd.isna(result[1])
+    fmt = "%Y-%m-%d" + literal
+    parsed = Pddt.strptime(["2024-01-02" + literal], fmt)
+    assert parsed.unit == "us" and parsed.asi8.tolist() == [1704153600000000]
+
+
+@pytest.mark.parametrize("values", [[], [None], [None, None]])
+@pytest.mark.parametrize("fmt", ["%.12f", "\ud800%.12f"])
+def test_invalid_fraction_format_is_checked_even_without_valid_dates(values, fmt):
+    with pytest.raises(ValueError, match="fraction precision") as observed:
+        Pddt(values, unit="us").strftime(fmt)
+    assert not isinstance(observed.value, UnicodeEncodeError)

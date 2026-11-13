@@ -2,6 +2,30 @@
 use pyo3::{ffi, prelude::*, types::PyString};
 use std::{ffi::c_void, marker::PhantomData};
 
+/// Copy Python code points into an independently owned Unicode result.
+/// This is the existing configuration decoder, shared with format adapters.
+pub(crate) fn unicode<'py>(py: Python<'py>, points: &[u32]) -> PyResult<Bound<'py, PyString>> {
+    if points.iter().any(|&point| point > 0x10ffff) {
+        return Err(crate::error_context::value_error(
+            "invalid Unicode code point",
+        ));
+    }
+    // SAFETY: every point is in Python's Unicode range (surrogates included).
+    // The live slice remains valid while the public C API copies its contents.
+    unsafe {
+        Bound::from_owned_ptr_or_err(
+            py,
+            ffi::PyUnicode_FromKindAndData(
+                ffi::PyUnicode_4BYTE_KIND as i32,
+                points.as_ptr().cast(),
+                points.len() as isize,
+            ),
+        )
+    }?
+    .cast_into::<PyString>()
+    .map_err(Into::into)
+}
+
 /// Decode four little-endian ASCII digits with one checked native word.
 /// The two masks reject bytes outside 0..9 before combining decimal pairs.
 #[inline(always)]

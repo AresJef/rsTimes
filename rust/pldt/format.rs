@@ -212,7 +212,12 @@ fn host_values<'py>(
             } else {
                 crate::host_zone::utc_local(instant, zone)?.0
             };
-            let format = plan.system_format(instant.rem_euclid(1_000_000_000) as u32, digits);
+            let format = crate::strftime_output::system_format(
+                py,
+                plan,
+                instant.rem_euclid(1_000_000_000) as u32,
+                digits,
+            )?;
             let value = crate::strftime_output::standard(py)?
                 .bind(py)
                 .call1((&carrier, format))
