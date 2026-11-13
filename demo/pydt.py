@@ -35,47 +35,77 @@ def _describe(value):
     return repr(value)
 
 
-def _show(label, operation, *, difference=None, iterations=128):
-    """Print paired results and median batch-average timings."""
-    outcomes = []
-    print(f"\n{label}")
+def _check_rust(label, result, error, expected):
+    """Check the captured Rust outcome against this example's independent answer."""
+    if isinstance(expected, type) and issubclass(expected, Exception):
+        assert isinstance(error, expected), (label, expected, error, result)
+        return
+    if error is not None:
+        raise AssertionError(f"Unexpected Rust failure: {label}") from error
+    if isinstance(expected, datetime):
+        assert isinstance(result, PydtR), (label, type(result))
+        assert _describe(result) == _describe(expected), (label, result, expected)
+        assert result.utcoffset() == expected.utcoffset(), (label, result, expected)
+    else:
+        assert type(result) is type(expected) and result == expected, (label, result, expected)
+
+
+def _show(label, operation, *, difference=None, rust_expected=None, iterations=128):
+    """Validate the captured outcomes before display and informal timing."""
+    captured = []
     for name, cls in (("Original", PydtO), ("Rust", PydtR)):
         try:
             result = operation(cls)
-            shown = _describe(result)
-            batches = []
-            for _ in range(3):
-                start = perf_counter_ns()
-                for _ in range(iterations):
-                    operation(cls)
-                batches.append((perf_counter_ns() - start) / iterations)
-            print(f"  {name:8}: {shown}\n            {median(batches) / 1000:.3f} us/call (demo only)")
-            outcomes.append(("value", shown))
         except Exception as error:
+            captured.append((name, cls, None, error))
+        else:
+            captured.append((name, cls, result, None))
+    if difference:
+        assert rust_expected is not None, f"An independent Rust answer is required: {label}"
+        _, _, result, error = captured[1]
+        _check_rust(label, result, error, rust_expected)
+    outcomes = [("error", type(error).__name__) if error is not None else ("value", _describe(result))
+                for _, _, result, error in captured]
+    if not difference and outcomes[0] != outcomes[1]:
+        raise AssertionError(f"Unexpected result difference: {label}: {outcomes}")
+    print(f"\n{label}")
+    for name, cls, result, error in captured:
+        if error is not None:
             print(f"  {name:8}: {type(error).__name__}: {error}")
-            outcomes.append(("error", type(error).__name__))
+            continue
+        shown = _describe(result)
+        batches = []
+        for _ in range(3):
+            start = perf_counter_ns()
+            for _ in range(iterations):
+                operation(cls)
+            batches.append((perf_counter_ns() - start) / iterations)
+        print(f"  {name:8}: {shown}\n            {median(batches) / 1000:.3f} us/call (demo only)")
     if difference:
         print(f"  Approved behavior: {difference}")
-    elif outcomes[0] != outcomes[1]:
-        raise AssertionError(f"Unexpected result difference: {label}: {outcomes}")
 
 
 def constructor_demo():
     """Build from explicit fields and the supported date input families."""
     _show("Explicit construction", lambda cls: cls(2024, 5, 7, 15, 30, fold=0))
     _show("Default fold", lambda cls: cls(2024, 5, 7),
-          difference="The new default fold is 0, matching datetime.")
+          difference="The new default fold is 0, matching datetime.",
+          rust_expected=datetime(2024, 5, 7))
     _show("Date input", lambda cls: cls.fromdate(date(2024, 5, 7)),
-          difference="New constructors use fold=0 unless the input carries fold.")
+          difference="New constructors use fold=0 unless the input carries fold.",
+          rust_expected=datetime(2024, 5, 7))
     _show("Exact negative epoch", lambda cls: cls.frommicroseconds(-1),
-          difference="New constructors default to fold=0.")
+          difference="New constructors default to fold=0.",
+          rust_expected=datetime(1969, 12, 31, 23, 59, 59, 999999))
     _show("NumPy nanosecond input", lambda cls: cls.fromdatetime64(np.datetime64("2024-05-07T15:30:01.123456789")),
-          difference="Both use microsecond fields; the new default fold is 0.")
+          difference="Both use microsecond fields; the new default fold is 0.",
+          rust_expected=datetime(2024, 5, 7, 15, 30, 1, 123456))
 
 
     _show("Combine clock fields from datetime", lambda cls: cls.combine(
         date(2024, 5, 7), datetime(2000, 1, 1, 9, 30)),
-        difference="A datetime clock supplies only time, timezone and fold.")
+        difference="A datetime clock supplies only time, timezone and fold.",
+        rust_expected=datetime(2024, 5, 7, 9, 30))
     try:
         PydtR.combine(date(2024, 5, 7), pd.NaT)
     except ValueError as error:
@@ -105,7 +135,8 @@ def calendar_demo():
     _show("Next quarter", lambda cls: cls(2024, 5, 7, fold=0).to_next_quarter(month=1, day=1))
     _show("This Monday", lambda cls: cls(2024, 5, 7, 15, fold=0).to_monday())
     _show("Reject out-of-range clock fields", lambda cls: cls(2024, 5, 7, fold=0).to_time(hour=25, minute=70),
-          difference="Rust rejects explicit clock values outside their ranges; use None to retain a field.")
+          difference="Rust rejects explicit clock values outside their ranges; use None to retain a field.",
+          rust_expected=ValueError)
     _show("Calendar facts", lambda cls: (cls(2024, 5, 7, fold=0).quarter,
                                         cls(2024, 5, 7, fold=0).days_in_year(),
                                         cls(2024, 5, 7, fold=0).day_of_quarter()))
@@ -117,7 +148,8 @@ def period_demo():
     _show("Week start", lambda cls: cls(2024, 5, 7, 15, fold=0).to_start_of("W"))
     _show("Last representable date is Sunday?", lambda cls: cls(9999, 12, 31, fold=0).is_last_of("W"))
     _show("Unknown boundary predicate", lambda cls: cls(2024, 1, 1, fold=0).is_start_of("unknown"),
-          difference="Unknown or empty names now raise ValueError; valid nonmatches return False.")
+          difference="Unknown or empty names now raise ValueError; valid nonmatches return False.",
+          rust_expected=ValueError)
 
 
     value = PydtR(2024, 11, 3, 1, 30, tzinfo=ZoneInfo("America/New_York"), fold=1)
@@ -133,7 +165,9 @@ def precision_demo():
     _show("Trim milliseconds", lambda cls: cls(2024, 5, 7, 15, 30, 1, 123456, fold=0).fsp(3))
     _show("Trim while keeping fold", lambda cls: cls(2024, 11, 3, 1, 30, 1, 123456,
            tzinfo=ZoneInfo("America/New_York"), fold=1).fsp(3),
-          difference="The new fsp preserves repeated-time fold and uses the shared regional gap rule.")
+          difference="The new fsp preserves repeated-time fold and uses the shared regional gap rule.",
+          rust_expected=datetime(2024, 11, 3, 1, 30, 1, 123000,
+                                 tzinfo=ZoneInfo("America/New_York"), fold=1))
     formatted = PydtR(2024, 1, 1, microsecond=123456).strftime('%f|%.3f|%.0f')
     assert formatted == '123456|.123|'
     print('Shared fractional formatting:', formatted)
@@ -146,10 +180,12 @@ def timezone_demo():
     print('\nAvailable timezone names (independent set):', len(zones))
     _show("UTC to New York", lambda cls: cls(2024, 5, 7, 15, tzinfo=timezone.utc, fold=0).tz_convert("America/New_York"))
     _show("UTC conversion at the spring transition", lambda cls: cls(2024, 3, 10, 2, 30, tzinfo=timezone.utc, fold=0).tz_convert("America/New_York"),
-          difference="The new conversion preserves the instant without treating UTC as local wall time.")
+          difference="The new conversion preserves the instant without treating UTC as local wall time.",
+          rust_expected=datetime(2024, 3, 9, 21, 30, tzinfo=ZoneInfo("America/New_York")))
     _show("Move across a missing local time", lambda cls: cls(2024, 3, 9, 2, 30,
            tzinfo=ZoneInfo("America/New_York"), fold=0).to_day(1),
-          difference="Calendar moves prefer the source UTC offset and choose an existing result; this forward move reaches03:30.")
+          difference="Calendar moves prefer the source UTC offset and choose an existing result; this forward move reaches03:30.",
+          rust_expected=datetime(2024, 3, 10, 3, 30, tzinfo=ZoneInfo("America/New_York")))
     _show("Convert None means naive UTC", lambda cls: cls(2024, 5, 7, 12,
            tzinfo=ZoneInfo("Asia/Shanghai"), fold=0).tz_convert(None))
 
@@ -167,31 +203,38 @@ def standard_datetime_demo():
     """Show the approved standard-library interface and equality rules."""
     _show("weekday() method", lambda cls: cls(2024, 5, 7, fold=0).weekday()
           if cls is PydtR else cls(2024, 5, 7, fold=0).weekday,
-          difference="Rust uses datetime's weekday() method; frozen cyTimes 3.1.0 exposes a property.")
+          difference="Rust uses datetime's weekday() method; frozen cyTimes 3.1.0 exposes a property.",
+          rust_expected=1)
     _show("ISO calendar interface", lambda cls: cls(2024, 5, 7, fold=0).isocalendar(),
-          difference="The new result is the standard ISO calendar tuple, rather than a dictionary.")
+          difference="The new result is the standard ISO calendar tuple, rather than a dictionary.",
+          rust_expected=datetime(2024, 5, 7).isocalendar())
     _show("Strict replace", lambda cls: cls(2024, 1, 31, fold=0).replace(month=2),
-          difference="Standard replace rejects the invalid February date; use to_date(month=2) to clamp.")
+          difference="Standard replace rejects the invalid February date; use to_date(month=2) to clamp.",
+          rust_expected=ValueError)
     def repeated(cls):
         a=cls(2024,11,3,1,30,tzinfo=ZoneInfo("America/New_York"),fold=0)
         b=cls(2024,11,3,1,30,tzinfo=a.tzinfo,fold=1)
         return (a==b, hash(a)==hash(b), a-b)
     _show("Same-timezone repeated values", repeated,
-          difference="Comparison, hash and subtraction now follow standard datetime consistently.")
+          difference="Comparison, hash and subtraction now follow standard datetime consistently.",
+          rust_expected=(True, True, timedelta(0)))
 
 
     stamp = pd.Timestamp("2024-01-01 00:00:00.000000123")
     _show("Timestamp nanosecond equality", lambda cls: cls(2024, 1, 1, fold=0) == stamp,
-          difference="Rust compares the Timestamp nanosecond remainder; these values differ.")
+          difference="Rust compares the Timestamp nanosecond remainder; these values differ.",
+          rust_expected=False)
     stamp = pd.Timestamp("2024-01-01 00:00:00.000000877")
     _show("Timestamp difference rounded once", lambda cls: cls(2024, 1, 1, fold=0) - stamp,
-          difference="Rust returns standard timedelta(microseconds=-1), rounding only at the end.")
+          difference="Rust returns standard timedelta(microseconds=-1), rounding only at the end.",
+          rust_expected=timedelta(microseconds=-1))
 
 
 def parse_demo():
     """Parse with the completed Parser and customize a stored month word."""
     _show("Common date string", lambda cls: cls.parse("2024-05-07T15:30:01"),
-          difference="The new class shares the completed Parser and defaults fold to 0.")
+          difference="The new class shares the completed Parser and defaults fold to 0.",
+          rust_expected=datetime(2024, 5, 7, 15, 30, 1))
     cfg=Configs();cfg.add_month("harvest",10)
     print("\nRust configuration:", PydtR.parse("14 harvest 2026",cfg=cfg))
     print("Rust strict parse:", PydtR.parse("2024-02-29",strict=True))
@@ -217,7 +260,8 @@ class ChildR(PydtR):
 def state_demo():
     """Save values and ordinary subclass metadata through Python protocols."""
     _show("Pickle round trip", lambda cls: pickle.loads(pickle.dumps(cls(2024,5,7,fold=1))),
-          difference="The new version supports value, timezone, fold and normal subclass state.")
+          difference="The new version supports value, timezone, fold and normal subclass state.",
+          rust_expected=datetime(2024, 5, 7, fold=1))
     value=ChildR(2024,5,7,fold=1);value.tag={"labels":["saved"]};value.extra="dictionary"
     for label,result in (("copy",copy.copy(value)),("deepcopy",copy.deepcopy(value)),
                          ("pickle",pickle.loads(pickle.dumps(value)))):
