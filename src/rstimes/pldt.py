@@ -212,22 +212,23 @@ def _construct(data, *, unit, name, copy: _Boolean, default, yearfirst: _Boolean
     """Read source roles once, then produce one native result carrier."""
     source_type = type(data)
     # Built-in sequences can also be registered as virtual Mapping subclasses.
-    if (source_type is list or source_type is tuple) and not isinstance(data, Mapping):
+    if (source_type is list or source_type is tuple) and not issubclass(source_type, Mapping):
         return _pldt_objects(
             data, pl.Series, unit, None, "" if name is None else name,
             default, yearfirst, dayfirst, isoformat, strict, cfg, tz, policy,
         )
-    if isinstance(data, (str, bytes, bytearray, date, Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE) or data is None:
+    if issubclass(source_type, (str, bytes, bytearray, date, Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE) or data is None:
         raise TypeError("Pldt: data must be a one-dimensional date collection; use [value] for one date")
     source_name = None
     source_zone = None
     base_unit = None
-    if isinstance(data, _PD_COLUMN):
+    if issubclass(source_type, _PD_COLUMN):
         source_name = getattr(data, "name", None)
         selected_name = name if name is not None else _name(source_name) or ""
-        if isinstance(data, (pd.Series, pd.Index)):
+        if issubclass(source_type, (pd.Series, pd.Index)):
             data = data.array
-        if isinstance(data, _PD_DATETIME_ARRAY):
+            source_type = type(data)
+        if issubclass(source_type, _PD_DATETIME_ARRAY):
             source_zone = ("UTC" if tz is not None else _zone_key(data.tz)) if data.tz is not None else None
             array = _base_array(data.asi8)
             code = _NUMPY_DATE_CODES[data.unit]
@@ -242,7 +243,8 @@ def _construct(data, *, unit, name, copy: _Boolean, default, yearfirst: _Boolean
             base_unit = "ns"
         elif getattr(data.dtype, "kind", None) in ("b", "m", "V", "c", "S"):
             raise TypeError("Pldt: this declared pandas dtype does not contain dates or supported numeric ticks")
-    if issubclass(type(data), np.ndarray):
+        source_type = type(data)
+    if issubclass(source_type, np.ndarray):
         data = _base_array(data)
         if data.dtype.kind in "bmVcS":
             raise TypeError("Pldt: Boolean, Duration, structured and complex arrays are not date inputs")
@@ -259,7 +261,8 @@ def _construct(data, *, unit, name, copy: _Boolean, default, yearfirst: _Boolean
             # Known external NumPy storage must not persist into detached reads.
             # Rust makes the one owned result while the GIL is still held.
             copy = True
-    if isinstance(data, pl.Series):
+        source_type = type(data)
+    if issubclass(source_type, pl.Series):
         data = _plain_series(data)  # Independent shell; retain typed native owner/chunks.
         source_name = data.name
         kind = data.dtype.base_type()
@@ -334,13 +337,14 @@ def _strptime_eager(cls: type[_SeriesT], data, fmt, *, size=None, tz=None, unit=
     try:
         unit = _unit(unit, optional=True)
         name = _name(name)
-        if name is None and isinstance(data, (pl.Series,) + _PD_COLUMN):
+        source_type = type(data)
+        if name is None and issubclass(source_type, (pl.Series,) + _PD_COLUMN):
             name = _name(getattr(data, "name", None))
         compiled = _prepare_format(fmt)
         target = _prepare_zone(tz)
         policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
         output = Pldt if cls is Pldt else pl.Series
-        scalar = isinstance(data, (str, bytes, bytearray, date, int, float, np.generic)) or data is None or (pd is not None and (data is pd.NA or data is pd.NaT))
+        scalar = issubclass(source_type, (str, bytes, bytearray, date, int, float, np.generic)) or data is None or (pd is not None and (data is pd.NA or data is pd.NaT))
         if scalar:
             if size is None:
                 raise _own_error(ValueError("a scalar strptime input requires size"), "size", size)
@@ -349,20 +353,20 @@ def _strptime_eager(cls: type[_SeriesT], data, fmt, *, size=None, tz=None, unit=
                 raise _own_error(ValueError("size must be nonnegative"), "size", size)
         elif size is not None:
             raise _own_error(ValueError("omit size for a collection"), "size", size)
-        if isinstance(data, pl.Series) and data.dtype.base_type() in (pl.String, pl.Null):
+        if issubclass(source_type, pl.Series) and cast(pl.Series, data).dtype.base_type() in (pl.String, pl.Null):
             source = _plain_series(data)
             if source.dtype == pl.Null:
                 source = source.cast(pl.String)
             context = _pldt_prepare_format(compiled, cfg)
             result = _pldt_text(source, output, None, context, unit, target, policy, name)
             return result if cls is Pldt else cls(result)
-        if isinstance(data, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+        if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
             raise _own_error(TypeError("strptime requires text or a one-dimensional text collection"), "dtstr", data)
-        if isinstance(data, pl.Series) and data.dtype.base_type() is not pl.Object:
+        if issubclass(source_type, pl.Series) and cast(pl.Series, data).dtype.base_type() is not pl.Object:
             raise _own_error(TypeError("strptime requires a String or text Object column"), "dtstr", data)
-        if isinstance(data, _PD_COLUMN) and getattr(data.dtype, "kind", None) not in ("O", "U"):
+        if issubclass(source_type, _PD_COLUMN) and getattr(getattr(data, "dtype"), "kind", None) not in ("O", "U"):
             raise _own_error(TypeError("strptime requires text values, not a numeric/date dtype"), "dtstr", data)
-        if issubclass(type(data), np.ndarray):
+        if issubclass(source_type, np.ndarray):
             data = _base_array(data)
             if data.dtype.kind not in ("O", "U"):
                 raise _own_error(TypeError("strptime requires text values, not a numeric/date dtype"), "dtstr", data)
@@ -413,18 +417,20 @@ def _numeric_eager(cls: type[_SeriesT], data, kind, *, size=None, tz=None, unit=
         size = None if size is None else _size(size, entry)
         target_zone = _prepare_zone(tz)
         policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
-        if isinstance(data, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+        source_type = type(data)
+        if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
             raise _own_error(TypeError("requires a numeric scalar or one-dimensional numeric collection"), "data", data)
         column = False
         source_name = None
-        if isinstance(data, _PD_COLUMN):
+        if issubclass(source_type, _PD_COLUMN):
             source_name = getattr(data, "name", None)
             column = True
             if getattr(data.dtype, "kind", None) in ("M", "m", "b", "c", "S", "V"):
                 raise _own_error(TypeError("this declared dtype is not numeric epoch input"), "data", data)
-            if isinstance(data, (pd.Series, pd.Index)):
+            if issubclass(source_type, (pd.Series, pd.Index)):
                 data = data.array
-        if issubclass(type(data), np.ndarray):
+                source_type = type(data)
+        if issubclass(source_type, np.ndarray):
             data = _base_array(data)
             column = True
             if data.dtype.kind in "MmbcSV":
@@ -435,9 +441,10 @@ def _numeric_eager(cls: type[_SeriesT], data, kind, *, size=None, tz=None, unit=
                         raise _own_error(TypeError("integer microseconds reject extended floating types"), "data", data)
                     data = data.astype(np.float64) if data.dtype.type not in (np.float32, np.float64) else data
                 data = pl.Series(name or "", data)
+            source_type = type(data)
         target = Pldt if cls is Pldt else pl.Series
         local = _local_zone if kind == "local_timestamp" else None
-        if isinstance(data, pl.Series):
+        if issubclass(source_type, pl.Series):
             if size is not None:
                 raise _own_error(ValueError("omit size for a collection"), "size", size)
             source = _plain_series(data)
@@ -567,15 +574,17 @@ def _iso_factory(cls: type[_SeriesT], data, *, size=None, tz=None, unit=None, na
         name = _name(name)
         target = _prepare_zone(tz)
         policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
-        if isinstance(data, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+        source_type = type(data)
+        if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
             raise _own_error(TypeError("requires ISO text or a one-dimensional text collection"), "dtstr", data)
         output = Pldt if cls is Pldt else pl.Series
-        column = isinstance(data, _PD_COLUMN)
+        column = issubclass(source_type, _PD_COLUMN)
         source_name = _name(getattr(data, "name", None)) if column else None
-        if issubclass(type(data), np.ndarray):
+        if issubclass(source_type, np.ndarray):
             data = _base_array(data)
             column = True
-        if isinstance(data, pl.Series):
+            source_type = type(data)
+        if issubclass(source_type, pl.Series):
             if size is not None:
                 raise _own_error(ValueError("omit size for a collection"), "size", size)
             data = _plain_series(data)
@@ -621,19 +630,21 @@ def _date_factory(cls: type[_SeriesT], data, kind, *, size=None, tz=None, unit=N
         size = None if size is None else _size(size, entry)
         zone = _prepare_zone(tz)
         policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
-        if isinstance(data, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+        source_type = type(data)
+        if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
             raise _own_error(TypeError("requires a real date source or one-dimensional date collection"), "data", data)
         target = Pldt if cls is Pldt else pl.Series
         column = False
         source_name = None
-        if isinstance(data, _PD_COLUMN):
+        if issubclass(source_type, _PD_COLUMN):
             if kind == "numpy":
                 raise _own_error(TypeError("fromdatetime64 requires real NumPy datetime64 sources"), "dt64", data)
             source_name = getattr(data, "name", None)
             column = True
-            if isinstance(data, (pd.Series, pd.Index)):
+            if issubclass(source_type, (pd.Series, pd.Index)):
                 data = data.array
-            if isinstance(data, _PD_DATETIME_ARRAY):
+                source_type = type(data)
+            if issubclass(source_type, _PD_DATETIME_ARRAY):
                 if size is not None:
                     raise _own_error(ValueError("omit size for a collection"), "size", size)
                 source_zone = _resolve_zone(data.tz)
@@ -658,7 +669,8 @@ def _date_factory(cls: type[_SeriesT], data, kind, *, size=None, tz=None, unit=N
             arrow = _pandas_timestamp_column(data)
             if arrow is not None:
                 data = arrow.rename(name if name is not None else _name(source_name) or "")
-        if issubclass(type(data), np.ndarray):
+            source_type = type(data)
+        if issubclass(source_type, np.ndarray):
             data = _base_array(data)
             column = True
             if data.dtype.kind == "M":
@@ -673,7 +685,8 @@ def _date_factory(cls: type[_SeriesT], data, kind, *, size=None, tz=None, unit=N
                 result = _pldt_native(carrier, target, unit, False, False,
                                       (_NUMPY_DATE_CODES[source_unit], multiplier), None, zone, policy)
                 return result if cls is Pldt else cls(result)
-        if isinstance(data, pl.Series):
+            source_type = type(data)
+        if issubclass(source_type, pl.Series):
             if kind == "numpy":
                 raise _own_error(TypeError("fromdatetime64 requires a real NumPy source, not Polars"), "dt64", data)
             if size is not None:
@@ -744,16 +757,18 @@ def _real_pandas_source(data, zone):
 def _part_source(value, clock, keep_zone):
     """Own one date/clock role without constructing an intermediate Pldt."""
     parameter = "time" if clock else "date"
-    if isinstance(value, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+    source_type = type(value)
+    if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
         raise _own_error(TypeError("requires a scalar or one-dimensional date/clock collection"), parameter, value)
     column = False
     name = None
-    if isinstance(value, _PD_COLUMN):
+    if issubclass(source_type, _PD_COLUMN):
         name = getattr(value, "name", None)
         column = True
-        if isinstance(value, (pd.Series, pd.Index)):
+        if issubclass(source_type, (pd.Series, pd.Index)):
             value = value.array
-        if isinstance(value, _PD_DATETIME_ARRAY):
+            source_type = type(value)
+        if issubclass(source_type, _PD_DATETIME_ARRAY):
             source_zone = _resolve_zone(value.tz)
             if source_zone is None or isinstance(source_zone, (timezone, ZoneInfo)):
                 rule, offset = None, None
@@ -783,7 +798,8 @@ def _part_source(value, clock, keep_zone):
         arrow = _pandas_timestamp_column(value)
         if arrow is not None:
             value = arrow.rename(_name(name) or "")
-    if issubclass(type(value), np.ndarray):
+        source_type = type(value)
+    if issubclass(source_type, np.ndarray):
         value = _base_array(value)
         column = True
         if value.dtype.kind == "M":
@@ -797,7 +813,8 @@ def _part_source(value, clock, keep_zone):
             if value.dtype.kind == "f" and value.dtype.type not in _NUMPY_FLOAT_TYPES:
                 raise _own_error(TypeError("extended floating dtypes are not supported date/clock values"), parameter, value)
             value = pl.Series("", value.astype(np.float32) if value.dtype == np.dtype("float16") else value)
-    if isinstance(value, pl.Series):
+        source_type = type(value)
+    if issubclass(source_type, pl.Series):
         value = _plain_series(value)
         name = value.name
         column = True
@@ -862,21 +879,23 @@ def _combine_expression(source, time=None, *, tz=None, unit=None, ambiguous: _Ex
 
 def _integer_operand(value, entry, parameter):
     """Prepare one scalar/positional integer role and own any literal buffer."""
-    if isinstance(value, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+    source_type = type(value)
+    if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
         raise _own_error(TypeError("requires an integer scalar or one-dimensional integer collection"), parameter, value)
     column = False
     source_name = None
-    if isinstance(value, _PD_COLUMN):
+    if issubclass(source_type, _PD_COLUMN):
         source_name = _name(getattr(value, "name", None))
         column = True
-    if issubclass(type(value), np.ndarray):
+    if issubclass(source_type, np.ndarray):
         value = _base_array(value)
         column = True
         if value.dtype.kind in "iufb":
             if value.dtype.kind == "f" and value.dtype.type not in _NUMPY_FLOAT_TYPES:
                 raise _own_error(TypeError("extended floating dtypes are not integer components"), parameter, value)
             value = pl.Series("", value.astype(np.float32) if value.dtype == np.dtype("float16") else value)
-    if isinstance(value, pl.Series):
+        source_type = type(value)
+    if issubclass(source_type, pl.Series):
         column = True
         value = _plain_series(value)
         if value.dtype.base_type() is not pl.Object:
@@ -922,7 +941,7 @@ def _calendar_expression(kind, components, *, tz=None, unit: object="us", ambigu
         labels = {"ordinal": ("ordinal",), "iso": ("year", "week", "weekday"), "doy": ("year", "doy")}[kind]
         args, scalars = [], []
         for value, label in zip(components, labels):
-            if isinstance(value, pl.Expr):
+            if issubclass(type(value), pl.Expr):
                 args.append(value)
                 scalars.append(value.meta.is_scalar())
             else:
@@ -1053,10 +1072,11 @@ _FIELD_RANGES: tuple[tuple[int | None, int | None], ...] = ((None, None), (1, 12
 
 def _component(value, entry, parameter, optional, names, low, high) -> tuple[pl.Series, bool]:
     """Read a modification parameter once, preserving None and owning literals."""
-    if isinstance(value, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+    source_type = type(value)
+    if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
         raise _own_error(TypeError("requires a scalar or one-dimensional field collection"), parameter, value)
-    column = isinstance(value, _PD_COLUMN)
-    if issubclass(type(value), np.ndarray):
+    column = issubclass(source_type, _PD_COLUMN)
+    if issubclass(source_type, np.ndarray):
         value = _base_array(value)
         column = True
         if value.dtype.kind in "iu":
@@ -1065,11 +1085,12 @@ def _component(value, entry, parameter, optional, names, low, high) -> tuple[pl.
             value = pl.Series(parameter, value)
         elif value.dtype.kind != "O":
             raise _own_error(TypeError("requires integer fields, not Boolean or floating dtype"), parameter, value)
-    if isinstance(value, _PD_COLUMN):
+        source_type = type(value)
+    if issubclass(source_type, _PD_COLUMN):
         kind = getattr(value.dtype, "kind", None)
         if kind not in ("i", "u", "O", "U", "T"):
             raise _own_error(TypeError("requires integer fields or supported selector names"), parameter, value)
-    if isinstance(value, pl.Series):
+    if issubclass(source_type, pl.Series):
         value = _plain_series(value)
         column = True
         if value.dtype.base_type() is not pl.Object:
@@ -1120,7 +1141,7 @@ def _date_operation(owner, kind, components, method, *, tzinfo=_UNCHANGED_ZONE,
         args, scalars = [], []
         has_expr_component = False
         for value, role in zip(components, _transform_roles(kind)):
-            if isinstance(value, pl.Expr):
+            if issubclass(type(value), pl.Expr):
                 has_expr_component = True
                 if not expression:
                     raise _own_error(TypeError("Expr fields require the Expr namespace"), role[0], value)
@@ -1155,16 +1176,18 @@ def _date_operation(owner, kind, components, method, *, tzinfo=_UNCHANGED_ZONE,
 
 def _prepare_arithmetic(other, entry, subtract, reflected=False, named=False):
     """Read real temporal metadata without extracting Python date scalars."""
-    if isinstance(other, (pl.Expr, Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame) + _PD_TABLE):
+    source_type = type(other)
+    if issubclass(source_type, (pl.Expr, Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame) + _PD_TABLE):
         if named:
             raise _own_error(TypeError("requires actual Delta values or a one-dimensional Delta collection; dynamic Expr operands are unsupported"), "delta", other)
         return None
     column = False
-    if isinstance(other, _PD_COLUMN):
+    if issubclass(source_type, _PD_COLUMN):
         column = True
-        array = other.array if isinstance(other, (pd.Series, pd.Index)) else other
-        if isinstance(array, (_PD_DATETIME_ARRAY, _PD_TIMEDELTA_ARRAY)):
-            storage = "M" if isinstance(array, _PD_DATETIME_ARRAY) else "m"
+        array = other.array if issubclass(source_type, (pd.Series, pd.Index)) else other
+        array_type = type(array)
+        if issubclass(array_type, (_PD_DATETIME_ARRAY, _PD_TIMEDELTA_ARRAY)):
+            storage = "M" if issubclass(array_type, _PD_DATETIME_ARRAY) else "m"
             if named:
                 raise _own_error(TypeError("requires actual Delta values"), "delta", other)
             # The actual cached class test proves the structural storage API.
@@ -1175,7 +1198,8 @@ def _prepare_arithmetic(other, entry, subtract, reflected=False, named=False):
                                        storage == "M" and cast("_PandasDateTicks", array).tz is not None, True)
         arrow = _pandas_timestamp_column(array)
         other = array if arrow is None else arrow
-    if issubclass(type(other), np.ndarray):
+        source_type = type(other)
+    if issubclass(source_type, np.ndarray):
         other = _base_array(other)
         column = True
         if other.dtype.kind in "Mm":
@@ -1190,7 +1214,8 @@ def _prepare_arithmetic(other, entry, subtract, reflected=False, named=False):
             if named:
                 raise _own_error(TypeError("requires actual Delta values"), "delta", other)
             return None
-    if isinstance(other, pl.Series):
+        source_type = type(other)
+    if issubclass(source_type, pl.Series):
         other = _plain_series(other)
         column = True
         if other.dtype.base_type() in (pl.Date, pl.Datetime, pl.Duration):
@@ -1315,11 +1340,12 @@ _NO_QUERY_TARGET = object()
 
 def _diff_target(value, count=None) -> tuple[pl.Series, bool, int, tuple[int, int] | None, bool]:
     """Prepare exact date/seconds coordinates, with native dtype metadata."""
-    if isinstance(value, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame) + _PD_TABLE):
+    source_type = type(value)
+    if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame) + _PD_TABLE):
         raise _own_error(TypeError("requires a scalar or a one-dimensional target collection"), "dtobj", value)
-    column = isinstance(value, _PD_COLUMN)
+    column = issubclass(source_type, _PD_COLUMN)
     if column and getattr(value.dtype, "kind", None) == "M":
-        array = value.array if isinstance(value, (pd.Series, pd.Index)) else value
+        array = value.array if issubclass(source_type, (pd.Series, pd.Index)) else value
         arrow = _pandas_timestamp_column(array)
         if arrow is not None:
             return arrow, False, 0, None, False
@@ -1327,7 +1353,7 @@ def _diff_target(value, count=None) -> tuple[pl.Series, bool, int, tuple[int, in
         if unit not in _NUMPY_DATE_CODES:
             raise _own_error(ValueError("unsupported datetime target unit"), "dtobj", value)
         return pl.Series("", _base_array(array.asi8, own=True)), False, 1, (_NUMPY_DATE_CODES[unit], 1), getattr(value.dtype, "tz", None) is not None
-    if issubclass(type(value), np.ndarray):
+    if issubclass(source_type, np.ndarray):
         value = _base_array(value, own=True)
         column = True
         if value.dtype.kind == "M":
@@ -1339,7 +1365,8 @@ def _diff_target(value, count=None) -> tuple[pl.Series, bool, int, tuple[int, in
             raise _own_error(TypeError("extended floating targets are not supported"), "dtobj", value)
         if value.dtype.kind in "iufbU":
             value = pl.Series("", value.astype(np.float32) if value.dtype == np.dtype("float16") else value)
-    if isinstance(value, pl.Series):
+        source_type = type(value)
+    if issubclass(source_type, pl.Series):
         column = True
         value = _plain_series(value)
         if value.dtype.base_type() is not pl.Object:
@@ -1366,7 +1393,7 @@ def _boundary_difference(owner, dtobj, unit, absolute, inclusive):
             raise _own_error(ValueError("must be 'one', 'both' or 'neither'"), "inclusive", inclusive)
         expression = isinstance(owner, _ExprNamespace)
         source = owner._expr if expression else _plain_series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
-        if expression and isinstance(dtobj, pl.Expr):
+        if expression and issubclass(type(dtobj), pl.Expr):
             target, scalar, storage, numpy, aware = dtobj, dtobj.meta.is_scalar(), 0, None, False
         else:
             target, scalar, storage, numpy, aware = _diff_target(dtobj, None if expression else source.len())
@@ -1392,8 +1419,9 @@ def _query_operation(owner, code, method, value=_NO_QUERY_TARGET, names=0, param
         target = None
         scalar = False
         if value is not _NO_QUERY_TARGET:
-            if expression and isinstance(value, pl.Expr):
-                target, scalar = value, value.meta.is_scalar()
+            if expression and issubclass(type(value), pl.Expr):
+                target = cast(pl.Expr, value)
+                scalar = target.meta.is_scalar()
             else:
                 target, scalar = _component(value, entry, parameter, False, names, None, None)
                 if expression:
