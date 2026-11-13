@@ -50,6 +50,7 @@ def main():
             "parser/test_behavior_revision.py", "parser/test_object_parse.py",
             "parser/test_numeric_text.py", "parser/test_numeric_text_fast_paths.py",
             "parser/test_numeric_short_decimal_fold_optimization.py", "parser/test_numeric_text_threads.py",
+            "parser/test_product_ready_parser.py",
         ]
         if importlib.util.find_spec("polars") is not None:
             paths.append("pldt")

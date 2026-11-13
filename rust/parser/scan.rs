@@ -587,28 +587,19 @@ fn hms_known<P: Policy>(f: &mut Fields<P>, flag: i32, t: &[u32], k: i32) -> Pars
         f.set_clock(flag, value)?;
     }
     if let Some(p) = split {
-        let mut numerator = 0_u128;
-        let mut denominator = 1_u128;
-        for &ch in &t[p + 1..] {
-            numerator = numerator
-                .checked_mul(10)
-                .and_then(|v| v.checked_add(u128::from(ch - 48)))
-                .ok_or_else(|| {
-                    ParseError::Overflow("decimal clock precision exceeds native arithmetic".into())
-                })?;
-            denominator = denominator.checked_mul(10).ok_or_else(|| {
-                ParseError::Overflow("decimal clock precision exceeds native arithmetic".into())
-            })?;
-        }
-        let factor = if flag == 0 {
+        let factor: u64 = if flag == 0 {
             3_600_000_000_000
         } else {
             60_000_000_000
         };
-        let nanos = numerator
-            .checked_mul(factor)
-            .ok_or_else(|| ParseError::Overflow("decimal clock arithmetic overflow".into()))?
-            / denominator;
+        // Classification already proves ASCII digits. Reverse carry computes
+        // floor(factor * 0.digits) exactly without a length-dependent numerator
+        // or denominator. carry < factor, so every intermediate is < 10*factor
+        // (at most 36_000_000_000_000), safely within u64 for any token length.
+        let nanos = t[p + 1..]
+            .iter()
+            .rev()
+            .fold(0, |carry, &ch| (u64::from(ch - 48) * factor + carry) / 10);
         if flag == 0 {
             f.set_clock(1, (nanos / 60_000_000_000) as i32)?;
         }

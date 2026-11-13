@@ -1,5 +1,5 @@
 """Approved safety differences with explicit expected errors; no unsafe oracle calls."""
-from datetime import date
+from datetime import date, datetime
 import pytest
 from rstimes.parser import Configs, parse_str as parse
 from rstimes.errors import ParseError, ConfigError
@@ -7,6 +7,10 @@ from rstimes.errors import ParseError, ConfigError
 
 @pytest.mark.parametrize("text", ["9"*40, "12."+"9"*40+"h"])
 def test_numeric_accumulation_overflow_is_safe(text):
+    if text.endswith("h"):
+        # PR-014: a long valid decimal has no overflowing final clock value.
+        assert parse(text, default=date(2024,1,1)) == datetime(2024,1,1,12,59,59,999999)
+        return
     with pytest.raises(OverflowError) as observed:
         parse(text, default=date(2024,1,1))
     assert observed.value.__cause__ is None
