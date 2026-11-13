@@ -1,7 +1,11 @@
 """Stable builtin storage for default copy/restore state, separate from hooks."""
+from typing import TypeVar
+
+_Key = TypeVar("_Key")
+_Value = TypeVar("_Value")
 
 
-def snapshot(part: dict[object, object] | None) -> dict[object, object] | None:
+def snapshot(part: dict[_Key, _Value] | None) -> dict[_Key, _Value] | None:
     """Shallow-copy a validated dict/None without virtual mapping export.
 
     Arguments:

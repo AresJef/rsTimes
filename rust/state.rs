@@ -272,15 +272,15 @@ fn decode_dictionary<'py>(value: &Bound<'py, PyAny>) -> PyResult<Option<Bound<'p
             "Delta state dictionary must be dict or None",
         ));
     }
-    let dictionary = value.cast::<PyDict>()?;
-    for key in dictionary.keys().iter() {
+    let dictionary = value.cast::<PyDict>()?.copy()?;
+    for (key, _) in dictionary.iter() {
         if !key.is_exact_instance_of::<PyString>() {
             return Err(crate::error_context::type_error(
                 "Delta state dictionary keys must be strings",
             ));
         }
     }
-    dictionary.copy().map(Some)
+    Ok(Some(dictionary))
 }
 
 /// Restore subclass metadata without changing the already constructed value.
