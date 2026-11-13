@@ -9,6 +9,29 @@ import pytest
 from rstimes import Pddt
 
 
+@pytest.mark.parametrize("values", [[], [None], [None, None],
+                                    ["2024-01-02T03:04:05.123456789", None]])
+def test_fraction_missing_output_is_float_nan_at_native_and_public_boundaries(values):
+    """The private stub describes actual NaN values, not a None conversion."""
+    import math
+    from rstimes._native import _pddt_strftime, _strftime_prepare
+
+    source = Pddt(values, unit="ns", name="stamp")
+    context = _strftime_prepare("%f")
+    assert context.modified()
+    native = _pddt_strftime(source.asi8.tobytes(), source.unit, source.tz, context)
+    public = source.strftime("%f")
+    assert public.name == "stamp" and public.dtype == object
+    assert len(native) == len(public) == len(values)
+    for value, direct, wrapped in zip(values, native, public):
+        if value is None:
+            assert type(direct) is float and math.isnan(direct)
+            assert type(wrapped) is float and math.isnan(wrapped)
+        else:
+            assert type(direct) is str and direct == "123456789"
+            assert type(wrapped) is str and wrapped == "123456789"
+
+
 ZONES = [None, timezone.utc, timezone(timedelta(hours=8), "east%name"),
          timezone(-timedelta(hours=5, seconds=30)), ZoneInfo("UTC"),
          ZoneInfo("America/New_York")]

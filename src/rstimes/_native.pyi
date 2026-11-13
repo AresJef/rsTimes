@@ -693,7 +693,7 @@ def _pddt_snap(data: bytes, unit: str, zone: object | None, token: str, entry: s
     :returns: tuple[bytes, bool]; errors preserve the native or external exception contract.
     """
 
-def _pddt_strftime(data: bytes, unit: str, zone: object, context: _StrftimeContext) -> list[str | None]:
+def _pddt_strftime(data: bytes, unit: str, zone: object, context: _StrftimeContext) -> list[str | float]:
     """Ordinary numeric fractional output shares the native plan. Every system
 extension, dynamic zone and small/wide year retains mature pandas formatting.
 
@@ -701,7 +701,8 @@ extension, dynamic zone and small/wide year retains mature pandas formatting.
     :param unit: Prepared unit input; native validation and ownership rules apply.
     :param zone: Prepared zone input; native validation and ownership rules apply.
     :param context: Prepared context input; native validation and ownership rules apply.
-    :returns: list[str | None]; errors preserve the native or external exception contract.
+    :returns: Formatted strings, with float NaN for missing dates; errors preserve
+        the native or external exception contract.
     """
 
 def _pddt_strings(data: object, policy: _PddtPolicies, unit: str | None = None, default: object | None = None, yearfirst: bool | None = None, dayfirst: bool | None = None, isoformat: bool = True, strict: bool = False, cfg: object | None = None, target: object | None = None, entry: str = 'Pddt') -> tuple[bytes, _Unit, tzinfo | None] | None:

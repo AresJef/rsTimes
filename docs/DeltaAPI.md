@@ -3,6 +3,12 @@
 `rstimes.Delta` represents calendar changes. Relative amounts add time; absolute
 settings choose parts of the result. Values keep their fields after construction.
 
+This guide describes the current source and locally adopted behavior. The
+[demo selection](../demo/runtime.json) and [adoption records](../AGENTS.md)
+identify the actual interpreter and package; the metadata version alone does
+not identify a local repair. Public distributions retain their own release
+notes and verification records.
+
 ```python
 from datetime import date, datetime, timedelta
 from rstimes import Delta
@@ -24,10 +30,24 @@ When adding Delta values, a setting on the right wins. When subtracting, a
 setting on the left remains, with the right supplying one only if the left has
 none. Thus `Delta(hour=9) - Delta(hour=9)` still sets hour 9 and is truthy.
 
-Fractional weeks through microseconds are combined and rounded once to the
-nearest microsecond, with half values rounded to even. Integer parts remain
+Fractional weeks through nanoseconds are combined exactly and rounded once to
+the nearest nanosecond, with half values rounded to even. Integer parts remain
 exact even above `2**53`. Relative years, quarters and months require the integer index protocol; floats including 1.0 and booleans are rejected.
 Absolute settings require the integer index protocol: even an integral float such as `hour=9.0` is rejected.
+
+Applying the completed value to datetime/Pydt or converting it to timedelta
+projects the complete result to microseconds once, again using ties to even.
+Timestamp, Pddt and Pldt keep nanoseconds; an existing Pddt/Pldt keeps its unit
+and rejects a result it cannot represent. Explicitly call `as_unit` first when
+finer precision is required. A Delta does not retain sub-nanosecond residuals.
+
+```python
+assert Delta(nanoseconds=1).nanoseconds == 1
+assert Delta(nanoseconds=1).to_timedelta() == timedelta(0)
+assert Delta(nanoseconds=500).to_timedelta() == timedelta(0)
+assert Delta(nanoseconds=1500).to_timedelta() == timedelta(microseconds=2)
+assert Delta(nanoseconds=0.5).nanoseconds == 0
+```
 
 ## Values, equality and dictionary keys
 
@@ -107,8 +127,10 @@ before its additional attributes. Only load pickle from trusted sources.
 
 ## Limits and local demo
 
-Integers and checked arithmetic use the signed 64-bit range. Absolute settings
-are limited as described below; relative months and clock parts are normalized.
+Input and final fields retain their documented integer limits. Wider checked
+intermediates preserve valid cancellations; an unrepresentable final value
+raises OverflowError. Absolute settings are limited as described below;
+relative months and clock parts are normalized.
 A date result must fit Python's supported date range. The beta supports ordinary 64-bit CPython 3.12–3.15 on the native platforms listed
 in README. Older CPython 3.11 results are historical evidence, not current release
 support. The release report records exact dependency versions and tested wheels.
@@ -124,7 +146,9 @@ exploration; the project's benchmark reports provide performance acceptance.
 Calendar changes with relative amounts and absolute replacements.
 
 Add a Delta to a date or datetime to move it, set selected parts, or both.
-A Delta keeps its value after construction. Its 15 field properties are read-only.
+A Delta keeps its value after construction. Its 17 field properties are read-only.
+The original 19 positional arguments keep their order; `nanoseconds` and
+`nanosecond` are keyword-only additions.
 
 Parameters
 ----------
@@ -147,8 +171,11 @@ seconds : int or float, default 0
 milliseconds : int or float, default 0
     Milliseconds to add; one millisecond is 1000 microseconds.
 microseconds : int or float, default 0
-    Microseconds to add. Combined fractions round once to the nearest microsecond;
-    an exact halfway value rounds to the even microsecond.
+    Microseconds to add. Combined fixed fractions round once to the nearest
+    nanosecond; an exact halfway value rounds to the even nanosecond.
+nanoseconds : int or float, keyword-only, default 0
+    Nanoseconds to add. One microsecond is 1000 nanoseconds. This relative amount
+    is normalized together with all other fixed amounts.
 year : int | None, default None
     Year to set. Positive values above 9999 become 9999. None leaves it unset;
     zero and negative values are rejected.
@@ -172,14 +199,19 @@ millisecond : int | None, default None
     it supplies the millisecond part; microsecond supplies only its last three digits.
 microsecond : int | None, default None
     Microsecond in 0 through 999999, or None to leave it unset. Zero is a real
-    setting. All absolute fields require integers; floats are rejected.
+    setting. When supplied without nanosecond, it clears the source nanosecond
+    remainder. All absolute fields require integers; floats are rejected.
+nanosecond : int | None, keyword-only, default None
+    Additional remainder in 0 through 999 after the six microsecond digits.
+    None leaves this replacement unset; zero explicitly clears the remainder.
+    Setting only this field retains the source microsecond component.
 
 Raises
 ------
 TypeError
     An argument name, count or numeric conversion is unsupported.
 OverflowError
-    An integer or a calculation is outside the signed 64-bit range.
+    An input conversion or true final result exceeds the supported field capacity.
 ValueError
     A fractional duration is NaN or an absolute setting is outside its documented range.
 
@@ -221,7 +253,7 @@ Create a Delta from supported relativedelta fields.
 
 Source date zero means no absolute replacement; clock zero remains an explicit setting. Relative years/months are interpreted before limiting the destination day. Unsupported or unrepresentable rules raise ValueError instead of silently changing their meaning.
 
-Reads the source fields directly, including real subclass attributes, without calling normalized(). Fractional fixed durations use the same microsecond rounding as Delta construction. The returned Delta follows Delta's date, fold and arithmetic rules; conversion does not promise that every operation can replace the source object unchanged.
+Reads the source fields directly, including real subclass attributes, without calling normalized(). Fractional fixed durations use the same exact preparation and final nanosecond rounding as Delta construction. A later datetime/timedelta projection rounds the complete result to microseconds only at that output. The returned Delta follows Delta's date, fold and arithmetic rules; conversion does not promise that every operation can replace the source object unchanged.
 
 Parameters
 ----------
@@ -494,6 +526,11 @@ tuple
 Notes
 -----
 Use pickle or copy for ordinary saving and copying.
+The package's current core codec is ("rstimes.delta", 2, core17, metadata).
+Its 17-field little-endian payload is 144 bytes; the hash cache is not saved.
+Old version-1/microsecond-only payloads and CyTimes state are rejected rather
+than silently migrated. Business state and real custom reconstruction methods
+retain their separate protocol responsibilities.
 
 ### __setstate__
 
@@ -533,14 +570,16 @@ trusted sources. Errors from subclass attribute handling are passed through.
 | `minutes` | int: Normalized relative minutes, in 0..59. |
 | `seconds` | int: Normalized relative seconds, in 0..59. |
 | `microseconds` | int: Normalized relative microseconds, in 0..999999. |
-| `year` | int | None: Absolute year replacement, or None when unset. |
-| `month` | int | None: Absolute month replacement (1..12), or None when unset. |
-| `day` | int | None: Absolute day replacement (1..31), or None when unset. |
-| `weekday` | int | None: Absolute weekday replacement (Monday=0 to Sunday=6), or None. |
-| `hour` | int | None: Absolute hour replacement (0..23), or None when unset. |
-| `minute` | int | None: Absolute minute replacement (0..59), or None when unset. |
-| `second` | int | None: Absolute second replacement (0..59), or None when unset. |
-| `microsecond` | int | None: Absolute microsecond replacement (0..999999), or None. |
+| `nanoseconds` | int: Normalized relative nanosecond remainder, in 0..999. |
+| `year` | int or None: Absolute year replacement, or None when unset. |
+| `month` | int or None: Absolute month replacement (1..12), or None when unset. |
+| `day` | int or None: Absolute day replacement (1..31), or None when unset. |
+| `weekday` | int or None: Absolute weekday replacement (Monday=0 to Sunday=6), or None. |
+| `hour` | int or None: Absolute hour replacement (0..23), or None when unset. |
+| `minute` | int or None: Absolute minute replacement (0..59), or None when unset. |
+| `second` | int or None: Absolute second replacement (0..59), or None when unset. |
+| `microsecond` | int or None: Absolute microsecond replacement (0..999999), or None. |
+| `nanosecond` | int or None: Absolute additional remainder (0..999); None is unset, zero clears it. |
 
 ## Errors
 

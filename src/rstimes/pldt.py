@@ -1715,7 +1715,7 @@ class _OutputMethods:
             Separator between ISO date and time, normally T.
         timespec : str
             auto/hours/minutes/seconds/milliseconds/microseconds/nanoseconds, including the approved
-            H/M/s/ms/us/ns aliases.
+            h/m/min/s/ms/us/ns aliases; uppercase H and M are not accepted.
         
         Returns
         -------
