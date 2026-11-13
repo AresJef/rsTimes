@@ -731,12 +731,21 @@ fn _pldt_combine<'py>(
     let result = result.map_err(|error| error.python(py, "Pldt.combine"))?;
     super::export(py, &result, target)
 }
+/// Static clock precision is distinct from the public ms/us/ns output unit.
+#[derive(Clone, Copy, Deserialize)]
+enum ClockPrecision {
+    #[serde(rename = "us")]
+    Microsecond,
+    #[serde(rename = "ns")]
+    Nanosecond,
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Prepared {
     #[serde(deserialize_with = "crate::serde_values::byte_vector")]
     zones: Vec<u8>,
-    unit: String,
+    unit: ClockPrecision,
     scalar: bool,
     declared: Option<usize>,
 }
@@ -766,10 +775,9 @@ fn chosen(
         };
     }
     if let Some(prepared) = prepared {
-        return Ok(if prepared.unit == "ns" {
-            Unit::Nanosecond
-        } else {
-            Unit::Microsecond
+        return Ok(match prepared.unit {
+            ClockPrecision::Nanosecond => Unit::Nanosecond,
+            ClockPrecision::Microsecond => Unit::Microsecond,
         });
     }
     match clock {
@@ -965,6 +973,67 @@ pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn prepared_options(unit: serde_json::Value, output: Option<&str>) -> serde_json::Value {
+        serde_json::json!({
+            "version": 1, "unit": output, "target": null,
+            "policy": Policies::strict(),
+            "date_scalar": false, "clock_scalar": true, "mask_scalar": false,
+            "prepared": {
+                "zones": serde_json::to_vec(&vec![WireZone::Naive]).unwrap(),
+                "unit": unit, "scalar": true, "declared": null
+            }
+        })
+    }
+
+    #[test]
+    fn static_clock_precision_is_closed_before_any_output_unit_choice() {
+        for output in [None, Some("ms"), Some("us"), Some("ns")] {
+            for bad in [
+                serde_json::json!("unknown"),
+                serde_json::json!(""),
+                serde_json::json!("ms"),
+                serde_json::json!(0),
+                serde_json::Value::Null,
+            ] {
+                assert!(serde_json::from_value::<Options>(prepared_options(bad, output)).is_err());
+            }
+            let mut missing = prepared_options(serde_json::json!("us"), output);
+            missing["prepared"].as_object_mut().unwrap().remove("unit");
+            assert!(serde_json::from_value::<Options>(missing).is_err());
+        }
+    }
+
+    #[test]
+    fn schema_precision_and_public_ms_output_remain_distinct() {
+        let fields = [
+            Field::new("date".into(), DataType::Date),
+            Field::new("clock".into(), DataType::Int64),
+            Field::new("zone".into(), DataType::UInt32),
+        ];
+        for precision in ["us", "ns"] {
+            for output in [None, Some("ms"), Some("us"), Some("ns")] {
+                let encoded = prepared_options(serde_json::json!(precision), output);
+                let field = output_field(&fields, serde_json::from_value(encoded.clone()).unwrap())
+                    .unwrap();
+                let independent: Options = serde_json::from_value(encoded).unwrap();
+                let actual = chosen(
+                    independent.unit.as_deref(),
+                    &DataType::Int64,
+                    independent.prepared.as_ref(),
+                )
+                .unwrap_or_else(|error| panic!("{}", error.message));
+                let (unit, expected) = match output.unwrap_or(precision) {
+                    "ms" => (TimeUnit::Milliseconds, Unit::Millisecond),
+                    "us" => (TimeUnit::Microseconds, Unit::Microsecond),
+                    _ => (TimeUnit::Nanoseconds, Unit::Nanosecond),
+                };
+                assert_eq!(field.dtype(), &DataType::Datetime(unit, None));
+                assert_eq!(actual, expected);
+            }
+        }
+    }
+
     #[test]
     fn invalid_native_time_is_rejected_before_missing_dates_can_hide_it() {
         let source = Int64Chunked::from_vec("clock".into(), vec![-1]).into_series();
