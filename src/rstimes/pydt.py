@@ -515,7 +515,7 @@ class Pydt(_PydtBase):
             if kind is int or kind is float:
                 numeric = seconds
             else:
-                if isinstance(seconds, _BOOL_TYPES) or issubclass(kind, (str, bytes, bytearray)):
+                if issubclass(kind, _BOOL_TYPES) or issubclass(kind, (str, bytes, bytearray)):
                     raise _own_error(TypeError("must be numeric"), "seconds", seconds)
                 try:
                     numeric = seconds if issubclass(kind, (int, float)) else float(seconds)
@@ -596,7 +596,7 @@ class Pydt(_PydtBase):
             An integer conversion or result exceeds the supported range.
         """
         try:
-            if isinstance(ts, _BOOL_TYPES):
+            if issubclass(type(ts), _BOOL_TYPES):
                 raise _own_error(TypeError("must be numeric; boolean values are not accepted"), "ts", ts)
             if cls is Pydt:
                 factory = datetime.fromtimestamp
@@ -639,7 +639,7 @@ class Pydt(_PydtBase):
             An integer conversion or result exceeds the supported range.
         """
         try:
-            if isinstance(ts, _BOOL_TYPES):
+            if issubclass(type(ts), _BOOL_TYPES):
                 raise _own_error(TypeError("must be numeric; boolean values are not accepted"), "ts", ts)
             if cls is Pydt:
                 return _pydt_from_instant(datetime.fromtimestamp(ts, timezone.utc))

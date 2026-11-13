@@ -85,10 +85,15 @@ def from_unix_ms(value: int) -> datetime:
         -1
     """
     try:
-        if issubclass(type(value), bool) or not issubclass(type(value), int):
-            raise _own_error(TypeError("value must be an int; bool is not accepted"))
+        kind = type(value)
+        if kind is not int:
+            if kind is bool or not issubclass(kind, int):
+                raise _own_error(TypeError("value must be an int; bool is not accepted"))
+            prepared = int.__index__(value)
+        else:
+            prepared = value
         try:
-            return _EPOCH + timedelta(microseconds=value * 1_000)
+            return _EPOCH + timedelta(microseconds=prepared * 1_000)
         except Exception as error:
             raise _external_error(error)
     except Exception as error:

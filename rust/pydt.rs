@@ -36,16 +36,6 @@ impl<'a, 'py> FromPyObject<'a, 'py> for WideInteger {
     }
 }
 
-/// Standard datetime constructors accept the integer index protocol, not floats.
-#[derive(Clone, Copy)]
-struct IndexInteger(i64);
-impl<'a, 'py> FromPyObject<'a, 'py> for IndexInteger {
-    type Error = PyErr;
-    fn extract(value: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
-        Integer::extract(value).map(|n| Self(n.0))
-    }
-}
-
 /// Optional replacement fields use checked wide extraction before calendar bounds.
 #[derive(Clone, Copy)]
 struct FieldIndex(i64);
@@ -3342,9 +3332,9 @@ fn _pydt_from_doy<'py>(
 #[pyfunction]
 fn _pydt_from_iso<'py>(
     class: &Bound<'py, PyType>,
-    year: IndexInteger,
-    week: IndexInteger,
-    weekday: IndexInteger,
+    year: Integer,
+    week: Integer,
+    weekday: Integer,
     tz: &Bound<'py, PyAny>,
 ) -> PyResult<Bound<'py, PyAny>> {
     let year = year.0;
@@ -3739,11 +3729,7 @@ fn _pydt_is_local(value: &Bound<'_, PyDateTime>, local: &Bound<'_, PyAny>) -> Py
 
 /// Test integer calendar fields with the frozen convenience conversion.
 #[pyfunction]
-fn _pydt_matches(
-    value: &Bound<'_, PyDateTime>,
-    query: u8,
-    expected: IndexInteger,
-) -> PyResult<bool> {
+fn _pydt_matches(value: &Bound<'_, PyDateTime>, query: u8, expected: Integer) -> PyResult<bool> {
     let actual = match query {
         0 => i64::from(value.get_year()),
         1 => _pydt_calendar(value, 0)?,
