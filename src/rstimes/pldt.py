@@ -132,9 +132,12 @@ def _unit(value, optional=False):
 
 
 def _name(value):
-    if value is not None and not isinstance(value, str):
+    """Prepare stored name text before fallback, comparison or native output."""
+    if value is None or type(value) is str:
+        return value
+    if not issubclass(type(value), str):
         raise _own_error(TypeError("must be a string or None"), "name", value)
-    return value
+    return str.__str__(value)
 
 
 def _base_array(value, *, own=False):
