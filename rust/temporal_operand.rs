@@ -11,6 +11,20 @@ pub(crate) enum Value {
     Date(i128, bool),
     Missing(u8),
 }
+/// Qualify an unknown row source without executing or pre-consuming its protocol.
+/// Actual iteration remains the caller's single fallible `try_iter` operation.
+pub(crate) fn has_row_protocol(data: &Bound<'_, PyAny>) -> bool {
+    let class = data.get_type();
+    // SAFETY: The attached caller owns both the live object and its ready type.
+    // These public CPython APIs inspect slots only; no layout or borrowed slot
+    // is retained across callbacks. A later protocol change is handled by the
+    // ordinary fallible iterator creation, including __iter__ = None.
+    unsafe {
+        !pyo3::ffi::PyType_GetSlot(class.as_type_ptr(), pyo3::ffi::Py_tp_iter).is_null()
+            || pyo3::ffi::PySequence_Check(data.as_ptr()) != 0
+    }
+}
+
 pub(crate) fn numpy_code(name: &str) -> PyResult<i32> {
     match name {
         "Y" => Ok(0),

@@ -165,10 +165,7 @@ fn _pddt_operand(
         }
         // Only iterables enter a row path; scalar unsupported operands retain
         // normal Python/pandas NotImplemented negotiation.
-        if !data
-            .hasattr("__iter__")
-            .map_err(crate::error_context::external)?
-        {
+        if !crate::temporal_operand::has_row_protocol(data) {
             return Ok(None);
         }
     }

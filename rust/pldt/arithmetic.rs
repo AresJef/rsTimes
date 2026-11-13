@@ -184,11 +184,7 @@ fn prepare(
         {
             return Ok(None);
         }
-        if !column
-            && !data
-                .hasattr("__iter__")
-                .map_err(crate::error_context::external)?
-        {
+        if !column && !temporal_operand::has_row_protocol(data) {
             return Ok(None);
         }
         for (row, item) in data
