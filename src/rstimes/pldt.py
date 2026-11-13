@@ -513,9 +513,10 @@ def _range_factory(cls: type[_SeriesT], start=None, *, end=None, periods=None, f
             freq = "D"
         metadata = None
         delegated = False
+        frequency_type = type(freq)
         if freq is None:
             plan = None
-        elif pd is not None and isinstance(freq, pd.DateOffset) and not isinstance(freq, timedelta):
+        elif pd is not None and issubclass(frequency_type, pd.DateOffset) and not issubclass(frequency_type, timedelta):
             plan, metadata, delegated = _pandas_frequency(freq)  # pyright: ignore[reportOptionalCall] -- TY020; see tests/typing/pyright_exceptions.json.
         else:
             plan = _pldt_frequency(freq)
@@ -959,16 +960,19 @@ def _as_unit(source, unit, round_ok: _Boolean):
 
 
 def _timezone_policy(ambiguous: _ExprAmbiguous, nonexistent: _Nonexistent, *, expression):
-    if isinstance(ambiguous, pl.Expr):
+    kind = type(ambiguous)
+    if issubclass(kind, pl.Expr):
         if not expression:
             raise _own_error(TypeError("ambiguous Expr is only valid in an Expr call"), "ambiguous", ambiguous)
-        return _pldt_policies("raise", nonexistent, True), ambiguous, ambiguous.meta.is_scalar()
-    if issubclass(type(ambiguous), np.ndarray):
+        mask = cast(pl.Expr, ambiguous)
+        return _pldt_policies("raise", nonexistent, True), mask, mask.meta.is_scalar()
+    if issubclass(kind, np.ndarray):
         column = cast(np.ndarray, ambiguous)
         if column.ndim != 1:
             raise _own_error(ValueError("ambiguous must be one-dimensional"), "ambiguous", ambiguous)
         if column.dtype.kind != "b":
             raise _own_error(TypeError("ambiguous array must have Boolean dtype"), "ambiguous", ambiguous)
+        return _pldt_policies(ambiguous, nonexistent), None, False
     if isinstance(ambiguous, (pl.DataFrame, pl.LazyFrame, Mapping, set, frozenset) + _PD_TABLE):
         raise _own_error(TypeError("ambiguous must be one boolean policy or a one-dimensional boolean collection"), "ambiguous", ambiguous)
     if isinstance(ambiguous, pl.Series) and ambiguous.dtype != pl.Boolean:
@@ -1283,7 +1287,7 @@ def _period_operation(owner, kind, token, value, mode, query, method):
         if kind == "fsp":
             value = _integer_arg(value, entry, "precision")
         elif kind == "round":
-            if pd is not None and isinstance(value, pd.DateOffset):
+            if pd is not None and issubclass(type(value), pd.DateOffset):
                 plan, _, delegated = _pandas_frequency(value)  # pyright: ignore[reportOptionalCall] -- TY024; see tests/typing/pyright_exceptions.json.
                 if delegated or plan is None:
                     raise _own_error(ValueError("requires a positive fixed frequency"), "freq", value)

@@ -138,11 +138,12 @@ def _outer(data, parameter="data"):
 
 
 def _policies(ambiguous, nonexistent):
-    if isinstance(ambiguous, (pd.DataFrame, pd.MultiIndex)):
+    kind = type(ambiguous)
+    if issubclass(kind, (pd.DataFrame, pd.MultiIndex)):
         raise _own_error(TypeError("must be a boolean scalar, policy string or one-dimensional boolean collection"), "ambiguous", ambiguous)
-    if issubclass(type(ambiguous), (np.ndarray, pd.api.extensions.ExtensionArray)) and ambiguous.ndim != 1:
+    if issubclass(kind, (np.ndarray, pd.api.extensions.ExtensionArray)) and ambiguous.ndim != 1:
         raise _own_error(ValueError("must be a one-dimensional boolean collection"), "ambiguous", ambiguous)
-    if pl is not None and isinstance(ambiguous, (pl.DataFrame, pl.LazyFrame)):
+    if pl is not None and issubclass(kind, (pl.DataFrame, pl.LazyFrame)):
         raise _own_error(TypeError("must be one-dimensional, not a Polars table"), "ambiguous", ambiguous)
     return _pddt_policies(ambiguous, nonexistent)
 

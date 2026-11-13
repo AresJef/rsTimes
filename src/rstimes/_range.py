@@ -170,8 +170,9 @@ def frequency(value):
     """Return a native plan, optional original metadata and a delegate flag."""
     if value is None:
         return None, None, False
-    if isinstance(value, str):
-        if type(value) is not str:
+    source_type = type(value)
+    if issubclass(source_type, str):
+        if source_type is not str:
             value = str.__str__(value)
         offset, step = _from_string(value)
         if step is not None:
@@ -183,10 +184,10 @@ def frequency(value):
             elif type(offset) is _o.Milli:
                 precision = "ms"
             return _pddt_frequency("fixed", 1 if step > 0 else -1, {"tick": step, "precision": precision}), offset, False
-    elif isinstance(value, timedelta):
+    elif issubclass(source_type, timedelta):
         plan = _pddt_frequency("duration", 1, {"duration": value})
         return plan, _metadata_fixed(plan.tick), False
-    elif isinstance(value, _o.DateOffset):
+    elif issubclass(source_type, _o.DateOffset):
         offset = value
     else:
         raise _own_error(TypeError("must be a frequency string, timedelta or pandas DateOffset"), "freq", value)
