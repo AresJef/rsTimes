@@ -3497,6 +3497,8 @@ class Pddt(pd.DatetimeIndex):
         try:
             if not isinstance(format,str):
                 raise _own_error(TypeError("must be a string; an empty string is allowed"),"format",format)
+            if type(format) is not str:
+                format = str.__str__(format)
             prepared = _strftime_prepare(format)
             if prepared.modified():
                 values = _pddt_strftime(self.asi8.tobytes(), self.unit, self.tz, prepared)
