@@ -30,7 +30,7 @@ def test_named_scalar_and_empty(name,value,expected):
 
 @pytest.mark.parametrize('text',['Jan 2 2024','2024-02-30','2024-01-02 12:99','2024/01/02'])
 def test_fromisoformat_rejects_non_iso_or_invalid(text):
-    with pytest.raises(Exception):Pddt.fromisoformat(text,size=1)
+    with pytest.raises(ValueError):Pddt.fromisoformat(text,size=1)
 
 def test_iso_basic_and_week_dates():
     assert Pddt.fromisoformat('20240102',size=1)[0]==pd.Timestamp('2024-01-02')
@@ -121,7 +121,7 @@ def test_float_seconds_match_exact_ratio_rounding(unit):
 
 @pytest.mark.parametrize('text',['2021-W53-1','2021W531','2023-366','2023366'])
 def test_iso_only_rejects_nonexistent_week_or_ordinal_day(text):
-    with pytest.raises(Exception):Pddt.fromisoformat(text,size=1)
+    with pytest.raises(ValueError):Pddt.fromisoformat(text,size=1)
 
 @pytest.mark.parametrize('text',['2024-01-02T12','2024-01-02T1234','2024-01-02T12Z','2024-01-02T12+08:00','2024-01-02T1234.123456789'])
 def test_iso_short_clock_forms_keep_existing_capability(text):
