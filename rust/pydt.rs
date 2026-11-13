@@ -242,6 +242,11 @@ pub(crate) fn is_zoneinfo_instance(zone: &Bound<'_, PyAny>) -> bool {
     })
 }
 
+/// Borrow the original retained class for shared native provenance checks.
+pub(crate) fn zoneinfo_class(py: Python<'_>) -> Option<&Bound<'_, PyType>> {
+    ZONEINFO.get(py).map(|base| base.bind(py))
+}
+
 pub(crate) fn is_exact_zoneinfo(zone: &Bound<'_, PyAny>) -> bool {
     ZONEINFO
         .get(zone.py())

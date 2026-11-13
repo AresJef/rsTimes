@@ -5,88 +5,10 @@ use crate::parser::Truth;
 use crate::temporal_zone::{Candidates, Zone, ZoneData, ZoneError};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::{
-    PyDelta, PyDeltaAccess, PyDict, PyString, PyType, PyWeakrefMethods, PyWeakrefReference,
-};
+use pyo3::types::{PyDelta, PyDeltaAccess, PyDict, PyString, PyType};
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
-use std::sync::Mutex;
 
 static HOST_RESOLVER: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
-static ZONE_ORIGIN: PyOnceLock<ZoneOrigins> = PyOnceLock::new();
-
-struct OriginEntry {
-    identity: usize,
-    owner: Py<PyWeakrefReference>,
-    named: bool,
-}
-
-struct ZoneOrigins {
-    reduce: Py<PyAny>,
-    file_error: Py<PyType>,
-    entries: Mutex<VecDeque<OriginEntry>>,
-}
-
-impl ZoneOrigins {
-    /// Cache only the immutable C origin flag. Live capabilities are checked
-    /// before every call. Weak owners prevent lifetime changes and pointer
-    /// reuse; identity lookup never executes business hash/equality methods.
-    fn named(&self, value: &Bound<'_, PyAny>) -> PyResult<bool> {
-        let py = value.py();
-        let identity = value.as_ptr() as usize;
-        let prior = {
-            let entries = self.entries.lock().map_err(|_| {
-                crate::error_context::runtime("timezone origin cache lock poisoned")
-            })?;
-            entries
-                .iter()
-                .rev()
-                .find(|entry| entry.identity == identity)
-                .map(|entry| (entry.owner.clone_ref(py), entry.named))
-        };
-        if let Some((owner, named)) = prior
-            && owner
-                .bind(py)
-                .upgrade()
-                .is_some_and(|owner| owner.is(value))
-        {
-            return Ok(named);
-        }
-        // The original descriptor's file signal precedes _unpickle lookup.
-        // No Python call or referent lifetime drop occurs under the cache lock.
-        let named = match self.reduce.bind(py).call1((value,)) {
-            Ok(_) => true,
-            Err(error) if error.is_instance(py, self.file_error.bind(py)) => false,
-            Err(error) => return Err(error),
-        };
-        let owner = PyWeakrefReference::new(value)?.unbind();
-        let discarded = {
-            let mut entries = self.entries.lock().map_err(|_| {
-                crate::error_context::runtime("timezone origin cache lock poisoned")
-            })?;
-            let discarded =
-                if let Some(index) = entries.iter().position(|entry| entry.identity == identity) {
-                    entries.remove(index)
-                } else if entries.len() == 128 {
-                    entries.pop_front()
-                } else {
-                    None
-                };
-            entries.try_reserve(1).map_err(|_| {
-                pyo3::exceptions::PyMemoryError::new_err("timezone origin cache allocation failed")
-            })?;
-            entries.push_back(OriginEntry {
-                identity,
-                owner,
-                named,
-            });
-            discarded
-        };
-        drop(discarded);
-        Ok(named)
-    }
-}
-
 /// Check native named provenance and live behavior without business hooks.
 ///
 /// Parameters
@@ -110,53 +32,7 @@ fn _pldt_native_zone_rules(
     base: &Bound<'_, PyType>,
     storage_type: &Bound<'_, PyType>,
 ) -> PyResult<bool> {
-    const NAMES: [&str; 7] = [
-        "key",
-        "utcoffset",
-        "dst",
-        "tzname",
-        "fromutc",
-        "__getattribute__",
-        "_unpickle",
-    ];
-    let py = value.py();
-    let class = value.get_type();
-    if !class.is(base) {
-        let (inherited, storage_descriptor) =
-            crate::protocol::inherited_methods(&class, base, &NAMES)?;
-        if !inherited {
-            return Ok(false);
-        }
-        if let Some(descriptor) = storage_descriptor {
-            if !descriptor.get_type().is(storage_type) {
-                return Ok(false);
-            }
-            let storage = descriptor.call_method1("__get__", (value,))?;
-            let storage = storage.cast::<PyDict>()?;
-            if !storage.is_empty() {
-                for name in NAMES {
-                    if storage.contains(name)? {
-                        return Ok(false);
-                    }
-                }
-            }
-        }
-    }
-    let origin = crate::python_cache::get_or_prepare(&ZONE_ORIGIN, py, || {
-        Ok(ZoneOrigins {
-            reduce: base.getattr("__reduce__")?.unbind(),
-            file_error: py
-                .import("pickle")?
-                .getattr("PicklingError")?
-                .cast_into::<PyType>()?
-                .unbind(),
-            entries: Mutex::new(VecDeque::new()),
-        })
-    })?;
-    // The original standard descriptor reports file provenance before doing
-    // any _unpickle lookup. The live check above makes that lookup safe too.
-    // No object pickle override, private C layout or key-based guess is used.
-    origin.named(value)
+    crate::host_zone::native_named_zone_rules(value, base, storage_type)
 }
 
 /// Real Python source protocols stay at the host boundary, outside workers.

@@ -156,11 +156,11 @@ pub(super) fn same_zone(py: Python<'_>, a: &Zone, b: &Zone) -> PyResult<bool> {
         (Zone::Naive, _) | (_, Zone::Naive) => Ok(false),
         _ => {
             let a_key = match a {
-                Zone::Object(value) => crate::pydt::zoneinfo_key(value.bind(py))?,
+                Zone::Object(value) => crate::host_zone::reliable_named_key(value.bind(py))?,
                 _ => None,
             };
             let b_key = match b {
-                Zone::Object(value) => crate::pydt::zoneinfo_key(value.bind(py))?,
+                Zone::Object(value) => crate::host_zone::reliable_named_key(value.bind(py))?,
                 _ => None,
             };
             match (a_key, b_key) {
