@@ -1,0 +1,298 @@
+{
+  "version": "0.1.0+delta.3",
+  "python": "/Users/jef/ResilioSync/code/rsTimes/.local/delta/revision-20261012/final-env97/bin/python",
+  "native": "/Users/jef/ResilioSync/code/rsTimes/.local/delta/revision-20261012/final-env97/lib/python3.13/site-packages/rstimes/_native.cpython-313-darwin.so",
+  "native_sha256": "bdadd54566d4ad41ceed5591d57a6fa789cee9d09eaff4d2e5a84345d326bb73",
+  "release": true,
+  "inputs_sha256": "7c59ba52a3a58a29dde9acfe1a7f4eaae18926a5b65912b7f2c431b04c994531",
+  "rows": [
+    {
+      "case": "revision:equal-keys",
+      "requirements": [
+        "H01"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:foreign-comparison",
+      "requirements": [
+        "H01"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:constructor-new",
+      "requirements": [
+        "H02"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:repeat-init",
+      "requirements": [
+        "H02"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:conversion-callback",
+      "requirements": [
+        "H02"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:subtype-new",
+      "requirements": [
+        "H02"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:unary-subclass-dispatch",
+      "requirements": [
+        "H02",
+        "H07"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:descriptor-receiver",
+      "requirements": [
+        "H02"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:fractional-equivalence",
+      "requirements": [
+        "H08"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:fractional-rounding",
+      "requirements": [
+        "H08"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:fractional-errors",
+      "requirements": [
+        "H08"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:wide-input",
+      "requirements": [
+        "H09"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:wide-input-overflow",
+      "requirements": [
+        "H09"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:wide-storage",
+      "requirements": [
+        "H09"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:wide-calendar",
+      "requirements": [
+        "H09"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:pickle-copy",
+      "requirements": [
+        "H04"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:pickle-copy-cycles",
+      "requirements": [
+        "H04"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:state-guards",
+      "requirements": [
+        "H04"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:dateutil-rules",
+      "requirements": [
+        "H05"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:dateutil-errors",
+      "requirements": [
+        "H05"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:fixed-timedelta",
+      "requirements": [
+        "H11"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:anchored-timedelta",
+      "requirements": [
+        "H11"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:bulk-matrix",
+      "requirements": [
+        "H10"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:bulk-iteration",
+      "requirements": [
+        "H10"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:bulk-overrides",
+      "requirements": [
+        "H10"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    },
+    {
+      "case": "revision:bulk-native-boundaries",
+      "requirements": [
+        "H10"
+      ],
+      "difference": null,
+      "result": {
+        "type": "builtins.bool",
+        "value": true
+      }
+    }
+  ],
+  "passed": true
+}

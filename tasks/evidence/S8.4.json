@@ -1,0 +1,16 @@
+{
+  "task": "S8.4",
+  "status": "passed",
+  "utc": "2026-10-10T15:03:03.439885+00:00",
+  "score": 100,
+  "report": "docs/Delta验收报告.md",
+  "final_evidence": "tasks/evidence/final-acceptance-03.json",
+  "effective_minutes": 576.3073314166667,
+  "total_budget_minutes": 780,
+  "remaining_minutes": 203.69266858333333,
+  "pause_minutes": 18,
+  "repair_used": 0,
+  "S7_minutes": 414.41999999999996,
+  "S8_minutes": 40.007331416666666,
+  "published": false
+}

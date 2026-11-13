@@ -1,0 +1,271 @@
+{
+  "phase": "main",
+  "candidate": 97,
+  "native": "bdadd54566d4ad41ceed5591d57a6fa789cee9d09eaff4d2e5a84345d326bb73",
+  "source": "final-collector-15.py",
+  "started_utc": "2026-10-12T20:55:46.480214+00:00",
+  "suites": {
+    "legacy": {
+      "raw": "/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/delta-revision-20261012/formal-main97-legacy-composed.json",
+      "passed": false,
+      "elapsed_seconds": 1550.7487364989938,
+      "evaluation": {
+        "collection": "COMPLETE",
+        "quality": "VALID",
+        "stability": "INCONCLUSIVE",
+        "precision": true,
+        "performance": "INCONCLUSIVE",
+        "full_contract": true,
+        "gates": {
+          "P01": true,
+          "P05": true
+        },
+        "aggregates": {
+          "current": {
+            "groups": {
+              "B1": {
+                "median_ratio": 1.1233912768808327,
+                "conservative_ratio": 1.1052591217926178
+              },
+              "B10": {
+                "median_ratio": 1.048852278442685,
+                "conservative_ratio": 1.0371496234136028
+              },
+              "B2": {
+                "median_ratio": 1.0037778893750082,
+                "conservative_ratio": 0.9860906594390693
+              },
+              "B3": {
+                "median_ratio": 1.179817871199633,
+                "conservative_ratio": 1.1609083766250436
+              },
+              "B4": {
+                "median_ratio": 1.0850560817783605,
+                "conservative_ratio": 1.0659803800515453
+              },
+              "B5": {
+                "median_ratio": 1.0582534841718898,
+                "conservative_ratio": 1.0400761366124038
+              },
+              "B6": {
+                "median_ratio": 1.0407428655350037,
+                "conservative_ratio": 1.0188201614842196
+              },
+              "B7": {
+                "median_ratio": 0.99173362682433,
+                "conservative_ratio": 0.9845281932292299
+              },
+              "B8": {
+                "median_ratio": 1.0464737166336462,
+                "conservative_ratio": 1.0298742261455547
+              },
+              "B9": {
+                "median_ratio": 1.1842532979671432,
+                "conservative_ratio": 1.165497800646986
+              }
+            },
+            "core": {
+              "median_ratio": 1.0803425869851022,
+              "conservative_ratio": 1.0613251652552265
+            },
+            "thirdparty": {
+              "median_ratio": 1.018736067081863,
+              "conservative_ratio": 1.0069459822256774
+            }
+          },
+          "original": {
+            "groups": {
+              "B1": {
+                "median_ratio": 1.2532011571994661,
+                "conservative_ratio": 1.2376563821978617
+              },
+              "B10": {
+                "median_ratio": 1.0750522729095005,
+                "conservative_ratio": 1.0667786714720529
+              },
+              "B2": {
+                "median_ratio": 1.0545609196319832,
+                "conservative_ratio": 1.024544668029485
+              },
+              "B3": {
+                "median_ratio": 2.746325551698543,
+                "conservative_ratio": 2.6965291176632324
+              },
+              "B4": {
+                "median_ratio": 2.341596375032778,
+                "conservative_ratio": 2.3019190773948996
+              },
+              "B5": {
+                "median_ratio": 1.20156850470492,
+                "conservative_ratio": 1.177191491231515
+              },
+              "B6": {
+                "median_ratio": 2.0159845167468107,
+                "conservative_ratio": 1.9800620573108498
+              },
+              "B7": {
+                "median_ratio": 0.9958202002929946,
+                "conservative_ratio": 0.9890291242603437
+              },
+              "B8": {
+                "median_ratio": 1.4780396423327424,
+                "conservative_ratio": 1.4544749918163584
+              },
+              "B9": {
+                "median_ratio": 2.699597472707498,
+                "conservative_ratio": 2.6667825827261207
+              }
+            },
+            "core": {
+              "median_ratio": 1.6555108849212659,
+              "conservative_ratio": 1.6240223843704433
+            },
+            "thirdparty": {
+              "median_ratio": 1.2132030879736408,
+              "conservative_ratio": 1.1993823941573862
+            }
+          }
+        }
+      }
+    },
+    "bulk": {
+      "raw": "/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/delta-revision-20261012/formal-main97-bulk/20261012T212201303202Z/raw.json",
+      "passed": true,
+      "elapsed_seconds": 890.3111569579924,
+      "evaluation": {
+        "collection": "COMPLETE",
+        "quality": "VALID",
+        "stability": "PASS",
+        "precision": true,
+        "performance": "PASS",
+        "full_contract": true,
+        "gates": {
+          "P03": true,
+          "P04": true
+        },
+        "aggregates": {
+          "current": {
+            "groups": {
+              "A1:10000": {
+                "median_ratio": 1.6699909303127336,
+                "conservative_ratio": 1.6468009263845425
+              },
+              "A1:1024": {
+                "median_ratio": 1.7618760690825004,
+                "conservative_ratio": 1.7495557581415562
+              },
+              "A2:10000": {
+                "median_ratio": 1.5537838528373478,
+                "conservative_ratio": 1.5453599952865036
+              },
+              "A2:1024": {
+                "median_ratio": 1.6176728964083416,
+                "conservative_ratio": 1.6033158845236564
+              },
+              "A3:10000": {
+                "median_ratio": 1.5922911285460644,
+                "conservative_ratio": 1.5843111297442978
+              },
+              "A3:1024": {
+                "median_ratio": 1.6515522096190334,
+                "conservative_ratio": 1.640294778321203
+              },
+              "A4:10000": {
+                "median_ratio": 1.0689321882446554,
+                "conservative_ratio": 1.0625916534059319
+              },
+              "A4:1024": {
+                "median_ratio": 1.0332901330064257,
+                "conservative_ratio": 1.0219410288986621
+              },
+              "A5:10000": {
+                "median_ratio": 0.9879545953207662,
+                "conservative_ratio": 0.9853426644551133
+              },
+              "A5:1024": {
+                "median_ratio": 0.9908393264773696,
+                "conservative_ratio": 0.9767111847134201
+              },
+              "A6:10000": {
+                "median_ratio": 17.372153783510388,
+                "conservative_ratio": 17.231208565889112
+              },
+              "A6:1024": {
+                "median_ratio": 17.032167802381863,
+                "conservative_ratio": 16.910402727130567
+              },
+              "A7:10000": {
+                "median_ratio": 1.3205415113906567,
+                "conservative_ratio": 1.3165524735786112
+              },
+              "A7:1024": {
+                "median_ratio": 1.3186438893507642,
+                "conservative_ratio": 1.3156153694256256
+              }
+            },
+            "core": null,
+            "thirdparty": null
+          }
+        }
+      }
+    },
+    "float": {
+      "raw": "/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/delta-revision-20261012/formal-main97-float/20261012T213652304107Z/raw.json",
+      "passed": true,
+      "elapsed_seconds": 111.6064279169077,
+      "evaluation": {
+        "collection": "COMPLETE",
+        "quality": "VALID",
+        "stability": "PASS",
+        "precision": true,
+        "performance": "PASS",
+        "full_contract": true,
+        "gates": {
+          "P02": true
+        },
+        "aggregates": {
+          "current": {
+            "groups": {
+              "F1": {
+                "median_ratio": 1.0046281641719839,
+                "conservative_ratio": 0.9886915187761474
+              }
+            },
+            "core": null,
+            "thirdparty": null
+          }
+        }
+      }
+    },
+    "conversion": {
+      "raw": "/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/delta-revision-20261012/formal-main97-conversion/20261012T213844373999Z/raw.json",
+      "passed": true,
+      "elapsed_seconds": 95.95446987496689,
+      "evaluation": {
+        "collection": "COMPLETE",
+        "quality": "VALID",
+        "stability": "PASS",
+        "precision": true,
+        "performance": "PASS",
+        "full_contract": true,
+        "gates": {
+          "report_only": true
+        },
+        "aggregates": {
+          "current": {
+            "groups": {
+              "X1": {
+                "median_ratio": 2.539588249854671,
+                "conservative_ratio": 2.5054899606772043
+              }
+            },
+            "core": null,
+            "thirdparty": null
+          }
+        }
+      }
+    }
+  },
+  "elapsed_seconds": 2673.52736370801,
+  "passed": false
+}

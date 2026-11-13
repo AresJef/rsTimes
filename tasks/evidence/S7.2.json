@@ -1,0 +1,21 @@
+{
+  "task": "S7.2",
+  "status": "passed",
+  "utc": "2026-10-10T14:41:20.662978+00:00",
+  "performance": "/Users/jef/ResilioSync/code/rsTimes/benchmarks/delta/results/20261010T143458883509Z/raw.json",
+  "precision": [
+    "tasks/evidence/short-protocol-precision-05.json",
+    "tasks/evidence/short-protocol-precision-06.json"
+  ],
+  "tool_review": "tasks/evidence/short-tool-review.json",
+  "all_gates": {
+    "P1": true,
+    "P2": true,
+    "P3": true,
+    "P4": true,
+    "P5": true,
+    "P6": true
+  },
+  "native_sha256": "468e1c142f64fbed1c829a3bc5449a59623bf2d34420737da59d54558d97648e",
+  "notes": "All fixed93; target1ms for91,5ms for2; same runner/helper/env/native; complete replacement, no best-of."
+}

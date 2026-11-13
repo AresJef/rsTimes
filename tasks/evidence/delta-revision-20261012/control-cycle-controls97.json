@@ -1,0 +1,40 @@
+{
+  "phase": "controls",
+  "candidate": 97,
+  "native": "bdadd54566d4ad41ceed5591d57a6fa789cee9d09eaff4d2e5a84345d326bb73",
+  "source": "final-collector-15.py",
+  "started_utc": "2026-10-12T19:56:19.514307+00:00",
+  "suites": {
+    "legacy": {
+      "proof": "/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/delta-revision-20261012/final97-controls-legacy-calibration1/20261012T204816223533Z/precision.json",
+      "passed": true,
+      "elapsed_seconds": 1937.5739658330567
+    },
+    "bulk": {
+      "proof": "/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/delta-revision-20261012/final97-controls-bulk-calibration1-resolved/20261012T205142384777Z/precision.json",
+      "passed": true,
+      "elapsed_seconds": 853.5645666260971
+    },
+    "float": {
+      "proof": "/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/delta-revision-20261012/final97-controls-float/20261012T204058114110Z/precision.json",
+      "passed": true,
+      "elapsed_seconds": 192.63131966697983
+    },
+    "conversion": {
+      "proof": "/Users/jef/ResilioSync/code/rsTimes/tasks/evidence/delta-revision-20261012/final97-controls-conversion/20261012T204411695024Z/precision.json",
+      "passed": true,
+      "elapsed_seconds": 184.93945887498558
+    }
+  },
+  "elapsed_seconds": 3057.352241458022,
+  "passed": true,
+  "controls": 78,
+  "collection_seconds": 3168.709311001119,
+  "updated_utc": "2026-10-12T20:55:46.239363+00:00",
+  "initial_failure": "control-cycle-controls97-initial.json",
+  "calibrations": [
+    "calibration97-numpy-proposal.json",
+    "calibration97-bulk-proposal.json"
+  ],
+  "elapsed_time_basis": "Initial complete78 acquisition plus actual two complete local replacements; no elapsed reset or zero-time reuse"
+}

@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "checks": [
+    "reject stable/missing replacement",
+    "reject changed native/environment",
+    "keep worse replacement rather than best-of",
+    "partial/failed results cannot pass"
+  ],
+  "scope": "Protect real93 composition without adding Delta workloads"
+}

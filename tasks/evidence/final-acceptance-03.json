@@ -1,0 +1,49 @@
+{
+  "utc": "2026-10-10T14:41:20.662978+00:00",
+  "status": "passed",
+  "performance": "/Users/jef/ResilioSync/code/rsTimes/benchmarks/delta/results/20261010T143458883509Z/raw.json",
+  "all_P_gates": {
+    "P1": true,
+    "P2": true,
+    "P3": true,
+    "P4": true,
+    "P5": true,
+    "P6": true
+  },
+  "core": {
+    "median_ratio": 1.3386458629995641,
+    "conservative_ratio": 1.3156580387077395
+  },
+  "thirdparty": {
+    "median_ratio": 1.14595543170957,
+    "conservative_ratio": 1.1331678404111571
+  },
+  "native_sha256": "468e1c142f64fbed1c829a3bc5449a59623bf2d34420737da59d54558d97648e",
+  "files": [
+    {
+      "path": "/Users/jef/ResilioSync/code/rsTimes/dist/delta-accepted-0.1.0+delta.1/rstimes-0.1.0+delta.1-cp313-cp313-macosx_11_0_arm64.whl",
+      "sha256": "013ae06917621daf7f55a3072da5982295492c05ea9bba9458629099750163c3",
+      "bytes": 401179
+    },
+    {
+      "path": "/Users/jef/ResilioSync/code/rsTimes/dist/delta-accepted-0.1.0+delta.1/rstimes-0.1.0+delta.1.tar.gz",
+      "sha256": "d23d97cb091230dfcc2dd82a89b5ebb8706f221fc609935a9038c92de99db0f7",
+      "bytes": 153765
+    }
+  ],
+  "source_files_exact": 22,
+  "functional": "tasks/evidence/final-02/green.json",
+  "existing": "tasks/evidence/final-02/existing.json",
+  "safety": "tasks/evidence/safety-03-review.json",
+  "protected_files_unchanged": true,
+  "remote_CI_run": false,
+  "runner_label_reference": "https://docs.github.com/en/actions/reference/runners/github-hosted-runners",
+  "sample_counts": {
+    "attempted": 134088,
+    "accepted": 133920,
+    "rejected": 168
+  },
+  "valid_micro_pairs": 133920,
+  "max_noise": 0.04278803555324562,
+  "worst_candidate_ratio": 1.0821265119561536
+}
