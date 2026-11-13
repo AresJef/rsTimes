@@ -1099,6 +1099,30 @@ fn set_namespace(receiver: &Bound<'_, Configs>, i: usize, owner: Owner) -> PyRes
     drop(retired);
     Ok(())
 }
+type NamespaceEntries = Vec<(Py<PyAny>, Option<Py<PyAny>>)>;
+
+// Only native reference capture holds this object's critical section. All
+// conversion/normalization and business callbacks happen after it returns.
+fn dict_entries(mapping: &Bound<'_, PyDict>) -> NamespaceEntries {
+    pyo3::sync::critical_section::with_critical_section(mapping.as_any(), || {
+        mapping
+            .iter()
+            .map(|(key, value)| (key.unbind(), Some(value.unbind())))
+            .collect()
+    })
+}
+
+fn set_entries(input: &Bound<'_, PyAny>) -> PyResult<NamespaceEntries> {
+    input
+        .try_iter()
+        .map_err(crate::error_context::external)?
+        .map(|key| {
+            key.map_err(crate::error_context::external)
+                .map(|key| (key.unbind(), None))
+        })
+        .collect()
+}
+
 fn replace(
     receiver: &Bound<'_, Configs>,
     i: usize,
@@ -1123,19 +1147,20 @@ fn replace(
         )));
     }
     // Retain all inputs before conversions can call Python or mutate the source.
-    let entries: Vec<(Py<PyAny>, Option<Py<PyAny>>)> = if i < 3 {
-        input
-            .cast::<PySet>()?
-            .iter()
-            .map(|key| (key.unbind(), None))
-            .collect()
+    let entries = if i < 3 {
+        set_entries(input)?
     } else {
-        input
-            .cast::<PyDict>()?
-            .iter()
-            .map(|(key, value)| (key.unbind(), Some(value.unbind())))
-            .collect()
+        dict_entries(input.cast::<PyDict>()?)
     };
+    replace_entries(receiver, i, entries)
+}
+
+/// Consume one captured batch; callers retain their own codec admission rules.
+fn replace_entries(
+    receiver: &Bound<'_, Configs>,
+    i: usize,
+    entries: NamespaceEntries,
+) -> PyResult<bool> {
     let temporary = Py::new(receiver.py(), read(receiver)?.independent())?;
     let temporary = temporary.bind(receiver.py());
     let mut owner = Namespace::default();
@@ -1479,54 +1504,40 @@ impl Configs {
             let temporary = temporary.bind(slf.py());
             for (i, namespace) in NAMES.iter().enumerate() {
                 let value = values.get_item(i)?;
-                if i < 3 {
+                // Capture owned entries before canonical validation; source edits
+                // cannot substitute a different value before preparation/application.
+                let entries: NamespaceEntries = if i < 3 {
                     let tokens = value.cast_exact::<PySet>().map_err(|_| {
                         crate::error_context::expected_type(
-                            &value,
-                            "",
-                            &format!("state.{namespace}"),
-                            "an exact set",
+                            &value, "", &format!("state.{namespace}"), "an exact set",
                         )
                     })?;
-                    for token in tokens.iter() {
-                        if !token.is_exact_instance_of::<PyString>() {
-                            return Err(crate::error_context::expected_type(
-                                &token,
-                                "",
-                                &format!("state.{namespace} token"),
-                                "an exact str",
-                            ));
-                        }
-                    }
+                    set_entries(tokens.as_any())?
                 } else {
                     let mapping = value.cast_exact::<PyDict>().map_err(|_| {
                         crate::error_context::expected_type(
-                            &value,
-                            "",
-                            &format!("state.{namespace}"),
-                            "an exact dict",
+                            &value, "", &format!("state.{namespace}"), "an exact dict",
                         )
                     })?;
-                    for (token, number) in mapping.iter() {
-                        if !token.is_exact_instance_of::<PyString>() {
-                            return Err(crate::error_context::expected_type(
-                                &token,
-                                "",
-                                &format!("state.{namespace} key"),
-                                "an exact str",
-                            ));
-                        }
+                    dict_entries(mapping)
+                };
+                for (token, number) in &entries {
+                    let token = token.bind(slf.py());
+                    if !token.is_exact_instance_of::<PyString>() {
+                        return Err(crate::error_context::expected_type(
+                            token, "", &format!("state.{namespace} {}", if i < 3 { "token" } else { "key" }), "an exact str",
+                        ));
+                    }
+                    if let Some(number) = number {
+                        let number = number.bind(slf.py());
                         if !number.is_exact_instance_of::<PyInt>() {
                             return Err(crate::error_context::expected_type(
-                                &number,
-                                "",
-                                &format!("state.{namespace} value"),
-                                "an exact int",
+                                number, "", &format!("state.{namespace} value"), "an exact int",
                             ));
                         }
                     }
                 }
-                replace(temporary, i, Some(&value))?;
+                replace_entries(temporary, i, entries)?;
             }
             let regions = if state.len() == 6 {
                 let keys = state.get_item(5)?;

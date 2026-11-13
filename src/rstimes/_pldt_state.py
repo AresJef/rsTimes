@@ -51,7 +51,7 @@ def apply(value, state):
     """Apply ordinary state after core restoration, leaving its buffer intact."""
     if state is None:
         return
-    if isinstance(state, tuple):
+    if issubclass(type(state), tuple):
         if len(state) != 2:
             raise _own_error(ValueError('business state must be a dictionary or dictionary/slots pair'), 'state', state)
         dictionary, slots = state
@@ -59,7 +59,7 @@ def apply(value, state):
         dictionary, slots = state, None
     prepared = []
     for label, part in (('dictionary', dictionary), ('slots', slots)):
-        if part is not None and not isinstance(part, dict):
+        if part is not None and not issubclass(type(part), dict):
             raise _own_error(TypeError('must be a dictionary or None'), 'state.' + label, part)
         part = _snapshot_state(part)
         if part is not None and '_s' in part:

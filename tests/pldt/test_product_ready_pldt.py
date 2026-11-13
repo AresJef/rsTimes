@@ -90,3 +90,26 @@ def test_invalid_format_is_not_hidden_by_empty_or_null_polars_data(values):
     with pytest.raises(ValueError, match="fraction precision") as observed:
         Pldt(values, unit="us").strftime("\ud800%.12f")
     assert not isinstance(observed.value, UnicodeEncodeError)
+
+
+@pytest.mark.parametrize("display", ["ordinary", "tuple", "raise"])
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_default_restore_keeps_actual_dict_subclass_and_native_validity(display, wrapped):
+    calls = []
+
+    class State(dict):
+        @property
+        def __class__(self):
+            calls.append("display")
+            if display == "raise":
+                raise RuntimeError("display identity must not be read")
+            return tuple if display == "tuple" else dict
+
+    payload = []
+    state = State(payload=payload)
+    value = Pldt([-(1 << 63), None], unit="ns", name="stamp")
+    value.__setstate__((state, None) if wrapped else state)
+    assert calls == [] and value.payload is payload
+    assert value.to_physical().to_list() == [-(1 << 63), None]
+    assert value.is_null().to_list() == [False, True]
+    assert value.name == "stamp" and value.dtype == pl.Datetime("ns")

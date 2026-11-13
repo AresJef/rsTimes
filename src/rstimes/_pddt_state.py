@@ -45,14 +45,14 @@ def apply(value,state):
     """Apply ordinary business state, leaving the validated date core alone."""
     if state is None:
         return
-    if isinstance(state,tuple):
+    if issubclass(type(state),tuple):
         if len(state)!=2:
             raise _own_error(ValueError("business state must contain a dictionary and slots"),"state",state)
         dictionary,slots=state
     else:
         dictionary,slots=state,None
     for name,part in (("dictionary",dictionary),("slots",slots)):
-        if part is not None and not isinstance(part,dict):
+        if part is not None and not issubclass(type(part),dict):
             raise _own_error(TypeError("must be a dictionary or None"),"state."+name,part)
     dictionary, slots = _snapshot_state(dictionary), _snapshot_state(slots)
     entries=[] if slots is None else list(dict.items(slots))

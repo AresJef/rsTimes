@@ -103,3 +103,13 @@ def test_restore_keeps_real_dictionary_update_tuple_and_original_exception():
     assert calls[0] == (("saved", dictionary["saved"]),)
     assert (value.year, value.month, value.day, value.tzinfo, value.fold) == (2024, 1, 2, timezone.utc, 1)
     assert hash(value) == original_hash
+
+
+def test_pydt_does_not_adopt_column_default_codec_dict_subclasses():
+    class Dictionary(dict):
+        pass
+
+    value = Pydt(2024, 1, 2)
+    with pytest.raises(TypeError):
+        value.__setstate__(Dictionary(payload=1))
+    assert "payload" not in value.__dict__
