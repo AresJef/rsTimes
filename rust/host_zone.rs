@@ -2,7 +2,9 @@
 use crate::pydt;
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::{PyDateTime, PyDict, PyType, PyWeakrefMethods, PyWeakrefReference};
+use pyo3::types::{
+    PyDateTime, PyDelta, PyDeltaAccess, PyDict, PyType, PyWeakrefMethods, PyWeakrefReference,
+};
 use std::collections::VecDeque;
 use std::sync::Mutex;
 /// Necessary dynamic protocol carrier, offset and wall value from one conversion.
@@ -192,4 +194,33 @@ pub(crate) fn reliable_named_key(value: &Bound<'_, PyAny>) -> PyResult<Option<Op
         return Ok(Some(None));
     }
     pydt::zoneinfo_key(value)
+}
+
+/// Classify one already-read DST return without projecting away sub-us values.
+/// None is unknown (-1); valid zero is 0 and either nonzero sign is 1.
+/// The caller retains the return owner, callback timing and error location.
+pub(crate) fn daylight_marker(adjustment: &Bound<'_, PyAny>) -> PyResult<i64> {
+    if adjustment.is_none() {
+        return Ok(-1);
+    }
+    let duration = adjustment
+        .cast::<PyDelta>()
+        .map_err(|_| crate::error_context::type_error("dst() must return None or timedelta"))?;
+    let nanos = if adjustment.is_exact_instance_of::<PyDelta>() {
+        None
+    } else {
+        crate::interop::duration_nanoseconds(adjustment)?
+    };
+    let nanos = nanos.unwrap_or_else(|| {
+        (i128::from(duration.get_days()) * 86_400_000_000
+            + i128::from(duration.get_seconds()) * 1_000_000
+            + i128::from(duration.get_microseconds()))
+            * 1000
+    });
+    if !(-86_400_000_000_000 < nanos && nanos < 86_400_000_000_000) {
+        return Err(crate::error_context::value_error(
+            "dst() must be strictly between -24 and +24 hours",
+        ));
+    }
+    Ok(i64::from(nanos != 0))
 }

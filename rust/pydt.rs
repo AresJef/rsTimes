@@ -2342,29 +2342,8 @@ fn daylight<'py>(value: &Bound<'py, PyDateTime>) -> PyResult<(Bound<'py, PyAny>,
     let adjustment = zone
         .call_method1(pyo3::intern!(value.py(), "dst"), (value,))
         .map_err(crate::error_context::external)?;
-    if adjustment.is_none() {
-        return Ok((adjustment, -1));
-    }
-    let duration = adjustment
-        .cast::<PyDelta>()
-        .map_err(|_| crate::error_context::type_error("dst() must return None or timedelta"))?;
-    let nanos = if unsafe { ffi::PyDelta_CheckExact(adjustment.as_ptr()) != 0 } {
-        None
-    } else {
-        crate::interop::duration_nanoseconds(&adjustment)?
-    };
-    let nanos = nanos.unwrap_or_else(|| {
-        (i128::from(duration.get_days()) * 86_400_000_000
-            + i128::from(duration.get_seconds()) * 1_000_000
-            + i128::from(duration.get_microseconds()))
-            * 1000
-    });
-    if !(-86_400_000_000_000 < nanos && nanos < 86_400_000_000_000) {
-        return Err(crate::error_context::value_error(
-            "dst() must be strictly between -24 and +24 hours",
-        ));
-    }
-    Ok((adjustment, i64::from(nanos != 0)))
+    let marker = crate::host_zone::daylight_marker(&adjustment)?;
+    Ok((adjustment, marker))
 }
 
 /// Return the same legal duration after checking its actual value once.

@@ -104,31 +104,31 @@ fn loop_query<'py, const Q: u8>(
                             Some(offset)
                         } else {
                             if fixed_dst.is_none() {
-                                fixed_dst = Some(crate::epoch::offset_us(
+                                fixed_dst = Some(crate::host_zone::daylight_marker(
                                     &zone
                                         .call_method1("dst", (py.None(),))
                                         .map_err(crate::error_context::external)?,
                                 )?);
                             }
-                            fixed_dst.flatten()
+                            fixed_dst
                         }
                     } else {
                         let (local, offset, _) = super::zones::utc_local(source, zone)?;
                         if Q == 12 {
                             Some(offset)
                         } else {
-                            crate::epoch::offset_us(
+                            Some(crate::host_zone::daylight_marker(
                                 &zone
                                     .call_method1("dst", (&local,))
                                     .map_err(crate::error_context::external)?,
-                            )?
+                            )?)
                         }
                     }
                 } else {
                     None
                 };
                 if Q == 106 {
-                    cell[0] = u8::from(value.is_some_and(|v| v != 0));
+                    cell[0] = u8::from(value.is_some_and(|v| v > 0));
                 } else {
                     cell.copy_from_slice(
                         &value.map_or(0, |v| v.div_euclid(1_000_000)).to_ne_bytes(),
