@@ -41,3 +41,17 @@ class DateIndex(Pddt):
     pass
 
 assert_type(DateIndex(["2024-01-01"]).pddt.replace(day=2), DateIndex)
+
+# PR-008: real business reconstruction is not restricted to a Delta return.
+assert_type(delta.__copy__(), object)
+assert_type(delta.__deepcopy__({}), object)
+
+class BusinessCopy(Delta):
+    def __copy__(self) -> str:
+        return "chosen shallow result"
+
+    def __deepcopy__(self, memo: dict[int, object]) -> str:
+        return "chosen deep result"
+
+assert_type(BusinessCopy().__copy__(), str)
+assert_type(BusinessCopy().__deepcopy__({}), str)

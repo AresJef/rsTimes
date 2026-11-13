@@ -54,6 +54,7 @@ def main():
             "parser/test_product_ready_configs.py",
             "pydt/test_product_ready_pydt.py",
             "delta/test_product_ready_delta.py",
+            "delta/test_product_ready_copy.py",
         ]
         if importlib.util.find_spec("polars") is not None:
             paths.append("pldt")

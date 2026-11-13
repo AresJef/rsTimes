@@ -805,7 +805,9 @@ fn descriptor_get(value: &Bound<'_, PyAny>) -> Option<ffi::descrgetfunc> {
 fn method_key<'py>(py: Python<'py>, name: &str) -> Bound<'py, PyString> {
     match name {
         "__getstate__" => pyo3::intern!(py, "__getstate__").clone(),
+        "__setstate__" => pyo3::intern!(py, "__setstate__").clone(),
         "__reduce__" => pyo3::intern!(py, "__reduce__").clone(),
+        "__reduce_ex__" => pyo3::intern!(py, "__reduce_ex__").clone(),
         "__add__" => pyo3::intern!(py, "__add__").clone(),
         "__sub__" => pyo3::intern!(py, "__sub__").clone(),
         "__eq__" => pyo3::intern!(py, "__eq__").clone(),
@@ -817,6 +819,7 @@ fn method_key<'py>(py: Python<'py>, name: &str) -> Bound<'py, PyString> {
         "dst" => pyo3::intern!(py, "dst").clone(),
         "tzname" => pyo3::intern!(py, "tzname").clone(),
         "__getattribute__" => pyo3::intern!(py, "__getattribute__").clone(),
+        "__getattr__" => pyo3::intern!(py, "__getattr__").clone(),
         "__dict__" => pyo3::intern!(py, "__dict__").clone(),
         "_unpickle" => pyo3::intern!(py, "_unpickle").clone(),
         _ => PyString::new(py, name),

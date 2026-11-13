@@ -688,12 +688,14 @@ impl Delta {
         Ok(py.NotImplemented().into_bound(py))
     }
 
-    /// Return a separate object with the same Delta value and type.
+    /// Return the shallow copy selected by this object's reconstruction protocol.
     ///
     /// Returns
     /// -------
-    /// Delta
-    ///     A shallow copy. Additional dictionary and slot attribute values remain shared.
+    /// object
+    ///     Without a custom protocol, a separate object of the same Delta type
+    ///     and value; dictionary and slot values remain shared. A real business
+    ///     reducer or copyreg registration controls its own return type and state.
     fn __copy__<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
         crate::state::copy_object(slf, None).map_err(|error| {
             crate::error_context::argument(
@@ -705,12 +707,18 @@ impl Delta {
             )
         })
     }
-    /// Return a distinct deep copy, preserving subtype and tracking cycles.
+    /// Return a deep copy using the selected protocol and one shared memo.
     ///
     /// Parameters
     /// ----------
     /// memo : dict
     ///     Python deepcopy's object-identity table, reused for recursion.
+    ///
+    /// Returns
+    /// -------
+    /// object
+    ///     The default path preserves Delta fields and subtype. A real business
+    ///     recipe may choose another result; shared references and cycles use memo.
     ///
     /// Raises
     /// ------

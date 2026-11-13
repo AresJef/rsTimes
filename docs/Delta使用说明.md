@@ -90,7 +90,7 @@ NumPy的datetime64/timedelta64两类NaT均报ValueError。已支持的单位、�
 
 ## 不可变值、复制和保存
 
-字段只读，重复调用__init__不改变既有值。copy/deepcopy和pickle保留本包值及正常子类字典/可写slots。当前状态为("rstimes.delta",2,core17,metadata)，不保存哈希缓存；恢复后按真实字段计算哈希。固定17字段小端核心为144字节；旧version1／旧bytes及cyTimes状态均明确拒绝，不提供迁移或兼容别名。pickle仅用于可信数据。
+字段只读，重复调用__init__不改变既有值。默认copy/deepcopy和pickle保留本包值及正常子类字典/可写slots。真实reducer、getstate/setstate及copyreg注册按实际选择重建，不额外带入未选字段；它们也可返回其它类型或原对象。深复制继续使用同一memo保别名和循环，原异常保持。当前状态为("rstimes.delta",2,core17,metadata)，不保存哈希缓存；恢复后按真实字段计算哈希。固定17字段小端核心为144字节；旧version1／旧bytes及cyTimes状态均明确拒绝，不提供迁移或兼容别名。pickle仅用于可信数据。
 
 直接数值参数拒绝Python／NumPy布尔。公开None仅表达参数含义；Delta内部仍使用紧凑整数表示，不把Python对象带进普通运算内核。历史PLDT纳秒升级时，CPython3.13／macOS ARM64实测基础对象由冻结起点64字节增至80字节，纳秒及额外字段的存储成本明确保留；不将该单环境观察冒称全部平台大小，整数构造、既有主要运算与相关批量路径仍受逐项5%性能保护。
 

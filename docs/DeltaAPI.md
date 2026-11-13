@@ -120,10 +120,27 @@ Delta construction and standard-library arithmetic remain available.
 
 ## Copying and saving
 
-Use `copy.copy`, `copy.deepcopy` and `pickle` normally. Copies are separate
-objects and preserve the Delta type. Subclass attributes, shared values and
-cycles follow shallow/deep copying rules. Loading restores the full value
-before its additional attributes. Only load pickle from trusted sources.
+Use `copy.copy`, `copy.deepcopy` and `pickle` normally. Without a custom protocol,
+copies are separate objects of the same Delta type and preserve its full value.
+Subclass attributes, shared values and cycles follow shallow/deep copying rules.
+Real reducers, state hooks and live `copyreg` registrations instead select their
+own reconstruction, state and return type. They are not forced into the default
+Delta state format. The same deepcopy memo preserves shared references and cycles.
+Loading restores the full value before its additional attributes. Only load pickle
+from trusted sources.
+
+```python
+import copy as copying
+from rstimes import Delta
+
+class SelectedDelta(Delta):
+    def __reduce_ex__(self, protocol):
+        return str, ("selected by the business reducer",)
+
+value = SelectedDelta(nanoseconds=1)
+assert copying.copy(value) == "selected by the business reducer"
+assert copying.deepcopy(value) == "selected by the business reducer"
+```
 
 ## Limits and local demo
 
@@ -493,16 +510,17 @@ Additional subclass attributes do not change the Delta value or its hash.
 
 ### __copy__
 
-Return a separate object with the same Delta value and type.
+Return the shallow copy selected by the reconstruction protocol.
 
 Returns
 -------
-Delta
-    A shallow copy. Additional attribute values remain shared.
+object
+    The default path preserves the Delta type and value with shared attribute
+    values. A real business reducer or registration controls its own result.
 
 ### __deepcopy__
 
-Return a distinct deep copy, preserving subtype and tracking cycles.
+Return a deep copy using the selected protocol and one shared memo.
 
 Parameters
 ----------
