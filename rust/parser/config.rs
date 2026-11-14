@@ -23,8 +23,6 @@ struct Rules {
     ext: HashMap<Token, i32>,
     word_lengths: Vec<usize>,
     base_order: Vec<Token>,
-    ext_order: Vec<Token>,
-    generation: u64,
 }
 
 // Copies share immutable rules until an edit detaches the changed namespace.
@@ -61,7 +59,6 @@ impl Namespace {
     fn put_ext(&mut self, key: Token, value: i32) {
         if !self.ext.contains_key(&key) {
             self.remember_length(key.len());
-            self.ext_order.push(key.clone());
         }
         self.ext.insert(key, value);
     }
@@ -588,7 +585,7 @@ pub(crate) struct Configs {
     dayfirst: bool,
     zones: Arc<ZoneMap>,
 }
-type DisplayEntry = Option<(Owner, u64, Py<PyAny>)>;
+type DisplayEntry = Option<(Owner, Py<PyAny>)>;
 #[cfg(not(Py_GIL_DISABLED))]
 type DisplayCache = [DisplayEntry; 8];
 #[cfg(Py_GIL_DISABLED)]
@@ -708,12 +705,9 @@ fn validate_token_type(token: &Bound<'_, PyAny>) -> PyResult<()> {
     }
     Ok(())
 }
-fn variants(low: &Bound<'_, PyAny>, key: &Token) -> PyResult<[Token; 3]> {
-    if low.is_exact_instance_of::<PyString>() && key.iter().all(|c| *c < 128) {
-        let lower = key
-            .iter()
-            .map(|c| if (65..=90).contains(c) { *c + 32 } else { *c })
-            .collect();
+fn variants(low: &Bound<'_, PyString>, key: &Token) -> PyResult<[Token; 3]> {
+    if key.iter().all(|c| *c < 128) {
+        let lower = key.clone();
         let upper = key
             .iter()
             .map(|c| if (97..=122).contains(c) { *c - 32 } else { *c })
@@ -737,10 +731,7 @@ fn variants(low: &Bound<'_, PyAny>, key: &Token) -> PyResult<[Token; 3]> {
         return Ok([lower, upper, title]);
     }
     Ok([
-        encode(
-            &low.call_method0("lower")
-                .map_err(crate::error_context::external)?,
-        )?,
+        key.clone(),
         encode(
             &low.call_method0("upper")
                 .map_err(crate::error_context::external)?,
@@ -764,7 +755,7 @@ fn validate_recognized_form(
         return Ok(());
     }
     let text = decode(receiver.py(), variant)?;
-    let view = TextView::new(text.cast::<PyString>()?)?;
+    let view = TextView::new(&text)?;
     let tokens = tokenize(&view, 0);
     let one_token = tokens.len() == 1 && tokens.get(0) == Some(variant);
     let usable = one_token
@@ -812,8 +803,8 @@ fn copy_display<'py>(
     }
 }
 
-fn decode<'py>(py: Python<'py>, s: &[u32]) -> PyResult<Bound<'py, PyAny>> {
-    super::text::unicode(py, s).map(Bound::into_any)
+fn decode<'py>(py: Python<'py>, s: &[u32]) -> PyResult<Bound<'py, PyString>> {
+    super::text::unicode(py, s)
 }
 const NAMES: [&str; 8] = [
     "jump", "pertain", "utc", "tzoffset", "month", "weekday", "hms", "ampm",
@@ -843,16 +834,9 @@ fn normalize<'py>(
     receiver: &Bound<'_, Configs>,
     i: usize,
     token: &Bound<'py, PyAny>,
-    ensure: bool,
 ) -> PyResult<Bound<'py, PyAny>> {
     let ns = NAMES[i];
     if !token.is_instance_of::<PyString>() {
-        if ensure {
-            return Err(crate::error_context::type_error(format!(
-                "token for {ns} must be a str; got {}",
-                crate::error_context::preview(token)?
-            )));
-        }
         return Err(crate::error_context::type_error(format!(
             "Argument 'token' has incorrect type (expected str, got {})",
             crate::error_context::preview(token)?
@@ -914,7 +898,7 @@ fn base_entry(
     token: &Bound<'_, PyAny>,
     value: i64,
 ) -> PyResult<(Token, i32)> {
-    let low = normalize(receiver, i, token, false)?;
+    let low = normalize(receiver, i, token)?;
     let key = encode(&low)?;
     let (min, max) = match i {
         3 => (-86399, 86399),
@@ -946,7 +930,6 @@ fn add(
 ) -> PyResult<bool> {
     let (key, value) = base_entry(receiver, i, token, value)?;
     let mut owner = read(receiver)?.owners[i].clone();
-    owner.generation = owner.generation.wrapping_add(1);
     owner.put_base(key, value);
     let owner = rebuild_namespace(receiver, i, owner)?;
     set_namespace(receiver, i, owner)?;
@@ -968,7 +951,7 @@ fn validate_namespace(receiver: &Bound<'_, Configs>, i: usize, owner: &Owner) ->
                     "ConfigError",
                     format!(
                         "recognized token {} for {} conflicts with {}",
-                        crate::error_context::preview(&decode(receiver.py(), key)?)?,
+                        crate::error_context::preview(decode(receiver.py(), key)?.as_any())?,
                         NAMES[i],
                         NAMES[j]
                     ),
@@ -984,7 +967,6 @@ fn rebuild_namespace(receiver: &Bound<'_, Configs>, i: usize, mut owner: Owner) 
     let entries = owner.base_entries();
     owner.ext.clear();
     owner.word_lengths.clear();
-    owner.ext_order.clear();
     for (key, value) in entries {
         let low = decode(receiver.py(), &key)?;
         for variant in variants(&low, &key)? {
@@ -999,7 +981,7 @@ fn rebuild_namespace(receiver: &Bound<'_, Configs>, i: usize, mut owner: Owner) 
                     "ConfigError",
                     format!(
                         "recognized token {} has conflicting values in {}",
-                        crate::error_context::preview(&decode(receiver.py(), &variant)?)?,
+                        crate::error_context::preview(decode(receiver.py(), &variant)?.as_any())?,
                         NAMES[i]
                     ),
                 ));
@@ -1012,14 +994,13 @@ fn rebuild_namespace(receiver: &Bound<'_, Configs>, i: usize, mut owner: Owner) 
 }
 
 fn remove(receiver: &Bound<'_, Configs>, i: usize, token: &Bound<'_, PyAny>) -> PyResult<bool> {
-    let low = normalize(receiver, i, token, false)?;
+    let low = normalize(receiver, i, token)?;
     let key = encode(&low)?;
     let mut owner = read(receiver)?.owners[i].clone();
     if owner.base.remove(&key).is_none() {
         return Ok(false);
     }
     owner.base_order.retain(|v| v != &key);
-    owner.generation = owner.generation.wrapping_add(1);
     let owner = rebuild_namespace(receiver, i, owner)?;
     set_namespace(receiver, i, owner)?;
     Ok(true)
@@ -1036,7 +1017,6 @@ fn display<'py>(receiver: &Bound<'py, Configs>, i: usize) -> PyResult<Bound<'py,
         let cfg = read(receiver)?;
         #[cfg(not(Py_GIL_DISABLED))]
         let owner = &cfg.owners[i];
-        let generation = owner.generation;
         #[cfg(not(Py_GIL_DISABLED))]
         let slots = &cfg.cache;
         #[cfg(Py_GIL_DISABLED)]
@@ -1045,15 +1025,14 @@ fn display<'py>(receiver: &Bound<'py, Configs>, i: usize) -> PyResult<Bound<'py,
             .unwrap_or_else(|error| error.into_inner());
         slots[i]
             .as_ref()
-            .filter(|(o, g, _)| Arc::ptr_eq(&o.0, &owner.0) && *g == generation)
-            .map(|(_, _, v)| v.clone_ref(py))
+            .filter(|(o, _)| Arc::ptr_eq(&o.0, &owner.0))
+            .map(|(_, v)| v.clone_ref(py))
     };
     if let Some(cached) = cached {
         return copy_display(py, cached.bind(py), i);
     }
     #[cfg(not(Py_GIL_DISABLED))]
     let owner = read(receiver)?.owners[i].clone();
-    let generation = owner.generation;
     let entries = owner.base_entries();
     let out = if i < 3 {
         let out = PySet::empty(py)?;
@@ -1068,7 +1047,7 @@ fn display<'py>(receiver: &Bound<'py, Configs>, i: usize) -> PyResult<Bound<'py,
         }
         out.into_any()
     };
-    let candidate = Some((owner, generation, out.clone().unbind()));
+    let candidate = Some((owner, out.clone().unbind()));
     #[cfg(not(Py_GIL_DISABLED))]
     let retired = std::mem::replace(&mut write(receiver)?.cache[i], candidate);
     #[cfg(Py_GIL_DISABLED)]

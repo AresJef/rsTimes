@@ -54,6 +54,7 @@ def main():
             "parser/test_product_ready_parser.py",
             "parser/test_product_ready_wide_epoch.py",
             "parser/test_product_ready_configs.py",
+            "parser/test_product_ready_configs_owners.py",
             "pydt/test_product_ready_pydt.py",
             "delta/test_product_ready_delta.py",
             "delta/test_product_ready_completion_comparison.py",
