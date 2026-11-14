@@ -58,6 +58,7 @@ def main():
             "parser/test_product_ready_configs.py",
             "parser/test_product_ready_configs_owners.py",
             "pydt/test_product_ready_pydt.py",
+            "pydt/test_product_ready_restore_private_slots.py",
             "pydt/test_product_ready_iso_calendar.py",
             "delta/test_product_ready_delta.py",
             "delta/test_product_ready_completion_comparison.py",
