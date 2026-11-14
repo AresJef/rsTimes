@@ -15,7 +15,12 @@ import sysconfig
 mode, first = sys.argv[1:]
 os.environ["TZ"] = first
 import polars as pl
-from rstimes import Pddt, Pldt, Pydt
+from rstimes import Pldt, Pydt
+from importlib.util import find_spec
+if find_spec("pandas") is not None:
+    from rstimes import Pddt
+else:
+    Pddt = None
 import rstimes._localization as service
 import rstimes._native as native
 
@@ -42,7 +47,8 @@ def matches(key):
     assert host().key == key
     assert Pydt(2024,1,1).astimezone().tzinfo.key == key
     assert timestamp() == expected(key)
-    assert Pddt([WALL],unit="us").timestamp().tolist() == [expected(key)]
+    if Pddt is not None:
+        assert Pddt([WALL],unit="us").timestamp().tolist() == [expected(key)]
     checks.append("both backends and direct consumers: "+key)
 
 

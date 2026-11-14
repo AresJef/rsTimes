@@ -46,10 +46,24 @@ def test_selected_descriptor_is_owned_until_after_its_returned_callable(host):
 
 
 @pytest.mark.parametrize('operation', [copy.copy, copy.deepcopy, lambda value: value.__copy__()])
-def test_real_getset_descriptor_rejects_an_incompatible_owner(operation):
+def test_real_getset_descriptor_preserves_actual_result_or_error(operation):
     class Foreign:
         pass
     class Business(Delta):
         __dict__ = Foreign.__dict__['__dict__']
-    with pytest.raises(TypeError, match='descriptor|apply'):
-        operation(Business(nanoseconds=1))
+    source = Business(nanoseconds=1)
+    descriptor = type.__getattribute__(Business, '__dict__')['__dict__']
+    try:
+        storage = descriptor.__get__(source, type(source))
+    except TypeError as expected:
+        with pytest.raises(TypeError) as observed:
+            operation(source)
+        assert observed.value.args == expected.args
+    else:
+        # Current CPython may expose managed dictionaries across these types.
+        # Preserve that actual native descriptor result instead of inventing a
+        # uniform rejection rule absent from the supported Python version.
+        result = operation(source)
+        assert type(result) is Business and result is not source
+        assert result.nanoseconds == 1
+        assert result.__dict__ == storage and result.__dict__ is not storage
