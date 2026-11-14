@@ -353,8 +353,10 @@ fn fixed_hours<'py>(
                 (|| {
                     let wall = i128::from(tick) * unit.nanos() + i128::from(offset) * 1000;
                     let source_day = wall.div_euclid(NS_DAY);
-                    let ordinal = i64::try_from(source_day + 719_163)
-                        .map_err(|_| crate::error_context::overflow("calendar day overflow"))?;
+                    // An i64 tick at s/ms/us/ns plus an i64 microsecond offset
+                    // gives |source_day| < 2^47. This source ordinal fits i64;
+                    // subsequent calendar movement and final ticks still check.
+                    let ordinal = (source_day + 719_163) as i64;
                     let date = crate::calendar::from_ordinal(ordinal)
                         .map_err(crate::error_context::overflow)?;
                     let hour = (wall.rem_euclid(NS_DAY) / 3_600_000_000_000) as i64;

@@ -713,8 +713,7 @@ fn _pldt_combine<'py>(
             (|| -> PyResult<i128> {
                 let raw = local.call0().map_err(crate::error_context::external)?;
                 let zone = prepare_host_zone(&raw)?;
-                let instant = crate::clock::system_nanos(std::time::SystemTime::now())
-                    .map_err(crate::error_context::overflow)?;
+                let instant = crate::clock::system_nanos(std::time::SystemTime::now());
                 zone.wall(instant)
                     .map(|value| value.div_euclid(NS_DAY))
                     .map_err(|error| Failure::from(error).python(py, "Pldt.combine"))

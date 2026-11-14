@@ -79,7 +79,7 @@ fn loop_query<'py, const Q: u8>(
                     let current = if let Some(current) = now {
                         current
                     } else {
-                        let utc = super::factory::system_nanos(std::time::SystemTime::now())?;
+                        let utc = crate::clock::system_nanos(std::time::SystemTime::now());
                         let current = if zone.is_some() {
                             utc
                         } else {

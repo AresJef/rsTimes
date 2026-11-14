@@ -385,10 +385,9 @@ fn pldt_query(inputs: &[Series], kwargs: Options) -> PolarsResult<Series> {
     execute(inputs, &kwargs).map_err(|e| e.polars(&kwargs.entry))
 }
 #[pyfunction]
-fn _pldt_query_clock() -> PyResult<(i64, i64)> {
-    let value = crate::clock::system_nanos(std::time::SystemTime::now())
-        .map_err(crate::error_context::overflow)?;
-    Ok(((value >> 64) as i64, value as i64))
+fn _pldt_query_clock() -> (i64, i64) {
+    let value = crate::clock::system_nanos(std::time::SystemTime::now());
+    ((value >> 64) as i64, value as i64)
 }
 #[pyfunction]
 #[pyo3(signature=(source,code,entry,target=None,scalar=false,reference=None))]
