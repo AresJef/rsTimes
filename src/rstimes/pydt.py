@@ -3456,13 +3456,15 @@ class Pydt(_PydtBase):
                     raise _own_error(TypeError("must contain dictionaries with string keys"), "state", state)
                 if value is not None:
                     value = _snapshot_state(value)
-                if value is not None and any(type(k) is not str for k in value):
-                    raise _own_error(TypeError("must contain dictionaries with string keys"), "state", state)
+                    for key in value:
+                        if type(key) is not str:
+                            raise _own_error(TypeError("must contain dictionaries with string keys"), "state", state)
                 prepared.append(value)
             dictionary, slots = prepared
-            # A user setter (or __dict__ lookup) may mutate the supplied state.
-            # Fix the entries before invoking either hook, as with Delta restore.
-            slot_items = tuple(slots.items()) if slots is not None else ()
+            # Both snapshots own their dictionary storage. Receiver callbacks can
+            # mutate the supplied state, but cannot alias these private copies.
+            # Keep dictionary update's tuple argument; slots can use a private view.
+            slot_items = slots.items() if slots is not None else ()
             dictionary_items = tuple(cast(dict[str, object], dictionary).items()) if dictionary is not None else ()
             if dictionary is not None:
                 try:
