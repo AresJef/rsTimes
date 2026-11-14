@@ -3403,11 +3403,13 @@ class Pydt(_PydtBase):
             The specification is not a real string or string subclass.
         """
         try:
-            kind = type(fmt)
-            if kind is not str and not issubclass(kind, str):
+            if type(fmt) is str:
+                empty = not fmt
+            elif issubclass(type(fmt), str):
+                empty = str.__len__(fmt) == 0
+            else:
                 raise _own_error(TypeError("must be str"), "fmt", fmt)
             try:
-                empty = fmt == "" if kind is str else str.__len__(fmt) == 0
                 return self.isoformat(" ") if empty else self.strftime(fmt)
             except Exception as error:
                 raise _external_error(error)
