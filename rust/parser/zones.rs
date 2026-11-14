@@ -71,7 +71,6 @@ pub(crate) fn resolve<'py>(
     zone: &RegisteredZone,
     values: [i32; 7],
     default: Option<&Bound<'py, PyAny>>,
-    _strict: bool,
 ) -> PyResult<Bound<'py, PyAny>> {
     datetime(py, values, object(py, zone)?, default_fold(default))
 }

@@ -143,7 +143,7 @@ fn build<'py, P: Policy>(
 ) -> PyResult<Py<PyAny>> {
     let values = complete(f, default_date)?;
     if let Some(region) = region.filter(|_| !ignoretz) {
-        return build_region(py, region, values, default, dtclass, f.strict());
+        return build_region(py, region, values, default, dtclass);
     }
     let [yy, mm, dd, h, m, s, us] = values;
     let tz = if ignoretz || !f.is_tzoffset_set() {
@@ -210,7 +210,6 @@ fn build_region<'py>(
     values: [i32; 7],
     default: Option<&Bound<'py, PyAny>>,
     dtclass: Option<&Bound<'py, PyAny>>,
-    _strict: bool,
 ) -> PyResult<Py<PyAny>> {
     let zone = zones::object(py, region)?;
     construct(

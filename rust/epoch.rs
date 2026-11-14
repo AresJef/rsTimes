@@ -273,7 +273,7 @@ fn from_region_fields<P: Policy>(
     default_date: Option<[i32; 3]>,
 ) -> PyResult<Parsed> {
     let values = crate::parser::complete(f, default_date)?;
-    let date = crate::parser::zones::resolve(py, region, values, default, f.strict())?;
+    let date = crate::parser::zones::resolve(py, region, values, default)?;
     // resolve creates an exact builtin datetime with these checked fields.
     // Keep that necessary callback receiver and its single real offset read,
     // without reclassifying the freshly constructed date through read().
