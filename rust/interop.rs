@@ -727,9 +727,9 @@ pub(crate) fn apply_datetime_fields<'py>(
     // The public vector call preserves the same keyword order and callbacks,
     // while avoiding a temporary keyword dictionary for datetime subclasses.
     if other.is_exact_instance_of::<PyDateTime>() {
-        apply_datetime_fields_impl::<true, true>(fields, empty, other, dt, sign, None, None)
+        apply_datetime_fields_impl::<true>(fields, empty, other, dt, sign, None, None)
     } else {
-        apply_datetime_fields_impl::<true, false>(fields, empty, other, dt, sign, None, None)
+        apply_datetime_fields_impl::<false>(fields, empty, other, dt, sign, None, None)
     }
 }
 
@@ -746,7 +746,7 @@ pub(crate) fn apply_builtin_datetime_fields<'py>(
     dt: &Bound<'py, PyDateTime>,
     sign: i64,
 ) -> PyResult<Option<Bound<'py, PyAny>>> {
-    apply_datetime_fields_impl::<true, true>(fields, empty, other, dt, sign, None, None)
+    apply_datetime_fields_impl::<true>(fields, empty, other, dt, sign, None, None)
 }
 
 /// Apply a proven builtin datetime with the immutable batch's prepared clock.
@@ -762,7 +762,7 @@ pub(crate) fn apply_builtin_datetime_batch<'py>(
     hours: Option<i64>,
     relative_date: Option<crate::civil::RelativeDateMove>,
 ) -> PyResult<Option<Bound<'py, PyAny>>> {
-    apply_datetime_fields_impl::<true, true>(fields, empty, other, dt, sign, hours, relative_date)
+    apply_datetime_fields_impl::<true>(fields, empty, other, dt, sign, hours, relative_date)
 }
 
 /// Apply prepared datetime fields using public keyword vectorcall for subtypes.
@@ -775,7 +775,7 @@ pub(crate) fn apply_datetime_fields_vector<'py>(
     dt: &Bound<'py, PyDateTime>,
     sign: i64,
 ) -> PyResult<Option<Bound<'py, PyAny>>> {
-    apply_datetime_fields_impl::<true, false>(fields, empty, other, dt, sign, None, None)
+    apply_datetime_fields_impl::<false>(fields, empty, other, dt, sign, None, None)
 }
 
 /// Run the same checked calendar work with a fixed constructor calling convention.
@@ -783,7 +783,7 @@ pub(crate) fn apply_datetime_fields_vector<'py>(
 /// Preserves normalization, boundaries and custom constructor exception handling.
 #[inline(always)]
 #[allow(clippy::too_many_arguments)] // Native batch preparation is passed without a per-row allocation.
-fn apply_datetime_fields_impl<'py, const VECTOR: bool, const BUILTIN: bool>(
+fn apply_datetime_fields_impl<'py, const BUILTIN: bool>(
     fields: &crate::delta::value::DeltaValue,
     empty: bool,
     other: &Bound<'py, PyAny>,
@@ -856,7 +856,7 @@ fn apply_datetime_fields_impl<'py, const VECTOR: bool, const BUILTIN: bool>(
         };
         return unsafe { Bound::from_owned_ptr_or_err(py, result) }.map(Some);
     }
-    finish_datetime_subclass::<VECTOR>(other, dt, result, unchanged)
+    finish_datetime_subclass(other, dt, result)
 }
 
 /// Apply complete local Timestamp fields without an intermediate us projection.
@@ -907,17 +907,13 @@ fn apply_timestamp<'py>(
 
 /// Keep foreign precision and constructor callbacks outside builtin loop frames.
 #[inline(never)]
-fn finish_datetime_subclass<'py, const VECTOR: bool>(
+fn finish_datetime_subclass<'py>(
     other: &Bound<'py, PyAny>,
     dt: &Bound<'py, PyDateTime>,
     result: [i64; 7],
-    unchanged: bool,
 ) -> PyResult<Option<Bound<'py, PyAny>>> {
-    if unchanged {
-        return Ok(Some(other.clone()));
-    }
     let prepared = crate::pydt::delta_calendar_fields(dt, result)?;
-    construct_subclass::<VECTOR>(
+    construct_subclass::<true>(
         other,
         Some(dt),
         prepared.map_or(result, |value| value.0),

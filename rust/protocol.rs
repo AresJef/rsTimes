@@ -915,7 +915,7 @@ pub(crate) fn call_special<'py>(
         .map_err(crate::error_context::external)
 }
 
-/// Inspect inherited value methods once without running hooks during dict iteration.
+/// Inspect only the relevant live inherited definitions, retaining their owners.
 /// # Errors
 /// Preserves type/attribute errors; retained MRO and entries survive callbacks.
 #[inline(never)]
@@ -940,25 +940,14 @@ fn inherits_value_methods<'py>(
         }
         let namespace = type_namespace(ancestor)?;
         let mut entries: [Option<Bound<'py, PyAny>>; 3] = [None, None, None];
-        #[cfg(Py_GIL_DISABLED)]
-        let snapshot = namespace.copy()?;
-        #[cfg(Py_GIL_DISABLED)]
-        let namespace = snapshot;
-        for (key, value) in namespace.iter() {
-            if !key.is_exact_instance_of::<PyString>() {
-                return Ok(false);
-            }
-            let index = match key.cast::<PyString>()?.to_str()? {
-                "__eq__" => 0,
-                "__ne__" => 1,
-                "__hash__" => 2,
-                _ => continue,
-            };
+        for (index, name) in names.iter().enumerate() {
             if !found[index] {
-                entries[index] = Some(value);
+                // PyO3's dictionary lookup retains the selected value on t too.
+                // Unrelated attributes need no decoding or dictionary snapshot.
+                entries[index] = namespace.get_item(method_key(class.py(), name))?;
             }
         }
-        // The live dictionary iterator has ended before any descriptor lookup.
+        // All selected definitions are owned before any descriptor lookup.
         for (index, entry) in entries.into_iter().enumerate() {
             if let Some(entry) = entry {
                 // Disabling hashing does not change inherited value equality.
