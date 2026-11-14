@@ -82,4 +82,13 @@ def test_invalid_fraction_remains_error_after_nearby_valid_reuse(fmt):
 def test_unmodified_system_format_still_matches_original_host_call():
     value = Pydt(2024, 2, 29, 12, 34, 56, 123456)
     for fmt in ['%A %B %p', '%c', '%_d', '日期 %Y', '', '%%f']:
-        assert value.strftime(fmt) == datetime.strftime(value, fmt)
+        try:
+            expected = datetime.strftime(value, fmt)
+        except ValueError as original:
+            # GNU padding flags are not accepted by every system formatter.
+            # Preserve the host's refusal rather than requiring new support.
+            with pytest.raises(type(original)) as observed:
+                value.strftime(fmt)
+            assert observed.value.args == original.args
+        else:
+            assert value.strftime(fmt) == expected
