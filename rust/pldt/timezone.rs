@@ -1,7 +1,6 @@
 //! One native timezone operation over a complete logical column or group.
 use super::finish::Failure;
 use super::zones::{Context, Policies, PolicyContext};
-use crate::epoch::Unit;
 use crate::temporal_zone::{Zone, ZoneData, ZoneError};
 use polars::prelude::*;
 use pyo3::prelude::*;
@@ -103,20 +102,12 @@ fn output_field(fields: &[Field], options: Options) -> PolarsResult<Field> {
     ))
 }
 
-fn epoch_unit(unit: TimeUnit) -> Unit {
-    match unit {
-        TimeUnit::Milliseconds => Unit::Millisecond,
-        TimeUnit::Microseconds => Unit::Microsecond,
-        TimeUnit::Nanoseconds => Unit::Nanosecond,
-    }
-}
-
 fn execute(inputs: &[Series], mut options: Options) -> Result<Series, Failure> {
     let source = inputs
         .first()
         .ok_or(ZoneError::Value("timezone operation requires one source"))?;
     let (time_unit, output_zone) = meta(source.dtype(), &options)?;
-    let unit = epoch_unit(time_unit);
+    let unit = super::input::epoch_unit(time_unit);
     if let Some(mask) = inputs.get(1) {
         options.policy = options
             .policy

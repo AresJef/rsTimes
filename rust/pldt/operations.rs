@@ -249,47 +249,6 @@ pub(super) fn automatic(
         "the selected calendar day has no valid local result; choose another date",
     ))
 }
-fn visit_source(
-    source: &Series,
-    unit: crate::epoch::Unit,
-    mut push: impl FnMut(usize, Option<i128>) -> Result<(), Failure>,
-) -> Result<(), Failure> {
-    match source.dtype() {
-        DataType::Date => {
-            for (row, value) in source
-                .date()
-                .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-                .physical()
-                .iter()
-                .enumerate()
-            {
-                push(
-                    row,
-                    value.map(|value| i128::from(value) * 86_400_000_000_000),
-                )?;
-            }
-        }
-        DataType::Datetime(_, _) => {
-            for (row, value) in source
-                .datetime()
-                .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-                .physical()
-                .iter()
-                .enumerate()
-            {
-                push(row, value.map(|value| i128::from(value) * unit.nanos()))?;
-            }
-        }
-        _ => {
-            return Err(Failure::new(
-                Kind::Runtime,
-                "validated calendar source dtype was lost",
-            ));
-        }
-    }
-    Ok(())
-}
-
 fn transform(
     source: &Series,
     components: &[Series],
@@ -386,7 +345,7 @@ fn transform(
         let mut output_ticks =
             PrimitiveChunkedBuilder::<Int64Type>::new(source.name().clone(), source.len());
         let mut first_output_error = None;
-        visit_source(source, unit, |row, instant| {
+        super::input::visit_nanos(source, |row, instant| {
             let Some((value, _)) = transform_row(row, instant)? else {
                 output_ticks.append_null();
                 return Ok(());
@@ -432,7 +391,7 @@ fn transform(
     }
     let mut rows = Rows::new(unit);
     rows.reserve(source.len())?;
-    visit_source(source, unit, |row, instant| {
+    super::input::visit_nanos(source, |row, instant| {
         match transform_row(row, instant)? {
             Some((value, known)) => rows.push(value, 0, known, unit),
             None => rows.missing(),

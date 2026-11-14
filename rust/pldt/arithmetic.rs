@@ -507,38 +507,6 @@ fn project(value: i128, unit: Unit, row: usize) -> Result<i64, Failure> {
         .at(row),
     })
 }
-fn for_source(
-    source: &Series,
-    mut visit: impl FnMut(usize, Option<i128>) -> Result<(), Failure>,
-) -> Result<(), Failure> {
-    let (unit, _) = date_meta(source.dtype())?;
-    match source.dtype() {
-        DataType::Date => {
-            for (row, value) in source
-                .date()
-                .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-                .physical()
-                .iter()
-                .enumerate()
-            {
-                visit(row, value.map(|value| i128::from(value) * DAY))?
-            }
-        }
-        _ => {
-            for (row, value) in source
-                .datetime()
-                .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-                .physical()
-                .iter()
-                .enumerate()
-            {
-                visit(row, value.map(|value| i128::from(value) * unit.nanos()))?
-            }
-        }
-    }
-    Ok(())
-}
-
 fn finish(source: &Series, values: Vec<Option<i64>>, dtype: DataType) -> Result<Series, Failure> {
     let physical = Int64Chunked::from_iter_options(source.name().clone(), values.into_iter());
     match dtype {
@@ -588,7 +556,7 @@ fn calculate(
         }
         return finish(source, output, dtype);
     }
-    for_source(source, |row, value| {
+    super::input::visit_nanos(source, |row, value| {
         let other = &values[if data.scalar { 0 } else { row }];
         if let Value::Date(_, aware) = other
             && *aware != zone.is_some()

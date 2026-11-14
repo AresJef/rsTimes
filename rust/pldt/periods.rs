@@ -507,7 +507,7 @@ fn snap_grid(
     field: Field,
 ) -> Result<Series, Failure> {
     let mut dates = PrimitiveChunkedBuilder::<Int64Type>::new(source.name().clone(), source.len());
-    let mut push = |row, tick: Option<i64>| -> Result<(), Failure> {
+    let push = |row, tick: Option<i64>| -> Result<(), Failure> {
         let target = tick
             .map(|tick| {
                 i64::try_from(grid.nearest(tick)).map_err(|_| {
@@ -522,28 +522,7 @@ fn snap_grid(
         dates.append_option(target);
         Ok(())
     };
-    if source.dtype() == &DataType::Date {
-        for (row, value) in source
-            .date()
-            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-            .physical()
-            .iter()
-            .enumerate()
-        {
-            // Every signed32 day times milliseconds/day fits signed64.
-            push(row, value.map(|day| i64::from(day) * 86_400_000))?;
-        }
-    } else {
-        for (row, value) in source
-            .datetime()
-            .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-            .physical()
-            .iter()
-            .enumerate()
-        {
-            push(row, value)?;
-        }
-    }
+    super::input::visit_ticks(source, push)?;
     finish_dates(dates.finish(), field)
 }
 fn execute(source: &Series, spec: &Spec) -> Result<Series, Failure> {
