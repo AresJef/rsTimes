@@ -1,7 +1,7 @@
 //! One-time public/source numeric preparation for the exact Delta value.
 
 use super::fixed::{BinaryTerm, FixedNsAccumulator, first_fraction, integral_fraction};
-use super::value::{AbsoluteField, AbsoluteFields, DeltaValue, NS_PER_DAY, ValueError};
+use super::value::{AbsoluteField, AbsoluteFields, DeltaValue, ValueError};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
 use pyo3::types::{PyDict, PyFloat, PyInt, PyString, PyTuple};
@@ -690,17 +690,10 @@ pub(crate) fn normalize_relative_fields(
         .map_err(python_error)
 }
 
-/// Prepare an integer-only fixed span without a public Python constructor.
-pub(crate) fn fixed_duration(days: i64, seconds: i64, microseconds: i64) -> PyResult<DeltaValue> {
-    let total = i128::from(days) * NS_PER_DAY
-        + i128::from(seconds) * 1_000_000_000
-        + i128::from(microseconds) * 1000;
-    DeltaValue::from_totals(0, total, AbsoluteFields::EMPTY).map_err(python_error)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::delta::value::NS_PER_DAY;
 
     fn normalize(fields: [i64; 21], fraction: FixedFractions) -> Result<DeltaValue, ValueError> {
         let mut components = Components::default();

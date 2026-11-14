@@ -165,13 +165,10 @@ impl Delta {
         subtract: bool,
         reverse: bool,
     ) -> PyResult<Self> {
-        let other = prepare::fixed_duration(days, seconds, microseconds)?;
-        let value = if reverse {
-            other.combine(self.value, subtract)
-        } else {
-            self.value.combine(other, subtract)
-        };
-        value.map(Self::from_value).map_err(prepare::python_error)
+        // Both callers read canonical PyDelta storage: 0 <= seconds < 86400
+        // and 0 <= microseconds < 1_000_000, so the clock is below one day.
+        let clock_ns = seconds as u64 * 1_000_000_000 + microseconds as u64 * 1000;
+        self.with_fixed_parts(i128::from(days), clock_ns, subtract, reverse)
     }
 
     /// A fresh wrapper preserves only the valid immutable hash cache.
@@ -377,13 +374,8 @@ impl PreparedAddition {
     }
     /// Exact builtin timedelta source; subtype protocols stay outside this helper.
     pub(crate) fn add_duration(&self, value: &Bound<'_, PyDelta>) -> PyResult<Delta> {
-        let left = prepare::fixed_duration(
-            i64::from(value.get_days()),
-            i64::from(value.get_seconds()),
-            i64::from(value.get_microseconds()),
-        )?;
-        left.combine(self.value, false)
-            .map(Delta::from_value)
-            .map_err(prepare::python_error)
+        let clock_ns =
+            value.get_seconds() as u64 * 1_000_000_000 + value.get_microseconds() as u64 * 1000;
+        self.add_fixed_parts(i128::from(value.get_days()), clock_ns)
     }
 }
