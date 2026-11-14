@@ -2085,28 +2085,15 @@ fn _pydt_name_matches(
 
 /// Read one ISO calendar field without allocating the complete Python result.
 #[pyfunction]
-fn _pydt_iso(value: &Bound<'_, PyDateTime>, year_field: bool) -> i64 {
-    let mut year = i64::from(value.get_year());
-    let jan1 = crate::calendar::ordinal(year, 1, 1);
+fn _pydt_iso(value: &Bound<'_, PyDateTime>, year_field: bool) -> PyResult<i64> {
+    let year = i64::from(value.get_year());
     let ordinal = crate::calendar::ordinal(
         year,
         i64::from(value.get_month()),
         i64::from(value.get_day()),
     );
-    let weekday = (ordinal - 1) % 7;
-    let mut week = (ordinal - jan1 + 1 - weekday + 9) / 7;
-    let long_year = |y| {
-        let day = (crate::calendar::ordinal(y, 1, 1) - 1) % 7;
-        day == 3 || (day == 2 && crate::calendar::leap(y))
-    };
-    if week == 0 {
-        year -= 1;
-        week = if long_year(year) { 53 } else { 52 };
-    } else if week == 53 && !long_year(year) {
-        year += 1;
-        week = 1;
-    }
-    if year_field { year } else { week }
+    let iso = crate::calendar_query::iso_at(year, ordinal)?;
+    Ok(iso[usize::from(!year_field)])
 }
 
 /// Reuse NumPy's checked scalar decoder and Parser's established constructor shape.
