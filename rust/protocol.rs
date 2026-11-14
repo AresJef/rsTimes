@@ -879,6 +879,30 @@ pub(crate) fn method_definition<'py>(
     Ok(None)
 }
 
+/// Bind an already-owned descriptor to its real receiver and actual type.
+/// The caller retains the definition through use of the returned value.
+/// # Errors
+/// Preserves the actual binding callback's exception.
+#[inline]
+pub(crate) fn bind_descriptor<'py>(
+    definition: &Bound<'py, PyAny>,
+    receiver: &Bound<'py, PyAny>,
+    actual: &Bound<'py, PyType>,
+) -> PyResult<Bound<'py, PyAny>> {
+    if let Some(get) = descriptor_get(definition) {
+        // SAFETY: all three arguments are retained Python objects. The slot
+        // returns an owned reference and remains live through its definition.
+        unsafe {
+            Bound::from_owned_ptr_or_err(
+                receiver.py(),
+                get(definition.as_ptr(), receiver.as_ptr(), actual.as_ptr()),
+            )
+        }
+    } else {
+        Ok(definition.clone())
+    }
+}
+
 /// Execute a real special-method descriptor without consulting instance aliases.
 ///
 /// # Errors
@@ -888,7 +912,6 @@ pub(crate) fn call_special<'py>(
     name: &str,
     other: &Bound<'py, PyAny>,
 ) -> PyResult<Bound<'py, PyAny>> {
-    let py = receiver.py();
     let actual = receiver.get_type();
     let definition = method_definition(&actual, name)?
         .ok_or_else(|| crate::error_context::type_error("arithmetic method is not defined"))?;
@@ -897,19 +920,8 @@ pub(crate) fn call_special<'py>(
             .call1((receiver, other))
             .map_err(crate::error_context::external);
     }
-    // SAFETY: the retained descriptor, receiver and ready actual type remain
-    // owned under the GIL, including throughout arbitrary descriptor callbacks.
-    let bound = if let Some(get) = descriptor_get(&definition) {
-        unsafe {
-            Bound::from_owned_ptr_or_err(
-                py,
-                get(definition.as_ptr(), receiver.as_ptr(), actual.as_ptr()),
-            )
-        }
-        .map_err(crate::error_context::external)?
-    } else {
-        definition
-    };
+    let bound =
+        bind_descriptor(&definition, receiver, &actual).map_err(crate::error_context::external)?;
     bound
         .call1((other,))
         .map_err(crate::error_context::external)

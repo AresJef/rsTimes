@@ -589,8 +589,9 @@ fn native_copy_protocol(slf: &Bound<'_, Delta>) -> PyResult<bool> {
         "__getattr__",
     ];
     let py = slf.py();
+    let actual = slf.get_type();
     let (inherited, storage) =
-        crate::protocol::inherited_methods(&slf.get_type(), &py.get_type::<Delta>(), &NAMES)?;
+        crate::protocol::inherited_methods(&actual, &py.get_type::<Delta>(), &NAMES)?;
     if !inherited {
         return Ok(false);
     }
@@ -601,7 +602,7 @@ fn native_copy_protocol(slf: &Bound<'_, Delta>) -> PyResult<bool> {
         if !descriptor.get_type().is(native_type.bind(py)) {
             return Ok(false);
         }
-        let storage = descriptor.call_method1("__get__", (slf,))?;
+        let storage = crate::protocol::bind_descriptor(&descriptor, slf.as_any(), &actual)?;
         let storage = storage.cast::<PyDict>()?;
         if !storage.is_empty() {
             for name in [
@@ -699,11 +700,11 @@ pub fn copy_object<'py>(
     } else {
         metadata
     };
-    // These dictionaries were just captured and copied here, rather than read
-    // from external state. Attach each owned copy once without recopying it.
+    // Shallow metadata is our independent snapshot. Deepcopy can expose the
+    // returned dictionaries through memo, so detach those before real setters.
     if let Ok(pair) = metadata.cast::<PyTuple>() {
         let dictionary = pair.get_item(0)?;
-        let dictionary = if dictionary.is_none() {
+        let dictionary = if dictionary.is_none() || memo.is_none() {
             dictionary
         } else {
             dictionary.cast::<PyDict>()?.copy()?.into_any()
@@ -723,7 +724,11 @@ pub fn copy_object<'py>(
             result.setattr(name, value)?;
         }
     } else if !metadata.is_none() {
-        let dictionary = metadata.cast::<PyDict>()?.copy()?;
+        let dictionary = if memo.is_some() {
+            metadata.cast::<PyDict>()?.copy()?.into_any()
+        } else {
+            metadata
+        };
         result.setattr(pyo3::intern!(py, "__dict__"), dictionary)?;
     }
     Ok(result)
