@@ -22,7 +22,7 @@ from ._native import _pydt_day_of_year, _pydt_days_in_month, _pydt_is_leap_year
 from .errors import _raise_argument_context, _own_error, _external_error, _location_error, _preview, _critical
 
 from ._formatting import prepare_format as _prepare_format
-from ._state_storage import snapshot as _snapshot_state
+from ._state_storage import _snapshot_exact as _snapshot_state
 from ._localization import (local_timezone as _local_timezone,
                             resolve_timezone as _timezone, _localized_name)
 
@@ -3454,7 +3454,8 @@ class Pydt(_PydtBase):
             for value in (dictionary, slots):
                 if value is not None and type(value) is not dict:
                     raise _own_error(TypeError("must contain dictionaries with string keys"), "state", state)
-                value = _snapshot_state(value)
+                if value is not None:
+                    value = _snapshot_state(value)
                 if value is not None and any(type(k) is not str for k in value):
                     raise _own_error(TypeError("must contain dictionaries with string keys"), "state", state)
                 prepared.append(value)

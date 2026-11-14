@@ -2092,7 +2092,9 @@ fn _pydt_iso(value: &Bound<'_, PyDateTime>, year_field: bool) -> PyResult<i64> {
         i64::from(value.get_month()),
         i64::from(value.get_day()),
     );
-    let iso = crate::calendar_query::iso_at(year, ordinal)?;
+    // Native datetime fields already enforce1..9999, so January1 fits ordinal.
+    let start = crate::calendar::ordinal(year, 1, 1);
+    let iso = crate::calendar_query::iso_from_start(year, ordinal, start)?;
     Ok(iso[usize::from(!year_field)])
 }
 
