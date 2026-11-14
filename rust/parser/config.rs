@@ -997,9 +997,11 @@ fn remove(receiver: &Bound<'_, Configs>, i: usize, token: &Bound<'_, PyAny>) -> 
     let low = normalize(receiver, i, token)?;
     let key = encode(&low)?;
     let mut owner = read(receiver)?.owners[i].clone();
-    if owner.base.remove(&key).is_none() {
+    if !owner.base.contains_key(&key) {
         return Ok(false);
     }
+    // The same owned rules and prepared key remain stable; detach only for a hit.
+    let _ = owner.base.remove(&key);
     owner.base_order.retain(|v| v != &key);
     let owner = rebuild_namespace(receiver, i, owner)?;
     set_namespace(receiver, i, owner)?;
