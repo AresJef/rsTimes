@@ -245,7 +245,9 @@ pub(crate) fn move_date(
     if (-27..=27).contains(&days) {
         return shift_small_days(year, month, day, days as i64);
     }
-    let ordinal = i128::from(checked_ordinal(year, month, day)?) + days;
+    let ordinal = crate::civil::ordinal(i128::from(year), month as u8, day as u8)?
+        .checked_add(days)
+        .ok_or(OVERFLOW)?;
     from_ordinal(i64::try_from(ordinal).map_err(|_| OVERFLOW)?)
 }
 
@@ -472,6 +474,18 @@ pub(crate) fn apply_hours(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn complete_gregorian_cycles_cancel_before_ordinal_narrowing() {
+        for date in [[0, 2, 29], [2024, 1, 31], [2024, 2, 29]] {
+            for cycles in [-100_000_000_000_000i128, -1, 1, 100_000_000_000_000] {
+                assert_eq!(
+                    move_date(date, 4800 * cycles, -146_097 * cycles, None, None).unwrap(),
+                    date,
+                );
+            }
+        }
+    }
     #[test]
     fn whole_hour_change_flag_matches_all_result_fields() {
         use crate::delta::value::{AbsoluteField as F, AbsoluteFields, DeltaValue};

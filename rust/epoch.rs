@@ -615,14 +615,18 @@ pub(crate) fn native_datetime_ticks(ticks: i64, code: i32, multiplier: i32) -> P
             } else {
                 ticks
             };
-            let year = i64::try_from(months.div_euclid(12) + 1970)
-                .map_err(|_| crate::error_context::overflow("NumPy year overflow"))?;
-            let month = (months.rem_euclid(12) + 1) as i64;
-            let days = i128::from(
-                crate::calendar::checked_ordinal(year, month, 1)
-                    .map_err(crate::error_context::overflow)?,
-            ) - 719_163;
-            (days * 86_400_000_000_000, Unit::Second)
+            let year = months
+                .div_euclid(12)
+                .checked_add(1970)
+                .ok_or_else(|| crate::error_context::overflow("NumPy year overflow"))?;
+            let month = (months.rem_euclid(12) + 1) as u8;
+            let ordinal =
+                crate::civil::ordinal(year, month, 1).map_err(crate::error_context::overflow)?;
+            let nanos = ordinal
+                .checked_sub(719_163)
+                .and_then(|days| days.checked_mul(86_400_000_000_000))
+                .ok_or_else(|| crate::error_context::overflow("NumPy datetime epoch overflow"))?;
+            (nanos, Unit::Second)
         }
         2 | 4..=10 => {
             let (scale, unit) = match code {

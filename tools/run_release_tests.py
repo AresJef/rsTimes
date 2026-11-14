@@ -52,6 +52,7 @@ def main():
             "parser/test_numeric_text.py", "parser/test_numeric_text_fast_paths.py",
             "parser/test_numeric_short_decimal_fold_optimization.py", "parser/test_numeric_text_threads.py",
             "parser/test_product_ready_parser.py",
+            "parser/test_product_ready_wide_epoch.py",
             "parser/test_product_ready_configs.py",
             "pydt/test_product_ready_pydt.py",
             "delta/test_product_ready_delta.py",

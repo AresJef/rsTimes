@@ -37,19 +37,19 @@ impl Bucket {
         match self {
             Self::Fixed(step) => Ok(value.div_euclid(step)),
             Self::Week => Ok((value.div_euclid(NS_DAY) + 3).div_euclid(7)),
-            Self::Calendar(kind) => calendar_index(kind, calendar_ordinal(value)?),
+            Self::Calendar(kind) => calendar_index(kind, calendar_ordinal(value)),
         }
     }
 }
 
-fn calendar_ordinal(value: i128) -> Result<i64, Error> {
-    i64::try_from(value.div_euclid(NS_DAY) + 719_163)
-        .map_err(|_| Error::Capacity("calendar day exceeds the native range"))
+fn calendar_ordinal(value: i128) -> i128 {
+    // Division by a complete nanosecond day leaves room for the epoch offset.
+    value.div_euclid(NS_DAY) + 719_163
 }
 
-fn calendar_index(kind: u8, ordinal: i64) -> Result<i128, Error> {
-    let [year, month, _] = crate::calendar::from_ordinal(ordinal).map_err(Error::Capacity)?;
-    let year = i128::from(year) - 1970;
+fn calendar_index(kind: u8, ordinal: i128) -> Result<i128, Error> {
+    let (year, month, _) = crate::civil::from_ordinal(ordinal).map_err(Error::Capacity)?;
+    let year = year - 1970;
     Ok(match kind {
         0 => year,
         1 => year * 4 + i128::from((month - 1) / 3),
@@ -62,13 +62,13 @@ fn calendar_index(kind: u8, ordinal: i64) -> Result<i128, Error> {
 #[derive(Clone, Copy)]
 struct CalendarMemo {
     kind: u8,
-    last: Option<(i64, i128)>,
+    last: Option<(i128, i128)>,
 }
 impl CalendarMemo {
     pub(crate) fn new(kind: u8) -> Self {
         Self { kind, last: None }
     }
-    fn index(&mut self, ordinal: i64) -> Result<i128, Error> {
+    fn index(&mut self, ordinal: i128) -> Result<i128, Error> {
         if let Some((previous, index)) = self.last
             && previous == ordinal
         {
@@ -150,11 +150,11 @@ impl BoundaryIndex for CalendarIndex {
             .div_euclid(self.ticks_per_day)
             .checked_add(719_163)
             .ok_or(Error::Capacity("calendar day exceeds the native range"))?;
-        self.source.index(ordinal)
+        self.source.index(i128::from(ordinal))
     }
     #[inline]
     fn target(&mut self, nanos: i128) -> Result<i128, Error> {
-        self.target.index(calendar_ordinal(nanos)?)
+        self.target.index(calendar_ordinal(nanos))
     }
 }
 
@@ -183,6 +183,15 @@ pub(crate) fn finish(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wide_calendar_target_is_narrowed_only_at_the_result() {
+        let target = -(1i128 << 80) * 1_000_000_000;
+        let year = Bucket::Calendar(0).index(target).unwrap();
+        assert_eq!(finish(0, year, false, 0).unwrap(), 38_309_334_171_900_670);
+        let day = Bucket::Fixed(NS_DAY).index(target).unwrap();
+        assert!(finish(0, day, false, 0).is_err());
+    }
     #[test]
     fn exact_boundary_math_is_python_free_and_checks_only_final_capacity() {
         std::thread::spawn(|| {
