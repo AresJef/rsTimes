@@ -60,18 +60,14 @@ class _PddtOperand:
 @type_check_only
 class _PddtRangeEndpoints:
     """Range endpoints with separate local carrier and target-unit constraints."""
-    @property
-    def start(self) -> int | None:
-        """Return the prepared start tick, or None when absent."""
-    @property
-    def end(self) -> int | None:
-        """Return the prepared end tick, or None when absent."""
+    def carrier(self) -> tuple[int | None, int | None, _Unit]:
+        """Return both prepared local ticks and their common exact working unit.
+
+        This temporary carrier unit is separate from the final output unit.
+        """
     @property
     def unit(self) -> _Unit:
         """Return the chosen final date unit."""
-    @property
-    def carrier_unit(self) -> _Unit:
-        """Return the local-wall carrier unit used before final localization."""
     @property
     def zone(self) -> tzinfo | None:
         """Return the resolved timezone owner, independently of range length."""

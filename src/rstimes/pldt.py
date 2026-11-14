@@ -544,9 +544,6 @@ def _range_factory(cls: type[_SeriesT], start=None, *, end=None, periods=None, f
             first = None if first is None else pd.Timestamp(np.datetime64(first, carrier_unit))
             last = None if last is None else pd.Timestamp(np.datetime64(last, carrier_unit))
             generation_unit, minimum_unit = _mature_units(metadata, inputs.unit, carrier_unit)  # pyright: ignore[reportOptionalCall] -- TY022; see tests/typing/pyright_exceptions.json.
-            if generation_unit is not None:
-                units = ("s", "ms", "us", "ns")
-                generation_unit = units[max(units.index(generation_unit), units.index(carrier_unit))]
             try:
                 external = pd.date_range(start=first, end=last, periods=periods, freq=metadata,  # pyright: ignore[reportCallIssue] -- TY023; see tests/typing/pyright_exceptions.json.
                                          unit=generation_unit, inclusive="both")

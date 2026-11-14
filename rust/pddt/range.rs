@@ -279,7 +279,7 @@ struct Endpoints {
     zone: Py<PyAny>,
 }
 impl Endpoints {
-    fn carrier(&self) -> PyResult<Unit> {
+    fn carrier_unit(&self) -> PyResult<Unit> {
         for unit in [
             Unit::Second,
             Unit::Millisecond,
@@ -301,41 +301,19 @@ impl Endpoints {
             "local range endpoints exceed the supported intermediate date container",
         ))
     }
-
-    fn tick(&self, index: usize) -> PyResult<Option<i64>> {
-        let unit = self.carrier()?;
-        self.coordinates[index]
-            .map(|ns| {
-                if ns.rem_euclid(unit.nanos()) != 0 {
-                    return Err(crate::error_context::value_error(
-                        "range endpoint cannot be preserved at this unit; choose a finer unit",
-                    ));
-                }
-                i64::try_from(ns.div_euclid(unit.nanos()))
-                    .ok()
-                    .filter(|v| *v != i64::MIN)
-                    .ok_or_else(|| {
-                        crate::error_context::overflow(
-                            "range endpoint is outside the selected unit",
-                        )
-                    })
-            })
-            .transpose()
-    }
 }
 #[pymethods]
 impl Endpoints {
-    #[getter]
-    fn carrier_unit(&self) -> PyResult<&'static str> {
-        Ok(self.carrier()?.name())
-    }
-    #[getter]
-    fn start(&self) -> PyResult<Option<i64>> {
-        self.tick(0)
-    }
-    #[getter]
-    fn end(&self) -> PyResult<Option<i64>> {
-        self.tick(1)
+    fn carrier(&self) -> PyResult<(Option<i64>, Option<i64>, &'static str)> {
+        let unit = self.carrier_unit()?;
+        // carrier_unit proved these same immutable coordinates exact, within
+        // i64 and distinct from NaT. No callback or new value intervenes.
+        let tick = |ns: i128| ns.div_euclid(unit.nanos()) as i64;
+        Ok((
+            self.coordinates[0].map(tick),
+            self.coordinates[1].map(tick),
+            unit.name(),
+        ))
     }
     #[getter]
     fn unit(&self) -> &'static str {

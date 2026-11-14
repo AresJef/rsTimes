@@ -1901,13 +1901,10 @@ class Pddt(pd.DatetimeIndex):
                     normalize, default, yearfirst, dayfirst, isoformat, strict, cfg)
                 # The mature executor receives already-decoded local coordinates.
                 # Regional candidate choice remains in the shared Rust finalizer.
-                start_tick, end_tick = inputs.start, inputs.end
-                carrier_unit = inputs.carrier_unit
+                start_tick, end_tick, carrier_unit = inputs.carrier()
                 start_value = None if start_tick is None else pd.Timestamp(np.datetime64(start_tick, carrier_unit))
                 end_value = None if end_tick is None else pd.Timestamp(np.datetime64(end_tick, carrier_unit))
-                generation_unit,minimum_unit=_range_mature_units(metadata,inputs.unit)
-                if generation_unit is not None:
-                    generation_unit = _UNITS[max(_UNITS.index(generation_unit), _UNITS.index(carrier_unit))]
+                generation_unit,minimum_unit=_range_mature_units(metadata,inputs.unit,carrier_unit)
                 try:
                     external = pd.date_range(start=start_value, end=end_value,  # pyright: ignore[reportCallIssue] -- TY004; see tests/typing/pyright_exceptions.json.
                         periods=periods, freq=metadata, unit=generation_unit, inclusive="both")
