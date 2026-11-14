@@ -503,16 +503,9 @@ fn binary<'py, const DYNAMIC: bool>(
                 Value::Span(value) => source
                     .checked_add(*value * sign)
                     .ok_or_else(|| crate::error_context::overflow("duration addition overflow")),
-                Value::Date(value, aware) => {
-                    if *aware != zone.is_some() {
-                        return Err(crate::error_context::type_error(
-                            "cannot subtract timezone-aware and timezone-naive dates",
-                        ));
-                    }
-                    source
-                        .checked_sub(*value)
-                        .ok_or_else(|| crate::error_context::overflow("date difference overflow"))
-                }
+                Value::Date(value, _) => source
+                    .checked_sub(*value)
+                    .ok_or_else(|| crate::error_context::overflow("date difference overflow")),
                 Value::Delta(fields) => {
                     let wall = if let Some(offset) = fixed {
                         source + i128::from(offset) * 1000

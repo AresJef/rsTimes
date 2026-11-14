@@ -131,14 +131,9 @@ fn component_range(
 ) -> PyResult<Option<i64>> {
     if value.is_some_and(|n| low.is_some_and(|l| n < l) || high.is_some_and(|h| n > h)) {
         return Err(crate::error_context::value_error(format!(
-            "must be in the inclusive range {} through {}{}",
+            "must be in the inclusive range {} through {}; use None only when the field may be retained",
             low.unwrap_or(i64::MIN),
-            high.unwrap_or(i64::MAX),
-            if value.is_none() {
-                ""
-            } else {
-                "; use None only when the field may be retained"
-            }
+            high.unwrap_or(i64::MAX)
         )));
     }
     Ok(value)

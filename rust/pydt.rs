@@ -2037,13 +2037,6 @@ pub(crate) fn lookup_selector(py: Python<'_>, token: &str, weekday: bool) -> PyR
     }
 }
 
-/// Let an internal caller try a name without using exceptions as control flow.
-#[pyfunction]
-fn _pydt_lookup_optional(token: &str, weekday: bool) -> Option<i32> {
-    let found = lookup_default_name(token, weekday);
-    (found >= 0).then_some(found)
-}
-
 /// Query the shared immutable default vocabulary without converting each name.
 pub(crate) fn lookup_default_name(token: &str, weekday: bool) -> i32 {
     crate::parser::config::default_calendar_name(token, weekday)
@@ -2528,7 +2521,7 @@ fn _pydt_move<'py>(
             )?
             .unwrap_or(-1);
             if part > 0 {
-                month = (i64::from(value.get_month()) - 1) / 3 * 3 + part.min(3);
+                month = (i64::from(value.get_month()) - 1) / 3 * 3 + part;
             }
         }
         2 => months = offset,
@@ -2788,7 +2781,6 @@ fn _pydt_is_boundary(
         }
         let us = value.get_microsecond();
         let matches = match kind {
-            9 => return Ok(true),
             8 => return Ok(us % 1000 == if end { 999 } else { 0 }),
             7 => us == if end { 999_999 } else { 0 },
             6 => {
@@ -3040,14 +3032,13 @@ fn _pydt_snap<'py>(value: &Bound<'py, PyDateTime>, unit: &str) -> PyResult<Bound
                 - (crate::calendar::ordinal(fields[0], fields[1], fields[2]) - 1).rem_euclid(7))
                 * day
         }
-        "D" | "h" | "m" | "min" | "s" | "ms" | "us" => {
+        "D" | "h" | "m" | "min" | "s" | "ms" => {
             let step = match unit {
                 "D" => day,
                 "h" => 3_600_000_000,
                 "m" | "min" => 60_000_000,
                 "s" => 1_000_000,
-                "ms" => 1000,
-                _ => 1,
+                _ => 1000,
             };
             period.step = step;
             period.width = step;
@@ -4020,7 +4011,6 @@ pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_pydt_to_us, module)?)?;
     module.add_function(wrap_pyfunction!(_pydt_to_seconds, module)?)?;
     module.add_function(wrap_pyfunction!(lookup_selector, module)?)?;
-    module.add_function(wrap_pyfunction!(_pydt_lookup_optional, module)?)?;
     module.add_function(wrap_pyfunction!(_pydt_calendar, module)?)?;
     module.add_function(wrap_pyfunction!(_pydt_day_of_year, module)?)?;
     module.add_function(wrap_pyfunction!(_pydt_days_in_month, module)?)?;

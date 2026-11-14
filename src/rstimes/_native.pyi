@@ -1838,14 +1838,6 @@ def _pydt_lookup(token: object, weekday: bool) -> int:
     :returns: int; errors preserve the native or external exception contract.
     """
 
-def _pydt_lookup_optional(token: str, weekday: bool) -> int | None:
-    """Let an internal caller try a name without using exceptions as control flow.
-
-    :param token: Prepared token input; native validation and ownership rules apply.
-    :param weekday: Prepared weekday input; native validation and ownership rules apply.
-    :returns: int | None; errors preserve the native or external exception contract.
-    """
-
 def _pydt_matches(value: datetime, query: int, expected: SupportsIndex) -> bool:
     """Test integer calendar fields with the frozen convenience conversion.
 

@@ -78,27 +78,13 @@ fn scalar_types(py: Python<'_>) -> PyResult<&(Py<PyType>, Py<PyType>)> {
     }
     // Import and attribute access may reenter rstimes. Never perform them while
     // owning an initialization lock: a nested call may publish the same cache.
-    let module = match py.import("numpy._core._multiarray_umath") {
-        Ok(module) => module,
-        Err(error) if error.is_instance_of::<pyo3::exceptions::PyModuleNotFoundError>(py) => {
-            let missing = error
-                .value(py)
-                .getattr("name")
-                .map_err(crate::error_context::external)?;
-            let name = missing.extract::<String>()?;
-            if name != "numpy._core" && name != "numpy._core._multiarray_umath" {
-                return Err(error);
-            }
-            py.import("numpy.core._multiarray_umath")?
-        }
-        Err(error) => return Err(error),
-    };
+    let module = py.import("numpy._core._multiarray_umath")?;
     let capsule = module
         .getattr("_ARRAY_API")
         .map_err(crate::error_context::external)?;
     // SAFETY: NumPy's public multiarray API is a nameless exact capsule. Its
     // documented entries 215/216 are the actual scalar PyTypeObjects, including
-    // in the supported NumPy 1.x/2.x tables. Mutable Python aliases are not used.
+    // in the supported NumPy 2.x table. Mutable Python aliases are not used.
     let candidate = unsafe {
         if pyo3::ffi::PyCapsule_CheckExact(capsule.as_ptr()) == 0 {
             return Err(crate::error_context::type_error(

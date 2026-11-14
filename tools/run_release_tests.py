@@ -45,6 +45,7 @@ def main():
     if args.core:
         paths = [
             "test_optional_dateutil.py", "test_release_matrix.py",
+            "test_product_ready_numpy_loader.py",
             "test_rewrite_numeric_preparation.py",
             "test_free_threaded_contract.py", "test_thread_case_watchdog.py",
             "parser/test_frozen_parse.py", "parser/test_entrypoints.py",

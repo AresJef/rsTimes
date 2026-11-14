@@ -4,16 +4,16 @@ Date text inputs and string defaults accept real str subclasses and read
 their native stored content, without calling __str__ or overridden sequence
 methods. Call str(value) explicitly when conversion is intended.
 """
-from datetime import datetime, date as _date, time as _time, timedelta, timezone, tzinfo as _tzinfo
+from datetime import datetime, date as _date, time as _time, timezone
 from zoneinfo import ZoneInfo, available_timezones
 from operator import index as _index
 from typing import cast
 from numpy import bool_ as _numpy_bool
 from ._native import (_pydt_register, _pydt_shift, _pydt_from_us, _pydt_compare_now,
-                      _pydt_to_us, _pydt_to_seconds, _pydt_lookup, _pydt_calendar, _pydt_move,
+                      _pydt_to_us, _pydt_to_seconds, _pydt_calendar, _pydt_move,
                       _pydt_adjust, _pydt_boundary, _pydt_is_boundary, _pydt_round, _pydt_snap, _pydt_fsp,
                       _pydt_from_ordinal, _pydt_from_doy, _pydt_from_iso, _pydt_leaps,
-                      _pydt_copy_datetime, _pydt_copy_date, _pydt_from_instant, _pydt_from_calendar, _pydt_combine, _pydt_calendar_date, _pydt_repr_fields, _pydt_carrier, _pydt_replace, _pydt_replace_general, _pydt_stored_timezone, _pydt_millisecond,
+                      _pydt_copy_datetime, _pydt_copy_date, _pydt_from_instant, _pydt_combine, _pydt_calendar_date, _pydt_repr_fields, _pydt_replace, _pydt_replace_general, _pydt_stored_timezone, _pydt_millisecond,
                       _pydt_normalize, _pydt_add, _pydt_diff, _pydt_matches, _pydt_offset_seconds, _pydt_convert, _pydt_flag, _pydt_is_local, _pydt_is_utc, _pydt_name_matches, _pydt_iso, _pydt_from_numpy, _pydt_timedict, _pydt_from_seconds, _pydt_strptime, _pydt_from_numpy_zoned, _pydt_dst, _pydt_is_dst, _pydt_timetuple)
 from ._native import parse as _parse, _pydt_strftime
 from ._native import _PydtBase, _pydt_binary, _pydt_clock, _pydt_copy_fold, _pydt_reduce
@@ -57,23 +57,12 @@ def _restore_pydt(cls, version, fields, tz, fold):
         _raise_argument_context(error, "Pydt restore", "state", None)
 
 
-_DATE_DESCRIPTORS = tuple(getattr(datetime, name) for name in
-                          ("year", "month", "day", "hour", "minute", "second", "microsecond"))
 _UNSET = object()
 
 
 def _boolean(value, entry, parameter):
     """Prepare a real boolean scalar without generic truth conversion."""
     return _bool_option(value, entry, parameter)
-
-
-def _datetime_value(value):
-    """Make a builtin carrier without public subclass field or constructor hooks."""
-    return _pydt_carrier(value)
-
-
-_TM_KEYS = ("tm_year", "tm_mon", "tm_mday", "tm_hour", "tm_min", "tm_sec",
-            "tm_wday", "tm_yday", "tm_isdst")
 
 
 class Pydt(_PydtBase):
