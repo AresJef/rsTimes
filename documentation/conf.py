@@ -21,6 +21,7 @@ html_theme = "pydata_sphinx_theme"
 html_title = f"rsTimes {release} documentation"
 html_static_path = ["_static"]
 html_css_files = ["rstimes.css"]
+html_js_files = ["rstimes-docs.js"]
 html_favicon = '_static/favicon.svg'
 html_theme_options = {
     "logo": {"text": "rsTimes"},

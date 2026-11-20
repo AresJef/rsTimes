@@ -83,6 +83,7 @@ def authored_cases(examples, rendered_pages):
                 if any(observed.get(key) != value for key, value in hashes.items()):
                     errors.append(f"Current rendered code or expected output missing: {name}")
                 hashes["checks_sha256"] = sha("\n".join(registration["checks"]).encode())
+                hashes["expected_output"] = example.output
             elif format == "contract" and name in contracts:
                 hashes = {"sha256": sha(contracts[name].encode())}
             else:
@@ -117,7 +118,11 @@ def matching_reports(root, examples, blocks, identity, profiles, verifier_sha):
             if block["format"] == "python":
                 actual = group["actual"]
                 state = profiles[profile]["gil_enabled"]
-                ok = ok and actual["gil_before"] is actual["gil_after"] is state
+                error_type = (actual["exception"] or {}).get("type")
+                ok = (ok and actual["gil_before"] is actual["gil_after"] is state
+                      and actual["output"] == block["expected_output"]
+                      and error_type == example.get("raises")
+                      and not (actual["checks_error"] or actual["stderr"]))
             found[(group["id"], profile)].append({
                 "verified": ok, "example": group["id"], "profile": profile,
                 "report": path.relative_to(root).as_posix(), "page_sha256": report["page_sha256"],
@@ -126,7 +131,7 @@ def matching_reports(root, examples, blocks, identity, profiles, verifier_sha):
                 "native": report["identity"]["native"], "python": report["identity"]["python"],
                 "dependencies": report["identity"]["dependencies"],
                 "gil_before": report["identity"]["gil_enabled"], "gil_after": report["identity"]["gil_after_page"],
-                **block,
+                **{key: value for key, value in block.items() if key != "expected_output"},
             })
     return found
 

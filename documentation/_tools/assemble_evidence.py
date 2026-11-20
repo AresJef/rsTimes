@@ -39,6 +39,17 @@ def main():
     audit = json.loads((found['full'] / 'stub-audit.json').read_text())
     if audit['missing'] or audit['example_failures'] or not audit['examples']:
         parser.error('Installed public-stub examples did not pass')
+    binding = json.loads((DOC / '_data/source-checkout.json').read_text())
+    for kind in ('tag', 'sdist'):
+        receipt = found['full'] / ('source-' + kind + '.json')
+        proof = json.loads(receipt.read_text())
+        if (proof['status'] != 'pass' or proof['checked_from'] != kind
+                or proof['source_commit'] != binding['source_commit']
+                or proof['source_tag'] != binding['source_tag']
+                or proof['checked_files'] != len(binding['source_files'])
+                or proof['changed_files']):
+            parser.error('Published source verification failed: ' + kind)
+        shutil.copyfile(receipt, args.output / receipt.name)
     identity['profile_identities'] = {}
     for profile, directory in found.items():
         current = json.loads((directory / 'identity.json').read_text())
@@ -55,7 +66,7 @@ def main():
         reports = directory / 'reports'
         if not reports.is_dir():
             parser.error('Missing actual page reports for ' + profile)
-        for report_file in reports.rglob('*.md.json'):
+        for report_file in reports.rglob('*.json'):
             if json.loads(report_file.read_text())['profile'] != profile:
                 parser.error('Report profile differs from its producer')
         shutil.copytree(reports, args.output / 'reports' / profile)
