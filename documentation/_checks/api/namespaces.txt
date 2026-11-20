@@ -1,0 +1,31 @@
+```{doctest} pddt-namespace-reference
+>>> from rstimes import Pddt
+>>> import pandas as pd
+>>> source = Pddt(['2024-01-31T12:34:56.123456789', None], tz='UTC', name='event')
+>>> result = source.pddt.replace(day=[1, None], hour=0, nanosecond=2)
+>>> (type(result) is Pddt, result.unit, result.name, result.isna().tolist(), result.isoformat().dropna().tolist())
+(True, 'ns', 'event', [False, True], ['2024-01-01T00:34:56.123456002+00:00'])
+>>> source.day.dropna().tolist()
+[31.0]
+>>> if hasattr(source, 'replace'):
+...     inherited = source.replace({source[0]: pd.Timestamp('2024-02-01', tz='UTC')})
+...     assert type(inherited) is pd.DatetimeIndex and inherited.name == 'event'
+...     assert inherited.day.dropna().tolist() == [1.0] and inherited.isna().tolist() == [False, True]
+... else:
+...     assert tuple(int(part) for part in pd.__version__.split('.')[:2]) < (3, 1)
+>>> try:
+...     source.pddt.replace(month=2)
+... except ValueError as error:
+...     print(type(error).__name__)
+ValueError
+```
+
+```{doctest} pddt-namespace-regional-policies
+>>> repeated = Pddt(['2024-11-03 01:30', None], unit='ns')
+>>> localized = repeated.pddt.replace(tzinfo='America/New_York', ambiguous=False)
+>>> (localized.tz_convert('UTC').isoformat().dropna().tolist(), localized.isna().tolist())
+(['2024-11-03T06:30:00+00:00'], [False, True])
+>>> gap = Pddt(['2024-03-10 02:30'], unit='us')
+>>> gap.pddt.replace(tzinfo='America/New_York', nonexistent='shift_forward').isoformat().tolist()
+['2024-03-10T03:00:00-04:00']
+```

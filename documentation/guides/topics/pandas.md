@@ -1,20 +1,18 @@
-# pandas dates with Pddt
+# Work with a pandas date index
 
-DatetimeIndex workflows with explicit units, NaT and strict date-field operations.
-Start with the first guide, then choose the operation you need.
+Use Pddt for indexed dates. Choose a guide for constructing, moving, or
+exporting the values you have.
 
 ```{toctree}
 :maxdepth: 1
 
 ../pddt
 ../pddt-factories
-../pddt-timezones
 ../pddt-ranges
 ../pddt-calendar
 ../pddt-boundaries
+../pddt-timezones
 ../pddt-output
-../pddt-protocols
 ../pddt-interop
+../pddt-protocols
 ```
-
-For an individual public entry, use the [API reference](../../api/index.md).

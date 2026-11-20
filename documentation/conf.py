@@ -14,13 +14,15 @@ language = "en"
 version = release = TARGET["version"]
 extensions = ["myst_parser", "autoapi.extension", "sphinx.ext.napoleon", "sphinx.ext.doctest", "sphinx_copybutton"]
 source_suffix = {".md": "markdown", ".rst": "restructuredtext"}
-exclude_patterns = ["_build", "_stubs", "_tools", "_data", "**/.DS_Store"]
+exclude_patterns = ["_build", "_checks", "_migration", "_stubs", "_tools", "_data", "**/.DS_Store"]
 myst_enable_extensions = ["colon_fence", "deflist", "fieldlist"]
 myst_heading_anchors = 5
 html_theme = "pydata_sphinx_theme"
 html_title = f"rsTimes {release} documentation"
+html_baseurl = f"https://aresjef.github.io/rsTimes/{release}/"
 html_static_path = ["_static"]
 html_css_files = ["rstimes.css"]
+html_js_files = ["rstimes-docs.js"]
 html_favicon = '_static/favicon.svg'
 html_theme_options = {
     "logo": {"text": "rsTimes"},
@@ -32,7 +34,6 @@ html_theme_options = {
     "navigation_depth": 3,
     "footer_start": ["copyright"],
     "footer_end": ["sphinx-version"],
-    "announcement": "Development preview — being verified against the latest implementation." if TARGET["status"] == "candidate" else f"Documentation for rsTimes {release} (beta).",
 }
 html_context = {"default_mode": "auto"}
 html_show_sourcelink = False
@@ -53,8 +54,7 @@ napoleon_numpy_docstring = True
 napoleon_google_docstring = False
 napoleon_preprocess_types = True
 napoleon_type_aliases = {"date": "datetime.date", "datetime": "datetime.datetime", "time": "datetime.time", "timedelta": "datetime.timedelta"}
-copybutton_prompt_text = r">>> |\.\.\. "
-copybutton_prompt_is_regexp = True
+copybutton_selector = 'div[class^="highlight-"]:not(.highlight-text):not(.highlight-none) pre'
 doctest_default_flags = 0
 
 
@@ -86,6 +86,9 @@ def qualify_builtin_types(app, doctree):
 def setup(app):
     app.connect("autoapi-skip-member", skip_private)
     app.connect("doctree-read", qualify_builtin_types)
+    examples = runpy.run_path(str(HERE / '_tools/link_examples.py'))
+    app.connect('builder-inited', examples['load_links'])
+    app.connect('doctree-read', examples['link_examples'])
     integrity = runpy.run_path(str(HERE / '_tools/build_integrity.py'))
     app.connect('builder-inited', integrity['build_started'], priority=900)
     app.connect('build-finished', integrity['build_finished'], priority=900)

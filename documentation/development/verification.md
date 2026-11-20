@@ -1,33 +1,23 @@
 # Documentation verification evidence
 
-This website describes the public **rsTimes 0.2.0b3 beta** package. Its
-documentation checks cover descriptions and actual example behavior; a
-reproduction of a disclosed rsTimes defect is not a product conformance pass.
-The [known issues](../compatibility/known-issues.md) retain those distinctions.
+These receipts describe the rsTimes 1.0.0 documentation and its
+actual build and execution context.
 
-The published site includes these machine-readable receipts from the workflow
-that built it:
+- [Full entry, scenario, page, example, environment and evidence table in CSV](https://aresjef.github.io/rsTimes/1.0.0/verification/coverage.csv)
+- [The same coverage table in JSON](https://aresjef.github.io/rsTimes/1.0.0/verification/coverage.json)
+- [Documented product, documentation commit, wheel identities and deployment run](https://aresjef.github.io/rsTimes/1.0.0/_meta/build.json)
+- [Checksums of deployed files](https://aresjef.github.io/rsTimes/_meta/files.json)
 
-- [Complete entry–scenario–page–example–environment–evidence table (CSV)](https://aresjef.github.io/rsTimes/0.2.0b3/verification/coverage.csv)
-- [The same complete coverage table (JSON)](https://aresjef.github.io/rsTimes/0.2.0b3/verification/coverage.json)
-- [Product and documentation identities, actual ABI-specific package hashes, build tools and verification summary](https://aresjef.github.io/rsTimes/0.2.0b3/_meta/build.json)
-- [Checksums of public website files](https://aresjef.github.io/rsTimes/_meta/files.json)
+The canonical public entries include rsTimes-owned APIs,
+registered namespaces and supported documentation for inherited
+operations on rsTimes objects. Module re-exports use the
+canonical entry's result. Separate profile records show the
+actual installed wheel, interpreter, dependencies and example
+source. Expr evidence comes from executed queries.
+Wrong identities, missing cases and stale page results prevent
+a complete gate from passing.
 
-The table contains canonical rsTimes paths, including inherited operations on
-rsTimes objects and the registered Series/Expr date namespaces. Module
-re-exports and `Pldt.pldt` are aliases rather than extra entry counts. Generic
-Python class-authoring infrastructure and unrelated dtype APIs are outside
-this date/time documentation scope.
-
-Each evidence link identifies the actual page and code hashes, tested
-interpreter/profile, package bytes and observed pass status. Expr examples
-execute both eager selection and lazy collection. The required environments
-include core without optional integrations, frozen baseline/full,
-pandas 2, current pandas/Polars comparisons, Polars-only, optional exports,
-public-install smoke, actual Windows and actual free-threaded interpreters.
-The declared profiles and package bytes are checked before evidence is
-accepted. Results for a changed page or a different verifier are stale.
-
-The public receipts omit local account paths, credentials, raw environment
-directories and internal dependency binaries. For updates and recovery, see
-[the documentation maintenance workflow](documentation.md).
+The public records cover documentation and example execution.
+Product distribution qualifications and performance comparisons
+are recorded with the [1.0.0 release](https://github.com/AresJef/rsTimes/releases/tag/v1.0.0).
+For maintenance, see [verify and publish these docs](documentation.md).

@@ -18,9 +18,7 @@ def render(snapshot: Path, destination: Path) -> None:
         lines = [title, '=' * len(title), '',
                  f'.. py:class:: {root}', '',
                  '   Access this namespace on a real Polars Series.' if series else '   Access this namespace on a native Polars Expr. Results execute in select or collect.', '',
-                 '   Import rstimes to register the accessor. It is not a separately constructed user object.', '',
-                 '   Known product limitations, including custom ZoneInfo targets, are disclosed in',
-                 '   :doc:`/compatibility/known-issues`.', '',
+                 '   Import ``rstimes.pldt`` or load ``Pldt`` to register the accessor.', '',
                  'See the :doc:`../guides/pldt` guide for native storage and the',
                  ':doc:`../guides/expressions` guide for executed eager and lazy queries.', '']
         seen = set()

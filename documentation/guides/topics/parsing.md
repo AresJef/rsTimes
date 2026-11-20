@@ -1,7 +1,6 @@
-# Parsing and configuration
+# Parse dates and numbers
 
-Text grammar, configurable vocabularies, defaults, adapters and Unix helpers.
-Start with the first guide, then choose the operation you need.
+Choose a guide by the value you want to read.
 
 ```{toctree}
 :maxdepth: 1
@@ -11,7 +10,9 @@ Start with the first guide, then choose the operation you need.
 ../configs-state
 ../parserinfo
 ../parser-interop
+../numeric-text
 ../unix-milliseconds
 ```
 
-For an individual public entry, use the [API reference](../../api/index.md).
+[Look up a parser function or Configs method](../../api/reference/rstimes/parser/index.rst)
+in the API reference.

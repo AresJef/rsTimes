@@ -1,7 +1,7 @@
-# Delta calendar changes
+# Move dates by calendar rules
 
-Relative amounts, absolute fields, exact ns and destination rounding.
-Start with the first guide, then choose the operation you need.
+Use Delta for a reusable date change. Start with a month-end example
+and choose a guide for the operands, precision, or saved state you need.
 
 ```{toctree}
 :maxdepth: 1
@@ -10,5 +10,3 @@ Start with the first guide, then choose the operation you need.
 ../delta-interop
 ../delta-protocols
 ```
-
-For an individual public entry, use the [API reference](../../api/index.md).

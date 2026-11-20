@@ -1,0 +1,47 @@
+```{doctest} core-without-optional-packages
+>>> from datetime import date
+>>> from rstimes import Delta, Configs, Pydt, parse_str
+>>> (date(2024, 1, 31) + Delta(months=1)).isoformat()
+'2024-02-29'
+>>> parse_str('2024-01-02', cfg=Configs()).isoformat()
+'2024-01-02T00:00:00'
+>>> Pydt(2024, 1, 1).to_tomorrow().isoformat()
+'2024-01-02T00:00:00'
+```
+
+```{doctest} optional-date-class-contracts
+>>> import importlib.util
+>>> import rstimes
+>>> for name, package, extra in (('Pddt', 'pandas', 'pandas'), ('Pldt', 'polars', 'polars')):
+...     if importlib.util.find_spec(package) is None:
+...         try:
+...             getattr(rstimes, name)
+...         except ImportError as error:
+...             assert 'rstimes[' + extra + ']' in str(error)
+...         else:
+...             raise AssertionError('missing integration was accepted')
+...     else:
+...         date_class = getattr(rstimes, name)
+...         dates = date_class([0], unit='ns')
+...         assert type(dates) is date_class and len(dates) == 1
+...         if name == 'Pddt':
+...             assert dates.unit == 'ns' and dates.asi8.tolist() == [0]
+...         else:
+...             assert dates.dtype.time_unit == 'ns' and dates.to_physical().to_list() == [0]
+```
+
+```{doctest} optional-dateutil-contracts
+>>> if importlib.util.find_spec('dateutil') is None:
+...     for call in (lambda: Delta.from_relativedelta(object()), lambda: Configs.from_parserinfo(object())):
+...         try:
+...             call()
+...         except ImportError as error:
+...             assert 'rstimes[dateutil]' in str(error)
+...         else:
+...             raise AssertionError('missing dateutil was accepted')
+... else:
+...     from dateutil.relativedelta import relativedelta
+...     from dateutil.parser import parserinfo
+...     assert Delta.from_relativedelta(relativedelta(months=1)).months == 1
+...     assert Configs.from_parserinfo(parserinfo()).month['jan'] == 1
+```

@@ -1,7 +1,8 @@
 # Polars columns with Pldt
 
-Native Datetime storage, independent nulls, eager calendar work and precise interchange.
-Start with the first guide, then choose the operation you need.
+Build an eager native date column, then choose the guide for your
+operation. For date logic in a DataFrame or LazyFrame, start with
+[Polars expressions](../expressions.md).
 
 ```{toctree}
 :maxdepth: 1

@@ -1,0 +1,66 @@
+```{doctest} inherited-pldt-native-row-windows
+>>> import math
+>>> import polars as pl
+>>> from rstimes import Pldt
+>>> ticks = [0, 2000000000, 4000000000]
+>>> value = Pldt(pl.Series('event', ticks, dtype=pl.Datetime('ns', 'UTC')))
+>>> def check_date(result, expected):
+...     assert type(result) is pl.Series and result.name == 'event' and result.dtype == value.dtype
+...     assert result.to_physical().to_list() == expected
+>>> check_date(value.rolling_min(window_size=2), [None, 0, 2000000000])
+>>> check_date(value.rolling_max(window_size=2), [None, 2000000000, 4000000000])
+>>> check_date(value.rolling_mean(window_size=2), [None, 1000000000, 3000000000])
+>>> check_date(value.rolling_median(window_size=2), [None, 1000000000, 3000000000])
+>>> check_date(value.rolling_quantile(0.5, window_size=2), [None, 2000000000, 4000000000])
+>>> ranked = value.rolling_rank(window_size=2)
+>>> (type(ranked) is pl.Series, ranked.dtype, ranked.name, ranked.to_list())
+(True, Float64, 'event', [None, 2.0, 2.0])
+>>> nullable = Pldt(pl.Series('event', [0, None, 4000000000], dtype=value.dtype))
+>>> check_date(nullable.rolling_min(window_size=2), [None, None, None])
+>>> check_date(nullable.rolling_min(window_size=2, min_samples=1), [0, 0, 4000000000])
+>>> check_date(value.clear().rolling_min(window_size=2), [])
+```
+
+```{doctest} inherited-pldt-native-time-windows
+>>> check_date(value.rolling_min_by(value, window_size='3s'), [0, 0, 2000000000])
+>>> check_date(value.rolling_max_by(value, window_size='3s'), ticks)
+>>> check_date(value.rolling_mean_by(value, window_size='3s'), [0, 1000000000, 3000000000])
+>>> check_date(value.rolling_median_by(value, window_size='3s'), [0, 1000000000, 3000000000])
+>>> check_date(value.rolling_quantile_by(value, window_size='3s', quantile=0.5), ticks)
+>>> ranked = value.rolling_rank_by(value, window_size='3s')
+>>> (type(ranked) is pl.Series, ranked.dtype, ranked.name, ranked.to_list())
+(True, Float64, 'event', [1.0, 2.0, 2.0])
+>>> value.to_physical().to_list() == ticks
+True
+```
+
+```{doctest} inherited-pldt-native-window-statistics
+>>> for result in [value.rolling_std(window_size=2), value.rolling_std_by(value, window_size='3s')]:
+...     assert type(result) is pl.Series and result.dtype == pl.Float64 and result.name == 'event'
+...     actual = result.to_list()
+...     assert actual[0] is None and len(actual) == 3
+...     assert all(math.isclose(x, math.sqrt(2) * 1000000000, rel_tol=1e-12) for x in actual[1:])
+>>> for result in [value.rolling_var(window_size=2), value.rolling_var_by(value, window_size='3s')]:
+...     assert type(result) is pl.Series and result.dtype == pl.Float64 and result.name == 'event'
+...     actual = result.to_list()
+...     assert actual[0] is None and len(actual) == 3
+...     assert all(math.isclose(x, 2000000000000000000, rel_tol=1e-12) for x in actual[1:])
+```
+
+```{doctest} inherited-pldt-native-window-boundaries
+>>> def error_name(call):
+...     try:
+...         call()
+...     except Exception as error:
+...         return type(error).__name__
+...     raise AssertionError('a dtype error was required')
+>>> for name in ['rolling_kurtosis', 'rolling_skew', 'rolling_sum']:
+...     assert error_name(lambda: getattr(value, name)(window_size=2)) == 'InvalidOperationError'
+>>> error_name(lambda: value.rolling_map(lambda window: window.max(), window_size=2))
+'InvalidOperationError'
+>>> error_name(lambda: value.rolling_sum_by(value, window_size='3s'))
+'InvalidOperationError'
+>>> check_date(value.cumulative_eval(pl.element().max()), ticks)
+>>> value.to_physical().to_list() == ticks
+True
+```

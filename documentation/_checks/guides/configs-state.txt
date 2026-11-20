@@ -1,0 +1,85 @@
+```{doctest} configs-independent-copy
+>>> from copy import copy, deepcopy
+>>> from rstimes import Configs, parse_str
+>>> source = Configs(yearfirst=False, dayfirst=True)
+>>> source.add_month('harvest', 10)
+True
+>>> shallow, deep = copy(source), deepcopy(source)
+>>> (type(shallow) is Configs, type(deep) is Configs, shallow is not source, deep is not source)
+(True, True, True, True)
+>>> shallow.set_month({'harvest': 2})
+True
+>>> (source.month['harvest'], shallow.month['harvest'], deep.month['harvest'])
+(10, 2, 10)
+>>> parse_str('7 harvest 2024', cfg=source).isoformat()
+'2024-10-07T00:00:00'
+>>> direct = source.__copy__()
+>>> memo = {}
+>>> direct_deep = source.__deepcopy__(memo)
+>>> (direct is not source, direct.month == source.month, memo[id(source)] is direct_deep)
+(True, True, True)
+```
+
+```{doctest} configs-pickle-state
+>>> import pickle
+>>> source.add_tzone('Asia/Shanghai')
+True
+>>> loaded = pickle.loads(pickle.dumps(source, protocol=pickle.HIGHEST_PROTOCOL))
+>>> (type(loaded) is Configs, loaded is not source, loaded.month == source.month, loaded.tzone == source.tzone)
+(True, True, True, True)
+>>> loaded.del_month('harvest')
+True
+>>> 'harvest' in source.month
+True
+>>> source.__getstate__() is None
+True
+>>> recipe = source.__reduce__()
+>>> alternate = source.__reduce_ex__(pickle.HIGHEST_PROTOCOL)
+>>> (type(recipe) is tuple, len(recipe), callable(recipe[0]), recipe[2] == alternate[2])
+(True, 3, True, True)
+>>> state = recipe[2]
+>>> (state[:4], len(state), len(state[4]))
+(('rstimes.Configs', 2, False, True), 6, 8)
+>>> restored = Configs()
+>>> restored.__setstate__(state) is None
+True
+>>> (restored.yearfirst, restored.dayfirst, restored.month['harvest'], 'Asia/Shanghai' in restored.tzone)
+(False, True, 10, True)
+>>> restored.del_month('harvest')
+True
+>>> 'harvest' in source.month
+True
+>>> older = (state[0], 1, state[2], state[3], state[4])
+>>> restored.__setstate__(older)
+>>> (restored.month['harvest'], restored.tzone)
+(10, set())
+```
+
+```{doctest} configs-invalid-state
+>>> before = restored.month
+>>> invalid_version = (state[0], 99, *state[2:])
+>>> try:
+...     restored.__setstate__(invalid_version)
+... except ValueError as error:
+...     print(type(error).__name__, restored.month == before)
+ValueError True
+>>> try:
+...     restored.__setstate__(None)
+... except TypeError as error:
+...     print(type(error).__name__, restored.month == before)
+TypeError True
+```
+
+```{doctest} configs-object-protocols
+>>> (source == source, source != direct, source.__eq__(direct) is NotImplemented, source.__ne__(source))
+(True, True, True, False)
+>>> (type(source.__hash__()) is int, type(source.__repr__()) is str, source.__str__() == source.__repr__(), source.__format__('') == str(source))
+(True, True, True, True)
+>>> for name in ('__lt__', '__le__', '__gt__', '__ge__'):
+...     assert getattr(source, name)(direct) is NotImplemented
+>>> try:
+...     source.__format__('.2f')
+... except TypeError as error:
+...     print(type(error).__name__)
+TypeError
+```

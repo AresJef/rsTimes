@@ -1,80 +1,35 @@
-# Optional dependency boundaries
+# Install the optional features you use
 
-NumPy is required. Ordinary Delta, Configs, parsing, and Pydt use does not need
-pandas, Polars, dateutil, Arrow, or Babel. Pddt requires pandas; Pldt and `.pldt`
-require Polars. Loading either optional date class is an explicit operation.
+The core package installs NumPy and supports scalar dates, calendar arithmetic,
+`Configs`, and parsing. Install an extra when you use the corresponding
+integration.
 
-| Feature | Optional package / extra |
-|---|---|
-| Pddt | pandas / `rsTimes[pandas]` |
-| Pldt and Polars namespaces | polars / `rsTimes[polars]` |
-| Delta.from_relativedelta and Configs.from_parserinfo | python-dateutil / `rsTimes[dateutil]` |
-| Arrow interchange | pyarrow where required by the chosen interchange operation |
+| Task | Package or extra |
+| --- | --- |
+| Build a pandas date index with `Pddt` | `rsTimes[pandas]` |
+| Use `Pldt` or `.pldt` on a Polars column or expression | `rsTimes[polars]` |
+| Import a dateutil offset or parser vocabulary | `rsTimes[dateutil]` |
+| Export an Arrow object | Install `pyarrow` for the interchange method that requires it. |
 
-Install optional integrations before starting the process. Restart Python after
-adding a previously absent integration: a cached absence is not a hot-install
-mechanism. A broken installation or nested import failure keeps its original
-exception rather than being silently treated as an absent dependency.
+The [installation page](../getting-started/install.md) has the pip commands.
+Restart the interpreter after adding an optional adapter. This lets the new
+process discover the installed dependency.
 
-## Verify the core operations
+## Read the error for a missing extra
 
-```{doctest} core-without-optional-packages
->>> from datetime import date
->>> from rstimes import Delta, Configs, Pydt, parse_str
->>> (date(2024, 1, 31) + Delta(months=1)).isoformat()
-'2024-02-29'
->>> parse_str('2024-01-02', cfg=Configs()).isoformat()
-'2024-01-02T00:00:00'
->>> Pydt(2024, 1, 1).to_tomorrow().isoformat()
-'2024-01-02T00:00:00'
+In an environment with only the core package, importing `Pddt` identifies
+the missing pandas extra.
+
+(optional-missing-pandas)=
+```python
+from rstimes import Pddt
 ```
 
-The following checks work in either a core-only or a full environment. The
-absent branch verifies the installation error; the present branch executes a
-real date operation. Documentation validation runs both environments, so an
-unvisited branch is not counted as evidence for that environment.
+**Output**
 
-```{doctest} optional-date-class-contracts
->>> import importlib.util
->>> import rstimes
->>> for name, package, extra in (('Pddt', 'pandas', 'pandas'), ('Pldt', 'polars', 'polars')):
-...     if importlib.util.find_spec(package) is None:
-...         try:
-...             getattr(rstimes, name)
-...         except ImportError as error:
-...             assert 'rstimes[' + extra + ']' in str(error)
-...         else:
-...             raise AssertionError('missing integration was accepted')
-...     else:
-...         date_class = getattr(rstimes, name)
-...         dates = date_class([0], unit='ns')
-...         assert type(dates) is date_class and len(dates) == 1
-...         if name == 'Pddt':
-...             assert dates.unit == 'ns' and dates.asi8.tolist() == [0]
-...         else:
-...             assert dates.dtype.time_unit == 'ns' and dates.to_physical().to_list() == [0]
+```text
+ImportError: Pddt requires pandas; install rstimes[pandas].
 ```
 
-dateutil adapters follow the same dependency boundary. An absent dateutil raises
-an `ImportError` naming the public integration and installation extra; ordinary
-Rust parsing remains available.
-
-```{doctest} optional-dateutil-contracts
->>> if importlib.util.find_spec('dateutil') is None:
-...     for call in (lambda: Delta.from_relativedelta(object()), lambda: Configs.from_parserinfo(object())):
-...         try:
-...             call()
-...         except ImportError as error:
-...             assert 'rstimes[dateutil]' in str(error)
-...         else:
-...             raise AssertionError('missing dateutil was accepted')
-... else:
-...     from dateutil.relativedelta import relativedelta
-...     from dateutil.parser import parserinfo
-...     assert Delta.from_relativedelta(relativedelta(months=1)).months == 1
-...     assert Configs.from_parserinfo(parserinfo()).month['jan'] == 1
-```
-
-Documentation builders have their own development dependencies. For example,
-Sphinx uses Babel while building the website; that does not add Babel to the
-rsTimes runtime dependency set.
+Install the pandas extra before using `Pddt`. To use Polars without pandas,
+install the Polars extra and [load the Polars namespace](../getting-started/polars-query.md).

@@ -18,7 +18,7 @@ def main():
     if args.output.exists():
         parser.error('Use a fresh evidence-export directory')
     args.output.mkdir(parents=True)
-    reports = sorted(args.reports.rglob('*.md.json'))
+    reports = sorted(args.reports.rglob('*.json'))
     if not reports:
         parser.error('No actual page reports were produced')
     for path in reports:

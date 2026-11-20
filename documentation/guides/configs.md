@@ -1,244 +1,121 @@
-# Customize parsing with Configs
+# Set the rules for parsing your dates
 
-Configs holds token tables and numeric date-order preferences for the shared
-parser. Pass it as `cfg=` to the parsing call or date factory. It does not
-replace the parser with a different grammar.
+Use `Configs` when date order, vocabulary, or zone names depend on the source.
 
-## Choose an order
+## Choose day before month
 
-Create Configs with real Python or NumPy boolean flags. `yearfirst` and
-`dayfirst` are read-only properties; a parsing call can override either flag.
-`order_hint()` describes both preferences. Calling `__init__` explicitly again
-replaces the preferences and resets all token rules.
+(configs-use-day-first)=
+```python
+from rstimes import Configs, parse_str
 
-```{doctest} configs-order-flags
->>> import numpy as np
->>> from rstimes import Configs, parse_str
->>> expected_orders = {(True, True): 'Y/D/M', (True, False): 'Y/M/D', (False, True): 'D/M/Y', (False, False): 'M/D/Y'}
->>> for flags, expected in expected_orders.items():
-...     config = Configs(*flags)
-...     assert (config.yearfirst, config.dayfirst) == flags
-...     assert type(config.yearfirst) is bool and type(config.dayfirst) is bool
-...     assert config.order_hint() == expected
->>> Configs(np.bool_(False), np.bool_(True)).order_hint()
-'D/M/Y'
->>> try:
-...     config.dayfirst = True
-... except AttributeError as error:
-...     print(type(error).__name__)
-AttributeError
->>> for flag in (1, None, 'yes'):
-...     try:
-...         Configs(yearfirst=flag)
-...     except TypeError:
-...         continue
-...     raise AssertionError(flag)
->>> allocated = Configs.__new__(Configs)
->>> allocated.__init__(yearfirst=False, dayfirst=True) is None
-True
->>> (allocated.yearfirst, allocated.dayfirst)
-(False, True)
+rules = Configs(yearfirst=False, dayfirst=True)
+value = parse_str("01/02/2024", cfg=rules)
+print(value.date())
 ```
 
-The two-step allocation above documents the constructor protocol. Ordinary
-application code should use `Configs(...)` so initialization is complete before
-the object is used.
+**Output**
 
-## Edit token tables
-
-Each table has a snapshot property and `add_*`, `del_*`, and `set_*` methods.
-Adding or setting a valid rule returns `True`. Deletion returns `True` for a
-removed rule and `False` when it was absent. `set_*(None)` restores that table's
-defaults; an empty set or dictionary clears it.
-
-| Table | Snapshot / `set_*` input | Meaning of a mapped value |
-|---|---|---|
-| `jump` | set of words | Words that may be skipped. |
-| `pertain` | set of words | Linking words, such as “of”. |
-| `utc` | set of words | Names for UTC. |
-| `tzoffset` | word → integer seconds | Fixed UTC offset; `add_tzoffset` takes hours/minutes/seconds. |
-| `tzone` | set of exact region keys | IANA region names, validated and loaded when registered. |
-| `month` | word → integer | January=1 through December=12. |
-| `weekday` | word → integer | Monday=0 through Sunday=6. |
-| `hms` | word → integer | Hour=0, minute=1, second=2. |
-| `ampm` | word → integer | AM=0, PM=1. |
-
-Returned sets and dictionaries are independent snapshots. Edit the Configs
-itself using its methods; editing a displayed snapshot does not alter parsing.
-Ordinary words are recognized in their stored lowercase, uppercase, and
-titlecase forms. Region keys use exact, case-sensitive ZoneInfo names.
-
-```{doctest} configs-snapshot-ownership
->>> for namespace in ('jump', 'pertain', 'utc', 'tzoffset', 'tzone', 'month', 'weekday', 'hms', 'ampm'):
-...     config = Configs()
-...     assert config.add_tzoffset('desktime', hours=1) is True
-...     assert config.add_tzone('Asia/Shanghai') is True
-...     displayed = getattr(config, namespace)
-...     expected = displayed.copy()
-...     displayed.clear()
-...     assert getattr(config, namespace) == expected
+```text
+2024-02-01
 ```
 
-```{doctest} configs-word-set-lifecycle
->>> for namespace in ('jump', 'pertain', 'utc'):
-...     config = Configs()
-...     token = 'custom' + namespace
-...     assert getattr(config, 'add_' + namespace)(token) is True
-...     snapshot = getattr(config, namespace)
-...     assert type(snapshot) is set and token in snapshot
-...     snapshot.clear()
-...     assert token in getattr(config, namespace)
-...     assert getattr(config, 'del_' + namespace)(token) is True
-...     assert getattr(config, 'del_' + namespace)(token) is False
-...     assert getattr(config, 'set_' + namespace)({token}) is True
-...     assert token in getattr(config, namespace)
-...     assert getattr(config, 'set_' + namespace)(set()) is True
-...     assert getattr(config, namespace) == set()
-...     assert getattr(config, 'set_' + namespace)(None) is True
+Choose `yearfirst` and `dayfirst` when creating a configuration. Both
+flags are read-only. Pass an explicit `yearfirst` or `dayfirst` on a
+parse call to override its configured value for that call.
+
+## Recognize a month name from your data
+
+(configs-add-month-word)=
+```python
+from rstimes import Configs, parse_str
+
+rules = Configs()
+rules.add_month("harvest", 10)
+value = parse_str("7 harvest 2024", cfg=rules)
+print(value.date())
 ```
 
-Mapped tables follow the same edit lifecycle, while checking their own integer
-value ranges. Integers and the integer index protocol are accepted; booleans,
-floats, and numeric strings are not integer codes.
+**Output**
 
-```{doctest} configs-mapping-lifecycle
->>> for namespace, value in (('month', 2), ('weekday', 3), ('hms', 1), ('ampm', 1)):
-...     config = Configs()
-...     token = 'custom' + namespace
-...     assert getattr(config, 'add_' + namespace)(token, np.int64(value)) is True
-...     snapshot = getattr(config, namespace)
-...     assert type(snapshot) is dict and snapshot[token] == value
-...     snapshot.clear()
-...     assert getattr(config, namespace)[token] == value
-...     assert getattr(config, 'del_' + namespace)(token) is True
-...     assert getattr(config, 'del_' + namespace)(token) is False
-...     assert getattr(config, 'set_' + namespace)({token: value}) is True
-...     assert getattr(config, namespace)[token] == value
-...     assert getattr(config, 'set_' + namespace)({}) is True
-...     assert getattr(config, namespace) == {}
-...     assert getattr(config, 'set_' + namespace)(None) is True
+```text
+2024-10-07
 ```
 
-## Parse using the rules you installed
+An `add_*` method adds or updates one rule. A `del_*` method returns
+whether it removed the rule. Each `set_*` replaces the whole table.
+Use an empty dictionary or set to clear that table. Pass `None` to restore
+its defaults.
 
-```{doctest} configs-semantic-tokens
->>> from datetime import timedelta
->>> config = Configs()
->>> config.add_month('harvest', 2)
-True
->>> [parse_str('29 ' + token + ' 2024', cfg=config).isoformat() for token in ('harvest', 'Harvest', 'HARVEST')]
-['2024-02-29T00:00:00', '2024-02-29T00:00:00', '2024-02-29T00:00:00']
->>> config.add_weekday('cycle', 3)
-True
->>> parse_str('cycle 2024-01-04', cfg=config, strict=True).weekday()
-3
->>> for flag, expected in ((0, (3, 0, 0)), (1, (0, 3, 0)), (2, (0, 0, 3))):
-...     assert config.set_hms({'shiftunit': flag}) is True
-...     value = parse_str('2024-01-02 3shiftunit', cfg=config)
-...     assert (value.hour, value.minute, value.second) == expected
->>> for flag, expected in ((0, 3), (1, 15)):
-...     assert config.set_ampm({'daypart': flag}) is True
-...     assert parse_str('2024-01-02 3 daypart', cfg=config).hour == expected
->>> config.add_utc('universal')
-True
->>> parse_str('1970-01-01 00:00 universal', cfg=config, ignoretz=False).utcoffset() == timedelta(0)
-True
+| Table | What its values mean |
+| --- | --- |
+| `jump` | Words that can be skipped. |
+| `pertain` | Linking words such as `of`. |
+| `utc` | Names for UTC. |
+| `tzoffset` | A fixed UTC offset in integer seconds. `add_tzoffset` takes hours, minutes, and seconds. |
+| `tzone` | Exact named IANA zones. |
+| `month` | January is 1 and December is 12. |
+| `weekday` | Monday is 0 and Sunday is 6. |
+| `hms` | Hour is 0, minute is 1, and second is 2. |
+| `ampm` | AM is 0 and PM is 1. |
+
+Read a table property for an independent snapshot. Edit the configuration
+through its methods. Ordinary vocabulary recognizes stored lower, upper,
+and title case forms. Named zones use their exact IANA names. Mapped
+values use integer codes and exclude booleans.
+
+## Interpret an office's timezone label
+
+(configs-fixed-offset-alias)=
+```python
+from rstimes import Configs, parse_str
+
+rules = Configs()
+rules.add_tzoffset("desktime", hours=8, minutes=30)
+value = parse_str(
+    "2024-01-01 09:00 desktime",
+    cfg=rules, ignoretz=False,
+)
+print(value.isoformat())
 ```
 
-## Fixed offsets and region names
+**Output**
 
-Offset components combine into a fixed offset strictly between −24 and +24
-hours. A region has changing calendar rules; it is not a fixed abbreviation.
-Names such as CST do not acquire an assumed host-local meaning. Configure an
-explicit alias or register a full region name for the meaning you intend.
-
-```{doctest} configs-fixed-offset
->>> config = Configs()
->>> config.add_tzoffset('desktime', hours=8, minutes=30, seconds=15)
-True
->>> (type(config.tzoffset) is dict, config.tzoffset['desktime'])
-(True, 30615)
->>> parse_str('1970-01-01 08:30:15 desktime', cfg=config, ignoretz=False).utcoffset().total_seconds()
-30615.0
->>> config.del_tzoffset('desktime'), config.del_tzoffset('desktime')
-(True, False)
->>> config.set_tzoffset({'desktime': 3600})
-True
->>> config.tzoffset['desktime']
-3600
->>> config.set_tzoffset({}), config.tzoffset, config.set_tzoffset(None)
-(True, {}, True)
+```text
+2024-01-01T09:00:00+08:30
 ```
 
-```{doctest} configs-region-lifecycle
->>> config = Configs()
->>> config.add_tzone('Asia/Shanghai')
-True
->>> snapshot = config.tzone
->>> (type(snapshot) is set, 'Asia/Shanghai' in snapshot)
-(True, True)
->>> snapshot.clear()
->>> 'Asia/Shanghai' in config.tzone
-True
->>> regional = parse_str('1970-01-01 08:00 Asia/Shanghai', cfg=config, ignoretz=False)
->>> (regional.tzinfo.key, regional.utcoffset().total_seconds())
-('Asia/Shanghai', 28800.0)
->>> config.del_tzone('Asia/Shanghai'), config.del_tzone('Asia/Shanghai')
-(True, False)
->>> config.set_tzone({'Asia/Shanghai'}), 'Asia/Shanghai' in config.tzone
-(True, True)
->>> config.set_tzone(set()), config.tzone, config.set_tzone(None)
-(True, set(), True)
+A fixed offset applies throughout the year. For a regional rule with
+daylight-saving changes, register an exact IANA name with `add_tzone`.
+When the parser recognizes both a region and a fixed offset in one input,
+the region supplies the zone. For an explicit format, `%Z` reads names
+from the effective configuration and `%z` reads numeric offsets.
+
+## Reset the vocabulary and keep the date order
+
+(configs-reset-vocabulary)=
+```python
+from rstimes import Configs
+
+rules = Configs(yearfirst=False, dayfirst=True)
+rules.add_month("harvest", 10)
+rules.reset_settings()
+print(rules.order_hint())
+print(rules.month.get("harvest"))
 ```
 
-## Validation, reset, and reinitialization
+**Output**
 
-Conflicting words in distinct semantic tables raise `ConfigError`; jump words
-are the explicit overlap exception. A failed replacement leaves that table's
-previous rules intact. `clear_settings()` clears the token tables, while
-`reset_settings()` restores them; both preserve the two date-order flags.
-
-```{doctest} configs-errors-and-reset
->>> from rstimes.errors import ConfigError
->>> config = Configs(yearfirst=False, dayfirst=True)
->>> before = config.month
->>> try:
-...     config.add_month('monday', 2)
-... except ConfigError as error:
-...     print(type(error).__name__, config.month == before)
-ConfigError True
->>> config.add_jump('monday')
-True
->>> for method, value in (('add_month', True), ('add_weekday', 1.0), ('add_hms', '1'), ('add_ampm', np.bool_(False))):
-...     try:
-...         getattr(config, method)('customtoken', value)
-...     except TypeError:
-...         continue
-...     raise AssertionError(method)
->>> namespaces = ('jump', 'pertain', 'utc', 'tzoffset', 'tzone', 'month', 'weekday', 'hms', 'ampm')
->>> config.clear_settings()
-True
->>> (all(not getattr(config, namespace) for namespace in namespaces), config.yearfirst, config.dayfirst)
-(True, False, True)
->>> config.reset_settings()
-True
->>> (config.month['jan'], config.yearfirst, config.dayfirst)
-(1, False, True)
->>> config.add_month('harvest', 10)
-True
->>> config.__init__(yearfirst=True, dayfirst=False)
->>> ('harvest' in config.month, config.yearfirst, config.dayfirst)
-(False, True, False)
->>> try:
-...     class CustomConfigs(Configs):
-...         pass
-... except TypeError as error:
-...     print(type(error).__name__)
-TypeError
+```text
+D/M/Y
+None
 ```
 
-Use [configuration copying and imports](configs-state.md) to adapt a dateutil
-parserinfo or save an independent snapshot. Finish business edits before
-sharing one Configs for concurrent parsing. Read-only use can share its lookup
-cache; overlapping edits or edit/read operations on one instance can raise
-`RuntimeError`. Edits on separate configurations are independent.
+`clear_settings()` empties the vocabulary and `reset_settings()` restores
+it. Both keep the order flags. Repeated `__init__` also keeps the existing
+configuration. Create another `Configs` to change the flags.
+
+Conflicting vocabulary in distinct semantic tables raises `ConfigError`.
+Jump words may overlap. A rejected replacement leaves the previous
+table in place. Finish edits before sharing a configuration for
+concurrent parsing. See [copy and save settings](configs-state.md) and
+[configuration in Polars queries](expressions-execution.md).

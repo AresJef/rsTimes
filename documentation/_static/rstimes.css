@@ -13,4 +13,6 @@ table.indextable tr.cap { background-color: var(--pst-color-surface); }
 @media (max-width: 575px) {
   .bd-article-container { min-width: 0; }
   .bd-article h1 { font-size: 2rem; }
+  .prev-next-area a .prev-next-info { min-width: 0; }
+  .prev-next-area a > i { flex: none; }
 }

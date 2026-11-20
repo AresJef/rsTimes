@@ -8,17 +8,18 @@ import argparse
 import ast
 from collections import Counter
 import hashlib
+import importlib
 import importlib.metadata
+import importlib.util
 import inspect
 import json
 from pathlib import Path
 import sys
 
+GIL_AT_ENTRY = getattr(sys, "_is_gil_enabled", lambda: True)()
+
 import rstimes
 from rstimes import errors
-import pandas as pd
-import polars as pl
-from polars.series.plotting import SeriesPlot
 
 PROTOCOLS = {
     "__new__", "__init__", "__add__", "__radd__", "__iadd__", "__sub__",
@@ -56,15 +57,38 @@ def inventory() -> dict:
         ("rstimes.Delta", rstimes.Delta, "delta.pyi", "Delta"),
         ("rstimes.Configs", rstimes.Configs, "parser.pyi", "Configs"),
         ("rstimes.Pydt", rstimes.Pydt, "pydt.pyi", "Pydt"),
-        ("rstimes.Pddt", rstimes.Pddt, "pddt.pyi", "Pddt"),
-        ("rstimes.Pddt.pddt", type(rstimes.Pddt([]).pddt), "pddt.pyi", "_PddtNamespace"),
-        ("rstimes.Pldt", rstimes.Pldt, "pldt.pyi", "Pldt"),
-        ("polars.Series.pldt", type(pl.Series([], dtype=pl.Datetime("us")).pldt), "pldt.pyi", "_SeriesNamespace"),
-        ("polars.Expr.pldt", type(pl.col("date").pldt), "pldt.pyi", "_ExprNamespace"),
-        ("rstimes.Pldt.dt", type(pl.Series([], dtype=pl.Datetime("us")).dt), None, None),
-        ("rstimes.Pldt.ext", type(pl.Series([], dtype=pl.Datetime("us")).ext), None, None),
-        ("rstimes.Pldt.plot", SeriesPlot, None, None),
     ]
+    unavailable = {}
+    for name, dependency in (("Pddt", "pandas"), ("Pldt", "polars")):
+        try:
+            getattr(rstimes, name)
+        except ImportError as error:
+            if importlib.util.find_spec(dependency) is not None:
+                raise
+            if f"{name.lower()} requires {dependency}" not in str(error).lower() and error.name != dependency:
+                raise
+            unavailable[f"rstimes.{name}"] = {
+                "missing_dependency": dependency,
+                "exception": type(error).__name__,
+                "message": str(error),
+            }
+    if "rstimes.Pddt" not in unavailable:
+        specs.extend([
+            ("rstimes.Pddt", rstimes.Pddt, "pddt.pyi", "Pddt"),
+            ("rstimes.Pddt.pddt", type(rstimes.Pddt([]).pddt), "pddt.pyi", "_PddtNamespace"),
+        ])
+    if "rstimes.Pldt" not in unavailable:
+        import polars as pl
+        from polars.series.plotting import SeriesPlot
+        date_series = pl.Series([], dtype=pl.Datetime("us"))
+        specs.extend([
+            ("rstimes.Pldt", rstimes.Pldt, "pldt.pyi", "Pldt"),
+            ("polars.Series.pldt", type(date_series.pldt), "pldt.pyi", "_SeriesNamespace"),
+            ("polars.Expr.pldt", type(pl.col("date").pldt), "pldt.pyi", "_ExprNamespace"),
+            ("rstimes.Pldt.dt", type(date_series.dt), None, None),
+            ("rstimes.Pldt.ext", type(date_series.ext), None, None),
+            ("rstimes.Pldt.plot", SeriesPlot, None, None),
+        ])
     specs.extend((f"rstimes.errors.{name}", getattr(errors, name), "errors.pyi", name) for name in errors.__all__)
     rows, exclusions = [], []
     trees = {p.name: ast.parse(p.read_text()) for p in package.glob("*.pyi")}
@@ -138,6 +162,8 @@ def inventory() -> dict:
         rows.append({"path": prefix, "owner": prefix, "name": clsname or typ.__name__, "kind": "namespace" if ".pldt" in prefix or prefix.endswith((".pddt", ".dt", ".ext", ".plot")) else "class", "signatures": [], "stub": stub, "stub_lines": [cls.lineno] if cls else [], "runtime_present": True, "origin": "library" if cls else "inherited", "source_description": ast.get_docstring(cls) if cls else inspect.getdoc(typ), "page": None, "anchor": None, "examples": [], "scenarios": [], "status": "unmapped"})
     for module, stub, exports in [(rstimes, "__init__.pyi", rstimes.__all__), (rstimes.parser, "parser.pyi", rstimes.parser.__all__)]:
         for name in exports:
+            if f"rstimes.{name}" in unavailable:
+                continue
             obj = getattr(module, name)
             if inspect.isclass(obj):
                 continue
@@ -152,6 +178,14 @@ def inventory() -> dict:
                 selected_stub = "parser.pyi"
             rows.append({"path": prefix, "owner": "rstimes", "name": name, "kind": "function", "stub": selected_stub, "stub_lines": [n.lineno for n in nodes], "signatures": [signature(n) for n in nodes], "runtime_present": True, "origin": "library", "source_description": ast.get_docstring(nodes[-1]) if nodes else inspect.getdoc(obj), "page": None, "anchor": None, "examples": [], "scenarios": [], "status": "unmapped"})
     aliases = {f"rstimes.{module}.{name}": f"rstimes.{name}" for module, names in [("delta", ["Delta"]), ("parser", rstimes.parser.__all__), ("pydt", ["Pydt"]), ("pddt", ["Pddt"]), ("pldt", ["Pldt"])] for name in names}
+    verified_aliases = {}
+    for path, canonical in aliases.items():
+        if canonical in unavailable:
+            continue
+        module_name, _, attribute = path.rpartition(".")
+        if getattr(importlib.import_module(module_name), attribute) is not getattr(rstimes, attribute):
+            raise ValueError(f"Public alias identity differs: {path}")
+        verified_aliases[path] = canonical
     # A namespace accessor and the namespace it returns are one public call
     # path. Retain both descriptions without counting that path twice.
     unique = {}
@@ -172,15 +206,24 @@ def inventory() -> dict:
     for row in rows:
         if row['owner'] == 'rstimes.Pydt' and row['name'] in ('min', 'max', 'resolution'):
             row['kind'] = 'attribute'
+    dependencies = {}
+    for name in ("numpy", "pandas", "polars", "python-dateutil"):
+        try:
+            dependencies[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            dependencies[name] = None
     return {
         "schema": 3, "product_version": importlib.metadata.version("rstimes"),
         "target_status": json.loads((Path(__file__).resolve().parents[1] / 'target.json').read_text())["status"],
         "python": sys.version, "package": str(package),
-        "dependencies": {n: importlib.metadata.version(n) for n in ("numpy", "pandas", "polars", "python-dateutil")},
+        "dependencies": dependencies,
+        "gil_before": GIL_AT_ENTRY,
+        "gil_after": getattr(sys, "_is_gil_enabled", lambda: True)(),
         "native": {p.name: sha(p) for p in package.iterdir() if p.suffix in ('.so', '.pyd')},
         "stubs": {p.name: sha(p) for p in package.glob("*.pyi")},
         "exports": rstimes.__all__, "error_exports": errors.__all__,
-        "aliases": aliases, "rows": sorted(rows, key=lambda x: x["path"]),
+        "aliases": aliases, "verified_aliases": verified_aliases, "unavailable": unavailable,
+        "rows": sorted(rows, key=lambda x: x["path"]),
         "exclusions": exclusions,
         "scope_note": "Inherited datetime/pandas/Polars public members and usable Datetime and Extension/Plot namespaces included, together with meaningful value, array-dispatch and exception-chain protocols. Dtype-specific non-Datetime namespaces are recorded at their accessors; their unrelated dtype API is not an rsTimes datetime API. Private helpers and generic Python object/class-authoring infrastructure (attribute lookup, dictionaries, annotations, layout, weak references, subclass hooks and size introspection) are excluded. Overloads are signatures of one entry, not extra entries.",
         "counts": dict(Counter(r["owner"] for r in rows)),

@@ -1,54 +1,40 @@
-# Exchange exact dates without confusing a valid value with missingness
+# Exchange exact dates through Arrow
 
-An ns Polars date column can contain the minimum signed 64-bit integer as a
-valid date and also have a separate null row. NumPy's datetime buffer reserves
-that integer for NaT, so those two states cannot both survive a plain NumPy
-datetime export. The checked rsTimes exporter rejects that collision by
-default. Arrow supplies separate validity and can carry both states.
+Choose a destination with independent validity to transfer the full
+Polars date range. The Arrow route requires PyArrow.
 
-```{doctest} recipe-exact-arrow-exchange
->>> import numpy as np
->>> import polars as pl
->>> import pyarrow as pa
->>> from rstimes import Pldt
->>> ticks = [-9223372036854775808, None, 1704067200000000123]
->>> source = Pldt(pl.Series('event', ticks, dtype=pl.Datetime('ns', 'UTC')))
->>> source.is_null().to_list()
+## Round-trip a valid minimum tick and a null
+
+(exchange-roundtrip-full-date-tick)=
+```python
+import polars as pl
+from rstimes import Pldt
+
+source = Pldt([-(2**63), None, 123], unit="ns", tz="UTC", name="event")
+arrow = source.to_arrow()
+restored = Pldt(pl.from_arrow(arrow), name=source.name)
+print(restored.to_physical().to_list())
+print(restored.is_null().to_list())
+```
+
+**Output**
+
+```text
+[-9223372036854775808, None, 123]
 [False, True, False]
->>> try:
-...     source.to_numpy()
-... except OverflowError as error:
-...     print(type(error).__name__, 'NaT reserved tick' in str(error))
-OverflowError True
->>> exported = source.to_arrow()
->>> (isinstance(exported, pa.TimestampArray), exported.type == pa.timestamp('ns', 'UTC'), exported.null_count)
-(True, True, 1)
->>> exported.cast(pa.int64()).to_pylist() == ticks
-True
->>> restored = Pldt(pl.from_arrow(exported), name=source.name)
->>> (type(restored) is Pldt, restored.name, restored.dtype == source.dtype)
-(True, 'event', True)
->>> (restored.to_physical().to_list() == ticks, restored.is_null().to_list())
-(True, [False, True, False])
 ```
 
-If a downstream format intentionally treats the valid minimum as missing,
-`allow_nat_collision=True` makes that loss explicit. It does not authorize
-other overflow or precision loss. The two first rows below become identical
-NaT values, so this output cannot reconstruct the source validity.
+The Arrow timestamp type carries the ns unit and UTC. The
+example supplies the original name when it constructs the column
+from a standalone array.
 
-```{doctest} recipe-explicit-nat-collision
->>> lossy = source.to_numpy(allow_nat_collision=True)
->>> (type(lossy) is np.ndarray, str(lossy.dtype), np.isnat(lossy).tolist())
-(True, 'datetime64[ns]', [True, True, False])
->>> int(lossy.view('i8')[2]) == 1704067200000000123
-True
->>> source.to_physical().to_list() == ticks
-True
-```
+## Choose what to do at a NumPy NaT collision
 
-Use Arrow or keep explicit integer ticks, validity, unit and timezone for an
-exact interchange path. See [checked output](../guides/pldt-output.md) for
-other precision/capacity checks, [pandas and Arrow inputs](../guides/pldt-pandas-arrow.md)
-for source-type rules, and [native Arrow interchange](../api/inherited-pldt-arrow.md)
-for the stream protocol.
+NumPy reserves the same minimum tick for NaT.
+`Pldt.to_numpy()` raises `OverflowError` at a valid
+minimum. Use `allow_nat_collision=True` only if your
+destination should treat that date as missing. The valid
+minimum and the original null then both become NaT.
+Use [checked Polars exports](../guides/pldt-output.md)
+and [pandas-backed interchange](../guides/pldt-pandas-arrow.md)
+for other destinations.

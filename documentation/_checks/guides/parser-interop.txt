@@ -1,0 +1,65 @@
+```{doctest} parser-pandas-precision
+>>> from datetime import datetime, timedelta, timezone, tzinfo
+>>> import pandas as pd
+>>> from rstimes import parse, parse_to_epoch
+>>> source = pd.Timestamp(123, unit='ns', tz='UTC')
+>>> plain = parse(source)
+>>> (type(plain) is datetime, plain.microsecond, plain.utcoffset() == timedelta(0))
+(True, 0, True)
+>>> (type(parse_to_epoch(source, unit='ns')) is int, parse_to_epoch(source, unit='ns'))
+(True, 123)
+>>> regional = source.tz_convert('Asia/Shanghai')
+>>> (parse_to_epoch(regional, unit='ns'), parse_to_epoch(regional, unit='ns', ignoretz=True))
+(123, 28800000000123)
+>>> for missing in (pd.NaT,):
+...     try:
+...         parse_to_epoch(missing)
+...     except ValueError:
+...         continue
+...     raise AssertionError('NaT is not an epoch value')
+```
+
+```{doctest} parser-polars-epoch
+>>> import polars as pl
+>>> column = pl.Series('event', [123], dtype=pl.Datetime('ns', 'UTC'))
+>>> regional = column.dt.convert_time_zone('Asia/Shanghai')
+>>> (parse_to_epoch(column, unit='ns'), parse_to_epoch(regional, unit='ns'))
+(123, 123)
+>>> parse_to_epoch(regional, unit='ns', ignoretz=True)
+28800000000123
+>>> parse_to_epoch(column, unit='ns', input_unit='ms')
+123
+```
+
+```{doctest} parser-polars-rejections
+>>> from datetime import date
+>>> invalid_columns = ((pl.Series([], dtype=pl.Datetime('ns')), ValueError), (pl.Series([0, 1], dtype=pl.Datetime('ns')), ValueError), (pl.Series([None], dtype=pl.Datetime('ns')), ValueError), (pl.Series([1]), TypeError), (pl.Series([date(2024, 1, 1)], dtype=pl.Date), TypeError))
+>>> for column, expected in invalid_columns:
+...     try:
+...         parse_to_epoch(column)
+...     except expected:
+...         continue
+...     raise AssertionError(column.dtype)
+>>> try:
+...     parse(pl.Series([0], dtype=pl.Datetime('ns')))
+... except TypeError as error:
+...     print(type(error).__name__)
+TypeError
+```
+
+```{doctest} parser-offset-and-callback
+>>> offset = timezone(timedelta(hours=5, minutes=30, seconds=1, microseconds=500000))
+>>> value = datetime(1970, 1, 1, tzinfo=offset)
+>>> parse_to_epoch(value, unit='ns')
+-19801500000000
+>>> failure = RuntimeError('application timezone failed')
+>>> class BusinessZone(tzinfo):
+...     def utcoffset(self, value):
+...         raise failure
+>>> value = datetime(2024, 1, 1, tzinfo=BusinessZone())
+>>> try:
+...     parse_to_epoch(value)
+... except RuntimeError as error:
+...     print(error is failure)
+True
+```

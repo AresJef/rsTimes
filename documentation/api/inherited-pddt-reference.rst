@@ -10,7 +10,6 @@ The linked examples explain parameter roles and verify actual Pddt results.
 
 For complete provider parameter details, see the `pandas Index reference
 <https://pandas.pydata.org/pandas-docs/stable/reference/indexing.html>`_.
-No entry on this page is a product-implementation change.
 
 .. py:property:: rstimes.Pddt.T
 

@@ -1,5 +1,22 @@
 # Scalar fields and datetime protocols
 
+## Retain the timezone on a Python time
+
+(ref-pydt-clock-output)=
+```python
+from rstimes import Pydt
+
+event = Pydt(2024, 2, 29, 12, 34, 56, 123456, tzinfo="UTC", fold=1)
+clock = event.timetz()
+print(clock.isoformat(), clock.fold)
+```
+
+**Output**
+
+```text
+12:34:56.123456+00:00 1
+```
+
 Pydt is a datetime subclass. The entries below are inherited datetime/object
 features or native adapters for those features. They are available on the
 actual Pydt object. Library calendar and timezone extensions have their own
@@ -69,26 +86,6 @@ The operator raises TypeError when both sides decline. Full executable
 comparison, copy, state, and error examples are in
 [scalar protocols](../guides/pydt-protocols.md) and
 [scalar interoperability](../guides/pydt-interop.md).
-
-```{doctest} pydt-inherited-entry-forms
->>> from datetime import datetime, timedelta, timezone
->>> from rstimes import Pydt
->>> value = Pydt(2024, 2, 29, 12, 34, 56, 123456, tzinfo='UTC', fold=1)
->>> (value.year, value.month, value.day, value.hour, value.minute, value.second, value.microsecond, value.fold)
-(2024, 2, 29, 12, 34, 56, 123456, 1)
->>> (value.tzinfo is timezone.utc, value.tzname(), value.utcoffset())
-(True, 'UTC', datetime.timedelta(0))
->>> (value.time().fold, value.timetz().fold, value.__str__())
-(1, 1, '2024-02-29 12:34:56.123456+00:00')
->>> value.__getstate__() is None
-True
->>> value.__rsub__(object()) is NotImplemented
-True
->>> value.__init__() is None
-True
->>> value.__hash__() == hash(datetime(2024, 2, 29, 12, 34, 56, 123456, tzinfo=timezone.utc))
-True
-```
 
 The [standard datetime reference](https://docs.python.org/3/library/datetime.html#datetime-objects)
 documents the inherited signatures in full. The scalar guides show the actual

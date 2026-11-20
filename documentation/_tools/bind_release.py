@@ -17,7 +17,7 @@ def wheel_identity(path, release, inventory):
     if expected is None or expected['packagetype'] != 'bdist_wheel':
         raise ValueError('Wheel is absent from the pinned public release: ' + path.name)
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    if digest != expected['sha256']:
+    if digest != expected['sha256'] or path.stat().st_size != expected['size']:
         raise ValueError('Public wheel SHA mismatch: ' + path.name)
     with zipfile.ZipFile(path) as archive:
         names = archive.namelist()
@@ -34,10 +34,17 @@ def wheel_identity(path, release, inventory):
     stubs = {n: value for n, value in payload.items() if n.endswith('.pyi')}
     if stubs != inventory['stubs'] or inventory['version'] != release['version']:
         raise ValueError('Public stub identity differs from the independent API inventory')
+    binding = json.loads((ROOT / '_data/source-checkout.json').read_text())
+    native = expected['native'].removeprefix('rstimes/')
+    if payload.get(native) != expected['native_sha256']:
+        raise ValueError('Public native identity differs from the release record')
+    for name, member in payload.items():
+        if name != native and binding['source_files'].get('src/rstimes/' + name) != member:
+            raise ValueError('Wheel member differs from the released source: ' + name)
     return {
         'product_version': release['version'], 'wheel_filename': path.name,
         'wheel_sha256': digest, 'source_commit': release['source_commit'],
-        'native': {n: value for n, value in payload.items() if n.endswith(('.so', '.pyd'))},
+        'native': {native: payload[native]},
         'stubs': stubs, 'payload': payload,
         'expected_identity_basis': 'Pinned public-release SHA and raw ZIP members; installed bytes are compared separately.',
     }
