@@ -4111,7 +4111,8 @@
         "collision-error",
         "explicit-loss"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-containers-and-shape",
@@ -4135,7 +4136,8 @@
         "scalar-error",
         "strict-numeric-role"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-source-resolution",
@@ -4159,7 +4161,8 @@
         "precision-error",
         "unsupported-unit"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-missing-and-empty",
@@ -4183,7 +4186,8 @@
         "strict-independent",
         "invalid-text"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-unit-and-source-ownership",
@@ -4209,7 +4213,8 @@
         "captured-owner",
         "strict-boolean"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-parser-options",
@@ -4234,7 +4239,8 @@
         "strict-error",
         "boolean-options"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-numeric-factories",
@@ -4268,7 +4274,8 @@
         "precision-error",
         "strict-bool"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-date-source-factories",
@@ -4298,7 +4305,8 @@
         "multiplier",
         "wrong-source-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-calendar-factories",
@@ -4328,7 +4336,8 @@
         "invalid-field",
         "invalid-unit"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-text-and-combine-factories",
@@ -4361,7 +4370,8 @@
         "length-error",
         "invalid-text"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-current-time-factories",
@@ -4387,7 +4397,8 @@
         "strict-index",
         "protocol"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-zone-operation-roles",
@@ -4421,7 +4432,8 @@
         "strict-bool",
         "fractional-offset-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-repeated-time-policies",
@@ -4448,7 +4460,8 @@
         "historical-candidates",
         "nanoseconds"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-gap-policies",
@@ -4476,7 +4489,8 @@
         "strict-options",
         "original-parse-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-source-zone-and-metadata",
@@ -4506,7 +4520,8 @@
         "return-type",
         "local-subprocess"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-range-endpoints",
@@ -4534,7 +4549,8 @@
         "executed-select",
         "executed-collect"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-range-native-frequencies",
@@ -4556,7 +4572,8 @@
         "timedelta",
         "frequency-driven-unit"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-range-optional-pandas",
@@ -4576,7 +4593,8 @@
         "mature-special-rules",
         "actual-no-pandas-ImportError"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-range-dst-and-validation",
@@ -4601,7 +4619,8 @@
         "shape-error",
         "strict-bool"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-numpy-input-storage",
@@ -4631,7 +4650,8 @@
         "captured-owner",
         "empty-metadata"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-native-column-storage",
@@ -4659,7 +4679,8 @@
         "Time-role",
         "unsupported-dtype"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-input-conversion-errors",
@@ -4684,7 +4705,8 @@
         "subnanosecond-input",
         "dimension-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-native-output-roles",
@@ -4732,7 +4754,8 @@
         "capacity-error",
         "strict-bool"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-time-table-output",
@@ -4758,7 +4781,8 @@
         "all-null-childs",
         "empty"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-text-output",
@@ -4789,7 +4813,8 @@
         "locale-error",
         "strict-types"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-python-object-output",
@@ -4820,7 +4845,8 @@
         "year-capacity",
         "no-Expr-exit"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-numpy-output-contract",
@@ -4848,7 +4874,8 @@
         "actual-business-override",
         "once-callback"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-pandas-native-input",
@@ -4870,7 +4897,8 @@
         "typed-empty",
         "timezone-conversion"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-arrow-timestamp-input",
@@ -4901,7 +4929,8 @@
         "timezone",
         "empty"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-arrow-factory-roles",
@@ -4926,7 +4955,8 @@
         "missing",
         "empty-zone"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-arrow-input-protocols",
@@ -4952,7 +4982,8 @@
         "dtype-integrity",
         "captured-owner"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-arrow-date-role",
@@ -4974,7 +5005,8 @@
         "missing",
         "wrong-source-role"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-pandas-output-protocol",
@@ -4999,7 +5031,8 @@
         "original-error",
         "options-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-native-series-parser-and-units",
@@ -5029,7 +5062,8 @@
         "strict-round_ok"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-calendar-selectors",
@@ -5106,7 +5140,8 @@
         "null"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-calendar-field-replacement",
@@ -5140,7 +5175,8 @@
         "type-error"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-calendar-row-arguments",
@@ -5167,7 +5203,8 @@
         "null-row-validation"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-calendar-relative-components",
@@ -5195,7 +5232,8 @@
         "calendar-vs-elapsed"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-calendar-period-boundaries",
@@ -5237,7 +5275,8 @@
         "both-native-query-owners"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-rounding-snap-fraction",
@@ -5271,7 +5310,8 @@
         "namespace-rounding"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-timezone-period-edges",
@@ -5303,7 +5343,8 @@
         "invalid-period"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-integer-calendar-queries",
@@ -5373,7 +5414,8 @@
         "ns-tail"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-boolean-and-leap-queries",
@@ -5414,7 +5456,8 @@
         "empty-validation"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-iso-struct-query",
@@ -5439,7 +5482,8 @@
         "capacity-error"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-timezone-and-now-queries",
@@ -5480,7 +5524,8 @@
         "no-known-local-offset"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-all-boundary-difference-units",
@@ -5505,7 +5550,8 @@
         "null"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-inclusive-difference-and-capacity",
@@ -5530,7 +5576,8 @@
         "broad-target-without-intermediate"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-difference-target-roles",
@@ -5556,7 +5603,8 @@
         "original-callback-error"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-delta-field-arithmetic",
@@ -5588,7 +5636,8 @@
         "missing-parameter-error"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-duration-and-date-operands",
@@ -5618,7 +5667,8 @@
         "unsupported-text"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-numpy-temporal-ufuncs",
@@ -5645,7 +5695,8 @@
         "actual-TypeError"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-application-arithmetic-protocols",
@@ -5674,7 +5725,8 @@
         "original-exception"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-core-copy-and-isolation",
@@ -5703,7 +5755,8 @@
         "strict-bool"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-business-copy-protocol",
@@ -5735,7 +5788,8 @@
         "memo"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-state-and-pickle",
@@ -5767,7 +5821,8 @@
         "state-shape-error"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-business-pickle-fresh-process",
@@ -5793,7 +5848,8 @@
         "native-values"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "pldt-custom-copy-state-hooks",
@@ -5819,7 +5875,8 @@
         "original-exception"
       ],
       "reviewed": true,
-      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path."
+      "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
+      "format": "contract"
     },
     {
       "id": "known-zoneinfo-target-defect",
@@ -10829,6 +10886,1010 @@
       ],
       "reviewed": true,
       "page": "guides/pddt-protocols.md"
+    },
+    {
+      "id": "pldt-parse-event-series",
+      "covers": [
+        "polars.Series.pldt",
+        "polars.Series.pldt.parse",
+        "rstimes.Pldt.isoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Date order and preserved validity give February 29 and null.",
+      "checks": [
+        "from rstimes import Pldt",
+        "assert type(events) is Pldt and events.dtype == pl.Datetime('us')",
+        "assert events.name == 'event' and events.to_physical().to_list() == [1709164800000000, None]"
+      ],
+      "scenarios": [
+        "installation-and-registration",
+        "ordered-text",
+        "series-namespace",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt.md"
+    },
+    {
+      "id": "pldt-read-independent-null-mask",
+      "covers": [
+        "rstimes.Pldt",
+        "rstimes.Pldt.__init__",
+        "rstimes.Pldt.to_physical",
+        "rstimes.Pldt.is_null"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The smallest physical integer is marked valid; the second row is null.",
+      "checks": [
+        "import polars as pl",
+        "assert type(events) is Pldt and events.dtype == pl.Datetime('ns')",
+        "assert events.name == 'event' and type(events.to_physical()) is pl.Series",
+        "assert events.to_physical().dtype == pl.Int64 and events.is_null().dtype == pl.Boolean"
+      ],
+      "scenarios": [
+        "native-int64",
+        "null",
+        "nanoseconds"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt.md"
+    },
+    {
+      "id": "pldt-floor-unit-conversion",
+      "covers": [
+        "rstimes.Pldt.as_unit",
+        "rstimes.Pldt.to_physical"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Flooring signed ns values by 1000 produces 1 and -2 us.",
+      "checks": [
+        "import polars as pl",
+        "assert type(coarse) is Pldt and coarse.dtype == pl.Datetime('us')",
+        "assert events.to_physical().to_list() == [1500, -1500, None]"
+      ],
+      "scenarios": [
+        "conversion",
+        "negative-tick",
+        "fixed-unit"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt.md"
+    },
+    {
+      "id": "pldt-attach-or-convert-epoch",
+      "covers": [
+        "rstimes.Pldt.fromseconds",
+        "rstimes.Pldt.fromtimestamp"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The epoch is eight hours ahead in Shanghai; midnight Shanghai is eight hours before it.",
+      "checks": [
+        "import polars as pl",
+        "assert type(wall) is type(instant) is Pldt",
+        "assert wall.dtype == instant.dtype == pl.Datetime('us', 'Asia/Shanghai')",
+        "assert wall.to_physical().to_list() == [-28800000000] and instant.to_physical().to_list() == [0]"
+      ],
+      "scenarios": [
+        "epoch-seconds",
+        "attach-zone",
+        "convert-instant"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-factories.md"
+    },
+    {
+      "id": "pldt-unsigned-calendar-columns",
+      "covers": [
+        "polars.Series.pldt.fromdayofyear",
+        "rstimes.Pldt.fromdayofyear",
+        "rstimes.Pldt.fromordinal",
+        "polars.Series.pldt.fromordinal",
+        "rstimes.Pldt.fromisocalendar",
+        "polars.Series.pldt.fromisocalendar"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Leap year 2024 reaches February 29 at day 60; ISO week nine Thursday is that date.",
+      "checks": [
+        "assert type(events) is Pldt and events.dtype == pl.Datetime('us') and events.name == 'year'",
+        "ordinal = pl.Series('ordinal', [1, 0, None], dtype=pl.UInt128)",
+        "assert ordinal.pldt.fromordinal().isoformat().to_list() == ['0001-01-01T00:00:00','0000-12-31T00:00:00',None]",
+        "assert Pldt.fromordinal(ordinal).to_physical().to_list() == [-62135596800000000, -62135683200000000, None]",
+        "for kind in (pl.UInt8, pl.UInt16, pl.UInt128):\n    week = pl.Series([9, 9, None], dtype=kind)\n    assert years.pldt.fromisocalendar(week, 4).isoformat().to_list() == ['2024-02-29T00:00:00','2023-03-02T00:00:00',None]\n    assert Pldt.fromisocalendar(years, week, 4).dtype == pl.Datetime('us')\n    assert Pldt.fromdayofyear(years, pl.Series([60, 60, None], dtype=kind)).to_physical().to_list() == [1709164800000000,1677628800000000,None]"
+      ],
+      "scenarios": [
+        "native-calendar-input",
+        "unsigned-columns",
+        "strict-row-pairing",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-factories.md"
+    },
+    {
+      "id": "pldt-combine-precise-clock",
+      "covers": [
+        "rstimes.Pldt.combine"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "34,200 elapsed seconds in the clock is 09:30; the tail is 123 ns.",
+      "checks": [
+        "assert type(events) is Pldt and events.dtype == pl.Datetime('ns')",
+        "assert events.to_physical().to_list() == [1704187800000000123, None]"
+      ],
+      "scenarios": [
+        "polars-time",
+        "literal-date",
+        "nanoseconds",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-factories.md"
+    },
+    {
+      "id": "pldt-local-daily-schedule",
+      "covers": [
+        "rstimes.Pldt.date_range",
+        "rstimes.Pldt.isoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "New York advances one civil hour on March 10; the local noon remains the schedule.",
+      "checks": [
+        "import polars as pl",
+        "assert type(schedule) is Pldt and schedule.dtype == pl.Datetime('us', 'America/New_York')",
+        "assert schedule.to_physical().to_list() == [1710003600000000,1710086400000000,1710172800000000]"
+      ],
+      "scenarios": [
+        "calendar-step",
+        "daylight-saving",
+        "native-range"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-ranges.md"
+    },
+    {
+      "id": "pldt-subdivide-nanos-range",
+      "covers": [
+        "rstimes.Pldt.date_range",
+        "rstimes.Pldt.to_physical"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Integer subdivision of the five-tick interval gives 0, 1, 3 and 5.",
+      "checks": [
+        "import polars as pl",
+        "assert type(points) is Pldt and points.dtype == pl.Datetime('ns') and points.name == 'tick'",
+        "expr = pl.lit(points).alias('tick')",
+        "assert type(expr) is pl.Expr",
+        "for result in (pl.select(expr), pl.LazyFrame().select(expr).collect()):\n    assert result.schema == {'tick': pl.Datetime('ns')}\n    assert result['tick'].to_physical().to_list() == [0, 1, 3, 5]"
+      ],
+      "scenarios": [
+        "integer-range",
+        "literal-series",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-ranges.md"
+    },
+    {
+      "id": "pldt-custom-holiday-range",
+      "covers": [
+        "rstimes.Pldt.date_range",
+        "rstimes.Pldt.day"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Monday January 1, Friday January 5 and Monday January 8 are the first three eligible dates.",
+      "checks": [
+        "import polars as pl",
+        "assert type(schedule) is Pldt and schedule.dtype == pl.Datetime('us')"
+      ],
+      "scenarios": [
+        "optional-pandas",
+        "delegated-business-calendar",
+        "holiday"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-ranges.md"
+    },
+    {
+      "id": "pldt-fit-next-month-end",
+      "covers": [
+        "polars.Series.pldt.to_next_month",
+        "rstimes.Pldt.to_next_month",
+        "rstimes.Pldt.isoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "February in the leap year ends on the 29th, so a fitted January 31 becomes February 29.",
+      "checks": [
+        "assert type(base) is pl.Series and type(moved) is Pldt and moved.name == 'event'",
+        "assert moved.dtype == pl.Datetime('ns') and moved.to_physical().to_list() == [1709208000123456789,None]",
+        "assert events.to_next_month().isoformat().to_list() == ['2024-02-29T12:00:00.123456789', None]"
+      ],
+      "scenarios": [
+        "calendar-fit",
+        "series-namespace",
+        "ns",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-calendar.md"
+    },
+    {
+      "id": "pldt-replace-fields-positionally",
+      "covers": [
+        "polars.Series.pldt.replace"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Each provided day is used in its own row; both dates are in January UTC.",
+      "checks": [
+        "assert type(adjusted) is Pldt and adjusted.dtype == pl.Datetime('us', 'UTC') and adjusted.name == 'event'",
+        "assert adjusted.day.to_list() == [10, 20, None]",
+        "try:\n    events.pldt.replace(day=[10])\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('A one-element column broadcast')"
+      ],
+      "scenarios": [
+        "strict-replace",
+        "row-pairing",
+        "length-error",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-calendar.md"
+    },
+    {
+      "id": "pldt-add-cancelling-fine-amounts",
+      "covers": [
+        "rstimes.Pldt.add",
+        "rstimes.Pldt.isoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The two fine increments cancel exactly before storage in milliseconds.",
+      "checks": [
+        "import polars as pl",
+        "assert type(adjusted) is Pldt and adjusted.dtype == pl.Datetime('ms')",
+        "assert adjusted.to_physical().to_list() == [1709208000000,None]"
+      ],
+      "scenarios": [
+        "calendar-offset",
+        "precision-cancellation",
+        "fixed-unit",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-calendar.md"
+    },
+    {
+      "id": "pldt-exact-month-boundary",
+      "covers": [
+        "rstimes.Pldt.to_end_of",
+        "rstimes.Pldt.is_end_of",
+        "polars.Series.pldt.to_end_of"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "February 2024 ends one nanosecond before March 1.",
+      "checks": [
+        "import polars as pl",
+        "assert type(boundary) is Pldt and boundary.dtype == pl.Datetime('ns') and boundary.name == 'event'",
+        "assert boundary.to_physical().to_list() == [1709251199999999999,None]",
+        "assert boundary.is_end_of('M').dtype == pl.Boolean",
+        "assert pl.Series(events).pldt.to_end_of('M').to_physical().to_list() == [1709251199999999999,None]"
+      ],
+      "scenarios": [
+        "calendar-month",
+        "boundary-query",
+        "fixed-unit",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-boundaries.md"
+    },
+    {
+      "id": "pldt-round-ties-even",
+      "covers": [
+        "polars.Series.pldt.round"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "At ties the even microsecond bucket is 2 or -2, represented here in ns.",
+      "checks": [
+        "import polars as pl",
+        "assert type(rounded) is Pldt and rounded.dtype == pl.Datetime('ns')"
+      ],
+      "scenarios": [
+        "half-even",
+        "signed-grid",
+        "nanoseconds",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-boundaries.md"
+    },
+    {
+      "id": "pldt-snap-period-start",
+      "covers": [
+        "rstimes.Pldt.snap"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "12:30 is halfway between the two hour starts, so snap selects 13:00.",
+      "checks": [
+        "import polars as pl",
+        "assert events.snap('h').dtype == pl.Datetime('us')",
+        "assert events.snap('h').to_physical().to_list() == [1704200400000000, None]"
+      ],
+      "scenarios": [
+        "natural-period",
+        "later-tie",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-boundaries.md"
+    },
+    {
+      "id": "pldt-calendar-day-versus-duration",
+      "covers": [
+        "rstimes.Pldt.__add__",
+        "rstimes.Pldt.__radd__",
+        "rstimes.Delta"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "A local day across the spring gap is 23 hours, while timedelta(days=1) is 24 hours.",
+      "checks": [
+        "import polars as pl",
+        "assert type(calendar) is type(elapsed) is Pldt",
+        "assert calendar.dtype == elapsed.dtype == events.dtype == pl.Datetime('us','America/New_York')",
+        "assert calendar.name == elapsed.name == 'event'",
+        "assert calendar.to_physical().to_list() == [1710086400000000,None]",
+        "assert elapsed.to_physical().to_list() == [1710090000000000,None]",
+        "assert (timedelta(days=1)+events).to_physical().to_list() == [1710090000000000,None]"
+      ],
+      "scenarios": [
+        "calendar-day",
+        "elapsed-duration",
+        "operator",
+        "daylight-saving",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-arithmetic.md"
+    },
+    {
+      "id": "pldt-series-delta-precision",
+      "covers": [
+        "polars.Series.pldt.add_delta",
+        "polars.Series.pldt.sub_delta"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "One ns advances the first tick exactly and leaves the missing date.",
+      "checks": [
+        "from rstimes import Pldt",
+        "assert type(adjusted) is Pldt and adjusted.dtype == pl.Datetime('ns') and adjusted.name == 'event'",
+        "assert pl.Series(adjusted).pldt.sub_delta(Delta(nanoseconds=1)).to_physical().to_list() == [123456789,None]",
+        "try:\n    pl.Series('event',[0],dtype=pl.Datetime('us')).pldt.add_delta(Delta(nanoseconds=1))\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('A us result lost a ns')"
+      ],
+      "scenarios": [
+        "series-namespace",
+        "Delta",
+        "precision-error",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-arithmetic.md"
+    },
+    {
+      "id": "pldt-native-diff-versus-elapsed",
+      "page": "guides/pldt-differences.md",
+      "format": "contract",
+      "covers": [
+        "rstimes.Pldt.diff",
+        "rstimes.Pldt.__sub__"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "reviewed": true,
+      "expectation_basis": "Adjacent differences are 1001 us; subtracting each exact ns target gives 1000999 and 2001998 ns.",
+      "scenarios": [
+        "inherited-adjacent-difference",
+        "ordinary-Duration",
+        "mixed-precision-subtraction",
+        "null"
+      ]
+    },
+    {
+      "id": "pldt-count-month-boundary",
+      "covers": [
+        "polars.Series.pldt.diff"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The two clocks lie in January and February, a single monthly crossing.",
+      "checks": [
+        "import polars as pl",
+        "assert type(crossings) is pl.Series and crossings.dtype == pl.Int64 and crossings.name == 'event'",
+        "assert pl.Series(event).pldt.diff('2024-01-31 23:59:59','M').to_list() == [1,None]"
+      ],
+      "scenarios": [
+        "calendar-bucket",
+        "namespace",
+        "integer-output",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-differences.md"
+    },
+    {
+      "id": "pldt-measure-actual-duration",
+      "covers": [
+        "rstimes.Pldt.__sub__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "One elapsed second is 1,000,000 microseconds.",
+      "checks": [
+        "import polars as pl",
+        "assert type(elapsed) is pl.Series and elapsed.dtype == pl.Duration('us')",
+        "assert elapsed.is_null().to_list() == [False,True]"
+      ],
+      "scenarios": [
+        "elapsed-duration",
+        "datetime-target",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-differences.md"
+    },
+    {
+      "id": "pldt-match-calendar-month",
+      "covers": [
+        "polars.Series.pldt.is_month",
+        "rstimes.Pldt.is_month",
+        "rstimes.Pldt.month"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "February 29 matches, March 1 does not, and a missing date returns False.",
+      "checks": [
+        "assert type(matches) is pl.Series and matches.dtype == pl.Boolean and matches.name == 'event'",
+        "assert events.is_month(2).to_list() == [True,False,False]",
+        "assert events.month.dtype == pl.Int64 and events.month.to_list() == [2,3,None]",
+        "try:\n    events.is_month([2, 2, None])\nexcept TypeError:\n    pass\nelse:\n    raise AssertionError('A missing target was accepted')"
+      ],
+      "scenarios": [
+        "boolean-query",
+        "integer-query",
+        "missing-target-error",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-queries.md"
+    },
+    {
+      "id": "pldt-extract-iso-week-struct",
+      "covers": [
+        "rstimes.Pldt.isocalendar",
+        "polars.Series.pldt.isocalendar",
+        "rstimes.Pldt.isoyear"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "February 29, 2024 is Thursday of ISO week 9.",
+      "checks": [
+        "import polars as pl",
+        "assert type(weeks) is pl.Series and weeks.name == 'event'",
+        "assert weeks.dtype == pl.Struct({'year':pl.UInt32,'week':pl.UInt32,'day':pl.UInt32})",
+        "assert pl.Series(events).pldt.isocalendar().to_list() == [{'year':2024,'week':9,'day':4},None]",
+        "assert Pldt(['0000-01-01']).isoyear().to_list() == [-1]"
+      ],
+      "scenarios": [
+        "ISO-calendar",
+        "structured-output",
+        "signed-ISO-year",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-queries.md"
+    },
+    {
+      "id": "pldt-attach-and-convert-zone",
+      "covers": [
+        "polars.Series.pldt.tz_localize",
+        "rstimes.Pldt.tz_convert"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The Shanghai wall clock 08:00 at the epoch represents UTC 00:00.",
+      "checks": [
+        "from rstimes import Pldt",
+        "assert type(regional) is type(utc) is Pldt and regional.name == utc.name == 'event'",
+        "assert regional.dtype == pl.Datetime('us','Asia/Shanghai') and utc.dtype == pl.Datetime('us','UTC')",
+        "assert regional.to_physical().to_list() == utc.to_physical().to_list() == [0,None]"
+      ],
+      "scenarios": [
+        "timezone-attach",
+        "timezone-convert",
+        "wall-clock",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-timezones.md"
+    },
+    {
+      "id": "pldt-choose-repeated-clock",
+      "covers": [
+        "rstimes.Pldt",
+        "rstimes.Pldt.__init__",
+        "rstimes.Pldt.tz_convert"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "At the 2024 repeat 01:30 EDT is 05:30 UTC and 01:30 EST is 06:30 UTC.",
+      "checks": [
+        "import polars as pl",
+        "assert type(events) is Pldt and events.dtype == pl.Datetime('us','America/New_York')",
+        "assert events.to_physical().to_list() == [1730611800000000,None,1730615400000000]",
+        "try:\n    Pldt(['2024-11-03 01:30'],tz='America/New_York',ambiguous='infer')\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('An isolated repeated clock was inferred')"
+      ],
+      "scenarios": [
+        "timezone-repeat",
+        "full-position-mask",
+        "infer-error",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-timezones.md"
+    },
+    {
+      "id": "pldt-business-zone-as-source",
+      "covers": [
+        "rstimes.Pldt",
+        "rstimes.Pldt.__init__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The custom source offset means 12:00 clock minus two hours for the UTC instant.",
+      "checks": [
+        "import polars as pl",
+        "assert events.dtype == pl.Datetime('us', 'UTC') and events.to_physical().to_list() == [1704103200000000]",
+        "try:\n    Pldt([datetime(2024,1,1,12)],tz=source.tzinfo)\nexcept ValueError as error:\n    assert 'custom target timezone rules' in str(error)\nelse:\n    raise AssertionError('Unrepresentable custom target accepted')"
+      ],
+      "scenarios": [
+        "custom-source-offset",
+        "instant-preservation",
+        "target-zone-error"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-timezones.md"
+    },
+    {
+      "id": "pldt-export-utc-coordinate",
+      "covers": [
+        "rstimes.Pldt.tomicroseconds",
+        "polars.Series.pldt.tomicroseconds"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "08:00 Shanghai is UTC 00:00. Both microsecond exports floor the 789 ns tail.",
+      "checks": [
+        "import polars as pl",
+        "assert events.dtype == pl.Datetime('ns','Asia/Shanghai')",
+        "assert type(events.tomicroseconds()) is pl.Series and events.tomicroseconds().dtype == pl.Int64",
+        "assert pl.Series(events).pldt.tomicroseconds(utc=True).to_list() == [123456,None]"
+      ],
+      "scenarios": [
+        "numeric-coordinate",
+        "utc",
+        "precision-reduction",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-output.md"
+    },
+    {
+      "id": "pldt-format-exact-fraction",
+      "covers": [
+        "rstimes.Pldt.strftime",
+        "polars.Series.pldt.strftime"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Epoch clock plus 123,456,789 ns prints a nine-digit fraction.",
+      "checks": [
+        "import polars as pl",
+        "assert type(events.strftime('%f')) is pl.Series and events.strftime('%f').dtype == pl.String",
+        "assert pl.Series(events).pldt.strftime('%f').to_list() == ['123456789',None]"
+      ],
+      "scenarios": [
+        "text-output",
+        "nanoseconds",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-output.md"
+    },
+    {
+      "id": "pldt-export-python-datetime",
+      "covers": [
+        "rstimes.Pldt.datetime",
+        "polars.Series.pldt.datetime",
+        "rstimes.Pldt.time",
+        "rstimes.Pldt.timetz"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Explicit object conversion truncates at the microsecond; native Time keeps ns.",
+      "checks": [
+        "from datetime import timezone, time",
+        "import polars as pl",
+        "from rstimes import Pydt",
+        "assert objects.dtype.kind == 'O' and type(objects[0]) is Pydt and objects[0].tzinfo is timezone.utc and objects[1] is None",
+        "assert events.time.dtype == pl.Time and events.time.to_physical().to_list() == [123456789,None]",
+        "assert type(events.timetz[0]) is time and events.timetz[0].microsecond == 123456",
+        "assert pl.Series(events).pldt.datetime()[0].microsecond == 123456"
+      ],
+      "scenarios": [
+        "eager-object-export",
+        "timezone",
+        "native-time",
+        "nanoseconds",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-output.md"
+    },
+    {
+      "id": "pldt-numpy-explicit-nat-collision",
+      "covers": [
+        "rstimes.Pldt.to_numpy",
+        "rstimes.Pldt.__array__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "NumPy uses int64 minimum for NaT; allowing this collision erases the valid state.",
+      "checks": [
+        "assert exported.dtype == np.dtype('datetime64[ns]')",
+        "for op in (events.to_numpy, lambda: np.asarray(events)):\n    try:\n        op()\n    except OverflowError as error:\n        assert 'NaT reserved tick' in str(error)\n    else:\n        raise AssertionError('Default export lost the valid tick')"
+      ],
+      "scenarios": [
+        "NumPy",
+        "reserved-tick",
+        "opt-in-loss",
+        "OverflowError"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-output.md"
+    },
+    {
+      "id": "pldt-read-numpy-seconds",
+      "covers": [
+        "rstimes.Pldt",
+        "rstimes.Pldt.__init__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The seconds array promotes to millisecond ticks and leaves NaT missing.",
+      "checks": [
+        "import polars as pl",
+        "assert type(events) is Pldt and events.dtype == pl.Datetime('ms') and events.name == 'event'",
+        "assert events.is_null().to_list() == [False,False,True]",
+        "try:\n    Pldt(np.array([2**63-1],dtype='datetime64[s]'))\nexcept OverflowError:\n    pass\nelse:\n    raise AssertionError('Out-of-range second was accepted')"
+      ],
+      "scenarios": [
+        "numpy-source",
+        "source-units",
+        "nat",
+        "capacity-error"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-interop.md"
+    },
+    {
+      "id": "pldt-capture-date-column",
+      "covers": [
+        "rstimes.Pldt",
+        "rstimes.Pldt.__init__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Appending changes the original handle's length; the captured column keeps two rows.",
+      "checks": [
+        "assert type(events) is Pldt and events.name == 'event' and events.dtype == pl.Datetime('ns','UTC')",
+        "assert source.to_physical().to_list() == [1,None,2] and events.is_null().to_list() == [False, True]"
+      ],
+      "scenarios": [
+        "native-input",
+        "ownership",
+        "timezone",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-interop.md"
+    },
+    {
+      "id": "pldt-read-index-utc-instants",
+      "covers": [
+        "rstimes.Pldt",
+        "rstimes.Pldt.__init__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Eight Shanghai clock hours after local midnight are UTC epoch at +08:00.",
+      "checks": [
+        "import polars as pl",
+        "assert type(events) is Pldt and events.dtype == pl.Datetime('us','UTC')",
+        "assert events.to_physical().to_list() == [0,None]"
+      ],
+      "scenarios": [
+        "pandas-source",
+        "aware-instants",
+        "UTC",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-pandas-arrow.md"
+    },
+    {
+      "id": "pldt-arrow-valid-endpoint-roundtrip",
+      "covers": [
+        "rstimes.Pldt.to_pandas",
+        "rstimes.Pldt"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Arrow stores validity separately; its minimum int64 timestamp stays valid.",
+      "checks": [
+        "import pandas as pd",
+        "import pyarrow as pa",
+        "import polars as pl",
+        "assert type(backed) is pd.Series and backed.dtype == pd.ArrowDtype(pa.timestamp('ns',tz='UTC'))",
+        "assert type(restored) is Pldt and restored.dtype == pl.Datetime('ns','UTC') and restored.name == 'event'",
+        "try:\n    events.to_pandas()\nexcept OverflowError as error:\n    assert 'data[0]' in str(error) and 'Arrow-backed' in str(error)\nelse:\n    raise AssertionError('Default pandas export lost the tick')"
+      ],
+      "scenarios": [
+        "pandas",
+        "Arrow",
+        "round-trip",
+        "native-int64",
+        "null",
+        "OverflowError"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-pandas-arrow.md"
+    },
+    {
+      "id": "pldt-copy-business-column",
+      "covers": [
+        "rstimes.Pldt.copy"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Named shallow copy preserves the subclass, metadata, valid ticks and the original business reference.",
+      "checks": [
+        "import polars as pl",
+        "assert type(copied) is EventDates and copied is not events",
+        "assert copied.dtype == pl.Datetime('ns') and copied.name == 'event'",
+        "assert copied.is_null().to_list() == [False,True]",
+        "deep = events.copy(deep=True)",
+        "assert deep.labels == ['audit'] and deep.labels is not events.labels"
+      ],
+      "scenarios": [
+        "subclass",
+        "shallow-copy",
+        "deep-copy",
+        "business-state",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-state.md"
+    },
+    {
+      "id": "pldt-pickle-min-tick",
+      "covers": [
+        "rstimes.Pldt.__reduce_ex__",
+        "rstimes.Pldt.__setstate__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The codec keeps NaT independence through pickle.",
+      "checks": [
+        "import polars as pl",
+        "assert type(restored) is Pldt and restored.dtype == pl.Datetime('ns','UTC')",
+        "assert restored.is_null().to_list() == [False,True]"
+      ],
+      "scenarios": [
+        "pickle",
+        "state-roundtrip",
+        "independent-validity",
+        "timezone"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-state.md"
     }
   ]
 }
