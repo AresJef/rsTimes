@@ -2,10 +2,13 @@
 
 Only copy/save operations enter this module. Date operations never scan state.
 """
+from copy import copy, deepcopy
 from copy import _reconstruct  # pyright: ignore[reportAttributeAccessIssue] -- TY050; see tests/typing/pyright_exceptions.json.
 from typing import cast
+from collections.abc import Iterable
 from ._class_protocol import definition as _definition
-from ._class_protocol import copy_hook as _copy_hook
+from ._class_protocol import copy_reduction, NATIVE_COPY
+from ._state_storage import snapshot as _snapshot_state
 
 from .errors import _own_error, _external_error
 from ._range import _ARRAY_HAS_FREQ
@@ -13,9 +16,16 @@ from ._range import _ARRAY_HAS_FREQ
 # Actual DatetimeIndex-owned keys verified in all three supported environments.
 # Other underscore-prefixed business fields remain ordinary user state.
 _CORE_KEYS=frozenset(("_data","_name","_cache","_id","_references"))
+_DEFAULT_REDUCERS = None
 if not _ARRAY_HAS_FREQ:
     # pandas3.1 owns frequency on the Index; it belongs to the date core.
     _CORE_KEYS = _CORE_KEYS | {"_freq"}
+
+
+def register(base):
+    """Retain original function identities, not later business replacements."""
+    global _DEFAULT_REDUCERS
+    _DEFAULT_REDUCERS = (base.__reduce_ex__, base.__reduce__)
 
 
 def capture(value):
@@ -35,20 +45,21 @@ def apply(value,state):
     """Apply ordinary business state, leaving the validated date core alone."""
     if state is None:
         return
-    if isinstance(state,tuple):
+    if issubclass(type(state),tuple):
         if len(state)!=2:
             raise _own_error(ValueError("business state must contain a dictionary and slots"),"state",state)
         dictionary,slots=state
     else:
         dictionary,slots=state,None
     for name,part in (("dictionary",dictionary),("slots",slots)):
-        if part is not None and not isinstance(part,dict):
+        if part is not None and not issubclass(type(part),dict):
             raise _own_error(TypeError("must be a dictionary or None"),"state."+name,part)
-    entries=[] if slots is None else list(dict.items(slots))
+    dictionary, slots = _snapshot_state(dictionary), _snapshot_state(slots)
+    entries=() if slots is None else dict.items(slots)
     for part in (dictionary,slots):
         if part is not None and any(key in _CORE_KEYS for key in dict.keys(part)):
             raise _own_error(ValueError("business state cannot replace internal date or cache fields"),"state",state)
-    if any(not isinstance(key,str) for key,_ in entries):
+    if any(not issubclass(type(key),str) for key,_ in entries):
         raise _own_error(TypeError("slot names must be strings"),"state.slots",slots)
     try:
         if dictionary is not None:
@@ -73,46 +84,40 @@ def recipe(value,restore):
     return restore,(type(value),"rstimes.pddt",1,data,value.unit,value.tz,value.name,value.freq),state(value)
 
 
-def copy_value(value,base,restore_copy,deep,memo=None,name=None,honor_copy=False):
+def copy_value(value,restore_copy,deep,memo=None,name=None,honor_copy=False):
     """Use Python's complete reconstruction semantics, including one shared memo."""
-    cls=type(value)
     if deep and memo is None:
         memo={}
     if honor_copy:
         try:
-            copier=_copy_hook(value,base,deep)
+            result=deepcopy(value,memo) if deep else copy(value)
         except Exception as error:
             raise _external_error(error)
-        if copier is not None:
-            try:
-                result=copier(memo) if deep else copier(value)
-            except Exception as error:
-                raise _external_error(error)
-            return _named_result(value,result,name)
-    custom=(_definition(cls,"__reduce_ex__") is not base.__reduce_ex__
-        or _definition(cls,"__reduce__") is not base.__reduce__)
-    if custom:
-        try:
-            reduction=value.__reduce_ex__(4)
-        except Exception as error:
-            raise _external_error(error)
-    else:
+        return result if name is None else _named_result(value,result,name)
+    cls=type(value)
+    try:
+        reduction=copy_reduction(value,_DEFAULT_REDUCERS,deep)
+    except Exception as error:
+        raise _external_error(error)
+    custom=reduction is not NATIVE_COPY
+    if not custom:
         reduction=(restore_copy,(cls,value.array,value.name if name is None else name,value.freq),state(value))
     if isinstance(reduction,str):
         result=value
     else:
         # This is the same complete helper used by copy.copy/deepcopy themselves,
         # verified on the fixed Python3.11/3.13 environments, not a new interpreter.
-        result=_reconstruct(value,memo if deep else None,*reduction)
-    return _named_result(value,result,name) if custom else result
+        # The standard unpacking boundary validates actual business recipes;
+        # the annotation does not convert or pre-read an external return value.
+        result=_reconstruct(value,memo if deep else None,*cast("Iterable[object]", reduction))
+    return _named_result(value,result,name) if custom and name is not None else result
 
 
 def _named_result(source,result,name):
-    if name is not None:
-        if result is source and result.name!=name:
-            raise _own_error(ValueError("the copy hook returned the original object; it cannot be renamed without changing the source"),"name",name)
-        try:
-            result.name=name
-        except Exception as error:
-            raise _external_error(error)
+    if result is source and result.name!=name:
+        raise _own_error(ValueError("the copy hook returned the original object; it cannot be renamed without changing the source"),"name",name)
+    try:
+        result.name=name
+    except Exception as error:
+        raise _external_error(error)
     return result

@@ -40,6 +40,13 @@ def verify_remote_files(repository, tag, expected, names):
             assert hashlib.sha256((Path(temporary) / name).read_bytes()).hexdigest() == expected[name], name
 
 
+def verify_release_metadata(release, tag, version, prerelease, notes):
+    """Require the expected release state before any asset upload or receipt."""
+    assert release["tag_name"] == tag and release["name"] == "rsTimes " + version
+    assert release["draft"] is False and release["prerelease"] is prerelease
+    assert release["body"].rstrip("\n") == notes.rstrip("\n")
+
+
 def main():
     """Create or finish the approved tag release, preserving the tested bundle."""
     assert os.environ["GITHUB_REF_TYPE"] == "tag"
@@ -78,10 +85,11 @@ def main():
                      "--notes-file", str(notes_file)]
         if manifest["is_prerelease"]:
             arguments.append("--prerelease")
+        else:
+            arguments.append("--latest")
         gh(*arguments, *(str(path) for path in files.values()))
     else:
-        assert not release["draft"] and release["body"].strip() == notes.strip()
-        assert release["prerelease"] == manifest["is_prerelease"]
+        verify_release_metadata(release, tag, version, manifest["is_prerelease"], notes)
         present = {asset["name"] for asset in release["assets"]}
         assert present <= files.keys(), present
         verify_remote_files(repository, tag, expected, present)
@@ -90,6 +98,7 @@ def main():
             gh("release", "upload", tag, "--repo", repository, *(str(files[name]) for name in sorted(missing)))
     release = api(endpoint)
     assert release is not None
+    verify_release_metadata(release, tag, version, manifest["is_prerelease"], notes)
     present = {asset["name"] for asset in release["assets"]}
     assert present == files.keys(), present
     verify_remote_files(repository, tag, expected, present)

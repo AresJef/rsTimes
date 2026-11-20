@@ -1,4 +1,9 @@
-"""Integer-backed date columns with explicit resolution and calendar operations."""
+"""Integer-backed date columns with explicit resolution and calendar operations.
+
+Date text inputs and string defaults accept real str subclasses and read
+their native stored content, without calling __str__ or overridden sequence
+methods. Call str(value) explicitly when conversion is intended.
+"""
 from datetime import datetime, date, timezone, timedelta
 from zoneinfo import available_timezones
 from typing import Literal, TypeVar, TypedDict, TYPE_CHECKING, cast, overload
@@ -17,7 +22,7 @@ from ._range import _ARRAY_HAS_FREQ
 from .parser import Configs
 from .delta import Delta
 from .pydt import Pydt
-from ._pddt_state import capture as _capture_state, apply as _apply_state, recipe as _pickle_recipe, copy_value as _copy_value, _definition as _state_definition
+from ._pddt_state import capture as _capture_state, apply as _apply_state, recipe as _pickle_recipe, copy_value as _copy_value, _definition as _state_definition, register as _register_state
 from ._localization import resolve_timezone as _timezone, local_timezone as _local_timezone
 from .errors import _own_error, _external_error, _raise_argument_context
 
@@ -30,7 +35,7 @@ _NumericLayout = tuple[bytes, str, bytes | None]
 _PddtT = TypeVar("_PddtT", bound="Pddt")
 
 if TYPE_CHECKING:
-    from ._backend_types import _PandasDateTicks
+    from ._backend_types import _PandasDateTicks, _PandasTicks
 
 
 class _DiffLayout(TypedDict, total=False):
@@ -61,10 +66,9 @@ def _unit(value, *, optional=False):
         return None
     if not isinstance(value, str):
         raise _own_error(TypeError("must be a string unit"), "unit", value)
-    try:
-        valid = value in _UNITS
-    except Exception as error:
-        raise _external_error(error)
+    if type(value) is not str:
+        value = str.__str__(value)
+    valid = value in _UNITS
     if not valid:
         raise _own_error(ValueError("must be 's', 'ms', 'us' or 'ns'"), "unit", value)
     return value
@@ -134,11 +138,12 @@ def _outer(data, parameter="data"):
 
 
 def _policies(ambiguous, nonexistent):
-    if isinstance(ambiguous, (pd.DataFrame, pd.MultiIndex)):
+    kind = type(ambiguous)
+    if issubclass(kind, (pd.DataFrame, pd.MultiIndex)):
         raise _own_error(TypeError("must be a boolean scalar, policy string or one-dimensional boolean collection"), "ambiguous", ambiguous)
-    if isinstance(ambiguous, (np.ndarray, pd.api.extensions.ExtensionArray)) and ambiguous.ndim != 1:
+    if issubclass(kind, (np.ndarray, pd.api.extensions.ExtensionArray)) and ambiguous.ndim != 1:
         raise _own_error(ValueError("must be a one-dimensional boolean collection"), "ambiguous", ambiguous)
-    if pl is not None and isinstance(ambiguous, (pl.DataFrame, pl.LazyFrame)):
+    if pl is not None and issubclass(kind, (pl.DataFrame, pl.LazyFrame)):
         raise _own_error(TypeError("must be one-dimensional, not a Polars table"), "ambiguous", ambiguous)
     return _pddt_policies(ambiguous, nonexistent)
 
@@ -162,6 +167,8 @@ def _date_array(values, zone):
 def _wrap(cls, values, *, zone=None, name=None, freq=None):
     """Build only the final pandas container from verified ticks and metadata."""
     try:
+        if type(freq) is not str and issubclass(type(freq), str):
+            freq = str.__str__(cast(str, freq))
         array = _date_array(values, zone)
         if not _ARRAY_HAS_FREQ and freq is not None:
             # pandas3.1 validates on the Index and invokes its tz_localize.
@@ -276,7 +283,12 @@ def _numeric_source(value, parameter="data", integer=False) -> tuple[object, boo
         known = known or issubclass(type(value), (pl.Series, pl.DataFrame, pl.LazyFrame))
     if not known:
         return value, False, None, None
-    values, _, name, _, validity = _outer(value, parameter)
+    return _numeric_values(_outer(value, parameter), value, parameter, integer)
+
+
+def _numeric_values(prepared, value, parameter="data", integer=False) -> tuple[object, bool, object, _NumericLayout | None]:
+    """Consume an existing outer snapshot without rerunning source adaptation."""
+    values, _, name, _, validity = prepared
     kind = getattr(getattr(values, "dtype", None), "kind", None)
     if validity is not None and kind == "M":
         raise _own_error(TypeError("native date columns do not supply numeric fields or epoch seconds"), parameter, value)
@@ -497,11 +509,17 @@ def _binary(self, other, subtract=False, reflected=False):
     native = None
     if column:
         if pl is not None and issubclass(type(other), pl.Series) and other.dtype.base_type()==pl.Duration:
-            source=other.cast(pl.Int64).fill_null(_MIN_TICK).to_numpy().view(f"timedelta64[{other.dtype.time_unit}]")
+            # Snapshot one native owner before reading either its physical
+            # duration bits or its independent missing mask. MIN is a valid
+            # Polars span; only the eventual date target reserves that value.
+            duration = _plain_series(other)
+            validity = b"" if duration.null_count() == 0 else np.asarray(duration.is_null().to_numpy(), dtype="uint8").tobytes()
+            source = duration.to_numpy()
         else:
             source, source_zone, _, _, validity = _outer(other, "other")
         if issubclass(type(source), pd.arrays.TimedeltaArray):
-            source=source.asi8.view(f"timedelta64[{source.unit}]")
+            spans = cast("_PandasTicks", source)
+            source = spans.asi8.view(f"timedelta64[{spans.unit}]")
         if issubclass(type(source), np.ndarray) and source.dtype.kind in ("M", "m"):
             unit, multiplier = np.datetime_data(source.dtype)
             if not source.dtype.isnative:
@@ -624,7 +642,8 @@ def _difference(self,dtobj,unit,absolute,inclusive):
     metadata: _DiffLayout = {}
     if known:
         try:
-            values,zone,_,_,validity=_outer(dtobj,"dtobj")
+            prepared=_outer(dtobj,"dtobj")
+            values,zone,_,_,validity=prepared
         except Exception as error:
             _raise_argument_context(error,entry,"dtobj",dtobj)
         if issubclass(type(values), np.ndarray) and values.dtype.kind=="M":
@@ -633,7 +652,7 @@ def _difference(self,dtobj,unit,absolute,inclusive):
                 values=values.astype(values.dtype.newbyteorder("="))
             metadata={"buffer":values.tobytes(),"storage":"M","date_unit":date_unit,"multiplier":multiplier,"target_zone":zone,"target_mask":validity}
         else:
-            values,_,_,native=_numeric_source(values,"dtobj",True)
+            values,_,_,native=_numeric_values(prepared,dtobj,"dtobj",True)
             if native is not None:
                 buffer,storage,mask=native
                 metadata={"buffer":buffer,"storage":storage,"target_mask":mask}
@@ -849,7 +868,7 @@ class Pddt(pd.DatetimeIndex):
                 yearfirst = _boolean(yearfirst, "Pddt", "yearfirst")
             if dayfirst is not None:
                 dayfirst = _boolean(dayfirst, "Pddt", "dayfirst")
-            if cfg is not None and not isinstance(cfg, Configs):
+            if cfg is not None and not issubclass(type(cfg), Configs):
                 raise _own_error(TypeError("must be a Configs instance or None"), "cfg", cfg)
             policy = _policies(ambiguous, nonexistent)
             target = None if tz is None else _timezone(tz, "tz")
@@ -1868,7 +1887,7 @@ class Pddt(pd.DatetimeIndex):
             strict = _boolean(strict, entry, "strict")
             yearfirst = None if yearfirst is None else _boolean(yearfirst, entry, "yearfirst")
             dayfirst = None if dayfirst is None else _boolean(dayfirst, entry, "dayfirst")
-            if cfg is not None and not isinstance(cfg, Configs):
+            if cfg is not None and not issubclass(type(cfg), Configs):
                 raise _own_error(TypeError("must be Configs or None"), "cfg", cfg)
             policy = _policies(ambiguous, nonexistent)
             target = None if tz is None else _timezone(tz, "tz")
@@ -1882,13 +1901,10 @@ class Pddt(pd.DatetimeIndex):
                     normalize, default, yearfirst, dayfirst, isoformat, strict, cfg)
                 # The mature executor receives already-decoded local coordinates.
                 # Regional candidate choice remains in the shared Rust finalizer.
-                start_tick, end_tick = inputs.start, inputs.end
-                carrier_unit = inputs.carrier_unit
+                start_tick, end_tick, carrier_unit = inputs.carrier()
                 start_value = None if start_tick is None else pd.Timestamp(np.datetime64(start_tick, carrier_unit))
                 end_value = None if end_tick is None else pd.Timestamp(np.datetime64(end_tick, carrier_unit))
-                generation_unit,minimum_unit=_range_mature_units(metadata,inputs.unit)
-                if generation_unit is not None:
-                    generation_unit = _UNITS[max(_UNITS.index(generation_unit), _UNITS.index(carrier_unit))]
+                generation_unit,minimum_unit=_range_mature_units(metadata,inputs.unit,carrier_unit)
                 try:
                     external = pd.date_range(start=start_value, end=end_value,  # pyright: ignore[reportCallIssue] -- TY004; see tests/typing/pyright_exceptions.json.
                         periods=periods, freq=metadata, unit=generation_unit, inclusive="both")
@@ -3477,8 +3493,11 @@ class Pddt(pd.DatetimeIndex):
         ['123456789 .123']
         """
         try:
-            if not isinstance(format,str):
-                raise _own_error(TypeError("must be a string; an empty string is allowed"),"format",format)
+            kind = type(format)
+            if kind is not str:
+                if not issubclass(kind,str):
+                    raise _own_error(TypeError("must be a string; an empty string is allowed"),"format",format)
+                format = str.__str__(format)
             prepared = _strftime_prepare(format)
             if prepared.modified():
                 values = _pddt_strftime(self.asi8.tobytes(), self.unit, self.tz, prepared)
@@ -3635,11 +3654,12 @@ class Pddt(pd.DatetimeIndex):
         Custom shallow-copy hooks are looked up on the class and receive the source;
         custom deep-copy hooks are looked up on the instance and receive the memo,
         as in Python's copy module. Real descriptors, return choices and exceptions
-        are preserved. Static discovery reads actual class definitions; the state
-        hooks themselves retain their normal Python behavior."""
+        are preserved. Actual reducers follow copyreg and __reduce_ex__/__reduce__ fallback, including
+        absent/None descriptors and dynamic lookup. Default date copying keeps
+        its native buffer path; genuine state hooks retain their own behavior."""
         try:
             deep=_boolean(deep,"Pddt.copy","deep")
-            return _copy_value(self,Pddt,_restore_pddt_copy,deep,{} if deep else None,name,True)
+            return _copy_value(self,_restore_pddt_copy,deep,{} if deep else None,name,True)
         except Exception as error:
             _raise_argument_context(error,"Pddt.copy","deep",deep)
 
@@ -3652,7 +3672,7 @@ class Pddt(pd.DatetimeIndex):
             A fresh shell with shared business references under the default
             protocol; business constructors are not rerun.
         """
-        return _copy_value(self,Pddt,_restore_pddt_copy,False)
+        return _copy_value(self,_restore_pddt_copy,False)
 
     def __deepcopy__(self,memo):
         """Deep-copy dates and business state with Python's existing memo.
@@ -3668,7 +3688,7 @@ class Pddt(pd.DatetimeIndex):
             An independent date buffer and deeply copied business state under
             the default protocol, without business initialization.
         """
-        return _copy_value(self,Pddt,_restore_pddt_copy,True,memo)
+        return _copy_value(self,_restore_pddt_copy,True,memo)
 
     def __getstate__(self):
         """Return an independent snapshot of business dictionary and slots.
@@ -3728,6 +3748,9 @@ class Pddt(pd.DatetimeIndex):
             except Exception as error:
                 raise _external_error(error)
         return Pddt.__reduce__(self)
+
+
+_register_state(Pddt)
 
 
 class _PddtNamespace:

@@ -4,8 +4,8 @@ build-backend = "maturin"
 
 [project]
 name = "rsTimes"
-version = "0.2.0b3"
-description = "Rust-powered calendar deltas, configurable parsing, and scalar, pandas and Polars datetimes"
+version = "1.0.0"
+description = "Calendar arithmetic, date parsing, and datetime tools for Python, pandas, and Polars"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE", "NOTICE-RUST-STDLIB.html", "NOTICE-CPYTHON.txt", "NOTICE-UNICODE.txt", "NOTICE-IANA-TIME-ZONE.txt", "NOTICE-PLDT-DEPENDENCIES.txt"]
@@ -15,7 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Typing :: Typed",
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
@@ -30,6 +30,7 @@ classifiers = [
 Repository = "https://github.com/AresJef/rsTimes"
 Issues = "https://github.com/AresJef/rsTimes/issues"
 Documentation = "https://github.com/AresJef/rsTimes#readme"
+Changelog = "https://github.com/AresJef/rsTimes/releases"
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
@@ -46,7 +47,7 @@ module-name = "rstimes._native"
 bindings = "pyo3"
 features = ["extension-module"]
 # Source metadata files must not pull same-named files from local/reference trees.
-exclude = ["AGENTS.md", ".local/**", "reference/**", "target/**", "benchmarks/**", "tasks/**", "docs/**", "tests/**", "tools/**", "**/__pycache__/**", ".pytest_cache/**", ".git/**", "build/**", "dist/**", ".delta-oracle/**", ".wheel-test*/**", ".venv/**", "htmlcov/**"]
+exclude = ["AGENTS.md", "demo/README.md", ".local/**", "reference/**", "target/**", "benchmarks/**", "tasks/**", "docs/**", "tests/**", "tools/**", "**/__pycache__/**", ".pytest_cache/**", ".git/**", "build/**", "dist/**", ".delta-oracle/**", ".wheel-test*/**", ".venv/**", "htmlcov/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

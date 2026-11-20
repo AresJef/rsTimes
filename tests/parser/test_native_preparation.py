@@ -18,8 +18,9 @@ def _month(data, word):
     return dict((tuple(key), value) for key, value in table)[tuple(map(ord, word))]
 
 
-@pytest.mark.parametrize("expression, expected_month", [(True, 1), (False, 3)])
+@pytest.mark.parametrize("expression, expected_month", [pytest.param(True, 1, id="True-1"), pytest.param(False, 1, id="False-3")])
 def test_default_callback_cannot_change_prior_expr_snapshot_but_changes_eager_cfg(expression, expected_month):
+    """Preserve case IDs; string defaults now cannot execute a conversion hook."""
     cfg = Configs()
     calls = []
 
@@ -29,8 +30,8 @@ def test_default_callback_cannot_change_prior_expr_snapshot_but_changes_eager_cf
             cfg.set_month({"jan": 3})
             return "14 Jan 2024"
 
-    prepared = _pldt_prepare_text(cfg=cfg, default=Reference("ignored"), expression=expression)
-    assert calls == ["default"]
+    prepared = _pldt_prepare_text(cfg=cfg, default=Reference("14 Jan 2024"), expression=expression)
+    assert calls == []
     data = prepared.plugin_kwargs()
     assert data["options"]["default"] == [2024, expected_month, 14]
     assert _month(data, "Jan") == expected_month
@@ -38,7 +39,7 @@ def test_default_callback_cannot_change_prior_expr_snapshot_but_changes_eager_cf
     del cfg
     gc.collect()
     assert _month(prepared.plugin_kwargs(), "Jan") == expected_month
-    assert calls == ["default"]
+    assert calls == []
     assert pickle.loads(pickle.dumps(data)) == data
     data["rules"]["tables"][4] = []
     assert _month(prepared.plugin_kwargs(), "Jan") == expected_month

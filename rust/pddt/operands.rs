@@ -4,7 +4,9 @@ use super::common::{NS_DAY, pack};
 use crate::delta::Delta;
 use crate::epoch::{Unit, Zone};
 pub(super) use crate::temporal_operand::numpy_code;
-use crate::temporal_operand::{Value, column_callback, overridden, protocol_version, read, span};
+use crate::temporal_operand::{
+    Value, column_callback, native_span, overridden, protocol_version, read, span_scale,
+};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDelta, PyDict};
 
@@ -74,6 +76,11 @@ fn _pddt_operand(
         let validity = super::validity::TemporalValidity::new(mask, length)?;
         let code = numpy_code(source.unwrap_or(""))?;
         unit = super::prepare::scalar_unit(code)?;
+        let duration_scale = if storage == Some("M") {
+            1
+        } else {
+            span_scale(code, multiplier)?
+        };
         let mut values = Vec::with_capacity(length);
         for (i, bytes) in bytes.as_chunks::<8>().0.iter().enumerate() {
             let raw: [u8; 8] = *bytes;
@@ -87,8 +94,10 @@ fn _pddt_operand(
                         source_zone.is_some_and(|v| !v.is_none()),
                     )
                 }
+            } else if validity.missing(i, ticks) {
+                Value::Missing(2)
             } else {
-                span(ticks, code, multiplier).map_err(|e| {
+                native_span(ticks, duration_scale).map_err(|e| {
                     crate::error_context::location(py, e, entry, &format!("other[{i}]"))
                 })?
             };
@@ -156,10 +165,7 @@ fn _pddt_operand(
         }
         // Only iterables enter a row path; scalar unsupported operands retain
         // normal Python/pandas NotImplemented negotiation.
-        if !data
-            .hasattr("__iter__")
-            .map_err(crate::error_context::external)?
-        {
+        if !crate::temporal_operand::has_row_protocol(data) {
             return Ok(None);
         }
     }
@@ -347,8 +353,10 @@ fn fixed_hours<'py>(
                 (|| {
                     let wall = i128::from(tick) * unit.nanos() + i128::from(offset) * 1000;
                     let source_day = wall.div_euclid(NS_DAY);
-                    let ordinal = i64::try_from(source_day + 719_163)
-                        .map_err(|_| crate::error_context::overflow("calendar day overflow"))?;
+                    // An i64 tick at s/ms/us/ns plus an i64 microsecond offset
+                    // gives |source_day| < 2^47. This source ordinal fits i64;
+                    // subsequent calendar movement and final ticks still check.
+                    let ordinal = (source_day + 719_163) as i64;
                     let date = crate::calendar::from_ordinal(ordinal)
                         .map_err(crate::error_context::overflow)?;
                     let hour = (wall.rem_euclid(NS_DAY) / 3_600_000_000_000) as i64;
@@ -495,16 +503,9 @@ fn binary<'py, const DYNAMIC: bool>(
                 Value::Span(value) => source
                     .checked_add(*value * sign)
                     .ok_or_else(|| crate::error_context::overflow("duration addition overflow")),
-                Value::Date(value, aware) => {
-                    if *aware != zone.is_some() {
-                        return Err(crate::error_context::type_error(
-                            "cannot subtract timezone-aware and timezone-naive dates",
-                        ));
-                    }
-                    source
-                        .checked_sub(*value)
-                        .ok_or_else(|| crate::error_context::overflow("date difference overflow"))
-                }
+                Value::Date(value, _) => source
+                    .checked_sub(*value)
+                    .ok_or_else(|| crate::error_context::overflow("date difference overflow")),
                 Value::Delta(fields) => {
                     let wall = if let Some(offset) = fixed {
                         source + i128::from(offset) * 1000

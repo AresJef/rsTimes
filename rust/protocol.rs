@@ -565,8 +565,8 @@ unsafe fn compare_general(
         let receiver = unsafe { Borrowed::from_ptr(py, receiver).cast_unchecked::<Delta>() };
         let other = unsafe { Borrowed::from_ptr(py, other) };
         if matches!(operation, ffi::Py_EQ | ffi::Py_NE)
-            && same_value_semantics(&receiver, &other)?
             && let Ok(right) = other.cast::<Delta>()
+            && same_value_semantics(&receiver, &right, operation)?
         {
             let equal = receiver.get().native_eq(right.get());
             return Ok(PyBool::new(
@@ -681,11 +681,9 @@ pub(crate) fn inherited_inequality<'py>(
 
 pub(crate) fn same_value_semantics(
     receiver: &Bound<'_, Delta>,
-    other: &Bound<'_, PyAny>,
+    other: &Bound<'_, Delta>,
+    operation: std::ffi::c_int,
 ) -> PyResult<bool> {
-    let Ok(other) = other.cast::<Delta>() else {
-        return Ok(false);
-    };
     let py = receiver.py();
     let base = py.get_type::<Delta>();
     for class in [receiver.get_type(), other.get_type()] {
@@ -694,7 +692,7 @@ pub(crate) fn same_value_semantics(
             // The immutable exact base needs no mutable-slot inspection. A
             // subclass uses actual owned method definitions rather than racing
             // its live comparison/hash slots for a speculative shortcut.
-            if !class.is(&base) && !inherits_value_methods(&class, &base)? {
+            if !class.is(&base) && !inherits_value_methods(&class, &base, operation)? {
                 return Ok(false);
             }
         }
@@ -715,7 +713,7 @@ pub(crate) fn same_value_semantics(
             if hash == base_hash && comparison == base_comparison {
                 continue;
             }
-            if !inherits_value_methods(&class, &base)? {
+            if !inherits_value_methods(&class, &base, operation)? {
                 return Ok(false);
             }
         }
@@ -807,7 +805,9 @@ fn descriptor_get(value: &Bound<'_, PyAny>) -> Option<ffi::descrgetfunc> {
 fn method_key<'py>(py: Python<'py>, name: &str) -> Bound<'py, PyString> {
     match name {
         "__getstate__" => pyo3::intern!(py, "__getstate__").clone(),
+        "__setstate__" => pyo3::intern!(py, "__setstate__").clone(),
         "__reduce__" => pyo3::intern!(py, "__reduce__").clone(),
+        "__reduce_ex__" => pyo3::intern!(py, "__reduce_ex__").clone(),
         "__add__" => pyo3::intern!(py, "__add__").clone(),
         "__sub__" => pyo3::intern!(py, "__sub__").clone(),
         "__eq__" => pyo3::intern!(py, "__eq__").clone(),
@@ -815,8 +815,48 @@ fn method_key<'py>(py: Python<'py>, name: &str) -> Bound<'py, PyString> {
         "__hash__" => pyo3::intern!(py, "__hash__").clone(),
         "utcoffset" => pyo3::intern!(py, "utcoffset").clone(),
         "fromutc" => pyo3::intern!(py, "fromutc").clone(),
+        "key" => pyo3::intern!(py, "key").clone(),
+        "dst" => pyo3::intern!(py, "dst").clone(),
+        "tzname" => pyo3::intern!(py, "tzname").clone(),
+        "__getattribute__" => pyo3::intern!(py, "__getattribute__").clone(),
+        "__getattr__" => pyo3::intern!(py, "__getattr__").clone(),
+        "__dict__" => pyo3::intern!(py, "__dict__").clone(),
+        "_unpickle" => pyo3::intern!(py, "_unpickle").clone(),
         _ => PyString::new(py, name),
     }
+}
+
+/// Check live inherited methods and locate instance storage in one MRO pass.
+///
+/// # Errors
+/// Propagates actual metadata allocation/read failures. Owned namespaces keep
+/// their entries alive on both ordinary and free-threaded interpreters.
+pub(crate) fn inherited_methods<'py>(
+    class: &Bound<'py, PyType>,
+    base: &Bound<'_, PyType>,
+    names: &[&str],
+) -> PyResult<(bool, Option<Bound<'py, PyAny>>)> {
+    let py = class.py();
+    let mut storage = None;
+    for ancestor in actual_mro(class)?.iter() {
+        if ancestor.is(base) {
+            return Ok((true, storage));
+        }
+        let namespace = type_namespace(ancestor.cast::<PyType>()?)?;
+        if storage.is_none() {
+            storage = namespace.get_item(pyo3::intern!(py, "__dict__"))?;
+        }
+        for name in names {
+            let key = method_key(py, name);
+            if let Some(method) = namespace.get_item(&key)? {
+                let original = type_namespace(base)?.get_item(&key)?;
+                if original.is_none_or(|original| !method.is(&original)) {
+                    return Ok((false, None));
+                }
+            }
+        }
+    }
+    Ok((false, None))
 }
 
 /// Read a special-method definition from the real MRO, bypassing metaclass hooks.
@@ -839,6 +879,30 @@ pub(crate) fn method_definition<'py>(
     Ok(None)
 }
 
+/// Bind an already-owned descriptor to its real receiver and actual type.
+/// The caller retains the definition through use of the returned value.
+/// # Errors
+/// Preserves the actual binding callback's exception.
+#[inline]
+pub(crate) fn bind_descriptor<'py>(
+    definition: &Bound<'py, PyAny>,
+    receiver: &Bound<'py, PyAny>,
+    actual: &Bound<'py, PyType>,
+) -> PyResult<Bound<'py, PyAny>> {
+    if let Some(get) = descriptor_get(definition) {
+        // SAFETY: all three arguments are retained Python objects. The slot
+        // returns an owned reference and remains live through its definition.
+        unsafe {
+            Bound::from_owned_ptr_or_err(
+                receiver.py(),
+                get(definition.as_ptr(), receiver.as_ptr(), actual.as_ptr()),
+            )
+        }
+    } else {
+        Ok(definition.clone())
+    }
+}
+
 /// Execute a real special-method descriptor without consulting instance aliases.
 ///
 /// # Errors
@@ -848,7 +912,6 @@ pub(crate) fn call_special<'py>(
     name: &str,
     other: &Bound<'py, PyAny>,
 ) -> PyResult<Bound<'py, PyAny>> {
-    let py = receiver.py();
     let actual = receiver.get_type();
     let definition = method_definition(&actual, name)?
         .ok_or_else(|| crate::error_context::type_error("arithmetic method is not defined"))?;
@@ -857,37 +920,31 @@ pub(crate) fn call_special<'py>(
             .call1((receiver, other))
             .map_err(crate::error_context::external);
     }
-    // SAFETY: the retained descriptor, receiver and ready actual type remain
-    // owned under the GIL, including throughout arbitrary descriptor callbacks.
-    let bound = if let Some(get) = descriptor_get(&definition) {
-        unsafe {
-            Bound::from_owned_ptr_or_err(
-                py,
-                get(definition.as_ptr(), receiver.as_ptr(), actual.as_ptr()),
-            )
-        }
-        .map_err(crate::error_context::external)?
-    } else {
-        definition
-    };
+    let bound =
+        bind_descriptor(&definition, receiver, &actual).map_err(crate::error_context::external)?;
     bound
         .call1((other,))
         .map_err(crate::error_context::external)
 }
 
-/// Inspect inherited value methods once without running hooks during dict iteration.
+/// Inspect only the relevant live inherited definitions, retaining their owners.
 /// # Errors
 /// Preserves type/attribute errors; retained MRO and entries survive callbacks.
 #[inline(never)]
 fn inherits_value_methods<'py>(
     class: &Bound<'py, PyType>,
     base: &Bound<'py, PyType>,
+    operation: std::ffi::c_int,
 ) -> PyResult<bool> {
     // SAFETY: ready types own their MRO and namespace. Own the MRO tuple and
     // each selected entry before any later descriptor lookup can run Python.
     let mro = actual_mro(class)?;
     let names = ["__eq__", "__ne__", "__hash__"];
     let mut found = [false; 3];
+    // Equality has no responsibility for a separate inequality override.
+    if operation == ffi::Py_EQ {
+        found[1] = true;
+    }
     for ancestor in mro.iter() {
         let ancestor = ancestor.cast::<PyType>()?;
         if ancestor.is(base) {
@@ -895,27 +952,22 @@ fn inherits_value_methods<'py>(
         }
         let namespace = type_namespace(ancestor)?;
         let mut entries: [Option<Bound<'py, PyAny>>; 3] = [None, None, None];
-        #[cfg(Py_GIL_DISABLED)]
-        let snapshot = namespace.copy()?;
-        #[cfg(Py_GIL_DISABLED)]
-        let namespace = snapshot;
-        for (key, value) in namespace.iter() {
-            if !key.is_exact_instance_of::<PyString>() {
-                return Ok(false);
-            }
-            let index = match key.cast::<PyString>()?.to_str()? {
-                "__eq__" => 0,
-                "__ne__" => 1,
-                "__hash__" => 2,
-                _ => continue,
-            };
+        for (index, name) in names.iter().enumerate() {
             if !found[index] {
-                entries[index] = Some(value);
+                // PyO3's dictionary lookup retains the selected value on t too.
+                // Unrelated attributes need no decoding or dictionary snapshot.
+                entries[index] = namespace.get_item(method_key(class.py(), name))?;
             }
         }
-        // The live dictionary iterator has ended before any descriptor lookup.
+        // All selected definitions are owned before any descriptor lookup.
         for (index, entry) in entries.into_iter().enumerate() {
             if let Some(entry) = entry {
+                // Disabling hashing does not change inherited value equality.
+                // A real custom hash retains the existing conservative rule.
+                if index == 2 && entry.is_none() {
+                    found[index] = true;
+                    continue;
+                }
                 if !entry.is(base
                     .getattr(names[index])
                     .map_err(crate::error_context::external)?)

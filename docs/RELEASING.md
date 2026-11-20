@@ -33,7 +33,7 @@ reason to overwrite files or try a different version without authorization.
 For this run the account checks and absent b3 version were completed in S01.
 The user completed PyPI login; no publisher or account settings were changed.
 
-## 2. Integrate the adopted source and prepare the beta metadata
+## 2. Integrate the adopted source and prepare release metadata
 
 Read the adoption manifests and compare every production input, relevant test,
 type/tool file, resource and license. A matching version string is insufficient.
@@ -47,11 +47,9 @@ actual upgrade behavior, dependency conditions and explicitly deferred issues.
 Run examples against an installed wheel. The release's README is package
 metadata, so complete it before freezing the release source.
 
-Freeze the README's stable maintainer-procedure link before the release tag.
-The procedure itself can be explicitly provisional until this release's actual
-experience is finalized. Its file is excluded from wheel/sdist payload; the
-README is package metadata and must not be changed as a supposedly payload-free
-post-publication follow-up.
+Freeze the README and its public links before tagging. The README is package
+metadata. Make maintenance-only follow-ups to this guide, which is excluded
+from the wheel and source distribution.
 
 This run uses Python `0.2.0b3`, Cargo `0.2.0-beta.3` and tag `v0.2.0b3`.
 Mechanical synchronization preserved all 135 adopted production inputs; release

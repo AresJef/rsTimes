@@ -1783,7 +1783,8 @@ def correction_contract_cases(package):
             assert hash(value) == hash(Delta(days=1))
         class HashChild(Delta):
             __hash__ = None
-        assert Delta.__eq__(Delta(days=1), HashChild(days=1)) is NotImplemented
+        # R08: disabling hash alone does not cancel inherited field equality.
+        assert Delta.__eq__(Delta(days=1), HashChild(days=1)) is True
         return True
 
     add("comparison:custom", "F05", custom_comparison)

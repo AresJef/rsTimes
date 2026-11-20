@@ -1,6 +1,6 @@
 //! Native field/relative transforms over one immutable date-buffer snapshot.
 use super::arguments::Integers;
-use super::common::{Rows, finish, pack};
+use super::common::{Rows, finish, pack, pack_error, pack_tick};
 use super::zones::{Candidates, Policies};
 use crate::epoch::{Parsed, Unit, Zone};
 use pyo3::prelude::*;
@@ -76,6 +76,59 @@ fn transformed(wall: i128, kind: &str, args: &[PyRef<'_, Integers>], row: usize)
         .map_err(transform_error)
 }
 
+#[derive(Debug)]
+enum FillError {
+    Transform(usize, crate::date_transform::Error),
+    Pack(usize, crate::precision::TickError),
+}
+
+/// Fill an unpublished output from immutable, already prepared native values.
+fn fill_fixed(
+    data: &[u8],
+    output: &mut [u8],
+    unit: Unit,
+    offsets: (i64, i64),
+    same: bool,
+    kind: &str,
+    get: impl Fn(usize, usize) -> Option<i64>,
+) -> Result<bool, FillError> {
+    let mut changed_any = false;
+    let mut first_output_error = None;
+    for (row, (input, cell)) in data
+        .as_chunks::<8>()
+        .0
+        .iter()
+        .zip(output.as_chunks_mut::<8>().0.iter_mut())
+        .enumerate()
+    {
+        let tick = i64::from_ne_bytes(*input);
+        if tick == i64::MIN {
+            cell.copy_from_slice(&tick.to_ne_bytes());
+            continue;
+        }
+        let instant = i128::from(tick) * unit.nanos();
+        let wall = instant + i128::from(offsets.0) * 1000;
+        let changed = crate::date_transform::transform(wall, kind, |index| get(index, row))
+            .map_err(|error| FillError::Transform(row, error))?;
+        let value = if changed == wall && same {
+            instant
+        } else {
+            changed - i128::from(offsets.1) * 1000
+        };
+        changed_any |= value != instant;
+        match pack_tick(value, unit, true) {
+            Ok(tick) => cell.copy_from_slice(&tick.to_ne_bytes()),
+            Err(error) if first_output_error.is_none() => first_output_error = Some((row, error)),
+            Err(_) => {}
+        }
+    }
+    // Transform every row before reporting the first output error, as before.
+    if let Some((row, error)) = first_output_error {
+        return Err(FillError::Pack(row, error));
+    }
+    Ok(changed_any)
+}
+
 type Output<'py> = (Bound<'py, PyBytes>, &'static str, Py<PyAny>, bool);
 
 #[pyfunction]
@@ -132,6 +185,58 @@ fn _pddt_transform<'py>(
     let output_fixed = super::common::fixed_offset(py, &output_zone)?;
     let same = super::common::same_zone(py, &source_zone, &output_zone)?;
     let mut changed_any = !same;
+    if policy.is_none()
+        && let (Some(source_offset), Some(output_offset)) = (source_fixed, output_fixed)
+    {
+        let packed = PyBytes::new_with(py, data.len(), |output| {
+            let changed = if count >= 16_384 {
+                // PyRef guards and their owners remain outside detach. Only
+                // native frozen column references enter the pure fill closure.
+                let mut columns = [&args[0].0; 11];
+                for (column, arg) in columns.iter_mut().zip(&args) {
+                    *column = &arg.0;
+                }
+                let columns = &columns[..args.len()];
+                py.detach(|| {
+                    fill_fixed(
+                        data,
+                        output,
+                        unit,
+                        (source_offset, output_offset),
+                        same,
+                        kind,
+                        |index, row| columns[index].get(row),
+                    )
+                })
+            } else {
+                fill_fixed(
+                    data,
+                    output,
+                    unit,
+                    (source_offset, output_offset),
+                    same,
+                    kind,
+                    |index, row| args[index].0.get(row),
+                )
+            };
+            changed_any |= changed.map_err(|error| match error {
+                FillError::Transform(row, error) => crate::error_context::location(
+                    py,
+                    transform_error(error),
+                    entry,
+                    &format!("result[{row}]"),
+                ),
+                FillError::Pack(row, error) => pack_error(py, error, entry, row),
+            })?;
+            Ok(())
+        })?;
+        return Ok((
+            packed,
+            unit.name(),
+            output.map_or_else(|| py.None(), |value| value.clone().unbind()),
+            changed_any,
+        ));
+    }
     let mut rows = Rows::new(unit);
     if policy.is_some() {
         rows.reserve(count)?;
@@ -211,4 +316,79 @@ fn _pddt_transform<'py>(
 
 pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_pddt_transform, module)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fixed_fill_runs_on_an_unattached_native_thread_with_missing_values() {
+        let result = std::thread::spawn(|| {
+            let input: Vec<_> = [1_706_659_200_i64, i64::MIN, 1_709_251_200]
+                .into_iter()
+                .flat_map(i64::to_ne_bytes)
+                .collect();
+            let mut output = vec![0; input.len()];
+            let changed = fill_fixed(
+                &input,
+                &mut output,
+                Unit::Second,
+                (0, 0),
+                true,
+                "add",
+                |index, _| Some(i64::from(index == 2)),
+            )
+            .unwrap();
+            let ticks: Vec<_> = output
+                .as_chunks::<8>()
+                .0
+                .iter()
+                .map(|bytes| i64::from_ne_bytes(*bytes))
+                .collect();
+            (changed, ticks)
+        })
+        .join()
+        .unwrap();
+        assert_eq!(result, (true, vec![1_709_164_800, i64::MIN, 1_711_929_600]));
+    }
+
+    #[test]
+    fn later_native_transform_failure_precedes_an_earlier_pack_failure() {
+        let mut output = [0; 16];
+        let result = fill_fixed(
+            &[0; 16],
+            &mut output,
+            Unit::Microsecond,
+            (0, 0),
+            true,
+            "add",
+            |index, row| {
+                Some(match (index, row) {
+                    (0, 1) => i64::MAX,
+                    (10, 0) => 1,
+                    _ => 0,
+                })
+            },
+        );
+        assert!(matches!(result, Err(FillError::Transform(1, _))));
+    }
+
+    #[test]
+    fn first_native_pack_failure_keeps_its_row_after_all_transforms() {
+        let mut output = [0; 24];
+        let result = fill_fixed(
+            &[0; 24],
+            &mut output,
+            Unit::Microsecond,
+            (0, 0),
+            true,
+            "add",
+            |index, row| Some(i64::from(index == 10 && row != 0)),
+        );
+        assert!(matches!(
+            result,
+            Err(FillError::Pack(1, crate::precision::TickError::Precision))
+        ));
+    }
 }

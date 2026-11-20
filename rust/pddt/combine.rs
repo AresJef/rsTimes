@@ -210,7 +210,7 @@ fn _pddt_combine<'py>(
                 let zone = local.call0().map_err(crate::error_context::external)?;
                 let fixed = super::common::fixed_offset(py, &Zone::Object(zone.clone().unbind()))?;
                 let day = super::zones::utc_wall(
-                    super::factory::system_nanos(std::time::SystemTime::now())?,
+                    crate::clock::system_nanos(std::time::SystemTime::now()),
                     &zone,
                     fixed,
                 )?

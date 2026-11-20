@@ -38,6 +38,42 @@ the two added language configurations. These are static language checks; they
 do not prove the runtime GIL state or replace installed t-wheel tests. CI runs
 the 3.12, 3.14, and 3.15 configurations separately against the installed package.
 
+## Fixed frequencies with Polars and no pandas runtime
+
+`Pldt` Series and Expr `floor`, `round`, and `ceil` accept frequency strings
+such as `"3ns"` and standard `datetime.timedelta` objects in a Polars-only
+installation. With pandas installed, the same signatures cover pandas
+`Timedelta` and the standard `Day`, `Hour`, `Minute`, `Second`, `Milli`,
+`Micro`, and `Nano` offset classes. Actual offset objects are still checked
+at runtime.
+
+Complete fixed-frequency type checking requires the matching pandas type
+information. With neither pandas nor its stubs available, Pyright 1.1.414
+can miss invalid `int` and `numpy.timedelta64` arguments to these six
+methods. Both argument types raise `TypeError` at runtime.
+
+To keep pandas absent from the runtime, install just its static stubs into a
+separate directory and point the checker to that directory:
+
+```sh
+/absolute/path/to/polars-env/bin/python -m pip install \
+  --no-deps --target /absolute/path/to/static-stubs pandas-stubs==3.0.5.260914
+```
+
+Add this setting to the consumer's `pyrightconfig.json`:
+
+```json
+{
+  "extraPaths": ["/absolute/path/to/static-stubs"]
+}
+```
+
+Run Pyright with `--pythonpath /absolute/path/to/polars-env/bin/python` to check
+the consumer against its actual installation. Keep the static directory out
+of the runtime import path. Code that explicitly imports and uses pandas
+classes still needs pandas at runtime. Pyright can report missing module
+sources for those imports when it sees only the stubs.
+
 The demos deliberately include rejected inputs, `NotImplemented` negotiation,
 and real external behavior that a third-party stub cannot express. Their exact
 diagnostics remain visible and are checked against

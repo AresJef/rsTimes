@@ -262,26 +262,26 @@ fn iso_date<P: Policy>(
     f.resolved = true;
     Ok(Some(pos))
 }
-/// Returns the continuation position and whether only post-time handlers apply.
+/// Returns the next scan position (start if no ISO time was consumed).
 fn iso_time<P: Policy>(
     input: &impl CharacterRead,
     start: usize,
     f: &mut Fields<P>,
     ignore: bool,
-) -> ParseResult<(usize, bool)> {
+) -> ParseResult<usize> {
     let n = input.len();
     if start == n {
-        return Ok((n, true));
+        return Ok(n);
     }
     if start < 7
         || n - start < if P::ISO_ONLY { 3 } else { 6 }
         || !matches!(input.get(start), 32 | 84 | 116)
     {
-        return Ok((start, false));
+        return Ok(start);
     }
     let h = input.number(start + 1, 2, 0, 99);
     if h < 0 {
-        return Ok((start, false));
+        return Ok(start);
     }
     // A colon immediately after two proven hour digits fixes their role.
     // Unit suffixes and longer numbers still take the complete-token check.
@@ -302,10 +302,10 @@ fn iso_time<P: Policy>(
                 && !matches!(input.get(after_number), 90 | 122))
                 || input.get(after_number) > 127)
         {
-            return Ok((start, false));
+            return Ok(start);
         }
         if input.get(end) == 58 && end != start + 3 {
-            return Ok((start, false));
+            return Ok(start);
         }
     }
     let (m, s, mut p) = if P::ISO_ONLY
@@ -320,7 +320,7 @@ fn iso_time<P: Policy>(
             // Fractional minutes retain the general grammar's conversion.
             // A following numeric offset is a separate field, never seconds.
             if !P::ISO_ONLY && matches!(input.get(start + 6), 44 | 46) {
-                return Ok((start, false));
+                return Ok(start);
             }
             (minute, 0, start + 6)
         }
@@ -334,11 +334,11 @@ fn iso_time<P: Policy>(
         )
     };
     if m < 0 || s < 0 {
-        return Ok((start, false));
+        return Ok(start);
     }
     let clock_suffix = input.get(p);
     if digit(clock_suffix) {
-        return Ok((start, false));
+        return Ok(start);
     }
     let second_explicit = p >= start + 7;
     if f.strict() {
@@ -375,14 +375,14 @@ fn iso_time<P: Policy>(
         p += 1;
     }
     if p == n {
-        return Ok((p, true));
+        return Ok(p);
     }
     if !ignore {
         if matches!(input.get(p), 90 | 122) {
             if n - p == 1 {
                 f.tzoffset = 0;
                 f.tzoffset_finalized = true;
-                return Ok((n, true));
+                return Ok(n);
             }
             if input.get(p + 1) == 32 {
                 f.tzoffset = 0;
@@ -398,7 +398,7 @@ fn iso_time<P: Policy>(
             // A compact hour/minute followed by a colon has explicit seconds.
             // Leave the whole offset to the token reader before committing it.
             if !colon && input.get(minute_start + 2) == 58 {
-                return Ok((p, true));
+                return Ok(p);
             }
             if colon && minute_start + 2 < n {
                 let suffix = input.get(minute_start + 2);
@@ -409,7 +409,7 @@ fn iso_time<P: Policy>(
                         && (digit(input.get(minute_start + 5))
                             || !digit(input.get(minute_start + 4))))
                 {
-                    return Ok((p, true));
+                    return Ok(p);
                 }
             }
             if raw_hour >= 0 && raw_minute >= 0 {
@@ -440,7 +440,7 @@ fn iso_time<P: Policy>(
             }
         }
     }
-    Ok((p, true))
+    Ok(p)
 }
 
 fn kind(t: &[u32]) -> i32 {
@@ -587,28 +587,19 @@ fn hms_known<P: Policy>(f: &mut Fields<P>, flag: i32, t: &[u32], k: i32) -> Pars
         f.set_clock(flag, value)?;
     }
     if let Some(p) = split {
-        let mut numerator = 0_u128;
-        let mut denominator = 1_u128;
-        for &ch in &t[p + 1..] {
-            numerator = numerator
-                .checked_mul(10)
-                .and_then(|v| v.checked_add(u128::from(ch - 48)))
-                .ok_or_else(|| {
-                    ParseError::Overflow("decimal clock precision exceeds native arithmetic".into())
-                })?;
-            denominator = denominator.checked_mul(10).ok_or_else(|| {
-                ParseError::Overflow("decimal clock precision exceeds native arithmetic".into())
-            })?;
-        }
-        let factor = if flag == 0 {
+        let factor: u64 = if flag == 0 {
             3_600_000_000_000
         } else {
             60_000_000_000
         };
-        let nanos = numerator
-            .checked_mul(factor)
-            .ok_or_else(|| ParseError::Overflow("decimal clock arithmetic overflow".into()))?
-            / denominator;
+        // Classification already proves ASCII digits. Reverse carry computes
+        // floor(factor * 0.digits) exactly without a length-dependent numerator
+        // or denominator. carry < factor, so every intermediate is < 10*factor
+        // (at most 36_000_000_000_000), safely within u64 for any token length.
+        let nanos = t[p + 1..]
+            .iter()
+            .rev()
+            .fold(0, |carry, &ch| (u64::from(ch - 48) * factor + carry) / 10);
         if flag == 0 {
             f.set_clock(1, (nanos / 60_000_000_000) as i32)?;
         }
@@ -926,8 +917,7 @@ fn numeric<P: Policy>(
         if matches!(n, 2 | 4)
             && (n == 4 || f.hour < 0)
             && (f.ymd_slots_filled() == 3 || (f.is_year_set() && f.doy > 0))
-            && (tok(ts, *i, 1).is_empty()
-                || (!one(tok(ts, *i, 1), 58) && q.query(Rule::HmsContains, tok(ts, *i, 1))? == 0))
+            && (tok(ts, *i, 1).is_empty() || q.query(Rule::HmsContains, tok(ts, *i, 1))? == 0)
         {
             f.set_clock(0, fixed(t, 0, 2, 0, 99))?;
             if n == 4 {
@@ -975,9 +965,6 @@ fn numeric<P: Policy>(
             }
             return Ok(true);
         }
-        if one(tok(ts, *i, 1), 58) {
-            return colon_clock(ts, i, f, t);
-        }
         if dsep(tok(ts, *i, 1)) && set_ymd(f, q, 0, t)? {
             if !set_ymd(f, q, 0, tok(ts, *i, 2))? {
                 *i += 1;
@@ -1007,7 +994,6 @@ fn numeric<P: Policy>(
         && n == 4
         && !f.is_year_set()
         && f.ymd_slots_filled() == 2
-        && !one(tok(ts, *i, 1), 58)
         && query(q, Rule::Hms, tok(ts, *i, 1), -1)? == -1
     {
         f.century_specified = true;
@@ -1233,15 +1219,15 @@ fn iso_week<P: Policy>(
     if !(2..=3).contains(&next.len()) {
         return Ok(false);
     }
-    if next == [48, 48] {
-        return Err(ParseError::Value("ISO week must be at least 1".into()));
-    }
-    let w = fixed(next, 0, 2, 1, 99);
-    if w == -1 {
+    let w = fixed(next, 0, 2, 0, 99);
+    if w <= 0 {
+        if w == 0 && next.get(2).is_none_or(|&ch| digit(ch)) {
+            return Err(ParseError::Value("ISO week must be at least 1".into()));
+        }
         // Preserve the grammar's treatment of an unrecognized week number;
         // its digits must not become another calendar year or day-of-year.
         *i += 1;
-        if next != [48, 48] && dsep(tok(ts, *i, 1)) && kind(tok(ts, *i, 2)) == 1 {
+        if dsep(tok(ts, *i, 1)) && kind(tok(ts, *i, 2)) == 1 {
             *i += 2;
         }
         return Ok(true);
@@ -1445,14 +1431,14 @@ pub(super) fn prefix<P: Policy>(
     fields: &mut Fields<P>,
     ignoretz: bool,
     isoformat: bool,
-) -> ParseResult<(usize, bool)> {
+) -> ParseResult<usize> {
     if isoformat {
         match iso_date(input, fields)? {
             Some(p) => iso_time(input, p, fields, ignoretz),
-            None => Ok((0, false)),
+            None => Ok(0),
         }
     } else {
-        Ok((0, false))
+        Ok(0)
     }
 }
 

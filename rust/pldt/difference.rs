@@ -376,12 +376,6 @@ fn execute(inputs: &[Series], options: &Options) -> Result<Series, Failure> {
         ));
     }
     let targets = read_targets(&inputs[1], aware, options)?;
-    if targets.len().is_some_and(|len| len != source.len()) {
-        return Err(Failure::new(
-            Kind::Value,
-            "target length must equal source length; a one-element collection is not a scalar",
-        ));
-    }
     match bucket {
         Bucket::Calendar(kind) => calculate(
             source,

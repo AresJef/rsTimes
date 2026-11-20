@@ -129,8 +129,8 @@ def test_current_clock_queries_are_lazy_and_prepare_the_local_clock_once(monkeyp
     import rstimes._localization as zones
     from datetime import timezone
     calls=[]
-    zones.named_timezone.cache_clear()
-    request.addfinalizer(zones.named_timezone.cache_clear)
+    zones._named_timezone.cache_clear()
+    request.addfinalizer(zones._named_timezone.cache_clear)
     def local():calls.append(1);return timezone.utc
     monkeypatch.setattr(zones,"local_timezone",local)
     assert Pddt([None]).is_past().tolist()==[False]

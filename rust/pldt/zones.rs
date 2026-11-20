@@ -5,10 +5,35 @@ use crate::parser::Truth;
 use crate::temporal_zone::{Candidates, Zone, ZoneData, ZoneError};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::{PyDelta, PyDeltaAccess, PyDict, PyString};
+use pyo3::types::{PyDelta, PyDeltaAccess, PyDict, PyString, PyType};
 use serde::{Deserialize, Serialize};
 
 static HOST_RESOLVER: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+/// Check native named provenance and live behavior without business hooks.
+///
+/// Parameters
+/// ----------
+/// value : object
+///     A ZoneInfo subclass instance being prepared as a native target.
+/// base : type
+///     The original standard ZoneInfo type.
+/// storage_type : type
+///     The builtin get-set descriptor type for real instance storage.
+///
+/// Returns
+/// -------
+/// bool
+///     Whether provenance, methods and storage retain native named IANA rules.
+///     File-origin rules return false; lookup/metadata failures propagate.
+///     No mutable class capability or business owner is cached.
+#[pyfunction]
+fn _pldt_native_zone_rules(
+    value: &Bound<'_, PyAny>,
+    base: &Bound<'_, PyType>,
+    storage_type: &Bound<'_, PyType>,
+) -> PyResult<bool> {
+    crate::host_zone::native_named_zone_rules(value, base, storage_type)
+}
 
 /// Real Python source protocols stay at the host boundary, outside workers.
 pub(super) fn prepare_host_zone(value: &Bound<'_, PyAny>) -> PyResult<Zone> {
@@ -18,7 +43,9 @@ pub(super) fn prepare_host_zone(value: &Bound<'_, PyAny>) -> PyResult<Zone> {
             .getattr("prepare_timezone")
             .map(Bound::unbind)
     })?;
-    let context = resolver.bind(py).call1((value,))?;
+    // This is an implicit rule from a source or local resolver. Its public
+    // reader owns the actual data/date/time/endpoint location, not "tz".
+    let context = resolver.bind(py).call1((value, py.None()))?;
     Ok(context.cast::<Context>()?.borrow().value.clone())
 }
 
@@ -492,6 +519,7 @@ pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PolicyContext>()?;
     module.add_function(wrap_pyfunction!(_pldt_zone_context, module)?)?;
     module.add_function(wrap_pyfunction!(_pldt_named_zone_context, module)?)?;
+    module.add_function(wrap_pyfunction!(_pldt_native_zone_rules, module)?)?;
     module.add_function(wrap_pyfunction!(_pldt_tzdb_info, module)?)?;
     module.add_function(wrap_pyfunction!(_pldt_available_zones, module)?)?;
     module.add_function(wrap_pyfunction!(_pldt_policies, module)?)?;

@@ -6,11 +6,12 @@ pub(crate) mod fields;
 pub(crate) mod formatted;
 pub(crate) mod iso_factory;
 pub(crate) mod native;
+mod numbers;
 pub(crate) mod objects;
 pub(crate) mod prepared;
 mod resolve;
 mod scan;
-mod text;
+pub(crate) mod text;
 pub(crate) mod zones;
 
 use config::Configs;
@@ -142,14 +143,14 @@ fn build<'py, P: Policy>(
 ) -> PyResult<Py<PyAny>> {
     let values = complete(f, default_date)?;
     if let Some(region) = region.filter(|_| !ignoretz) {
-        return build_region(py, region, values, default, dtclass, f.strict());
+        return build_region(py, region, values, default, dtclass);
     }
     let [yy, mm, dd, h, m, s, us] = values;
     let tz = if ignoretz || !f.is_tzoffset_set() {
         None
     } else {
         let offset_us = f.timezone_microseconds();
-        if !(-86_400_000_000..86_400_000_000).contains(&offset_us) || offset_us == -86_400_000_000 {
+        if !crate::precision::valid_offset_us(offset_us) {
             return Err(invalid_offset(py, offset_us));
         }
         if offset_us == 0 {
@@ -209,7 +210,6 @@ fn build_region<'py>(
     values: [i32; 7],
     default: Option<&Bound<'py, PyAny>>,
     dtclass: Option<&Bound<'py, PyAny>>,
-    _strict: bool,
 ) -> PyResult<Py<PyAny>> {
     let zone = zones::object(py, region)?;
     construct(
@@ -321,7 +321,8 @@ fn construct<'py>(
 /// Parameters
 /// ----------
 /// dtstr : str
-///     Date/time text to parse. This argument must be a string.
+///     Date/time text to parse. Real str subclasses are read from their native
+///     string storage, without calling __str__ or overridden sequence methods.
 /// default : date-like input | None, default None
 ///     An independently complete date used to fill missing year, month and day
 ///     only. Date/datetime subclasses, complete date text, numeric epoch seconds
@@ -389,16 +390,21 @@ fn parse_str<'py>(
 ) -> PyResult<Py<PyAny>> {
     let yearfirst = yearfirst.map(|flag| flag.0);
     let dayfirst = dayfirst.map(|flag| flag.0);
-    let input =
-        exact_string(dtstr).map_err(|error| entry_error(py, "parse_str", "dtstr", dtstr, error))?;
+    let input = if let Ok(input) = dtstr.cast_exact::<PyString>() {
+        input
+    } else {
+        dtstr.cast::<PyString>().map_err(|_| {
+            crate::error_context::expected_type(dtstr, "parse_str", "dtstr", "a str")
+        })?
+    };
     parse_string(
         py, input, default, yearfirst, dayfirst, ignoretz, isoformat, strict, cfg, dtclass,
     )
     .map_err(|error| entry_error(py, "parse_str", "dtstr", dtstr, error))
 }
 
-// Both public bindings finish their required validation before sharing this
-// typed kernel. No Python conversion callback is repeated here.
+// Public bindings validate their input before sharing this typed kernel.
+// Every real string, including a subclass, is read from its native storage.
 #[inline]
 #[allow(clippy::too_many_arguments)]
 fn parse_string<'py>(
@@ -434,6 +440,9 @@ fn parse_string<'py>(
 ///     One supported date/time input: text, a Python date/datetime, numeric epoch
 ///     seconds, or a NumPy datetime64 scalar. NaT and unsupported containers are
 ///     rejected.
+///     Real str subclasses use their stored text, as in parse_str and
+///     parse_to_epoch; __str__ is not called. Use str(value) explicitly to
+///     request conversion before parsing.
 /// default : date-like input | None, default None
 ///     An independently complete date used to fill missing year, month and day
 ///     only. Date/datetime subclasses, complete date text, numeric epoch seconds
@@ -512,13 +521,7 @@ fn parse<'py>(
         )
         .map_err(|error| entry_error(py, "parse", "dtobj", dtobj, error));
     }
-    if dtobj.is_instance_of::<PyString>() {
-        let converted = dtobj
-            .str()
-            .map_err(crate::error_context::external)
-            .map_err(|error| entry_error(py, "parse", "dtobj", dtobj, error))?;
-        let input = exact_string(converted.as_any())
-            .map_err(|error| entry_error(py, "parse", "dtobj", dtobj, error))?;
+    if let Ok(input) = dtobj.cast::<PyString>() {
         return parse_string(
             py, input, default, yearfirst, dayfirst, ignoretz, isoformat, strict, cfg, dtclass,
         )
@@ -528,10 +531,21 @@ fn parse<'py>(
         .map_err(|error| entry_error(py, "parse", "dtobj", dtobj, error))
 }
 
-fn exact_string<'a, 'py>(dtstr: &'a Bound<'py, PyAny>) -> PyResult<&'a Bound<'py, PyString>> {
-    dtstr.cast_exact::<PyString>().map_err(|_| {
-        crate::error_context::expected_type(dtstr, "parse_str", "dtstr", "an exact str")
-    })
+/// Apply exactly the parser options fixed by Pydt.diff's input conversion.
+#[pyfunction]
+fn _pydt_diff_input<'py>(py: Python<'py>, dtobj: &Bound<'py, PyAny>) -> PyResult<Py<PyAny>> {
+    parse(
+        py,
+        dtobj,
+        None,
+        None,
+        None,
+        Truth(false),
+        Truth(true),
+        Truth(false),
+        None,
+        None,
+    )
 }
 
 // Each policy has concrete native storage. The ordinary path contains neither
@@ -595,16 +609,10 @@ pub(crate) fn read_fields<'py, P: Policy>(
 }
 
 /// String subtraction may negotiate only a genuine native no-match.
-/// Conversion hooks and real field, timezone or overflow failures still propagate.
+/// Real strings use native storage; field, timezone or overflow failures propagate.
 pub(crate) fn arithmetic_date<'py>(operand: &Bound<'py, PyAny>) -> PyResult<Option<Py<PyAny>>> {
     let py = operand.py();
-    let converted;
-    let text = if operand.is_exact_instance_of::<PyString>() {
-        operand.cast::<PyString>()?
-    } else {
-        converted = operand.str().map_err(crate::error_context::external)?;
-        &converted
-    };
+    let text = operand.cast::<PyString>()?;
     let Some(parsed) =
         read_fields_candidate::<Lenient>(py, text, None, None, None, false, true, None)?
     else {
@@ -695,7 +703,7 @@ pub(crate) fn read_collection_fields<P: Policy>(
     rules: &config::FormatRules,
     scratch: &mut native::Scratch,
 ) -> PyResult<ParsedFields<P>> {
-    let mut view = TextView::new(input)?;
+    let mut view = TextView::new(input);
     let mut rules = rules.native_view();
     let parsed = core::read::<P, _, _>(
         &mut view,
@@ -741,7 +749,7 @@ fn scan_prepared<'py, P: Policy>(
         })?),
         None => None,
     };
-    let mut view = TextView::new(input)?;
+    let mut view = TextView::new(input);
     let parsed = if let Some(configuration) = configuration {
         let native_config = config::read(configuration)?;
         let mut rules = native_config.native_view();
@@ -835,22 +843,20 @@ fn prepare_other_default(
     strict: bool,
 ) -> PyResult<Option<[i32; 3]>> {
     if native_date {
-        // SAFETY: is_date_default already proved the native date layout.
-        if crate::interop::needs_true_year(unsafe { ffi::PyDateTime_GET_YEAR(value.as_ptr()) }) {
-            crate::interop::reject_nat(value, "parse", "default")?;
-            if let Some((fields, _)) = crate::interop::timestamp_parts(value)? {
-                return fields[..3]
-                    .iter()
-                    .map(|n| {
-                        i32::try_from(*n).map_err(|_| {
-                            crate::error_context::overflow(
-                                "default year exceeds the parser integer range",
-                            )
-                        })
+        // Plain native dates already returned in prepare_default.
+        crate::interop::reject_nat(value, "parse", "default")?;
+        if let Some((fields, _)) = crate::interop::timestamp_parts(value)? {
+            return fields[..3]
+                .iter()
+                .map(|n| {
+                    i32::try_from(*n).map_err(|_| {
+                        crate::error_context::overflow(
+                            "default year exceeds the parser integer range",
+                        )
                     })
-                    .collect::<PyResult<Vec<_>>>()
-                    .map(|n| Some([n[0], n[1], n[2]]));
-            }
+                })
+                .collect::<PyResult<Vec<_>>>()
+                .map(|n| Some([n[0], n[1], n[2]]));
         }
         // SAFETY: the checked native date layout owns these fields.
         return Ok(Some(unsafe {
@@ -877,11 +883,7 @@ fn prepare_other_default(
         })?;
         return Ok(Some([year, fields[1] as i32, fields[2] as i32]));
     }
-    if value.is_instance_of::<PyString>()
-        || unsafe {
-            ffi::PyLong_Check(value.as_ptr()) != 0 || ffi::PyFloat_Check(value.as_ptr()) != 0
-        }
-    {
+    if value.is_instance_of::<PyString>() || unsafe { ffi::PyLong_Check(value.as_ptr()) != 0 } {
         let options = crate::epoch::Options {
             default: None,
             yearfirst,
@@ -943,6 +945,7 @@ pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     )?;
     let _ = DATETIME_KEYWORDS.set(py, keywords.unbind());
     config::configure(module)?;
+    numbers::configure(module)?;
     formatted::configure(module)?;
     prepared::configure(module)?;
     let configuration_type = py.get_type::<Configs>();
@@ -965,6 +968,7 @@ pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
         .map_err(crate::error_context::external)?
         .setattr("__module__", "rstimes.parser")?;
     module.add_function(wrap_pyfunction!(parse, module)?)?;
+    module.add_function(wrap_pyfunction!(_pydt_diff_input, module)?)?;
     module
         .getattr("parse")
         .map_err(crate::error_context::external)?

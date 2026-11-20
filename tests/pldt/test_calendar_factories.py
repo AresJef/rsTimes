@@ -1,5 +1,6 @@
 """Integer calendar factories: independent dates, shape roles and native Expr."""
-from datetime import date
+from datetime import date, timedelta
+from decimal import Decimal
 import numpy as np
 import polars as pl
 import pytest
@@ -91,3 +92,175 @@ def test_calendar_expr_static_default_and_position_pairing():
     expr=pl.col("year").max().pldt.fromdayofyear(1)
     assert ticks(frame.select(expr)["year"])==[tick("2024-01-01")]
     assert frame.select(pl.col("year"),expr.alias("max_day"))["max_day"].len()==3
+
+
+_CALENDAR_ENTRIES = ("fromordinal", "fromdayofyear", "fromisocalendar")
+_CALENDAR_PARAMS = tuple(zip(_CALENDAR_ENTRIES, ("ordinal", "doy", "weekday"), strict=True))
+_EPOCH_DATE = date(1970, 1, 1)
+
+
+def _calendar_arguments(method, year, day):
+    if method == "fromordinal":
+        return day,
+    if method == "fromdayofyear":
+        return year, day
+    return year, 9, day
+
+
+def _calendar_entry(owner, method, args):
+    return getattr(owner, method)(*args, unit="ms")
+
+
+def _calendar_calls(method, day):
+    years = pl.Series("year", [2024] * len(day))
+    args = _calendar_arguments(method, years, day)
+    frame = pl.DataFrame([years, day])
+    columns = _calendar_arguments(method, pl.col("year"), pl.col("value"))
+    expr = _calendar_entry(columns[0].pldt, method, columns[1:])
+    eager = (
+        lambda: _calendar_entry(Pldt, method, args),
+        lambda: _calendar_entry(args[0].pldt, method, args[1:]),
+    )
+    if method == "fromordinal":
+        literal = _calendar_entry(pl.lit(day).pldt, method, ())
+    else:
+        constants = _calendar_arguments(method, pl.col("year"), day)
+        literal = lambda: _calendar_entry(constants[0].pldt, method, constants[1:])
+    planned = frame.lazy().select(expr)
+    return frame, planned, expr, literal, eager
+
+
+def _assert_calendar_columns(method, values, expected):
+    assert values.name == ("value" if method == "fromordinal" else "year")
+    assert values.dtype == pl.Datetime("ms")
+    assert len(values) == len(expected) and values.is_null().to_list() == [v is None for v in expected]
+    assert ticks(values) == expected
+
+
+@pytest.mark.parametrize("method", _CALENDAR_ENTRIES)
+@pytest.mark.parametrize("dtype", [pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64, pl.UInt128, pl.Int128])
+@pytest.mark.parametrize("raw", ([1, None, 2], [], [None, None]))
+def test_native_calendar_column_dtypes_and_validity(method, dtype, raw):
+    source = pl.Series("value", raw, dtype=dtype)
+    frame, planned, expr, literal, eager = _calendar_calls(method, source)
+    if method == "fromordinal":
+        truth = date.fromordinal
+    elif method == "fromdayofyear":
+        truth = lambda day: date(2024, 1, 1) + timedelta(days=day - 1)
+    else:
+        truth = lambda day: date.fromisocalendar(2024, 9, day)
+    expected = [None if value is None else (truth(value) - _EPOCH_DATE).days * 86_400_000 for value in raw]
+    name = "value" if method == "fromordinal" else "year"
+    assert planned.collect_schema() == pl.Schema({name: pl.Datetime("ms")})
+    expression = literal if method == "fromordinal" else literal()
+    for result in (eager[0](), eager[1](), frame.select(expr).to_series(), planned.collect().to_series(),
+                   frame.lazy().select(expression).collect().to_series()):
+        _assert_calendar_columns(method, result, expected)
+
+
+@pytest.mark.parametrize("method,parameter", _CALENDAR_PARAMS)
+@pytest.mark.parametrize("dtype", [pl.UInt128, pl.UInt64])
+def test_native_wide_calendar_integer_reports_first_capacity_error(method, parameter, dtype):
+    day = pl.Series("value", [1, 2**63, None], dtype=dtype)
+    frame, planned, expr, literal, eager = _calendar_calls(method, day)
+    assert next(iter(planned.collect_schema().values())) == pl.Datetime("ms")
+    for call in eager:
+        with pytest.raises(OverflowError, match=rf"{parameter}\[1\].*exceeds signed64"):
+            call()
+    if method != "fromordinal":
+        with pytest.raises(OverflowError, match=rf"{parameter}\[1\].*exceeds signed64"):
+            literal()
+    for call in (lambda: frame.select(expr), planned.collect):
+        with pytest.raises(pl.exceptions.ComputeError) as caught:
+            call()
+        message = str(caught.value)
+        assert f"batch item 1: {parameter}" in message and "exceeds signed64" in message
+
+
+@pytest.mark.parametrize("method", _CALENDAR_ENTRIES)
+@pytest.mark.parametrize("dtype", [pl.Float16, pl.Float32, pl.Float64])
+@pytest.mark.parametrize("raw", ([], [None, None], [float("nan"), None]))
+def test_native_calendar_float_dtype_accepts_only_missing_values(method, dtype, raw):
+    source = pl.Series("value", raw, dtype=dtype)
+    frame, planned, expr, literal, eager = _calendar_calls(method, source)
+    assert next(iter(planned.collect_schema().values())) == pl.Datetime("ms")
+    expression = literal if method == "fromordinal" else literal()
+    for result in (eager[0](), eager[1](), frame.select(expr).to_series(),
+                   planned.collect().to_series(), frame.select(expression).to_series()):
+        _assert_calendar_columns(method, result, [None] * len(raw))
+
+
+@pytest.mark.parametrize("method,parameter", _CALENDAR_PARAMS)
+@pytest.mark.parametrize("present", [1.0, float("inf"), float("-inf")])
+def test_native_calendar_float16_fails_at_first_present_value(method, parameter, present):
+    source = pl.Series("value", [None, float("nan"), present], dtype=pl.Float16)
+    frame, planned, expr, literal, eager = _calendar_calls(method, source)
+    assert next(iter(planned.collect_schema().values())) == pl.Datetime("ms")
+    for call in eager:
+        with pytest.raises(TypeError, match=rf"{parameter}\[2\].*not floats"):
+            call()
+    if method != "fromordinal":
+        with pytest.raises(TypeError, match=rf"{parameter}\[2\].*not floats"):
+            literal()
+    for call in (lambda: frame.select(expr), planned.collect):
+        with pytest.raises(pl.exceptions.ComputeError, match=rf"batch item 2: {parameter}.*not floats"):
+            call()
+
+
+@pytest.mark.parametrize("method,parameter", _CALENDAR_PARAMS)
+@pytest.mark.parametrize("value,dtype", [(Decimal(1), pl.Decimal(scale=0)), (True, pl.Boolean)])
+def test_unsupported_calendar_dtype_is_rejected_by_actual_parameter(method, parameter, value, dtype):
+    source = pl.Series("value", [None, value], dtype=dtype)
+    frame, planned, expr, literal, eager = _calendar_calls(method, source)
+    for call in eager:
+        with pytest.raises(TypeError, match=rf"{parameter}: calendar components require integers"):
+            call()
+    if method != "fromordinal":
+        with pytest.raises(TypeError, match=rf"{parameter}: calendar components require integers"):
+            literal()
+    for call in (planned.collect_schema, lambda: frame.select(expr), planned.collect):
+        with pytest.raises(pl.exceptions.ComputeError) as error:
+            call()
+        assert f"{parameter} requires integer dtype" in str(error.value)
+        assert "batch item" not in str(error.value) and f"{parameter}[" not in str(error.value)
+
+
+@pytest.mark.parametrize("dtype", ["uint8", "uint16", "uint32", "int64"])
+def test_calendar_preparation_keeps_native_values_before_later_callbacks(dtype):
+    years = np.array([20, 21], dtype=dtype)
+    source = pl.Series("year", years)
+    assert np.shares_memory(source.to_numpy(allow_copy=False), years)
+    calls = []
+
+    def change_years():
+        calls.append("doy")
+        years[:] = 30
+        yield from (60, 60)
+
+    positions = [date(20, 2, 29), date(21, 3, 1)]
+    result = Pldt.fromdayofyear(source, change_years(), unit="ms")
+    expected = [(value - _EPOCH_DATE).days * 86_400_000 for value in positions]
+    _assert_calendar_columns("fromdayofyear", result, expected)
+    assert calls == ["doy"] and years.tolist() == [30, 30]
+    days = np.array([60, 61], dtype=dtype)
+    literal = pl.Series("doy", days)
+    assert np.shares_memory(literal.to_numpy(allow_copy=False), days)
+    expr = pl.col("year").pldt.fromdayofyear(literal, unit="ms")
+    days[:] = 1
+    lazy = pl.LazyFrame({"year": [20, 21]}).select(expr)
+    _assert_calendar_columns("fromdayofyear", lazy.collect().to_series(), [expected[0], expected[1] + 86_400_000])
+
+
+def test_wide_capacity_precedes_shape_and_low_fields_without_consuming_later_input():
+    called = []
+
+    def weekday():
+        called.append("weekday")
+        yield 1
+
+    wide = pl.Series("week", [0, 2**63, None], dtype=pl.UInt128)
+    with pytest.raises(OverflowError, match=r"week\[1\].*exceeds signed64"):
+        Pldt.fromisocalendar([2024, 2024], wide, weekday())
+    assert not called
+    with pytest.raises(ValueError, match="length"):
+        Pldt.fromisocalendar([2024, 2024], pl.Series("week", [0, 1, 2], dtype=pl.UInt128), 1)

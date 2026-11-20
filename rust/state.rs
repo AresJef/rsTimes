@@ -8,11 +8,15 @@
 use crate::delta::Delta;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyInt, PyString, PyTuple};
+use pyo3::types::{PyBytes, PyCFunction, PyDict, PyInt, PyString, PyTuple};
 
 static DEFAULT_STATE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 static DELTA_STATE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 static DELTA_REDUCE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+static DEFAULT_REDUCERS: PyOnceLock<Py<PyTuple>> = PyOnceLock::new();
+static COPY_REGISTRY: PyOnceLock<Py<PyDict>> = PyOnceLock::new();
+static COPY_PROTOCOL: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+static DICT_DESCRIPTOR_TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 static STATE_MARKER: PyOnceLock<Py<PyString>> = PyOnceLock::new();
 
 /// Reuse only the immutable format name, never instance fields or metadata.
@@ -37,6 +41,18 @@ pub(crate) fn configure(py: Python<'_>) -> PyResult<()> {
             .ok_or_else(|| crate::error_context::runtime("Delta state method is unavailable"))?;
         let _ = cache.set(py, method.unbind());
     }
+    let defaults = PyTuple::new(
+        py,
+        [
+            class.getattr("__reduce_ex__")?,
+            class.getattr("__reduce__")?,
+        ],
+    )?;
+    let _ = DEFAULT_REDUCERS.set(py, defaults.unbind());
+    let registry = py.import("copyreg")?.getattr("dispatch_table")?;
+    let _ = COPY_REGISTRY.set(py, registry.cast_into::<PyDict>()?.unbind());
+    let descriptor = py.import("types")?.getattr("GetSetDescriptorType")?;
+    let _ = DICT_DESCRIPTOR_TYPE.set(py, descriptor.cast_into::<PyType>()?.unbind());
     Ok(())
 }
 
@@ -140,19 +156,16 @@ fn integer(value: &Bound<'_, PyAny>) -> PyResult<i64> {
 
 /// Validate exact builtin integers in the complete new core tuple.
 fn decode_fields(data: &Bound<'_, PyAny>) -> PyResult<[i64; 17]> {
-    if !data.is_exact_instance_of::<PyTuple>() {
-        return Err(crate::error_context::type_error(
-            "Delta state fields must be a tuple",
-        ));
-    }
-    let data = data.cast::<PyTuple>()?;
+    let data = data
+        .cast_exact::<PyTuple>()
+        .map_err(|_| crate::error_context::type_error("Delta state fields must be a tuple"))?;
     if data.len() != 17 {
         return Err(crate::error_context::value_error(
             "Delta state must contain 17 fields",
         ));
     }
     let mut fields = [0; 17];
-    for (index, value) in data.iter().enumerate() {
+    for (index, value) in data.iter_borrowed().enumerate() {
         fields[index] = integer(&value).map_err(|error| {
             crate::error_context::argument(data.py(), error, "", FIELD_NAMES[index], &value)
         })?;
@@ -272,15 +285,15 @@ fn decode_dictionary<'py>(value: &Bound<'py, PyAny>) -> PyResult<Option<Bound<'p
             "Delta state dictionary must be dict or None",
         ));
     }
-    let dictionary = value.cast::<PyDict>()?;
-    for key in dictionary.keys().iter() {
+    let dictionary = value.cast::<PyDict>()?.copy()?;
+    for (key, _) in dictionary.iter() {
         if !key.is_exact_instance_of::<PyString>() {
             return Err(crate::error_context::type_error(
                 "Delta state dictionary keys must be strings",
             ));
         }
     }
-    dictionary.copy().map(Some)
+    Ok(Some(dictionary))
 }
 
 /// Restore subclass metadata without changing the already constructed value.
@@ -329,24 +342,17 @@ fn apply_metadata(slf: &Bound<'_, Delta>, state: &Bound<'_, PyAny>) -> PyResult<
                 "A base Delta cannot restore slots",
             ));
         }
-        // A setter may mutate the caller's state dictionary. Retain the entry
-        // references before any callback, rather than resuming its live iterator.
-        let entries: Vec<_> = slots
-            .as_ref()
-            .map(|slots| {
-                slots
-                    .iter()
-                    .map(|(k, v)| (k.unbind(), v.unbind()))
-                    .collect()
-            })
-            .unwrap_or_default();
         apply_dictionary(slf, dictionary.as_ref())?;
-        for (name, value) in entries {
-            slf.setattr(name.bind(py).cast::<PyString>()?, value.bind(py))
-                .map_err(crate::error_context::external)
-                .map_err(|error| {
-                    crate::error_context::attribute(py, error, "Delta.__setstate__", name.bind(py))
-                })?;
+        if let Some(slots) = slots {
+            // The validated slots copy stays private. PyO3's iterator returns
+            // owned entries and exits its per-next critical section before setters.
+            for (name, value) in slots.iter() {
+                slf.setattr(name.cast::<PyString>()?, value)
+                    .map_err(crate::error_context::external)
+                    .map_err(|error| {
+                        crate::error_context::attribute(py, error, "Delta.__setstate__", &name)
+                    })?;
+            }
         }
         return Ok(());
     }
@@ -473,6 +479,21 @@ pub fn _restore_delta<'py>(
 /// # Errors
 /// Propagates class/state lookup and allocation errors.
 pub fn reduce<'py>(slf: &Bound<'py, Delta>) -> PyResult<Bound<'py, PyAny>> {
+    reduce_with(slf, || {
+        if overrides(slf, "__getstate__", &DELTA_STATE)? {
+            slf.call_method0("__getstate__")
+                .map_err(crate::error_context::external)
+        } else {
+            capture_metadata(slf)
+        }
+    })
+}
+
+/// Keep the existing core preparation and post-callback constructor selection.
+fn reduce_with<'py>(
+    slf: &Bound<'py, Delta>,
+    metadata: impl FnOnce() -> PyResult<Bound<'py, PyAny>>,
+) -> PyResult<Bound<'py, PyAny>> {
     let py = slf.py();
     let constructor = crate::python_cache::get_or_prepare(&RECONSTRUCTOR, py, || {
         Ok::<_, PyErr>(
@@ -483,12 +504,7 @@ pub fn reduce<'py>(slf: &Bound<'py, Delta>) -> PyResult<Bound<'py, PyAny>> {
         )
     })?;
     let payload = encode(py, slf.get().snapshot());
-    let dictionary = if overrides(slf, "__getstate__", &DELTA_STATE)? {
-        slf.call_method0("__getstate__")
-            .map_err(crate::error_context::external)?
-    } else {
-        capture_metadata(slf)?
-    };
+    let dictionary = metadata()?;
     if crate::protocol::uses_native_new(&slf.get_type()) {
         let constructor = crate::python_cache::get_or_prepare(&NEWOBJ, py, || {
             Ok::<_, PyErr>(
@@ -511,6 +527,87 @@ pub fn reduce<'py>(slf: &Bound<'py, Delta>) -> PyResult<Bound<'py, PyAny>> {
     )
 }
 
+/// Retain only the library helper module, never business eligibility or state.
+fn copy_protocol(py: Python<'_>) -> PyResult<&'static Py<PyAny>> {
+    crate::python_cache::get_or_prepare(&COPY_PROTOCOL, py, || {
+        Ok(py.import("rstimes._class_protocol")?.into_any().unbind())
+    })
+}
+
+/// Delegate complete recipe unpacking and the original memo to standard copy.
+fn reconstruct_copy<'py>(
+    slf: &Bound<'py, Delta>,
+    reduction: &Bound<'py, PyAny>,
+    memo: Option<&Bound<'py, PyDict>>,
+) -> PyResult<Bound<'py, PyAny>> {
+    copy_protocol(slf.py())?
+        .bind(slf.py())
+        .call_method1("reconstruct_copy", (slf, reduction, memo))
+        .map_err(crate::error_context::external)
+}
+
+/// Native builtin equality compares the actual receiver and C method identity.
+/// Only exact builtin methods reach it, never a business equality callback.
+fn original_method(
+    slf: &Bound<'_, Delta>,
+    actual: &Bound<'_, PyAny>,
+    original: &PyOnceLock<Py<PyAny>>,
+) -> PyResult<bool> {
+    if !actual.is_exact_instance_of::<PyCFunction>() {
+        return Ok(false);
+    }
+    let original = original
+        .get(slf.py())
+        .ok_or_else(|| crate::error_context::runtime("Delta state methods are not initialized"))?;
+    let expected = original
+        .bind(slf.py())
+        .call_method1("__get__", (slf, slf.get_type()))?;
+    actual.eq(&expected)
+}
+
+/// Reuse the existing live MRO/storage reader, without binding every default
+/// builtin or entering Python's reducer selector for an ordinary passive type.
+fn native_copy_protocol(slf: &Bound<'_, Delta>) -> PyResult<bool> {
+    const NAMES: [&str; 6] = [
+        "__reduce_ex__",
+        "__reduce__",
+        "__getstate__",
+        "__setstate__",
+        "__getattribute__",
+        "__getattr__",
+    ];
+    let py = slf.py();
+    let actual = slf.get_type();
+    let (inherited, storage) =
+        crate::protocol::inherited_methods(&actual, &py.get_type::<Delta>(), &NAMES)?;
+    if !inherited {
+        return Ok(false);
+    }
+    if let Some(descriptor) = storage {
+        let native_type = DICT_DESCRIPTOR_TYPE.get(py).ok_or_else(|| {
+            crate::error_context::runtime("Delta dictionary descriptor type is not initialized")
+        })?;
+        if !descriptor.get_type().is(native_type.bind(py)) {
+            return Ok(false);
+        }
+        let storage = crate::protocol::bind_descriptor(&descriptor, slf.as_any(), &actual)?;
+        let storage = storage.cast::<PyDict>()?;
+        if !storage.is_empty() {
+            for name in [
+                pyo3::intern!(py, "__reduce_ex__"),
+                pyo3::intern!(py, "__reduce__"),
+                pyo3::intern!(py, "__getstate__"),
+                pyo3::intern!(py, "__setstate__"),
+            ] {
+                if storage.contains(name)? {
+                    return Ok(false);
+                }
+            }
+        }
+    }
+    Ok(true)
+}
+
 /// Return a distinct shallow/deep copy with the same immutable values and subtype.
 ///
 /// Deepcopy registers the new object before recursive metadata copying so shared
@@ -522,12 +619,55 @@ pub fn copy_object<'py>(
     memo: Option<&Bound<'py, PyDict>>,
 ) -> PyResult<Bound<'py, PyAny>> {
     let py = slf.py();
+    // Registration is live even for the immutable exact base. Holding the
+    // registry object does not cache any business class's eligibility.
+    let registry = COPY_REGISTRY
+        .get(py)
+        .ok_or_else(|| crate::error_context::runtime("Delta copy registry is not initialized"))?;
+    if let Some(registered) = registry.bind(py).get_item(slf.get_type())?
+        && !registered.is_none()
+        && (memo.is_none()
+            || registered
+                .is_truthy()
+                .map_err(crate::error_context::external)?)
+    {
+        let reduction = registered
+            .call1((slf,))
+            .map_err(crate::error_context::external)?;
+        return reconstruct_copy(slf, &reduction, memo);
+    }
     if slf.is_exact_instance_of::<Delta>() {
         let result = Bound::new(py, slf.get().copied())?.into_any();
         if let Some(memo) = memo {
             memo.set_item(slf.as_ptr() as usize, &result)?;
         }
         return Ok(result);
+    }
+    if !native_copy_protocol(slf)? {
+        let protocol = copy_protocol(py)?.bind(py);
+        let defaults = DEFAULT_REDUCERS.get(py).ok_or_else(|| {
+            crate::error_context::runtime("Delta copy methods are not initialized")
+        })?;
+        let reduction = protocol
+            .call_method1("_method_reduction", (slf, defaults.bind(py)))
+            .map_err(crate::error_context::external)?;
+        if !reduction.is(&protocol.getattr("NATIVE_COPY")?) {
+            return reconstruct_copy(slf, &reduction, memo);
+        }
+        // Retain the selected getter across callbacks. A None state needs no
+        // setter lookup; non-None state is applied by the mature result protocol.
+        let getstate = slf
+            .getattr("__getstate__")
+            .map_err(crate::error_context::external)?;
+        let native_getstate = original_method(slf, &getstate, &DELTA_STATE)?;
+        let reduction = reduce_with(slf, || {
+            if native_getstate {
+                capture_metadata(slf)
+            } else {
+                getstate.call0().map_err(crate::error_context::external)
+            }
+        })?;
+        return reconstruct_copy(slf, &reduction, memo);
     }
     let result = allocate_value(py, &slf.get_type(), slf.get().copied())?;
     if let Some(memo) = memo {
@@ -543,11 +683,11 @@ pub fn copy_object<'py>(
     } else {
         metadata
     };
-    // These dictionaries were just captured and copied here, rather than read
-    // from external state. Attach each owned copy once without recopying it.
+    // Shallow metadata is our independent snapshot. Deepcopy can expose the
+    // returned dictionaries through memo, so detach those before real setters.
     if let Ok(pair) = metadata.cast::<PyTuple>() {
         let dictionary = pair.get_item(0)?;
-        let dictionary = if dictionary.is_none() {
+        let dictionary = if dictionary.is_none() || memo.is_none() {
             dictionary
         } else {
             dictionary.cast::<PyDict>()?.copy()?.into_any()
@@ -567,7 +707,11 @@ pub fn copy_object<'py>(
             result.setattr(name, value)?;
         }
     } else if !metadata.is_none() {
-        let dictionary = metadata.cast::<PyDict>()?.copy()?;
+        let dictionary = if memo.is_some() {
+            metadata.cast::<PyDict>()?.copy()?.into_any()
+        } else {
+            metadata
+        };
         result.setattr(pyo3::intern!(py, "__dict__"), dictionary)?;
     }
     Ok(result)

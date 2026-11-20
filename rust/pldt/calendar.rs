@@ -25,10 +25,13 @@ impl Operation {
         }
     }
     fn arity(self) -> usize {
+        self.parameters().len()
+    }
+    fn parameters(self) -> &'static [&'static str] {
         match self {
-            Self::Ordinal => 1,
-            Self::Iso => 3,
-            Self::Doy => 2,
+            Self::Ordinal => &["ordinal"],
+            Self::Iso => &["year", "week", "weekday"],
+            Self::Doy => &["year", "doy"],
         }
     }
 }
@@ -55,14 +58,18 @@ fn integer_dtype(dtype: &DataType) -> bool {
     dtype.is_integer()
         || matches!(
             dtype,
-            DataType::Null | DataType::Float32 | DataType::Float64 | DataType::String
+            DataType::Null
+                | DataType::Float16
+                | DataType::Float32
+                | DataType::Float64
+                | DataType::String
         )
 }
 fn output_field(fields: &[Field], kwargs: Options) -> PolarsResult<Field> {
     let arity = kwargs.operation.arity();
     polars_ensure!(kwargs.version==1&&kwargs.scalars.len()==arity&&(fields.len()==arity||fields.len()==arity+1),InvalidOperation:"invalid calendar factory preparation");
-    for field in fields.iter().take(arity) {
-        polars_ensure!(integer_dtype(field.dtype()),InvalidOperation:"{}: components require integer dtype",kwargs.operation.entry());
+    for (field, parameter) in fields.iter().zip(kwargs.operation.parameters()) {
+        polars_ensure!(integer_dtype(field.dtype()),InvalidOperation:"{}: {} requires integer dtype",kwargs.operation.entry(),parameter);
     }
     if let Some(mask) = fields.get(arity) {
         polars_ensure!(mask.dtype()==&DataType::Boolean,InvalidOperation:"ambiguous Expr requires Boolean");
@@ -74,9 +81,45 @@ fn output_field(fields: &[Field], kwargs: Options) -> PolarsResult<Field> {
         DataType::Datetime(super::input::resolution(unit), zone),
     ))
 }
+fn checked_wide<T>(values: impl Iterator<Item = Option<T>>) -> Result<Vec<Option<i64>>, Failure>
+where
+    i64: TryFrom<T>,
+{
+    values
+        .enumerate()
+        .map(|(row, value)| {
+            value
+                .map(|value| {
+                    i64::try_from(value).map_err(|_| {
+                        Failure::new(Kind::Capacity, "integer component exceeds signed64").at(row)
+                    })
+                })
+                .transpose()
+        })
+        .collect()
+}
+
 fn values(source: &Series, scalar: bool) -> Result<Column<Option<i64>>, Failure> {
     let values = match source.dtype() {
         DataType::Null => vec![None; source.len()],
+        DataType::UInt64 => checked_wide(
+            source
+                .u64()
+                .map_err(|error| Failure::new(Kind::Type, error.to_string()))?
+                .iter(),
+        )?,
+        DataType::UInt128 => checked_wide(
+            source
+                .u128()
+                .map_err(|error| Failure::new(Kind::Type, error.to_string()))?
+                .iter(),
+        )?,
+        DataType::Int128 => checked_wide(
+            source
+                .i128()
+                .map_err(|error| Failure::new(Kind::Type, error.to_string()))?
+                .iter(),
+        )?,
         dtype if dtype.is_integer() => source
             .strict_cast(&DataType::Int64)
             .map_err(|_| Failure::new(Kind::Capacity, "integer component exceeds signed64"))?
@@ -84,7 +127,7 @@ fn values(source: &Series, scalar: bool) -> Result<Column<Option<i64>>, Failure>
             .map_err(|error| Failure::new(Kind::Type, error.to_string()))?
             .iter()
             .collect(),
-        DataType::Float32 | DataType::Float64 => {
+        DataType::Float16 | DataType::Float32 | DataType::Float64 => {
             let cast = source
                 .strict_cast(&DataType::Float64)
                 .map_err(|error| Failure::new(Kind::Type, error.to_string()))?;
@@ -144,6 +187,8 @@ fn values(source: &Series, scalar: bool) -> Result<Column<Option<i64>>, Failure>
         Ok(Column::Values(values))
     }
 }
+type CalendarFailure = (Failure, Option<&'static str>);
+
 fn calculate(
     sources: &[Series],
     scalars: &[bool],
@@ -152,29 +197,41 @@ fn calculate(
     unit: Unit,
     target: Option<&Zone>,
     policy: &Policies,
-) -> Result<Series, Failure> {
+) -> Result<Series, CalendarFailure> {
     if sources.len() != operation.arity() || scalars.len() != sources.len() {
-        return Err(Failure::new(
-            Kind::Runtime,
-            "invalid calendar component arity",
+        return Err((
+            Failure::new(Kind::Runtime, "invalid calendar component arity"),
+            None,
         ));
     }
+    let parameters = operation.parameters();
     let values = sources
         .iter()
         .zip(scalars)
-        .map(|(source, scalar)| values(source, *scalar))
+        .zip(parameters)
+        .map(|((source, scalar), &parameter)| {
+            values(source, *scalar).map_err(|mut failure| {
+                if *scalar {
+                    failure.row = None;
+                }
+                (failure, Some(parameter))
+            })
+        })
         .collect::<Result<Vec<_>, _>>()?;
     let size = length(values.iter().map(Column::len), size)
-        .map_err(|message| Failure::new(Kind::Value, message))?;
+        .map_err(|message| (Failure::new(Kind::Value, message), None))?;
     // Validate every supplied low component even when another value is missing,
     // a column is empty, or all-scalar output explicitly requests zero rows.
     for (index, value) in values.iter().enumerate().skip(1) {
-        let slice = match value {
-            Column::Scalar(value) => std::slice::from_ref(value),
-            Column::Values(values) => values.as_slice(),
+        let bad_row = match value {
+            Column::Scalar(value) => value.is_some_and(|v| v < 1).then_some(None),
+            Column::Values(values) => values
+                .iter()
+                .position(|v| v.is_some_and(|v| v < 1))
+                .map(Some),
         };
-        if slice.iter().flatten().any(|value| *value < 1) {
-            return Err(Failure::new(
+        if let Some(row) = bad_row {
+            let mut failure = Failure::new(
                 Kind::Value,
                 format!(
                     "{} must be at least 1",
@@ -186,20 +243,25 @@ fn calculate(
                         "ISO weekday"
                     }
                 ),
-            ));
+            );
+            failure.row = row;
+            return Err((failure, Some(parameters[index])));
         }
     }
-    policy.check_len(size)?;
+    policy
+        .check_len(size)
+        .map_err(|failure| (Failure::from(failure), None))?;
     let mut rows = Rows::new(Unit::Microsecond);
     if scalars.iter().all(|value| *value) {
-        push(&mut rows, &values, 0, operation)?;
-        rows.repeat(size)?;
+        push(&mut rows, &values, 0, operation).map_err(|failure| (failure, None))?;
+        rows.repeat(size).map_err(|failure| (failure, None))?;
     } else {
         for row in 0..size {
-            push(&mut rows, &values, row, operation)?;
+            push(&mut rows, &values, row, operation).map_err(|failure| (failure, None))?;
         }
     }
     rows.finish(sources[0].name().clone(), Some(unit), target, policy, false)
+        .map_err(|failure| (failure, None))
 }
 fn push(
     rows: &mut Rows,
@@ -264,7 +326,7 @@ fn pldt_calendar(inputs: &[Series], kwargs: Options) -> PolarsResult<Series> {
         target.as_ref(),
         &policy,
     )
-    .map_err(|error| error.polars(entry))
+    .map_err(|(error, parameter)| error.polars_parameter(entry, parameter))
 }
 #[pyfunction]
 #[expect(
@@ -302,7 +364,7 @@ fn _pldt_calendar<'py>(
         tz.as_ref().map(|zone| &zone.value),
         &policy.value,
     )
-    .map_err(|error| error.python(py, operation.entry()))?;
+    .map_err(|(error, parameter)| error.python_parameter(py, operation.entry(), parameter))?;
     super::export(py, &result, target)
 }
 #[pyfunction]
@@ -353,9 +415,21 @@ fn _pldt_integer_objects(
     ))
 }
 #[pyfunction]
-fn _pldt_integer_column(py: Python<'_>, source: PySeries) -> PyResult<PySeries> {
-    let values =
-        values(&source.0, false).map_err(|error| error.python(py, "Pldt calendar component"))?;
+fn _pldt_integer_column(
+    py: Python<'_>,
+    source: PySeries,
+    entry: &str,
+    parameter: &str,
+) -> PyResult<PySeries> {
+    if source.0.dtype() == &DataType::Int64 {
+        let integers = source.0.i64().map_err(super::eager_error)?;
+        // Copy directly into owned Arrow data. A cloned Series alone can
+        // still share a writable external buffer with a later argument.
+        let snapshot = Int64Chunked::from_iter_options(integers.name().clone(), integers.iter());
+        return Ok(PySeries(snapshot.into_series()));
+    }
+    let values = values(&source.0, false)
+        .map_err(|error| error.python_parameter(py, entry, Some(parameter)))?;
     let Column::Values(values) = values else {
         return Err(crate::error_context::runtime("expected integer column"));
     };

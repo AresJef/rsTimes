@@ -93,7 +93,8 @@ fn _pddt_frequency(kind: &str, n: i64, props: &Bound<'_, PyDict>) -> PyResult<Pl
             }
             Kind::Week(weekday)
         }
-        "business" => Kind::Business,
+        "business" => Kind::Business { custom: false },
+        "custom_business" => Kind::Business { custom: true },
         "boundary" => {
             let stride = integer(props, "stride", 1)?;
             let anchor = integer(props, "anchor", 1)?;
@@ -109,6 +110,9 @@ fn _pddt_frequency(kind: &str, n: i64, props: &Bound<'_, PyDict>) -> PyResult<Pl
                 business: boolean(props, "business", false)?,
             }
         }
+        "custom_business_month" => Kind::CustomBusinessMonth {
+            start: boolean(props, "start", false)?,
+        },
         "semi" => {
             let day = integer(props, "day", 15)?;
             if !(1..=27).contains(&day) {
@@ -245,16 +249,24 @@ fn _pddt_range<'py>(
     let calendar = plan
         .as_ref()
         .is_some_and(|p| !matches!(p.frequency.kind, Kind::Fixed(_)));
-    let tick = plan.as_ref().and_then(|p| p.tick());
-    let mut inputs = prepare_endpoints(
-        py, start, end, &policy, unit, target, normalize, default, yearfirst, dayfirst, isoformat,
-        strict, cfg, calendar, tick,
+    let minimum_unit = plan.as_ref().map_or(Unit::Second, |p| p.required_unit());
+    let inputs = prepare_endpoints(
+        py,
+        start,
+        end,
+        &policy,
+        unit,
+        target,
+        normalize,
+        default,
+        yearfirst,
+        dayfirst,
+        isoformat,
+        strict,
+        cfg,
+        calendar,
+        minimum_unit,
     )?;
-    if unit.is_none()
-        && let Some(plan) = &plan
-    {
-        inputs.unit = inputs.unit.max(plan.precision);
-    }
     let target = (!inputs.zone.bind(py).is_none()).then(|| inputs.zone.bind(py));
     _pddt_range_sequence(
         py,
@@ -279,7 +291,7 @@ struct Endpoints {
     zone: Py<PyAny>,
 }
 impl Endpoints {
-    fn carrier(&self) -> PyResult<Unit> {
+    fn carrier_unit(&self) -> PyResult<Unit> {
         for unit in [
             Unit::Second,
             Unit::Millisecond,
@@ -301,41 +313,19 @@ impl Endpoints {
             "local range endpoints exceed the supported intermediate date container",
         ))
     }
-
-    fn tick(&self, index: usize) -> PyResult<Option<i64>> {
-        let unit = self.carrier()?;
-        self.coordinates[index]
-            .map(|ns| {
-                if ns.rem_euclid(unit.nanos()) != 0 {
-                    return Err(crate::error_context::value_error(
-                        "range endpoint cannot be preserved at this unit; choose a finer unit",
-                    ));
-                }
-                i64::try_from(ns.div_euclid(unit.nanos()))
-                    .ok()
-                    .filter(|v| *v != i64::MIN)
-                    .ok_or_else(|| {
-                        crate::error_context::overflow(
-                            "range endpoint is outside the selected unit",
-                        )
-                    })
-            })
-            .transpose()
-    }
 }
 #[pymethods]
 impl Endpoints {
-    #[getter]
-    fn carrier_unit(&self) -> PyResult<&'static str> {
-        Ok(self.carrier()?.name())
-    }
-    #[getter]
-    fn start(&self) -> PyResult<Option<i64>> {
-        self.tick(0)
-    }
-    #[getter]
-    fn end(&self) -> PyResult<Option<i64>> {
-        self.tick(1)
+    fn carrier(&self) -> PyResult<(Option<i64>, Option<i64>, &'static str)> {
+        let unit = self.carrier_unit()?;
+        // carrier_unit proved these same immutable coordinates exact, within
+        // i64 and distinct from NaT. No callback or new value intervenes.
+        let tick = |ns: i128| ns.div_euclid(unit.nanos()) as i64;
+        Ok((
+            self.coordinates[0].map(tick),
+            self.coordinates[1].map(tick),
+            unit.name(),
+        ))
     }
     #[getter]
     fn unit(&self) -> &'static str {
@@ -366,7 +356,7 @@ fn prepare_endpoints<'py>(
     strict: bool,
     cfg: Option<&Bound<'py, PyAny>>,
     calendar: bool,
-    tick: Option<i128>,
+    minimum_unit: Unit,
 ) -> PyResult<Endpoints> {
     let requested = unit.map(Unit::parse).transpose()?;
     let options = crate::epoch::Options {
@@ -426,10 +416,7 @@ fn prepare_endpoints<'py>(
     };
     let selected_object = super::common::zone_object(py, &selected)?;
     let selected_fixed = super::common::fixed_offset(py, &selected)?;
-    let finest = tick
-        .map(crate::precision::quantum_unit)
-        .unwrap_or(Unit::Second);
-    let selected_unit = requested.unwrap_or(reader.unit.max(finest));
+    let selected_unit = requested.unwrap_or(reader.unit.max(minimum_unit));
     let mut coordinates = [None, None];
     let mut known = [None, None];
     for (i, (input, name)) in [(start, "start"), (end, "end")].into_iter().enumerate() {
@@ -533,17 +520,8 @@ fn _pddt_range_sequence<'py>(
     known_start: Option<i128>,
     known_end: Option<i128>,
 ) -> PyResult<RangeOutput<'py>> {
-    let (left, right) = match inclusive {
-        "both" => (true, true),
-        "left" => (true, false),
-        "right" => (false, true),
-        "neither" => (false, false),
-        _ => {
-            return Err(crate::error_context::value_error(
-                "inclusive must be 'both', 'left', 'right' or 'neither'",
-            ));
-        }
-    };
+    let (left, right) =
+        crate::range_calendar::inclusive(inclusive).map_err(crate::error_context::value_error)?;
     crate::range_generate::arity(
         start.is_some(),
         end.is_some(),
@@ -606,8 +584,21 @@ fn _pddt_range_endpoints<'py>(
     cfg: Option<&Bound<'py, PyAny>>,
 ) -> PyResult<Endpoints> {
     prepare_endpoints(
-        py, start, end, &policy, unit, target, normalize, default, yearfirst, dayfirst, isoformat,
-        strict, cfg, true, None,
+        py,
+        start,
+        end,
+        &policy,
+        unit,
+        target,
+        normalize,
+        default,
+        yearfirst,
+        dayfirst,
+        isoformat,
+        strict,
+        cfg,
+        true,
+        Unit::Second,
     )
 }
 
@@ -627,17 +618,8 @@ fn _pddt_range_external<'py>(
     unit: Option<&str>,
     infer: bool,
 ) -> PyResult<RangeOutput<'py>> {
-    let (left, right) = match inclusive {
-        "both" => (true, true),
-        "left" => (true, false),
-        "right" => (false, true),
-        "neither" => (false, false),
-        _ => {
-            return Err(crate::error_context::value_error(
-                "inclusive must be 'both', 'left', 'right' or 'neither'",
-            ));
-        }
-    };
+    let (left, right) =
+        crate::range_calendar::inclusive(inclusive).map_err(crate::error_context::value_error)?;
     if !data.len().is_multiple_of(8) {
         return Err(crate::error_context::runtime(
             "invalid generated date buffer",

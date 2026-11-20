@@ -3,6 +3,10 @@
 Column calculations share a Rust kernel. Loading this module explicitly enables
 the official Series/Expr namespaces; the base rsTimes import does not require
 Polars. The implementation is being expanded under the approved PLDT contract.
+
+Date text inputs and string defaults accept real str subclasses and read
+their native stored content, without calling __str__ or overridden sequence
+methods. Call str(value) explicitly when conversion is intended.
 """
 
 from __future__ import annotations
@@ -44,7 +48,7 @@ from ._native import (_pldt_prepare_text, _pldt_prepare_format, _pldt_text,
                       _pldt_query, _pldt_query_clock, _pldt_diff, _pldt_diff_objects,
                       _pldt_output_prepare, _pldt_output, _pldt_nat_collision, _pldt_python_output,
                       _pldt_check_numpy, _pldt_check_temporal, _strftime_prepare, _pldt_strftime)
-from ._pldt_timezone import prepare_timezone as _prepare_zone
+from ._pldt_timezone import prepare_timezone as _prepare_zone, prepare_source_timezone as _prepare_source_zone
 from ._localization import (local_timezone as _local_zone, resolve_timezone as _resolve_zone,
                             named_timezone as _named_zone, _UTC_ALIASES)
 from .errors import _own_error, _raise_argument_context, _external_error
@@ -94,6 +98,13 @@ _PldtT = TypeVar("_PldtT", bound="Pldt")
 if TYPE_CHECKING:
     from ._backend_types import _PandasTicks, _PandasDateTicks
 
+if TYPE_CHECKING or pd is not None:
+    from pandas.tseries.offsets import Day, Hour, Micro, Milli, Minute, Nano, Second
+
+    _FixedFrequency: TypeAlias = str | _dt.timedelta | Nano | Micro | Milli | Second | Minute | Hour | Day
+else:
+    _FixedFrequency = str | _dt.timedelta
+
 _PLUGIN_PATH = Path(_native.__file__)
 _UNITS = ("ms", "us", "ns")
 _PD_COLUMN = (pd.Series, pd.Index, pd.api.extensions.ExtensionArray) if pd is not None else ()
@@ -120,15 +131,20 @@ def _unit(value, optional=False):
         return None
     if not isinstance(value, str):
         raise _own_error(TypeError("must be a string: 'ms', 'us' or 'ns'"), "unit", value)
+    if type(value) is not str:
+        value = str.__str__(value)
     if value not in _UNITS:
         raise _own_error(ValueError("must be 'ms', 'us' or 'ns'; Polars has no Datetime(s)"), "unit", value)
     return value
 
 
 def _name(value):
-    if value is not None and not isinstance(value, str):
+    """Prepare stored name text before fallback, comparison or native output."""
+    if value is None or type(value) is str:
+        return value
+    if not issubclass(type(value), str):
         raise _own_error(TypeError("must be a string or None"), "name", value)
-    return value
+    return str.__str__(value)
 
 
 def _base_array(value, *, own=False):
@@ -189,7 +205,7 @@ def _zone_key(zone):
     if zone is None:
         return None
     if isinstance(zone, ZoneInfo):
-        return zone.key
+        return _prepare_zone(zone, "data").key
     if isinstance(zone, timezone):
         seconds = zone.utcoffset(None).total_seconds()
         if seconds == 0:
@@ -201,22 +217,30 @@ def _zone_key(zone):
 
 def _construct(data, *, unit, name, copy: _Boolean, default, yearfirst: _Boolean | None, dayfirst: _Boolean | None, isoformat: _Boolean, strict: _Boolean, cfg, tz, policy):
     """Read source roles once, then produce one native result carrier."""
-    if isinstance(data, (str, bytes, bytearray, date, Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE) or data is None:
+    source_type = type(data)
+    # Built-in sequences can also be registered as virtual Mapping subclasses.
+    if (source_type is list or source_type is tuple) and not issubclass(source_type, Mapping):
+        return _pldt_objects(
+            data, pl.Series, unit, None, "" if name is None else name,
+            default, yearfirst, dayfirst, isoformat, strict, cfg, tz, policy,
+        )
+    if issubclass(source_type, (str, bytes, bytearray, date, Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE) or data is None:
         raise TypeError("Pldt: data must be a one-dimensional date collection; use [value] for one date")
     source_name = None
     source_zone = None
     base_unit = None
-    if isinstance(data, _PD_COLUMN):
+    if issubclass(source_type, _PD_COLUMN):
         source_name = getattr(data, "name", None)
         selected_name = name if name is not None else _name(source_name) or ""
-        if isinstance(data, (pd.Series, pd.Index)):
+        if issubclass(source_type, (pd.Series, pd.Index)):
             data = data.array
-        if isinstance(data, _PD_DATETIME_ARRAY):
+            source_type = type(data)
+        if issubclass(source_type, _PD_DATETIME_ARRAY):
             source_zone = ("UTC" if tz is not None else _zone_key(data.tz)) if data.tz is not None else None
             array = _base_array(data.asi8)
             code = _NUMPY_DATE_CODES[data.unit]
             carrier = pl.Series(selected_name, array)
-            return _pldt_native(carrier, pl.Series, unit, copy, False, (code, 1), source_zone, tz, policy).rename(name if name is not None else _name(source_name) or "")
+            return _pldt_native(carrier, pl.Series, unit, copy, False, (code, 1), source_zone, tz, policy)
         arrow = _pandas_timestamp_column(data)
         if arrow is not None:
             data = arrow.rename(selected_name)
@@ -226,7 +250,8 @@ def _construct(data, *, unit, name, copy: _Boolean, default, yearfirst: _Boolean
             base_unit = "ns"
         elif getattr(data.dtype, "kind", None) in ("b", "m", "V", "c", "S"):
             raise TypeError("Pldt: this declared pandas dtype does not contain dates or supported numeric ticks")
-    if isinstance(data, np.ndarray):
+        source_type = type(data)
+    if issubclass(source_type, np.ndarray):
         data = _base_array(data)
         if data.dtype.kind in "bmVcS":
             raise TypeError("Pldt: Boolean, Duration, structured and complex arrays are not date inputs")
@@ -243,7 +268,8 @@ def _construct(data, *, unit, name, copy: _Boolean, default, yearfirst: _Boolean
             # Known external NumPy storage must not persist into detached reads.
             # Rust makes the one owned result while the GIL is still held.
             copy = True
-    if isinstance(data, pl.Series):
+        source_type = type(data)
+    if issubclass(source_type, pl.Series):
         data = _plain_series(data)  # Independent shell; retain typed native owner/chunks.
         source_name = data.name
         kind = data.dtype.base_type()
@@ -271,14 +297,17 @@ def _text_eager(source, unit, tz, policy, default=None, yearfirst: _Boolean | No
     return _pldt_text(source, pl.Series, prepared, formatted, unit, tz, policy)
 
 
+_NO_FORMAT = object()
+
+
 def _text_expression(source, *, unit=None, tz=None, default=None, yearfirst: _Boolean | None=None,
                      dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg=None,
-                     ambiguous: _ExprAmbiguous="raise", nonexistent: _Nonexistent="raise", fmt=None):
-    entry = "Pldt.parse" if fmt is None else "Pldt.strptime"
+                     ambiguous: _ExprAmbiguous="raise", nonexistent: _Nonexistent="raise", fmt=_NO_FORMAT):
+    entry = "Pldt.parse" if fmt is _NO_FORMAT else "Pldt.strptime"
     try:
         target = _prepare_zone(tz)
         policy, mask, scalar = _timezone_policy(ambiguous, nonexistent, expression=True)
-        if fmt is None:
+        if fmt is _NO_FORMAT:
             unit = _unit(unit, optional=True)
             context = _pldt_prepare_text(cfg=cfg, default=default, yearfirst=yearfirst,
                                          dayfirst=dayfirst, isoformat=isoformat,
@@ -304,17 +333,25 @@ def _text_expression(source, *, unit=None, tz=None, default=None, yearfirst: _Bo
         _raise_argument_context(error, entry, "arguments", None)
 
 
-def _strptime_eager(data, fmt, *, size=None, tz=None, unit=None, name=None,
+@overload
+def _strptime_eager(cls: type[_PldtT], data: object, fmt: object, *, size: object=None, tz: object=None, unit: object=None, name: object=None, cfg: Configs | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT:
+    ...
+@overload
+def _strptime_eager(cls: type[pl.Series], data: object, fmt: object, *, size: object=None, tz: object=None, unit: object=None, name: object=None, cfg: Configs | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Series:
+    ...
+def _strptime_eager(cls: type[_SeriesT], data, fmt, *, size=None, tz=None, unit=None, name=None,
                     cfg=None, ambiguous: _Ambiguous="raise", nonexistent: _Nonexistent="raise"):
     try:
         unit = _unit(unit, optional=True)
         name = _name(name)
-        if name is None and isinstance(data, (pl.Series,) + _PD_COLUMN):
+        source_type = type(data)
+        if name is None and issubclass(source_type, (pl.Series,) + _PD_COLUMN):
             name = _name(getattr(data, "name", None))
         compiled = _prepare_format(fmt)
         target = _prepare_zone(tz)
         policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
-        scalar = isinstance(data, (str, bytes, bytearray, date, int, float, np.generic)) or data is None or (pd is not None and (data is pd.NA or data is pd.NaT))
+        output = Pldt if cls is Pldt else pl.Series
+        scalar = issubclass(source_type, (str, bytes, bytearray, date, int, float, np.generic)) or data is None or (pd is not None and (data is pd.NA or data is pd.NaT))
         if scalar:
             if size is None:
                 raise _own_error(ValueError("a scalar strptime input requires size"), "size", size)
@@ -323,26 +360,26 @@ def _strptime_eager(data, fmt, *, size=None, tz=None, unit=None, name=None,
                 raise _own_error(ValueError("size must be nonnegative"), "size", size)
         elif size is not None:
             raise _own_error(ValueError("omit size for a collection"), "size", size)
-        if isinstance(data, pl.Series) and data.dtype.base_type() in (pl.String, pl.Null):
+        if issubclass(source_type, pl.Series) and cast(pl.Series, data).dtype.base_type() in (pl.String, pl.Null):
             source = _plain_series(data)
             if source.dtype == pl.Null:
                 source = source.cast(pl.String)
             context = _pldt_prepare_format(compiled, cfg)
-            result = _text_eager(source, unit, target, policy, formatted=context)
-            return result.rename(name if name is not None else source.name)
-        if isinstance(data, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+            result = _pldt_text(source, output, None, context, unit, target, policy, name)
+            return result if cls is Pldt else cls(result)
+        if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
             raise _own_error(TypeError("strptime requires text or a one-dimensional text collection"), "dtstr", data)
-        if isinstance(data, pl.Series) and data.dtype.base_type() is not pl.Object:
+        if issubclass(source_type, pl.Series) and cast(pl.Series, data).dtype.base_type() is not pl.Object:
             raise _own_error(TypeError("strptime requires a String or text Object column"), "dtstr", data)
-        if isinstance(data, _PD_COLUMN) and getattr(data.dtype, "kind", None) not in ("O", "U"):
+        if issubclass(source_type, _PD_COLUMN) and getattr(getattr(data, "dtype"), "kind", None) not in ("O", "U"):
             raise _own_error(TypeError("strptime requires text values, not a numeric/date dtype"), "dtstr", data)
-        if isinstance(data, np.ndarray):
+        if issubclass(source_type, np.ndarray):
             data = _base_array(data)
             if data.dtype.kind not in ("O", "U"):
                 raise _own_error(TypeError("strptime requires text values, not a numeric/date dtype"), "dtstr", data)
-        result = _pldt_format_objects(data, pl.Series, compiled, unit, target, policy,
+        result = _pldt_format_objects(data, output, compiled, unit, target, policy,
                                        cfg, size, name or "")
-        return result
+        return result if cls is Pldt else cls(result)
     except Exception as error:
         _raise_argument_context(error, "Pldt.strptime", "arguments", None)
 
@@ -387,18 +424,20 @@ def _numeric_eager(cls: type[_SeriesT], data, kind, *, size=None, tz=None, unit=
         size = None if size is None else _size(size, entry)
         target_zone = _prepare_zone(tz)
         policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
-        if isinstance(data, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+        source_type = type(data)
+        if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
             raise _own_error(TypeError("requires a numeric scalar or one-dimensional numeric collection"), "data", data)
         column = False
         source_name = None
-        if isinstance(data, _PD_COLUMN):
+        if issubclass(source_type, _PD_COLUMN):
             source_name = getattr(data, "name", None)
             column = True
             if getattr(data.dtype, "kind", None) in ("M", "m", "b", "c", "S", "V"):
                 raise _own_error(TypeError("this declared dtype is not numeric epoch input"), "data", data)
-            if isinstance(data, (pd.Series, pd.Index)):
+            if issubclass(source_type, (pd.Series, pd.Index)):
                 data = data.array
-        if isinstance(data, np.ndarray):
+                source_type = type(data)
+        if issubclass(source_type, np.ndarray):
             data = _base_array(data)
             column = True
             if data.dtype.kind in "MmbcSV":
@@ -409,9 +448,10 @@ def _numeric_eager(cls: type[_SeriesT], data, kind, *, size=None, tz=None, unit=
                         raise _own_error(TypeError("integer microseconds reject extended floating types"), "data", data)
                     data = data.astype(np.float64) if data.dtype.type not in (np.float32, np.float64) else data
                 data = pl.Series(name or "", data)
+            source_type = type(data)
         target = Pldt if cls is Pldt else pl.Series
         local = _local_zone if kind == "local_timestamp" else None
-        if isinstance(data, pl.Series):
+        if issubclass(source_type, pl.Series):
             if size is not None:
                 raise _own_error(ValueError("omit size for a collection"), "size", size)
             source = _plain_series(data)
@@ -473,10 +513,12 @@ def _range_factory(cls: type[_SeriesT], start=None, *, end=None, periods=None, f
         strict = _bool_option(strict, entry, "strict")
         yearfirst = None if yearfirst is None else _bool_option(yearfirst, entry, "yearfirst")
         dayfirst = None if dayfirst is None else _bool_option(dayfirst, entry, "dayfirst")
-        if cfg is not None and not isinstance(cfg, Configs):
+        if cfg is not None and not issubclass(type(cfg), Configs):
             raise _own_error(TypeError("must be Configs or None"), "cfg", cfg)
         if not isinstance(inclusive, str):
             raise _own_error(TypeError("must be both/left/right/neither"), "inclusive", inclusive)
+        if type(inclusive) is not str:
+            inclusive = str.__str__(inclusive)
         if inclusive not in ("both", "left", "right", "neither"):
             raise _own_error(ValueError("must be both/left/right/neither"), "inclusive", inclusive)
         policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
@@ -485,9 +527,10 @@ def _range_factory(cls: type[_SeriesT], start=None, *, end=None, periods=None, f
             freq = "D"
         metadata = None
         delegated = False
+        frequency_type = type(freq)
         if freq is None:
             plan = None
-        elif pd is not None and isinstance(freq, pd.DateOffset) and not isinstance(freq, timedelta):
+        elif pd is not None and issubclass(frequency_type, pd.DateOffset) and not issubclass(frequency_type, timedelta):
             plan, metadata, delegated = _pandas_frequency(freq)  # pyright: ignore[reportOptionalCall] -- TY020; see tests/typing/pyright_exceptions.json.
         else:
             plan = _pldt_frequency(freq)
@@ -508,9 +551,6 @@ def _range_factory(cls: type[_SeriesT], start=None, *, end=None, periods=None, f
             first = None if first is None else pd.Timestamp(np.datetime64(first, carrier_unit))
             last = None if last is None else pd.Timestamp(np.datetime64(last, carrier_unit))
             generation_unit, minimum_unit = _mature_units(metadata, inputs.unit, carrier_unit)  # pyright: ignore[reportOptionalCall] -- TY022; see tests/typing/pyright_exceptions.json.
-            if generation_unit is not None:
-                units = ("s", "ms", "us", "ns")
-                generation_unit = units[max(units.index(generation_unit), units.index(carrier_unit))]
             try:
                 external = pd.date_range(start=first, end=last, periods=periods, freq=metadata,  # pyright: ignore[reportCallIssue] -- TY023; see tests/typing/pyright_exceptions.json.
                                          unit=generation_unit, inclusive="both")
@@ -538,15 +578,17 @@ def _iso_factory(cls: type[_SeriesT], data, *, size=None, tz=None, unit=None, na
         name = _name(name)
         target = _prepare_zone(tz)
         policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
-        if isinstance(data, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+        source_type = type(data)
+        if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
             raise _own_error(TypeError("requires ISO text or a one-dimensional text collection"), "dtstr", data)
         output = Pldt if cls is Pldt else pl.Series
-        column = isinstance(data, _PD_COLUMN)
+        column = issubclass(source_type, _PD_COLUMN)
         source_name = _name(getattr(data, "name", None)) if column else None
-        if isinstance(data, np.ndarray):
+        if issubclass(source_type, np.ndarray):
             data = _base_array(data)
             column = True
-        if isinstance(data, pl.Series):
+            source_type = type(data)
+        if issubclass(source_type, pl.Series):
             if size is not None:
                 raise _own_error(ValueError("omit size for a collection"), "size", size)
             data = _plain_series(data)
@@ -592,19 +634,21 @@ def _date_factory(cls: type[_SeriesT], data, kind, *, size=None, tz=None, unit=N
         size = None if size is None else _size(size, entry)
         zone = _prepare_zone(tz)
         policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
-        if isinstance(data, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+        source_type = type(data)
+        if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
             raise _own_error(TypeError("requires a real date source or one-dimensional date collection"), "data", data)
         target = Pldt if cls is Pldt else pl.Series
         column = False
         source_name = None
-        if isinstance(data, _PD_COLUMN):
+        if issubclass(source_type, _PD_COLUMN):
             if kind == "numpy":
                 raise _own_error(TypeError("fromdatetime64 requires real NumPy datetime64 sources"), "dt64", data)
             source_name = getattr(data, "name", None)
             column = True
-            if isinstance(data, (pd.Series, pd.Index)):
+            if issubclass(source_type, (pd.Series, pd.Index)):
                 data = data.array
-            if isinstance(data, _PD_DATETIME_ARRAY):
+                source_type = type(data)
+            if issubclass(source_type, _PD_DATETIME_ARRAY):
                 if size is not None:
                     raise _own_error(ValueError("omit size for a collection"), "size", size)
                 source_zone = _resolve_zone(data.tz)
@@ -615,15 +659,22 @@ def _date_factory(cls: type[_SeriesT], data, kind, *, size=None, tz=None, unit=N
                         delta = source_zone.utcoffset(None)
                         offset = (delta.days * 86400 + delta.seconds) * 1_000_000 + delta.microseconds
                     elif source_zone is not None:
-                        rule = _prepare_zone(source_zone)
-                    carrier = pl.Series(name if name is not None else _name(source_name) or "", _base_array(data.asi8))
-                    result = _pldt_date_buffer(carrier, target, kind, _NUMPY_DATE_CODES[data.unit], rule,
-                                               offset, unit, zone, policy)
-                    return result if cls is Pldt else cls(result)
+                        rule = _prepare_source_zone(source_zone)
+                    if source_zone is None or offset is not None or rule is not None:
+                        carrier = pl.Series(name if name is not None else _name(source_name) or "", _base_array(data.asi8))
+                        result = _pldt_date_buffer(carrier, target, kind, _NUMPY_DATE_CODES[data.unit], rule,
+                                                   offset, unit, zone, policy)
+                        return result if cls is Pldt else cls(result)
+                    if kind == "datetime" and zone is None:
+                        _prepare_zone(source_zone, "data")
+                    if unit is None:
+                        unit = _unit("ms" if data.unit == "s" else data.unit)
+                    data = _real_pandas_source(data, source_zone)
             arrow = _pandas_timestamp_column(data)
             if arrow is not None:
                 data = arrow.rename(name if name is not None else _name(source_name) or "")
-        if isinstance(data, np.ndarray):
+            source_type = type(data)
+        if issubclass(source_type, np.ndarray):
             data = _base_array(data)
             column = True
             if data.dtype.kind == "M":
@@ -638,7 +689,8 @@ def _date_factory(cls: type[_SeriesT], data, kind, *, size=None, tz=None, unit=N
                 result = _pldt_native(carrier, target, unit, False, False,
                                       (_NUMPY_DATE_CODES[source_unit], multiplier), None, zone, policy)
                 return result if cls is Pldt else cls(result)
-        if isinstance(data, pl.Series):
+            source_type = type(data)
+        if issubclass(source_type, pl.Series):
             if kind == "numpy":
                 raise _own_error(TypeError("fromdatetime64 requires a real NumPy source, not Polars"), "dt64", data)
             if size is not None:
@@ -676,19 +728,51 @@ def _date_expression(source, kind, *, tz=None, unit=None, ambiguous: _ExprAmbigu
         _raise_argument_context(error, entry, "arguments", None)
 
 
+def _real_pandas_source(data, zone):
+    """Read special aware columns without pandas' key-based scalar rebuilding.
+
+    Ordinary native columns never enter this path. Actual timezone.fromutc
+    remains the source authority; nanoseconds and missing positions survive.
+    """
+    factor = {"s": 1_000_000_000, "ms": 1_000_000, "us": 1_000, "ns": 1}[data.unit]
+    ticks = _base_array(data.asi8)
+    if ticks.dtype != np.dtype("int64"):
+        raise _own_error(TypeError("a pandas datetime source must expose signed int64 ticks"))
+    epoch = None
+    for tick in ticks:
+        if tick == -9223372036854775808:
+            yield None
+            continue
+        seconds, fraction = divmod(int(tick) * factor, 1_000_000_000)
+        microsecond, nano = divmod(fraction, 1000)
+        # Give the real source protocol the complete datetime precision before
+        # converting. Restoring UTC fractions afterward loses fractional-offset
+        # carries and can select the wrong local day near midnight.
+        if epoch is None:
+            epoch = _dt.datetime(1970, 1, 1, tzinfo=_dt.timezone.utc)
+        utc = epoch + _dt.timedelta(seconds=seconds, microseconds=microsecond)
+        local = utc.astimezone(zone)
+        yield pd.Timestamp(year=local.year, month=local.month, day=local.day,
+                           hour=local.hour, minute=local.minute, second=local.second,
+                           microsecond=local.microsecond, nanosecond=nano, tzinfo=zone,
+                           fold=1 if local.fold else 0)
+
+
 def _part_source(value, clock, keep_zone):
     """Own one date/clock role without constructing an intermediate Pldt."""
     parameter = "time" if clock else "date"
-    if isinstance(value, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+    source_type = type(value)
+    if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
         raise _own_error(TypeError("requires a scalar or one-dimensional date/clock collection"), parameter, value)
     column = False
     name = None
-    if isinstance(value, _PD_COLUMN):
+    if issubclass(source_type, _PD_COLUMN):
         name = getattr(value, "name", None)
         column = True
-        if isinstance(value, (pd.Series, pd.Index)):
+        if issubclass(source_type, (pd.Series, pd.Index)):
             value = value.array
-        if isinstance(value, _PD_DATETIME_ARRAY):
+            source_type = type(value)
+        if issubclass(source_type, _PD_DATETIME_ARRAY):
             source_zone = _resolve_zone(value.tz)
             if source_zone is None or isinstance(source_zone, (timezone, ZoneInfo)):
                 rule, offset = None, None
@@ -696,14 +780,30 @@ def _part_source(value, clock, keep_zone):
                     delta = source_zone.utcoffset(None)
                     offset = (delta.days * 86400 + delta.seconds) * 1_000_000 + delta.microseconds
                 elif source_zone is not None:
-                    rule = _prepare_zone(source_zone)
-                carrier = pl.Series("", _base_array(value.asi8))
-                return _pldt_parts_buffer(carrier, clock, _NUMPY_DATE_CODES[value.unit], 1,
-                                          rule, offset, keep_zone), _name(name)
+                    rule = _prepare_source_zone(source_zone)
+                if source_zone is None or offset is not None or rule is not None:
+                    carrier = pl.Series("", _base_array(value.asi8))
+                    return _pldt_parts_buffer(carrier, clock, _NUMPY_DATE_CODES[value.unit], 1,
+                                              rule, offset, keep_zone), _name(name)
+                if keep_zone:
+                    # A real standard ZoneInfo can itself prove a constant
+                    # source offset. Preserve it without trusting its key,
+                    # including the metadata of empty/all-missing clocks.
+                    fixed = source_zone.utcoffset(None) if type(source_zone) is ZoneInfo else None
+                    if fixed is not None:
+                        offset = (fixed.days * 86400 + fixed.seconds) * 1_000_000 + fixed.microseconds
+                        if not -86_400_000_000 < offset < 86_400_000_000:
+                            raise _own_error(ValueError("source UTC offset must be strictly within 24 hours"), parameter, value)
+                        carrier = pl.Series("", _base_array(value.asi8))
+                        return _pldt_parts_buffer(carrier, clock, _NUMPY_DATE_CODES[value.unit], 1,
+                                                  None, offset, True), _name(name)
+                    _prepare_zone(source_zone, parameter)
+                value = _real_pandas_source(value, source_zone)
         arrow = _pandas_timestamp_column(value)
         if arrow is not None:
             value = arrow.rename(_name(name) or "")
-    if isinstance(value, np.ndarray):
+        source_type = type(value)
+    if issubclass(source_type, np.ndarray):
         value = _base_array(value)
         column = True
         if value.dtype.kind == "M":
@@ -717,7 +817,8 @@ def _part_source(value, clock, keep_zone):
             if value.dtype.kind == "f" and value.dtype.type not in _NUMPY_FLOAT_TYPES:
                 raise _own_error(TypeError("extended floating dtypes are not supported date/clock values"), parameter, value)
             value = pl.Series("", value.astype(np.float32) if value.dtype == np.dtype("float16") else value)
-    if isinstance(value, pl.Series):
+        source_type = type(value)
+    if issubclass(source_type, pl.Series):
         value = _plain_series(value)
         name = value.name
         column = True
@@ -782,25 +883,27 @@ def _combine_expression(source, time=None, *, tz=None, unit=None, ambiguous: _Ex
 
 def _integer_operand(value, entry, parameter):
     """Prepare one scalar/positional integer role and own any literal buffer."""
-    if isinstance(value, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+    source_type = type(value)
+    if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
         raise _own_error(TypeError("requires an integer scalar or one-dimensional integer collection"), parameter, value)
     column = False
     source_name = None
-    if isinstance(value, _PD_COLUMN):
+    if issubclass(source_type, _PD_COLUMN):
         source_name = _name(getattr(value, "name", None))
         column = True
-    if isinstance(value, np.ndarray):
+    if issubclass(source_type, np.ndarray):
         value = _base_array(value)
         column = True
         if value.dtype.kind in "iufb":
             if value.dtype.kind == "f" and value.dtype.type not in _NUMPY_FLOAT_TYPES:
                 raise _own_error(TypeError("extended floating dtypes are not integer components"), parameter, value)
             value = pl.Series("", value.astype(np.float32) if value.dtype == np.dtype("float16") else value)
-    if isinstance(value, pl.Series):
+        source_type = type(value)
+    if issubclass(source_type, pl.Series):
         column = True
         value = _plain_series(value)
         if value.dtype.base_type() is not pl.Object:
-            return _pldt_integer_column(value), False
+            return _pldt_integer_column(value, entry, parameter), False
     source, scalar = _pldt_integer_objects(value, column, entry, parameter)
     return source.rename(source_name or ""), scalar
 
@@ -842,7 +945,7 @@ def _calendar_expression(kind, components, *, tz=None, unit: object="us", ambigu
         labels = {"ordinal": ("ordinal",), "iso": ("year", "week", "weekday"), "doy": ("year", "doy")}[kind]
         args, scalars = [], []
         for value, label in zip(components, labels):
-            if isinstance(value, pl.Expr):
+            if issubclass(type(value), pl.Expr):
                 args.append(value)
                 scalars.append(value.meta.is_scalar())
             else:
@@ -880,15 +983,19 @@ def _as_unit(source, unit, round_ok: _Boolean):
 
 
 def _timezone_policy(ambiguous: _ExprAmbiguous, nonexistent: _Nonexistent, *, expression):
-    if isinstance(ambiguous, pl.Expr):
+    kind = type(ambiguous)
+    if issubclass(kind, pl.Expr):
         if not expression:
             raise _own_error(TypeError("ambiguous Expr is only valid in an Expr call"), "ambiguous", ambiguous)
-        return _pldt_policies("raise", nonexistent, True), ambiguous, ambiguous.meta.is_scalar()
-    if isinstance(ambiguous, np.ndarray):
-        if ambiguous.ndim != 1:
+        mask = cast(pl.Expr, ambiguous)
+        return _pldt_policies("raise", nonexistent, True), mask, mask.meta.is_scalar()
+    if issubclass(kind, np.ndarray):
+        column = cast(np.ndarray, ambiguous)
+        if column.ndim != 1:
             raise _own_error(ValueError("ambiguous must be one-dimensional"), "ambiguous", ambiguous)
-        if ambiguous.dtype.kind != "b":
+        if column.dtype.kind != "b":
             raise _own_error(TypeError("ambiguous array must have Boolean dtype"), "ambiguous", ambiguous)
+        return _pldt_policies(ambiguous, nonexistent), None, False
     if isinstance(ambiguous, (pl.DataFrame, pl.LazyFrame, Mapping, set, frozenset) + _PD_TABLE):
         raise _own_error(TypeError("ambiguous must be one boolean policy or a one-dimensional boolean collection"), "ambiguous", ambiguous)
     if isinstance(ambiguous, pl.Series) and ambiguous.dtype != pl.Boolean:
@@ -912,12 +1019,13 @@ def _tz_eager(source, operation, tz, base_tz=None, naive: _Boolean=False, ambigu
         if dtype.base_type() not in (pl.Date, pl.Datetime):
             raise _own_error(TypeError("source must be a Date/Datetime column"), "data", source)
         source_aware = dtype.base_type() == pl.Datetime and cast(pl.Datetime, dtype).time_zone is not None
-        target = _prepare_zone(_local_zone() if operation == "astimezone" and tz is None else tz)
+        target = _prepare_zone(_local_zone() if operation == "astimezone" and tz is None else tz,
+                               "targ_tz" if operation == "switch" else "tz")
         base = None
         if operation == "astimezone" and not source_aware:
             base = target if tz is None else _prepare_zone(_local_zone())
         elif operation == "switch" and tz is not None and not source_aware and base_tz is not None:
-            base = _prepare_zone(base_tz)
+            base = _prepare_zone(base_tz, "base_tz")
         cls = type(source) if isinstance(source, Pldt) else Pldt
         if cls is Pldt:
             return _pldt_timezone(receiver, Pldt, operation, target, base, policy, naive)
@@ -931,14 +1039,15 @@ def _tz_expr(source, operation, tz, base_tz=None, naive: _Boolean=False, ambiguo
     try:
         naive = _bool_option(naive, entry, "naive")
         policy, mask, scalar = _timezone_policy(ambiguous, nonexistent, expression=True)
-        target = _prepare_zone(_local_zone() if operation == "astimezone" and tz is None else tz)
+        target = _prepare_zone(_local_zone() if operation == "astimezone" and tz is None else tz,
+                               "targ_tz" if operation == "switch" else "tz")
         # Expr has no input schema yet. Static required fallbacks are frozen now;
         # actual aware execution never reinterprets the source or uses base rules.
         base = None
         if operation == "astimezone":
             base = target if tz is None else _prepare_zone(_local_zone())
         elif operation == "switch" and tz is not None and base_tz is not None:
-            base = _prepare_zone(base_tz)
+            base = _prepare_zone(base_tz, "base_tz")
         policy_data = policy.plugin_kwargs()
         kwargs = {"version": 1, "operation": operation,
                   "target": None if target is None else target.plugin_kwargs(),
@@ -967,10 +1076,11 @@ _FIELD_RANGES: tuple[tuple[int | None, int | None], ...] = ((None, None), (1, 12
 
 def _component(value, entry, parameter, optional, names, low, high) -> tuple[pl.Series, bool]:
     """Read a modification parameter once, preserving None and owning literals."""
-    if isinstance(value, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
+    source_type = type(value)
+    if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame, pl.Expr) + _PD_TABLE):
         raise _own_error(TypeError("requires a scalar or one-dimensional field collection"), parameter, value)
-    column = isinstance(value, _PD_COLUMN)
-    if isinstance(value, np.ndarray):
+    column = issubclass(source_type, _PD_COLUMN)
+    if issubclass(source_type, np.ndarray):
         value = _base_array(value)
         column = True
         if value.dtype.kind in "iu":
@@ -979,11 +1089,12 @@ def _component(value, entry, parameter, optional, names, low, high) -> tuple[pl.
             value = pl.Series(parameter, value)
         elif value.dtype.kind != "O":
             raise _own_error(TypeError("requires integer fields, not Boolean or floating dtype"), parameter, value)
-    if isinstance(value, _PD_COLUMN):
+        source_type = type(value)
+    if issubclass(source_type, _PD_COLUMN):
         kind = getattr(value.dtype, "kind", None)
         if kind not in ("i", "u", "O", "U", "T"):
             raise _own_error(TypeError("requires integer fields or supported selector names"), parameter, value)
-    if isinstance(value, pl.Series):
+    if issubclass(source_type, pl.Series):
         value = _plain_series(value)
         column = True
         if value.dtype.base_type() is not pl.Object:
@@ -1026,7 +1137,7 @@ def _date_operation(owner, kind, components, method, *, tzinfo=_UNCHANGED_ZONE,
         expression = isinstance(owner, _ExprNamespace)
         source = owner._expr if expression else _plain_series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
         replace_zone = tzinfo is not _UNCHANGED_ZONE
-        target = _prepare_zone(tzinfo) if replace_zone else None
+        target = _prepare_zone(tzinfo, "tzinfo") if replace_zone else None
         if kind == "replace":
             policy, mask, mask_scalar = _timezone_policy(ambiguous, nonexistent, expression=expression)
         else:
@@ -1034,7 +1145,7 @@ def _date_operation(owner, kind, components, method, *, tzinfo=_UNCHANGED_ZONE,
         args, scalars = [], []
         has_expr_component = False
         for value, role in zip(components, _transform_roles(kind)):
-            if isinstance(value, pl.Expr):
+            if issubclass(type(value), pl.Expr):
                 has_expr_component = True
                 if not expression:
                     raise _own_error(TypeError("Expr fields require the Expr namespace"), role[0], value)
@@ -1069,16 +1180,18 @@ def _date_operation(owner, kind, components, method, *, tzinfo=_UNCHANGED_ZONE,
 
 def _prepare_arithmetic(other, entry, subtract, reflected=False, named=False):
     """Read real temporal metadata without extracting Python date scalars."""
-    if isinstance(other, (pl.Expr, Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame) + _PD_TABLE):
+    source_type = type(other)
+    if issubclass(source_type, (pl.Expr, Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame) + _PD_TABLE):
         if named:
             raise _own_error(TypeError("requires actual Delta values or a one-dimensional Delta collection; dynamic Expr operands are unsupported"), "delta", other)
         return None
     column = False
-    if isinstance(other, _PD_COLUMN):
+    if issubclass(source_type, _PD_COLUMN):
         column = True
-        array = other.array if isinstance(other, (pd.Series, pd.Index)) else other
-        if isinstance(array, (_PD_DATETIME_ARRAY, _PD_TIMEDELTA_ARRAY)):
-            storage = "M" if isinstance(array, _PD_DATETIME_ARRAY) else "m"
+        array = other.array if issubclass(source_type, (pd.Series, pd.Index)) else other
+        array_type = type(array)
+        if issubclass(array_type, (_PD_DATETIME_ARRAY, _PD_TIMEDELTA_ARRAY)):
+            storage = "M" if issubclass(array_type, _PD_DATETIME_ARRAY) else "m"
             if named:
                 raise _own_error(TypeError("requires actual Delta values"), "delta", other)
             # The actual cached class test proves the structural storage API.
@@ -1089,7 +1202,8 @@ def _prepare_arithmetic(other, entry, subtract, reflected=False, named=False):
                                        storage == "M" and cast("_PandasDateTicks", array).tz is not None, True)
         arrow = _pandas_timestamp_column(array)
         other = array if arrow is None else arrow
-    if isinstance(other, np.ndarray):
+        source_type = type(other)
+    if issubclass(source_type, np.ndarray):
         other = _base_array(other)
         column = True
         if other.dtype.kind in "Mm":
@@ -1104,7 +1218,8 @@ def _prepare_arithmetic(other, entry, subtract, reflected=False, named=False):
             if named:
                 raise _own_error(TypeError("requires actual Delta values"), "delta", other)
             return None
-    if isinstance(other, pl.Series):
+        source_type = type(other)
+    if issubclass(source_type, pl.Series):
         other = _plain_series(other)
         column = True
         if other.dtype.base_type() in (pl.Date, pl.Datetime, pl.Duration):
@@ -1201,7 +1316,7 @@ def _period_operation(owner, kind, token, value, mode, query, method):
         if kind == "fsp":
             value = _integer_arg(value, entry, "precision")
         elif kind == "round":
-            if pd is not None and isinstance(value, pd.DateOffset):
+            if pd is not None and issubclass(type(value), pd.DateOffset):
                 plan, _, delegated = _pandas_frequency(value)  # pyright: ignore[reportOptionalCall] -- TY024; see tests/typing/pyright_exceptions.json.
                 if delegated or plan is None:
                     raise _own_error(ValueError("requires a positive fixed frequency"), "freq", value)
@@ -1229,11 +1344,12 @@ _NO_QUERY_TARGET = object()
 
 def _diff_target(value, count=None) -> tuple[pl.Series, bool, int, tuple[int, int] | None, bool]:
     """Prepare exact date/seconds coordinates, with native dtype metadata."""
-    if isinstance(value, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame) + _PD_TABLE):
+    source_type = type(value)
+    if issubclass(source_type, (Mapping, set, frozenset, pl.DataFrame, pl.LazyFrame) + _PD_TABLE):
         raise _own_error(TypeError("requires a scalar or a one-dimensional target collection"), "dtobj", value)
-    column = isinstance(value, _PD_COLUMN)
+    column = issubclass(source_type, _PD_COLUMN)
     if column and getattr(value.dtype, "kind", None) == "M":
-        array = value.array if isinstance(value, (pd.Series, pd.Index)) else value
+        array = value.array if issubclass(source_type, (pd.Series, pd.Index)) else value
         arrow = _pandas_timestamp_column(array)
         if arrow is not None:
             return arrow, False, 0, None, False
@@ -1241,7 +1357,7 @@ def _diff_target(value, count=None) -> tuple[pl.Series, bool, int, tuple[int, in
         if unit not in _NUMPY_DATE_CODES:
             raise _own_error(ValueError("unsupported datetime target unit"), "dtobj", value)
         return pl.Series("", _base_array(array.asi8, own=True)), False, 1, (_NUMPY_DATE_CODES[unit], 1), getattr(value.dtype, "tz", None) is not None
-    if isinstance(value, np.ndarray):
+    if issubclass(source_type, np.ndarray):
         value = _base_array(value, own=True)
         column = True
         if value.dtype.kind == "M":
@@ -1253,7 +1369,8 @@ def _diff_target(value, count=None) -> tuple[pl.Series, bool, int, tuple[int, in
             raise _own_error(TypeError("extended floating targets are not supported"), "dtobj", value)
         if value.dtype.kind in "iufbU":
             value = pl.Series("", value.astype(np.float32) if value.dtype == np.dtype("float16") else value)
-    if isinstance(value, pl.Series):
+        source_type = type(value)
+    if issubclass(source_type, pl.Series):
         column = True
         value = _plain_series(value)
         if value.dtype.base_type() is not pl.Object:
@@ -1270,13 +1387,17 @@ def _boundary_difference(owner, dtobj, unit, absolute, inclusive):
         for name, value in (("unit", unit), ("inclusive", inclusive)):
             if not isinstance(value, str):
                 raise _own_error(TypeError("must be a string"), name, value)
+        if type(unit) is not str:
+            unit = str.__str__(unit)
+        if type(inclusive) is not str:
+            inclusive = str.__str__(inclusive)
         if unit not in ("Y", "Q", "M", "W", "D", "h", "m", "min", "s", "ms", "us", "ns"):
             raise _own_error(ValueError("unit must be Y/Q/M/W/D/h/m/min/s/ms/us/ns"), "unit", unit)
         if inclusive not in ("one", "both", "neither"):
             raise _own_error(ValueError("must be 'one', 'both' or 'neither'"), "inclusive", inclusive)
         expression = isinstance(owner, _ExprNamespace)
         source = owner._expr if expression else _plain_series(owner._series if isinstance(owner, _SeriesNamespace) else owner)
-        if expression and isinstance(dtobj, pl.Expr):
+        if expression and issubclass(type(dtobj), pl.Expr):
             target, scalar, storage, numpy, aware = dtobj, dtobj.meta.is_scalar(), 0, None, False
         else:
             target, scalar, storage, numpy, aware = _diff_target(dtobj, None if expression else source.len())
@@ -1302,8 +1423,9 @@ def _query_operation(owner, code, method, value=_NO_QUERY_TARGET, names=0, param
         target = None
         scalar = False
         if value is not _NO_QUERY_TARGET:
-            if expression and isinstance(value, pl.Expr):
-                target, scalar = value, value.meta.is_scalar()
+            if expression and issubclass(type(value), pl.Expr):
+                target = cast(pl.Expr, value)
+                scalar = target.meta.is_scalar()
             else:
                 target, scalar = _component(value, entry, parameter, False, names, None, None)
                 if expression:
@@ -1632,7 +1754,7 @@ class _OutputMethods:
             Separator between ISO date and time, normally T.
         timespec : str
             auto/hours/minutes/seconds/milliseconds/microseconds/nanoseconds, including the approved
-            H/M/s/ms/us/ns aliases.
+            h/m/min/s/ms/us/ns aliases; uppercase H and M are not accepted.
         
         Returns
         -------
@@ -2553,7 +2675,7 @@ class _QueryMethods:
         return _query_operation(self, 104, "is_day", day, parameter="day")
 
     def is_long_year(self) -> pl.Series | pl.Expr:
-        """Whether the calendar year has53 ISO weeks; null is False.
+        """Whether the local calendar year contains 53 ISO weeks; null is False.
 
         For Expr receivers, errors depending on schema or row values are deferred
         to select/collect and use Polars exception classes (usually ComputeError).
@@ -4374,64 +4496,84 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
     """
 
     def __init__(self, data: _DateCollection, *, unit: _Unit | None=None, name: str | None=None, copy: _Boolean=False, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, tz: _Zone=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> None:
-        """Initialize the registered native namespace.
-        
+        """Initialize this Pldt datetime Series from a one-dimensional collection.
+
         Parameters
         ----------
         data : _DateCollection
-            Legal one-dimensional date collection; text/date/datetime/NumPy scalars/numeric ticks and
-            supported native columns may mix. No scalar, mapping, set, table, nested row or automatic
-            flattening.
-        unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        copy : _Boolean
-            True isolates source date buffers; False permits safe sharing but does not promise zero-copy
-            or an independent snapshot.
-        default : _DateValue
-            An independently complete fallback date, read only when needed to fill text YMD/two-digit-year
-            reference. It does not supply the column clock, zone or fold.
-        yearfirst : _Boolean | None
-            Explicit non-None boolean wins over Configs. Without either, yearfirst=True/dayfirst=False;
-            False is an explicit preference.
-        dayfirst : _Boolean | None
-            Explicit non-None boolean wins over Configs. Without either, yearfirst=True/dayfirst=False;
-            False is an explicit preference.
-        isoformat : _Boolean
-            Try ISO first and then shared ordinary parsing when needed; this is not ISO-only validation.
-        strict : _Boolean
-            Validate explicit parsed date/clock fields and conflicts; it does not replace the regional DST
-            policies.
-        cfg : Configs | None
-            Shared Configs word/region rules. None uses the existing defaults; Expr freezes effective
-            rules when it is created.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+            Supported dates, datetimes, text, numeric ticks or native one-dimensional
+            columns. Legal mixtures and missing values are accepted. Scalar inputs,
+            mappings, sets, tables and nested rows are rejected, without flattening.
+        unit : _Unit or None, default None
+            Storage resolution ms/us/ns; Polars has no Datetime(s). None selects
+            the resolution using source metadata and the documented parsing rules.
+            An explicit unit must preserve the input precision and capacity.
+        name : str or None, default None
+            Column name. None retains a usable source name, or uses an empty name.
+        copy : bool or numpy.bool_, default False
+            True physically isolates date buffers. False allows safe sharing;
+            it does not promise zero-copy or a snapshot of arbitrary input objects.
+        default : _DateValue, default None
+            An independently complete fallback date, used only when text needs
+            missing YMD fields or a two-digit-year reference. It supplies no
+            clock, timezone, fractional second or fold.
+        yearfirst : bool, numpy.bool_ or None, default None
+            Non-None overrides Configs; otherwise use its preference, or True
+            when no Configs is supplied. False is an explicit preference.
+        dayfirst : bool, numpy.bool_ or None, default None
+            Non-None overrides Configs; otherwise use its preference, or False
+            when no Configs is supplied.
+        isoformat : bool or numpy.bool_, default True
+            Try ISO recognition before the general shared grammar. This is not
+            an ISO-only validation option.
+        strict : bool or numpy.bool_, default False
+            Validate explicit parsed fields and conflicts. Regional ambiguity
+            and missing-clock policies remain separate.
+        cfg : Configs or None, default None
+            Effective word/region rules; None uses built-in rules. Text with
+            a regional name must have that name registered in these rules.
+        tz : _Zone, default None
+            A supported target IANA name, ZoneInfo or representable standard
+            fixed offset. None retains a supported aware source zone; naive
+            sources remain naive. A non-None target localizes naive clocks or
+            converts known instants. Business target rules that cannot be
+            encoded by Polars raise ValueError instead of being replaced by key.
+            ZoneInfo.from_file objects are not accepted as native target rules,
+            even when their display key matches a standard name. Standard named
+            constructors, no_cache and passive named subclasses remain supported.
+        ambiguous : _Ambiguous, default 'raise'
+            Repeated-clock policy: 'raise', 'NaT', 'infer', a real boolean or
+            an aligned boolean mask. Boolean choices follow pandas-compatible
+            candidate rules, not universal earlier/later fold numbering.
+        nonexistent : _Nonexistent, default 'raise'
+            One missing-clock policy: 'raise', 'NaT', 'shift_forward',
+            'shift_backward' or a supported timedelta. Shifts select the
+            nearest valid boundary; per-row policy lists are not supported.
+
         Returns
         -------
         None
-            The existing receiver/state/namespace is initialized; no result column is returned.
-        
+            Initializes this Series instance; __init__ does not return a column.
+            The surrounding Pldt(...) expression returns the initialized Pldt.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            An input type, scalar protocol, shape or parameter role is unsupported.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            A field, precision conversion, target timezone or localization policy
+            is invalid or unsupported.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A true value cannot be represented at the chosen unit.
+
+        Examples
+        --------
+        >>> x = Pldt([1, None], unit="ns", name="time")
+        >>> x.to_physical().to_list()
+        [1, None]
+        >>> aware = datetime(2024, 1, 1, 12, tzinfo=timezone.utc)
+        >>> Pldt([aware], unit="us", tz=None).dtype.time_zone
+        'UTC'"""
         try:
             unit = _unit(unit, optional=True)
             name = _name(name)
@@ -4440,7 +4582,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             strict = _bool_option(strict, "Pldt", "strict")
             yearfirst = None if yearfirst is None else _bool_option(yearfirst, "Pldt", "yearfirst")
             dayfirst = None if dayfirst is None else _bool_option(dayfirst, "Pldt", "dayfirst")
-            if cfg is not None and not isinstance(cfg, Configs):
+            if cfg is not None and not issubclass(type(cfg), Configs):
                 raise _own_error(TypeError("must be a Configs instance or None"), "cfg", cfg)
             target = _prepare_zone(tz)
             policy, _, _ = _timezone_policy(ambiguous, nonexistent, expression=False)
@@ -4593,8 +4735,8 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         --------
         >>> Pldt.strptime(["1970-01-01 00:00:00.123456789"], "%Y-%m-%d %H:%M:%S.%f", unit="ns").nanosecond.to_list()
         [789]"""
-        return cls(_strptime_eager(dtstr, fmt, size=size, tz=tz, unit=unit, name=name,
-                                  cfg=cfg, ambiguous=ambiguous, nonexistent=nonexistent))
+        return _strptime_eager(cls, dtstr, fmt, size=size, tz=tz, unit=unit, name=name,
+                              cfg=cfg, ambiguous=ambiguous, nonexistent=nonexistent)
 
     @classmethod
     def now(cls, size: SupportsIndex, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None) -> Self:
@@ -5610,8 +5752,9 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         Custom shallow-copy hooks are looked up on the class and receive the source;
         custom deep-copy hooks are looked up on the instance and receive the memo,
         as in Python's copy module. Real descriptors, return choices and exceptions
-        are preserved. Static discovery reads actual class definitions; the state
-        hooks themselves retain their normal Python behavior."""
+        are preserved. Actual reducers follow copyreg and __reduce_ex__/__reduce__ fallback, including
+        absent/None descriptors and dynamic lookup. Default date copying keeps
+        its native buffer path; genuine state hooks retain their own behavior."""
         try:
             return _state_copy(self, _bool_option(deep, 'Pldt.copy', 'deep'),  # pyright: ignore[reportReturnType] -- TY027; see tests/typing/pyright_exceptions.json.
                                name=_name(name), honor_copy=True)
@@ -5805,7 +5948,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         _pldt_check_temporal(source, target, allow)
         return result
 
-    def __array__(self, dtype: Any=None, copy: _Boolean | None=None) -> np.ndarray:
+    def __array__(self, dtype: Any=None, copy: bool | None=None) -> np.ndarray:
         """Retain native dtype/copy dispatch and validate explicit dtype changes.
         
         Parameters
@@ -5813,9 +5956,9 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         dtype : Any
             Original Polars/NumPy export option, passed to the mature implementation. Requested
             conversions must preserve values/precision/validity unless the collision opt-in applies.
-        copy : _Boolean | None
-            True isolates source date buffers; False permits safe sharing but does not promise zero-copy
-            or an independent snapshot.
+        copy : bool | None
+            True requests an independent copy. False raises if the export needs a copy.
+            None lets the native exporter decide whether to copy.
         
         Returns
         -------
@@ -5918,7 +6061,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         if method == "__call__" and len(inputs) == 2 and not kwargs and ufunc in (np.add, np.subtract):
             left, right = inputs
             other = right if left is self else left
-            temporal = isinstance(other, (np.datetime64, np.timedelta64)) or isinstance(other, np.ndarray) and other.dtype.kind in "Mm"
+            temporal = isinstance(other, (np.datetime64, np.timedelta64)) or issubclass(type(other), np.ndarray) and other.dtype.kind in "Mm"
             if temporal:
                 if ufunc is np.subtract and left is not self:
                     return NotImplemented
@@ -6040,14 +6183,15 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         [2]"""
         return _boundary_difference(self, dtobj, unit, absolute, inclusive)
 
-    def round(self, freq: str='s') -> Pldt:
+    def round(self, freq: _FixedFrequency='s') -> Pldt:
         """Date rounding on a positive fixed grid; preserves current storage unit.
         
         Parameters
         ----------
-        freq : str
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+        freq : str | datetime.timedelta | pandas fixed offset
+            Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
+            installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
+            offsets. A single value applied to the entire column.
         
         Returns
         -------
@@ -6067,14 +6211,15 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             The true final result exceeds the current unit/target capacity."""
         return _period_operation(self, "round", None, freq, 0, False, "pldt.round")
 
-    def ceil(self, freq: str='s') -> Pldt:
+    def ceil(self, freq: _FixedFrequency='s') -> Pldt:
         """Date rounding on a positive fixed grid; preserves current storage unit.
         
         Parameters
         ----------
-        freq : str
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+        freq : str | datetime.timedelta | pandas fixed offset
+            Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
+            installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
+            offsets. A single value applied to the entire column.
         
         Returns
         -------
@@ -6094,14 +6239,15 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             The true final result exceeds the current unit/target capacity."""
         return _period_operation(self, "round", None, freq, 1, False, "pldt.ceil")
 
-    def floor(self, freq: str='s') -> Pldt:
+    def floor(self, freq: _FixedFrequency='s') -> Pldt:
         """Date rounding on a positive fixed grid; preserves current storage unit.
         
         Parameters
         ----------
-        freq : str
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+        freq : str | datetime.timedelta | pandas fixed offset
+            Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
+            installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
+            offsets. A single value applied to the entire column.
         
         Returns
         -------
@@ -7096,7 +7242,7 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         [2]"""
         return _boundary_difference(self, dtobj, unit, absolute, inclusive)
 
-    def round(self, freq: str='s') -> pl.Expr:
+    def round(self, freq: _FixedFrequency='s') -> pl.Expr:
         """Date rounding on a positive fixed grid; preserves current storage unit.
 
         For Expr receivers, errors depending on schema or row values are deferred
@@ -7106,9 +7252,10 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         
         Parameters
         ----------
-        freq : str
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+        freq : str | datetime.timedelta | pandas fixed offset
+            Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
+            installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
+            offsets. A single value applied to the entire column.
         
         Returns
         -------
@@ -7126,7 +7273,7 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
             The true final result exceeds the current unit/target capacity."""
         return _period_operation(self, "round", None, freq, 0, False, "pldt.round")
 
-    def ceil(self, freq: str='s') -> pl.Expr:
+    def ceil(self, freq: _FixedFrequency='s') -> pl.Expr:
         """Date rounding on a positive fixed grid; preserves current storage unit.
 
         For Expr receivers, errors depending on schema or row values are deferred
@@ -7136,9 +7283,10 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         
         Parameters
         ----------
-        freq : str
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+        freq : str | datetime.timedelta | pandas fixed offset
+            Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
+            installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
+            offsets. A single value applied to the entire column.
         
         Returns
         -------
@@ -7156,7 +7304,7 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
             The true final result exceeds the current unit/target capacity."""
         return _period_operation(self, "round", None, freq, 1, False, "pldt.ceil")
 
-    def floor(self, freq: str='s') -> pl.Expr:
+    def floor(self, freq: _FixedFrequency='s') -> pl.Expr:
         """Date rounding on a positive fixed grid; preserves current storage unit.
 
         For Expr receivers, errors depending on schema or row values are deferred
@@ -7166,9 +7314,10 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         
         Parameters
         ----------
-        freq : str
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+        freq : str | datetime.timedelta | pandas fixed offset
+            Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
+            installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
+            offsets. A single value applied to the entire column.
         
         Returns
         -------

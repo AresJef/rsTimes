@@ -5,7 +5,35 @@ use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
-fn role(value: &Bound<'_, PyAny>, kind: &str, replace: bool) -> PyResult<Option<(Parsed, bool)>> {
+struct NumpyDate {
+    ticks: i64,
+    code: i32,
+    multiplier: i32,
+    unit: Unit,
+}
+
+impl NumpyDate {
+    fn read(value: &Bound<'_, PyAny>) -> PyResult<Option<Self>> {
+        let Some((ticks, code, multiplier)) = crate::numpy_scalar::datetime_ticks(value)? else {
+            return Ok(None);
+        };
+        let unit = crate::date_input::scalar_unit(code)?;
+        Ok(Some(Self {
+            ticks,
+            code,
+            multiplier,
+            unit,
+        }))
+    }
+}
+
+fn role(
+    value: &Bound<'_, PyAny>,
+    kind: &str,
+    replace: bool,
+    rows: &mut Rows,
+    numpy: Option<NumpyDate>,
+) -> PyResult<Option<(Parsed, bool)>> {
     if kind == "iso" {
         if !value.is_instance_of::<pyo3::types::PyString>()
             && super::arguments::date_missing(value)?
@@ -15,26 +43,38 @@ fn role(value: &Bound<'_, PyAny>, kind: &str, replace: bool) -> PyResult<Option<
         let text = value.cast::<pyo3::types::PyString>().map_err(|_| {
             crate::error_context::type_error("fromisoformat requires ISO text values")
         })?;
-        let converted;
-        let text = if value.is_exact_instance_of::<pyo3::types::PyString>() {
-            text
-        } else {
-            converted = value.str().map_err(crate::error_context::external)?;
-            &converted
-        };
-        if matches!(
-            text.to_str()?,
-            "" | "NaT" | "NAT" | "nat" | "NaN" | "NAN" | "nan"
-        ) {
+        let view = crate::parser::text::TextView::new(text);
+        if view.len() <= 3 && crate::date_input::missing_text(text)? {
             return Ok(None);
         }
-        return crate::parser::iso_factory::read(text.to_str()?).map(|p| Some((p, false)));
+        return crate::parser::iso_factory::read(&view).map(|p| Some((p, false)));
+    }
+    if kind == "numpy" {
+        let source = if let Some(source) = numpy {
+            source
+        } else {
+            match crate::date_input::non_numpy_date_missing(value)? {
+                Some(true) => return Ok(None),
+                Some(false) => None,
+                None => NumpyDate::read(value)?,
+            }
+            .ok_or_else(|| {
+                crate::error_context::type_error(
+                    "requires a NumPy datetime64 value; use fromdatetime for Python datetime",
+                )
+            })?
+        };
+        if source.ticks == i64::MIN {
+            rows.unit = rows.unit.max(source.unit);
+            return Ok(None);
+        }
+        return epoch::native_datetime_ticks(source.ticks, source.code, source.multiplier)
+            .map(|value| Some((value, false)));
     }
     crate::date_input::named_date(
         value,
         match kind {
             "date" => crate::date_input::DateSource::Date,
-            "numpy" => crate::date_input::DateSource::Numpy,
             _ => crate::date_input::DateSource::Datetime,
         },
         replace,
@@ -66,8 +106,19 @@ fn _pddt_date_objects<'py>(
         "numpy" => "dt64",
         _ => "dt",
     };
+    let (numpy, missing) = if column {
+        (None, false)
+    } else if kind == "numpy" {
+        match crate::date_input::non_numpy_date_missing(data)? {
+            Some(missing) => (None, missing),
+            None => (NumpyDate::read(data)?, false),
+        }
+    } else {
+        (None, super::arguments::date_missing(data)?)
+    };
     let scalar = !column
-        && (super::arguments::date_missing(data)?
+        && (missing
+            || numpy.is_some()
             || data.is_instance_of::<pyo3::types::PyString>()
             || unsafe {
                 ffi::PyDate_Check(data.as_ptr()) != 0 || ffi::PyIndex_Check(data.as_ptr()) != 0
@@ -75,12 +126,12 @@ fn _pddt_date_objects<'py>(
             || crate::numeric::supported_float(data)
             || data.is_instance_of::<pyo3::types::PyBytes>()
             || data.is_instance_of::<pyo3::types::PyByteArray>()
-            || crate::numpy_scalar::datetime_ticks(data)?.is_some());
+            || kind != "numpy" && crate::numpy_scalar::datetime_ticks(data)?.is_some());
     if scalar {
         let count = size.ok_or_else(|| {
             crate::error_context::value_error("a scalar factory input requires size")
         })?;
-        let parsed = role(data, kind, replace)
+        let parsed = role(data, kind, replace, &mut rows, numpy)
             .map_err(|e| crate::error_context::argument(py, e, entry, parameter, data))?;
         rows.reserve(count)?;
         if let Some((parsed, instant)) = parsed {
@@ -91,10 +142,6 @@ fn _pddt_date_objects<'py>(
         rows.empty_zone = rows.sources[0].zone;
         rows.values.resize(count, rows.values[0]);
         rows.sources.resize(count, rows.sources[0]);
-        if count == 0 {
-            rows.values.clear();
-            rows.sources.clear();
-        }
     } else {
         if size.is_some() {
             return Err(crate::error_context::value_error(
@@ -109,9 +156,11 @@ fn _pddt_date_objects<'py>(
             let item = item
                 .map_err(crate::error_context::external)
                 .map_err(|e| crate::error_context::item(py, e, entry, parameter, i, None, true))?;
-            if let Some((parsed, instant)) = role(&item, kind, replace).map_err(|e| {
-                crate::error_context::item(py, e, entry, parameter, i, Some(&item), false)
-            })? {
+            if let Some((parsed, instant)) =
+                role(&item, kind, replace, &mut rows, None).map_err(|e| {
+                    crate::error_context::item(py, e, entry, parameter, i, Some(&item), false)
+                })?
+            {
                 rows.push(py, parsed, instant)?;
             } else {
                 rows.missing();
@@ -260,22 +309,18 @@ fn _pddt_calendar<'py>(
         }
     }
     for i in 0..length {
-        let a = first.0.get(i);
-        let b = second.as_ref().map(|c| c.0.get(i));
-        let c = third.as_ref().map(|c| c.0.get(i));
-        if a.is_none() || b.is_some_and(|v| v.is_none()) || c.is_some_and(|v| v.is_none()) {
+        let Some(a) = first.0.get(i) else {
             rows.missing();
             continue;
-        }
-        let a = a.ok_or_else(|| crate::error_context::runtime("missing calendar component"))?;
-        let b = b.flatten().unwrap_or(1);
-        let c = c.flatten().unwrap_or(1);
+        };
+        let b = second.as_ref().map_or(Some(1), |c| c.0.get(i));
+        let c = third.as_ref().map_or(Some(1), |c| c.0.get(i));
+        let (Some(b), Some(c)) = (b, c) else {
+            rows.missing();
+            continue;
+        };
         let ordinal = match kind {
             "ordinal" => Ok(a),
-            "doy" if b < 1 => Err(crate::error_context::value_error("doy must be at least 1")),
-            "iso" if b < 1 || c < 1 => Err(crate::error_context::value_error(
-                "ISO week and weekday must be at least 1",
-            )),
             "doy" => {
                 crate::calendar::year_day_ordinal(a, b).map_err(crate::error_context::overflow)
             }

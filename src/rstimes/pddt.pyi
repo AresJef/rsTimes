@@ -1,4 +1,14 @@
-"""Public type information for integer-backed Pddt date columns."""
+"""Public type information for integer-backed Pddt date columns.
+
+Date text inputs and string defaults accept real str subclasses and read
+their native stored content, without calling __str__ or overridden sequence
+methods. Call str(value) explicitly when conversion is intended.
+
+Supported string parameters use their actual stored str content before library
+cache, membership or name dispatch. Custom string display, hashing and equality
+do not reinterpret formats, frequencies, units or timezone names. Genuine
+constructor, date/timezone and explicit external protocols keep their contracts.
+"""
 from collections.abc import Iterable
 import datetime as _dt
 from typing import Generic, TypeVar, Hashable, Literal, SupportsIndex, SupportsFloat, TypeAlias, overload
@@ -959,7 +969,11 @@ class Pddt(pd.DatetimeIndex):
 
     @property
     def pddt(self) -> _PddtNamespace[Self]:
-        """Return this index's date-field namespace; native value replace is inherited.
+        """Return date-field operations separately from native whole-value replacement.
+
+        Native value replace, when provided by the installed pandas version,
+        keeps pandas' complete interface and result types. The .pddt.replace
+        method instead replaces date fields and preserves the owning Pddt class.
 
         Returns
         -------
@@ -2451,8 +2465,9 @@ class Pddt(pd.DatetimeIndex):
         Custom shallow-copy hooks are looked up on the class and receive the source;
         custom deep-copy hooks are looked up on the instance and receive the memo,
         as in Python's copy module. Real descriptors, return choices and exceptions
-        are preserved. Static discovery reads actual class definitions; the state
-        hooks themselves retain their normal Python behavior."""
+        are preserved. Actual reducers follow copyreg and __reduce_ex__/__reduce__ fallback, including
+        absent/None descriptors and dynamic lookup. Default date copying keeps
+        its native buffer path; genuine state hooks retain their own behavior."""
         ...
 
     def __copy__(self) -> Self:

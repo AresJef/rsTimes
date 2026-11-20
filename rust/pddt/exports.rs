@@ -46,17 +46,12 @@ impl<'a, 'py> View<'a, 'py> {
             })
         }
     }
-    fn dst(
-        &self,
-        py: Python<'py>,
-        local: &Local<'py>,
-        fixed: &mut Option<Option<i64>>,
-    ) -> PyResult<Option<i64>> {
+    fn dst(&self, py: Python<'py>, local: &Local<'py>, fixed: &mut Option<i64>) -> PyResult<i64> {
         let Some(zone) = self.zone else {
-            return Ok(None);
+            return Ok(-1);
         };
         if let Some(carrier) = &local.carrier {
-            return crate::epoch::offset_us(
+            return crate::host_zone::daylight_marker(
                 &zone
                     .call_method1("dst", (carrier,))
                     .map_err(crate::error_context::external)?,
@@ -65,7 +60,7 @@ impl<'a, 'py> View<'a, 'py> {
         if let Some(value) = fixed {
             return Ok(*value);
         }
-        let value = crate::epoch::offset_us(
+        let value = crate::host_zone::daylight_marker(
             &zone
                 .call_method1("dst", (py.None(),))
                 .map_err(crate::error_context::external)?,
@@ -187,7 +182,6 @@ fn _pddt_export<'py>(
                         0
                     } else {
                         view.dst(py, &local, &mut fixed_dst)?
-                            .map_or(-1, |v| i64::from(v != 0))
                     };
                     let values = [
                         f[0],
@@ -206,9 +200,8 @@ fn _pddt_export<'py>(
                 }
                 Ok(())
             })();
-            result.map_err(|e| {
-                crate::error_context::location(py, e, entry, &format!("result[{i}]"))
-            })?;
+            result
+                .map_err(|e| crate::error_context::item(py, e, entry, "result", i, None, false))?;
         }
         Ok(())
     })?;
@@ -353,9 +346,8 @@ fn objects<'py, const K: u8>(
             crate::localization::calendar_name(py, options.group, position).map(Bound::into_any)
         })();
         out.append(
-            result.map_err(|e| {
-                crate::error_context::location(py, e, entry, &format!("result[{i}]"))
-            })?,
+            result
+                .map_err(|e| crate::error_context::item(py, e, entry, "result", i, None, false))?,
         )?;
     }
     Ok(out)

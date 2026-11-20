@@ -19,11 +19,16 @@ def test_defaults_and_repeated_initialization(flags):
     cfg, ref = Configs(*flags), ReferenceConfigs(*flags)
     assert snapshot(cfg) == snapshot(ref)
     assert cfg.order_hint() == ref.order_hint()
+    original = snapshot(cfg)
     cfg.clear_settings()
     ref.clear_settings()
+    cleared = snapshot(cfg)
     cfg.__init__(*flags)
     ref.__init__(*flags)
-    assert snapshot(cfg) == snapshot(ref)
+    assert snapshot(cfg) == snapshot(ref) == cleared
+    cfg.reset_settings()
+    ref.reset_settings()
+    assert snapshot(cfg) == snapshot(ref) == original
 
 
 @pytest.mark.parametrize('name,value', [('jump', None), ('pertain', None), ('utc', None), ('tzoffset', 3600), ('month', 12), ('weekday', 4), ('hms', 2), ('ampm', 1)])
@@ -86,27 +91,27 @@ def test_optimized_token_shapes_keep_python_case_variants(token):
 
 
 @pytest.mark.parametrize('name', NAMES)
-def test_public_token_entry_rejects_string_subclass_before_case_callbacks(name):
-    for cls in (Configs, ReferenceConfigs):
-        calls = []
-        class Token(str):
-            def lower(self):
-                calls.append('lower')
-                return 'custom'
-        cfg = cls()
-        token = Token('custom')
-        methods = [('add_' + name, (token,) if name in NAMES[:3] else (token, 1)),
-                   ('del_' + name, (token,))]
-        for method, args in methods:
-            with pytest.raises(TypeError) as exc:
-                getattr(cfg, method)(*args)
-            assert ("token" in str(exc.value) and "<Token>" in str(exc.value)) if cls is Configs else "Argument 'token' has incorrect type (expected str, got Token)" in str(exc.value)
-            assert calls == []
-        replacement = {token} if name in NAMES[:3] else {token: 1}
-        with pytest.raises(TypeError) as exc:
-            getattr(cfg, 'set_' + name)(replacement)
-        assert '<Token>' in str(exc.value) if cls is Configs else 'Expected str, got Token' in str(exc.value)
-        assert calls == []
+def test_public_token_entry_reads_string_subclass_before_case_callbacks(name):
+    # R06 explicitly replaces the old exact-str rejection contract. The
+    # historical oracle retains its own interface; the answer here is builtin
+    # stored text and the independently requested numeric code.
+    calls = []
+    class Token(str):
+        def lower(self):
+            calls.append('lower')
+            return 'different'
+    cfg = Configs()
+    cfg.clear_settings()
+    token = Token('custom')
+    add = getattr(cfg, 'add_' + name)
+    assert add(token, seconds=1) if name == 'tzoffset' else add(token) if name in NAMES[:3] else add(token, 1)
+    expected = {'custom'} if name in NAMES[:3] else {'custom': 1}
+    assert getattr(cfg, name) == expected
+    assert getattr(cfg, 'del_' + name)(token)
+    replacement = {token} if name in NAMES[:3] else {token: 1}
+    assert getattr(cfg, 'set_' + name)(replacement)
+    assert getattr(cfg, name) == expected
+    assert calls == []
 
 
 

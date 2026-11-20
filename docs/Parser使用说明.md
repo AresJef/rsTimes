@@ -11,8 +11,25 @@ assert parse_to_epoch("1970-01-01T00:00:00.000000123", unit="ns") == 123
 ```
 
 - `parse_str` 读一个字符串，默认返回标准 datetime。
-- `parse` 还接受支持的 date／datetime 及真实子类、pandas Timestamp、NumPy datetime64、数值纪元秒，以及已有支持的单值 Polars Date／Datetime Series。
-- `parse_to_epoch` 接受对应的支持来源，返回一个指定单位的Python整数，不返回列表或数组。多行日期使用 Pddt。
+- `parse` 还接受支持的 date／datetime 及真实子类、pandas Timestamp、NumPy datetime64 和数值纪元秒；它不接受整条 Polars Series。
+- `parse_to_epoch` 在上述来源外，另外接受恰好一个非 null 值的 Polars Datetime Series，返回指定单位的Python整数；Date Series、空列和多行列不作为单个日期接受。多行日期使用 Pddt。
+
+rsTimes 1.0.0 的三个入口都直接读取真实 `str` 及其子类存储的文本。`Pydt.parse`、`Pddt.parse`、`Pldt.parse` 和字符串 `default` 采用同一读取规则。相关 ISO 和 `strptime` 文本入口保留各自语法和缺失值规则。
+
+```python
+class Text(str):
+    def __str__(self):
+        return "1970-01-02"
+
+value = Text("1970-01-01")
+assert parse_str(value) == parse(value) == datetime(1970, 1, 1)
+assert parse_to_epoch(value, unit="s") == 0
+assert parse(str(value)) == datetime(1970, 1, 2)  # 调用者明确要求转换
+```
+
+已支持的格式、频率、单位、时区名称和 Configs 词条也先读取真实字符串存储，再用于缓存、集合或名称分派。这条读取规则会绕过字符串子类的 `__hash__`、`__eq__` 和 `__str__`。日期、时区、构造、复制及外部来源对象按各自的真实协议处理。
+
+从旧版本迁移时，如果依赖字符串子类的 `__str__` 转换效果，先显式调用 `str(value)`。
 
 标准对象出口使用微秒；Pddt和整数出口可保留来源纳秒。输入本来只有微秒时，不伪造更细信息。缺失无法表示单一日期／整数，None、NaT及单值Polars null会明确报错；普通坏输入不自动变为NaT。
 
@@ -67,6 +84,12 @@ Parser解释字段、时区和fold，不判断地区当地时间是否存在。�
 
 ## Configs的设置和保存
 
+`Configs(...)` 和直接
+`Configs.__new__(Configs, ...)`均在Rust中校验旗标并返回完整默认规则。
+再次调用`cfg.__init__(...)`不改变旗标、词表或登记地区。需要不同旗标时创建
+另一个Configs，或为单次解析显式指定顺序；`cfg.reset_settings()`只恢复默认
+词表并保留旗标。
+
 Configs不支持继承。设置按 `add_*`、`del_*`、`set_*` 命名；不保留旧设置别名，内部词条查询不是公开API。读取词表得到独立快照，不能通过修改显示字典偷偷改内部解析规则。
 
 ```python
@@ -75,11 +98,17 @@ cfg.add_month("mymonth", 2)
 assert parse_str("29 mymonth 2024", cfg=cfg).month == 2
 cfg.set_month({"mymonth": 3})
 assert parse_str("29 mymonth 2024", cfg=cfg).month == 3
+cfg.__init__(dayfirst=True)
+assert cfg.dayfirst is False and cfg.month["mymonth"] == 3
+cfg.reset_settings()
+assert "mymonth" not in cfg.month
 ```
 
 普通名称沿保存的小写／首字母大写／大写生成规则，只识别保存的形式，不临时接纳任意混合大小写。词条不能跨类别产生冲突；会被解析器拆开的非法词条在设置阶段拒绝。数值编码和偏移字段按各自整数范围校验，不把布尔编码成月份或偏移。
 
 `Configs.from_parserinfo(info)` 导入八张既定表及两顺序标志，不执行parserinfo子类任意重写解析逻辑。None表表示不导入、不回填默认，错误非None外层容器报TypeError；结果与来源独立。copy／pickle保存基本规则的独立快照，恢复后重新建立查询规则；不把外部可变状态当运行缓存。
+
+词表接受真实 `str` 子类（包括 `numpy.str_`），按其存储内容规范化大小写后再进入内部表。`from_parserinfo` 同样处理八表的词条；来源表本身的真实读取协议及原异常继续保留。编辑操作仍在准备和最终提交两个状态时点检查冲突：数值参数的正常 `__index__` 回调若更改了词表，提交前必须重新校验当前规则。
 
 导入的 `info.yearfirst` 和 `info.dayfirst` 必须是Python bool或NumPy布尔标量；0、1、文本、None及其他真假对象会报TypeError，不会执行任意对象的真假转换。
 
@@ -100,6 +129,21 @@ assert x.unit == "ns"
 
 pandas、Polars均为可选依赖；未安装时不影响Delta／Parser／Pydt的普通使用。Polars系列的单个Python值通常已经是标准date／datetime，整列入口则读取真实列类型和单位。单值Parser不接收多行作为单一日期。
 
+单值 Polars Datetime 输入通过原生列与独立有效位读取，不经 NumPy 的 NaT 哨兵解释；有效的 `int64` 最小刻度仍是日期值。它的 `to_numpy`／`cast` 业务覆写不参与这条内部读取路径；用户显式调用导出后，传入的就是导出结果自己的语义。NumPy datetime64 的 NaT 仍报错，不因 Polars 规则改变。地区时区的必要 offset 处理保留，`ignoretz=True` 在完整中间精度上取得当地钟表后才按目标单位换算。
+
+```python
+import polars as pl
+
+value = pl.Series([-(2**63)], dtype=pl.Datetime("us"))
+assert parse_to_epoch(value, unit="us") == -(2**63)
+try:
+    parse(value)
+except TypeError:
+    pass
+else:
+    raise AssertionError("parse does not accept a Series")
+```
+
 ## 数字秒与精度
 
 ```python
@@ -116,7 +160,7 @@ assert parse_to_epoch(np.datetime64(123, "ns"), unit="ns") == 123
 
 错误会说明公开入口、失败字段或可靠行位置，类型不符用TypeError，非法值用ValueError或已有明确领域错误，真实溢出用OverflowError。用户构造器、字段和时区回调的原异常不被通用包装吞掉。
 
-## Optional dateutil integration in 0.2.0b2
+## Optional dateutil integration
 
 Normal Configs creation and Rust parsing do not require python-dateutil.
 `Configs.from_parserinfo()` requires the optional `rsTimes[dateutil]` extra;

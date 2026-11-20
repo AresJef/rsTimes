@@ -11,6 +11,20 @@ pub(crate) enum Value {
     Date(i128, bool),
     Missing(u8),
 }
+/// Qualify an unknown row source without executing or pre-consuming its protocol.
+/// Actual iteration remains the caller's single fallible `try_iter` operation.
+pub(crate) fn has_row_protocol(data: &Bound<'_, PyAny>) -> bool {
+    let class = data.get_type();
+    // SAFETY: The attached caller owns both the live object and its ready type.
+    // These public CPython APIs inspect slots only; no layout or borrowed slot
+    // is retained across callbacks. A later protocol change is handled by the
+    // ordinary fallible iterator creation, including __iter__ = None.
+    unsafe {
+        !pyo3::ffi::PyType_GetSlot(class.as_type_ptr(), pyo3::ffi::Py_tp_iter).is_null()
+            || pyo3::ffi::PySequence_Check(data.as_ptr()) != 0
+    }
+}
+
 pub(crate) fn numpy_code(name: &str) -> PyResult<i32> {
     match name {
         "Y" => Ok(0),
@@ -29,6 +43,15 @@ pub(crate) fn numpy_code(name: &str) -> PyResult<i32> {
     }
 }
 pub(crate) fn span(ticks: i64, code: i32, multiplier: i32) -> PyResult<Value> {
+    let scale = span_scale(code, multiplier)?;
+    if ticks == i64::MIN {
+        return Ok(Value::Missing(2));
+    }
+    native_span(ticks, scale)
+}
+
+/// Prepare a fixed duration unit independently of its source validity domain.
+pub(crate) fn span_scale(code: i32, multiplier: i32) -> PyResult<i128> {
     if multiplier < 1 {
         return Err(crate::error_context::value_error(
             "invalid temporal unit multiplier",
@@ -49,12 +72,13 @@ pub(crate) fn span(ticks: i64, code: i32, multiplier: i32) -> PyResult<Value> {
             ));
         }
     };
-    if ticks == i64::MIN {
-        return Ok(Value::Missing(2));
-    }
+    Ok(i128::from(multiplier) * scale)
+}
+
+/// A physically valid native span includes MIN; its caller owns missingness.
+pub(crate) fn native_span(ticks: i64, scale: i128) -> PyResult<Value> {
     i128::from(ticks)
-        .checked_mul(i128::from(multiplier))
-        .and_then(|v| v.checked_mul(scale))
+        .checked_mul(scale)
         .map(Value::Span)
         .ok_or_else(|| crate::error_context::overflow("duration exceeds native range"))
 }

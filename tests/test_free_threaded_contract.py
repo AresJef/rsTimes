@@ -352,3 +352,38 @@ def test_shared_region_conversion_keeps_both_dst_instants_and_nanoseconds(worker
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         assert all(pool.map(convert, range(workers)))
+
+
+@pytest.mark.parametrize("workers", [2, 4])
+@bounded_case(optional_modules=("polars",))
+def test_shared_cold_zone_provenance_keeps_real_rules_and_gil_state(workers):
+    """Publish standard descriptors once without caching mutable capabilities."""
+    pytest.importorskip("polars", reason="native timezone qualification requires optional Polars")
+    from io import BytesIO
+    import struct
+    from zoneinfo import ZoneInfo
+    from rstimes import Pldt
+
+    class Passive(ZoneInfo):
+        pass
+
+    blob = (b"TZif\0" + bytes(15) + struct.pack(">6l", 0, 0, 0, 0, 1, 4)
+            + struct.pack(">lbb", 7200, 0, 0) + b"X+2\0")
+    named = Passive.no_cache("UTC")
+    file = Passive.from_file(BytesIO(blob), key="UTC")
+    barrier = threading.Barrier(workers)
+    before = getattr(sys, "_is_gil_enabled", lambda: True)()
+
+    def read():
+        barrier.wait(timeout=10)
+        stage("timezone readers passed barrier")
+        for _ in range(20):
+            assert Pldt([0], unit="us", tz=named).to_physical().to_list() == [0]
+            with pytest.raises(ValueError, match="file|origin"):
+                Pldt([0], unit="us", tz=file)
+        return True
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        assert all(pool.map(lambda _: read(), range(workers)))
+    if sysconfig.get_config_var("Py_GIL_DISABLED"):
+        assert before is False and sys._is_gil_enabled() is False

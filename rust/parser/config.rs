@@ -21,9 +21,8 @@ type Token = Vec<u32>;
 struct Rules {
     base: HashMap<Token, i32>,
     ext: HashMap<Token, i32>,
+    word_lengths: Vec<usize>,
     base_order: Vec<Token>,
-    ext_order: Vec<Token>,
-    generation: u64,
 }
 
 // Copies share immutable rules until an edit detaches the changed namespace.
@@ -46,6 +45,11 @@ impl DerefMut for Namespace {
 }
 
 impl Namespace {
+    fn remember_length(&mut self, length: usize) {
+        if let Err(index) = self.word_lengths.binary_search(&length) {
+            self.word_lengths.insert(index, length);
+        }
+    }
     fn put_base(&mut self, key: Token, value: i32) {
         if !self.base.contains_key(&key) {
             self.base_order.push(key.clone());
@@ -54,15 +58,14 @@ impl Namespace {
     }
     fn put_ext(&mut self, key: Token, value: i32) {
         if !self.ext.contains_key(&key) {
-            self.ext_order.push(key.clone());
+            self.remember_length(key.len());
         }
         self.ext.insert(key, value);
     }
-    fn base_entries(&self) -> Vec<(Token, i32)> {
+    fn base_entries(&self) -> impl Iterator<Item = (&Token, i32)> {
         self.base_order
             .iter()
-            .filter_map(|k| self.base.get(k).map(|v| (k.clone(), *v)))
-            .collect()
+            .filter_map(|key| self.base.get(key).map(|value| (key, *value)))
     }
 }
 type Owner = Namespace;
@@ -161,6 +164,7 @@ impl NativeRules {
                 _ => (0, 1),
             };
             for (key, value) in table {
+                let length = key.len();
                 if key.is_empty()
                     || key.iter().any(|&c| c > 0x10ffff)
                     || !(bounds.0..=bounds.1).contains(&value)
@@ -170,6 +174,7 @@ impl NativeRules {
                         "invalid native parser vocabulary snapshot".into(),
                     ));
                 }
+                owners[i].remember_length(length);
             }
         }
         let mut regions = HashMap::with_capacity(data.regions.len());
@@ -247,12 +252,27 @@ pub(crate) trait FormattedRules {
 }
 
 fn longest_word(owners: &[Owner; 8], rule: Rule, input: &[u32]) -> Option<(i32, usize)> {
-    owners[rule_namespace(rule)]
-        .ext
+    let owner = &owners[rule_namespace(rule)];
+    // A bounded small vocabulary avoids hashing entire long custom aliases.
+    if owner.ext.len() <= 32 {
+        return owner
+            .ext
+            .iter()
+            .filter(|(key, _)| input.starts_with(key.as_slice()))
+            .max_by_key(|(key, _)| key.len())
+            .map(|(key, value)| (*value, key.len()));
+    }
+    owner
+        .word_lengths
         .iter()
-        .filter(|(key, _)| input.starts_with(key.as_slice()))
-        .max_by_key(|(key, _)| key.len())
-        .map(|(key, value)| (*value, key.len()))
+        .rev()
+        .filter(|&&length| length <= input.len())
+        .find_map(|&length| {
+            owner
+                .ext
+                .get(&input[..length])
+                .map(|&value| (value, length))
+        })
 }
 
 impl FormattedRules for NativeRules {
@@ -305,18 +325,6 @@ impl FormatRules {
             zones: self.zones(),
             flags: self.flags,
         }
-    }
-
-    /// Retain an explicit Configs region owner. Defaults contain no regions.
-    pub(crate) fn region_key(
-        &self,
-        key: &str,
-        scratch: &mut Vec<u32>,
-    ) -> Option<Arc<RegisteredZone>> {
-        let zones = self.zones.as_ref()?;
-        scratch.clear();
-        scratch.extend(key.chars().map(u32::from));
-        zones.get(scratch.as_slice()).cloned()
     }
 
     /// Validate Configs as before; only the immutable default path is borrowed.
@@ -436,6 +444,48 @@ pub(crate) fn default_calendar_name(token: &str, weekday: bool) -> i32 {
 mod calendar_name_tests {
     use super::*;
 
+    fn points(value: &str) -> Vec<u32> {
+        value.chars().map(u32::from).collect()
+    }
+
+    #[test]
+    fn restored_formatted_names_preserve_longest_prefix_and_case() {
+        let mut data = NativeRules::library().data();
+        data.tables[4] = Some(vec![
+            (points("may"), 5),
+            (points("harvester"), 4),
+            (points("har"), 2),
+            (points("harvest"), 3),
+            (points(&"a".repeat(128)), 10),
+        ]);
+        let rules = NativeRules::from_data(data).unwrap();
+        assert_eq!(
+            rules.word(Rule::Month, &points("harvester 2024")),
+            Some((4, 9))
+        );
+        assert_eq!(
+            rules.word(Rule::Month, &points("harvest 2024")),
+            Some((3, 7))
+        );
+        assert_eq!(rules.word(Rule::Month, &points("har 2024")), Some((2, 3)));
+        assert_eq!(rules.word(Rule::Month, &points("May 2024")), None);
+        assert_eq!(
+            rules.word(Rule::Month, &points(&format!("{} 2024", "a".repeat(128)))),
+            Some((10, 128))
+        );
+    }
+
+    #[test]
+    fn restored_empty_names_and_default_names_keep_distinct_roles() {
+        let mut data = NativeRules::library().data();
+        data.tables[4] = Some(Vec::new());
+        let empty = NativeRules::from_data(data.clone()).unwrap();
+        assert_eq!(empty.word(Rule::Month, &points("May 2024")), None);
+        data.tables[4] = None;
+        let default = NativeRules::from_data(data).unwrap();
+        assert_eq!(default.word(Rule::Month, &points("May 2024")), Some((5, 3)));
+    }
+
     #[test]
     fn utf8_names_preserve_every_original_unicode_rule() {
         for (rule, weekday) in [(Rule::Month, false), (Rule::Weekday, true)] {
@@ -520,6 +570,10 @@ impl RuleLookup for NativeView<'_> {
 ///
 /// copy.copy, copy.deepcopy and pickle round trips produce independent rules.
 /// Editing either configuration does not change the other.
+/// __new__ returns complete rules; repeated __init__ leaves this value unchanged.
+/// Ordering properties cannot be assigned directly. Create a new Configs for
+/// different flags, or override them on a parsing call. Token rules remain
+/// editable through add/del/set; reset_settings preserves the ordering flags.
 #[pyclass(module = "rstimes.parser")]
 pub(crate) struct Configs {
     owners: [Owner; 8],
@@ -530,7 +584,7 @@ pub(crate) struct Configs {
     dayfirst: bool,
     zones: Arc<ZoneMap>,
 }
-type DisplayEntry = Option<(Owner, u64, Py<PyAny>)>;
+type DisplayEntry = Option<(Owner, Py<PyAny>)>;
 #[cfg(not(Py_GIL_DISABLED))]
 type DisplayCache = [DisplayEntry; 8];
 #[cfg(Py_GIL_DISABLED)]
@@ -638,11 +692,11 @@ fn empty_owners() -> [Owner; 8] {
 }
 fn encode(s: &Bound<'_, PyAny>) -> PyResult<Token> {
     let s = s.cast::<PyString>()?;
-    let view = TextView::new(s)?;
+    let view = TextView::new(s);
     Ok(view.range(0, view.len()))
 }
 fn validate_token_type(token: &Bound<'_, PyAny>) -> PyResult<()> {
-    if !token.is_exact_instance_of::<PyString>() {
+    if !token.is_instance_of::<PyString>() {
         return Err(crate::error_context::type_error(format!(
             "Argument 'token' has incorrect type (expected str, got {})",
             crate::error_context::preview(token)?
@@ -650,12 +704,9 @@ fn validate_token_type(token: &Bound<'_, PyAny>) -> PyResult<()> {
     }
     Ok(())
 }
-fn variants(low: &Bound<'_, PyAny>, key: &Token) -> PyResult<[Token; 3]> {
-    if low.is_exact_instance_of::<PyString>() && key.iter().all(|c| *c < 128) {
-        let lower = key
-            .iter()
-            .map(|c| if (65..=90).contains(c) { *c + 32 } else { *c })
-            .collect();
+fn variants(low: &Bound<'_, PyString>, key: &Token) -> PyResult<[Token; 3]> {
+    if key.iter().all(|c| *c < 128) {
+        let lower = key.clone();
         let upper = key
             .iter()
             .map(|c| if (97..=122).contains(c) { *c - 32 } else { *c })
@@ -679,10 +730,7 @@ fn variants(low: &Bound<'_, PyAny>, key: &Token) -> PyResult<[Token; 3]> {
         return Ok([lower, upper, title]);
     }
     Ok([
-        encode(
-            &low.call_method0("lower")
-                .map_err(crate::error_context::external)?,
-        )?,
+        key.clone(),
         encode(
             &low.call_method0("upper")
                 .map_err(crate::error_context::external)?,
@@ -706,7 +754,7 @@ fn validate_recognized_form(
         return Ok(());
     }
     let text = decode(receiver.py(), variant)?;
-    let view = TextView::new(text.cast::<PyString>()?)?;
+    let view = TextView::new(&text);
     let tokens = tokenize(&view, 0);
     let one_token = tokens.len() == 1 && tokens.get(0) == Some(variant);
     let usable = one_token
@@ -754,18 +802,8 @@ fn copy_display<'py>(
     }
 }
 
-fn decode<'py>(py: Python<'py>, s: &[u32]) -> PyResult<Bound<'py, PyAny>> {
-    // SAFETY: input is valid Python code points and the slice remains alive during copying.
-    unsafe {
-        Bound::from_owned_ptr_or_err(
-            py,
-            ffi::PyUnicode_FromKindAndData(
-                ffi::PyUnicode_4BYTE_KIND as i32,
-                s.as_ptr().cast(),
-                s.len() as isize,
-            ),
-        )
-    }
+fn decode<'py>(py: Python<'py>, s: &[u32]) -> PyResult<Bound<'py, PyString>> {
+    super::text::unicode(py, s)
 }
 const NAMES: [&str; 8] = [
     "jump", "pertain", "utc", "tzoffset", "month", "weekday", "hms", "ampm",
@@ -782,15 +820,9 @@ fn ensure_token(
     i: usize,
     token: &Bound<'_, PyAny>,
 ) -> PyResult<()> {
-    if token.is_instance_of::<PyString>() && !token.is_exact_instance_of::<PyString>() {
-        return Err(crate::error_context::type_error(format!(
-            "Expected str, got {}",
-            crate::error_context::preview(token)?
-        )));
-    }
     if !token.is_instance_of::<PyString>() {
         return Err(crate::error_context::type_error(format!(
-            "token for {} must be an exact str; got {}",
+            "token for {} must be a str; got {}",
             NAMES[i],
             crate::error_context::preview(token)?
         )));
@@ -801,31 +833,33 @@ fn normalize<'py>(
     receiver: &Bound<'_, Configs>,
     i: usize,
     token: &Bound<'py, PyAny>,
-    ensure: bool,
 ) -> PyResult<Bound<'py, PyAny>> {
     let ns = NAMES[i];
-    if !token.is_exact_instance_of::<PyString>() {
-        if ensure {
-            return Err(crate::error_context::type_error(format!(
-                "token for {ns} must be an exact str; got {}",
-                crate::error_context::preview(token)?
-            )));
-        }
+    if !token.is_instance_of::<PyString>() {
         return Err(crate::error_context::type_error(format!(
             "Argument 'token' has incorrect type (expected str, got {})",
             crate::error_context::preview(token)?
         )));
     }
-    if TextView::new(token.cast::<PyString>()?)?.len() == 0 {
+    if TextView::new(token.cast::<PyString>()?).len() == 0 {
         return Err(config_error(
             receiver,
             "ConfigError",
             format!("Token for 'Configs.{ns}' cannot be an empty string."),
         ));
     }
-    token
-        .call_method0("lower")
-        .map_err(crate::error_context::external)
+    if token.is_exact_instance_of::<PyString>() {
+        token.call_method0("lower")
+    } else {
+        // The builtin descriptor reads the same immutable Unicode storage;
+        // unlike a virtual lower/str call, it also preserves surrogate text.
+        token
+            .py()
+            .get_type::<PyString>()
+            .getattr("lower")?
+            .call1((token,))
+    }
+    .map_err(crate::error_context::external)
 }
 
 pub(super) fn c_int(value: &Bound<'_, PyAny>) -> PyResult<i32> {
@@ -863,7 +897,7 @@ fn base_entry(
     token: &Bound<'_, PyAny>,
     value: i64,
 ) -> PyResult<(Token, i32)> {
-    let low = normalize(receiver, i, token, false)?;
+    let low = normalize(receiver, i, token)?;
     let key = encode(&low)?;
     let (min, max) = match i {
         3 => (-86399, 86399),
@@ -895,7 +929,6 @@ fn add(
 ) -> PyResult<bool> {
     let (key, value) = base_entry(receiver, i, token, value)?;
     let mut owner = read(receiver)?.owners[i].clone();
-    owner.generation = owner.generation.wrapping_add(1);
     owner.put_base(key, value);
     let owner = rebuild_namespace(receiver, i, owner)?;
     set_namespace(receiver, i, owner)?;
@@ -917,7 +950,7 @@ fn validate_namespace(receiver: &Bound<'_, Configs>, i: usize, owner: &Owner) ->
                     "ConfigError",
                     format!(
                         "recognized token {} for {} conflicts with {}",
-                        crate::error_context::preview(&decode(receiver.py(), key)?)?,
+                        crate::error_context::preview(decode(receiver.py(), key)?.as_any())?,
                         NAMES[i],
                         NAMES[j]
                     ),
@@ -930,9 +963,12 @@ fn validate_namespace(receiver: &Bound<'_, Configs>, i: usize, owner: &Owner) ->
 
 /// Rebuild only an edited namespace; parsing continues to borrow native maps.
 fn rebuild_namespace(receiver: &Bound<'_, Configs>, i: usize, mut owner: Owner) -> PyResult<Owner> {
-    let entries = owner.base_entries();
+    let entries: Vec<_> = owner
+        .base_entries()
+        .map(|(key, value)| (key.clone(), value))
+        .collect();
     owner.ext.clear();
-    owner.ext_order.clear();
+    owner.word_lengths.clear();
     for (key, value) in entries {
         let low = decode(receiver.py(), &key)?;
         for variant in variants(&low, &key)? {
@@ -947,7 +983,7 @@ fn rebuild_namespace(receiver: &Bound<'_, Configs>, i: usize, mut owner: Owner) 
                     "ConfigError",
                     format!(
                         "recognized token {} has conflicting values in {}",
-                        crate::error_context::preview(&decode(receiver.py(), &variant)?)?,
+                        crate::error_context::preview(decode(receiver.py(), &variant)?.as_any())?,
                         NAMES[i]
                     ),
                 ));
@@ -960,18 +996,35 @@ fn rebuild_namespace(receiver: &Bound<'_, Configs>, i: usize, mut owner: Owner) 
 }
 
 fn remove(receiver: &Bound<'_, Configs>, i: usize, token: &Bound<'_, PyAny>) -> PyResult<bool> {
-    let low = normalize(receiver, i, token, false)?;
+    let low = normalize(receiver, i, token)?;
     let key = encode(&low)?;
     let mut owner = read(receiver)?.owners[i].clone();
-    if owner.base.remove(&key).is_none() {
+    if !owner.base.contains_key(&key) {
         return Ok(false);
     }
+    // The same owned rules and prepared key remain stable; detach only for a hit.
+    let _ = owner.base.remove(&key);
     owner.base_order.retain(|v| v != &key);
-    owner.generation = owner.generation.wrapping_add(1);
     let owner = rebuild_namespace(receiver, i, owner)?;
     set_namespace(receiver, i, owner)?;
     Ok(true)
 }
+fn build_display<'py>(py: Python<'py>, owner: &Owner, i: usize) -> PyResult<Bound<'py, PyAny>> {
+    if i < 3 {
+        let out = PySet::empty(py)?;
+        for (key, _) in owner.base_entries() {
+            out.add(decode(py, key)?)?;
+        }
+        Ok(out.into_any())
+    } else {
+        let out = PyDict::new(py);
+        for (key, value) in owner.base_entries() {
+            out.set_item(decode(py, key)?, value)?;
+        }
+        Ok(out.into_any())
+    }
+}
+
 fn display<'py>(receiver: &Bound<'py, Configs>, i: usize) -> PyResult<Bound<'py, PyAny>> {
     let py = receiver.py();
     #[cfg(Py_GIL_DISABLED)]
@@ -984,7 +1037,6 @@ fn display<'py>(receiver: &Bound<'py, Configs>, i: usize) -> PyResult<Bound<'py,
         let cfg = read(receiver)?;
         #[cfg(not(Py_GIL_DISABLED))]
         let owner = &cfg.owners[i];
-        let generation = owner.generation;
         #[cfg(not(Py_GIL_DISABLED))]
         let slots = &cfg.cache;
         #[cfg(Py_GIL_DISABLED)]
@@ -993,30 +1045,16 @@ fn display<'py>(receiver: &Bound<'py, Configs>, i: usize) -> PyResult<Bound<'py,
             .unwrap_or_else(|error| error.into_inner());
         slots[i]
             .as_ref()
-            .filter(|(o, g, _)| Arc::ptr_eq(&o.0, &owner.0) && *g == generation)
-            .map(|(_, _, v)| v.clone_ref(py))
+            .filter(|(o, _)| Arc::ptr_eq(&o.0, &owner.0))
+            .map(|(_, v)| v.clone_ref(py))
     };
     if let Some(cached) = cached {
         return copy_display(py, cached.bind(py), i);
     }
     #[cfg(not(Py_GIL_DISABLED))]
     let owner = read(receiver)?.owners[i].clone();
-    let generation = owner.generation;
-    let entries = owner.base_entries();
-    let out = if i < 3 {
-        let out = PySet::empty(py)?;
-        for (k, _) in &entries {
-            out.add(decode(py, k)?)?;
-        }
-        out.into_any()
-    } else {
-        let out = PyDict::new(py);
-        for (k, v) in entries {
-            out.set_item(decode(py, &k)?, v)?;
-        }
-        out.into_any()
-    };
-    let candidate = Some((owner, generation, out.clone().unbind()));
+    let out = build_display(py, &owner, i)?;
+    let candidate = Some((owner, out.clone().unbind()));
     #[cfg(not(Py_GIL_DISABLED))]
     let retired = std::mem::replace(&mut write(receiver)?.cache[i], candidate);
     #[cfg(Py_GIL_DISABLED)]
@@ -1047,6 +1085,30 @@ fn set_namespace(receiver: &Bound<'_, Configs>, i: usize, owner: Owner) -> PyRes
     drop(retired);
     Ok(())
 }
+type NamespaceEntries = Vec<(Py<PyAny>, Option<Py<PyAny>>)>;
+
+// Only native reference capture holds this object's critical section. All
+// conversion/normalization and business callbacks happen after it returns.
+fn dict_entries(mapping: &Bound<'_, PyDict>) -> NamespaceEntries {
+    pyo3::sync::critical_section::with_critical_section(mapping.as_any(), || {
+        mapping
+            .iter()
+            .map(|(key, value)| (key.unbind(), Some(value.unbind())))
+            .collect()
+    })
+}
+
+fn set_entries(input: &Bound<'_, PyAny>) -> PyResult<NamespaceEntries> {
+    input
+        .try_iter()
+        .map_err(crate::error_context::external)?
+        .map(|key| {
+            key.map_err(crate::error_context::external)
+                .map(|key| (key.unbind(), None))
+        })
+        .collect()
+}
+
 fn replace(
     receiver: &Bound<'_, Configs>,
     i: usize,
@@ -1071,19 +1133,20 @@ fn replace(
         )));
     }
     // Retain all inputs before conversions can call Python or mutate the source.
-    let entries: Vec<(Py<PyAny>, Option<Py<PyAny>>)> = if i < 3 {
-        input
-            .cast::<PySet>()?
-            .iter()
-            .map(|key| (key.unbind(), None))
-            .collect()
+    let entries = if i < 3 {
+        set_entries(input)?
     } else {
-        input
-            .cast::<PyDict>()?
-            .iter()
-            .map(|(key, value)| (key.unbind(), Some(value.unbind())))
-            .collect()
+        dict_entries(input.cast::<PyDict>()?)
     };
+    replace_entries(receiver, i, entries)
+}
+
+/// Consume one captured batch; callers retain their own codec admission rules.
+fn replace_entries(
+    receiver: &Bound<'_, Configs>,
+    i: usize,
+    entries: NamespaceEntries,
+) -> PyResult<bool> {
     let temporary = Py::new(receiver.py(), read(receiver)?.independent())?;
     let temporary = temporary.bind(receiver.py());
     let mut owner = Namespace::default();
@@ -1110,30 +1173,11 @@ fn snapshot_state(slf: &Bound<'_, Configs>) -> PyResult<Py<PyAny>> {
     let py = slf.py();
     let (flags, all, zones) = {
         let cfg = read(slf)?;
-        (
-            cfg.flags(),
-            cfg.owners
-                .iter()
-                .map(|o| o.base_entries())
-                .collect::<Vec<_>>(),
-            cfg.zones.clone(),
-        )
+        (cfg.flags(), cfg.owners.clone(), cfg.zones.clone())
     };
     let mut containers = Vec::with_capacity(8);
-    for (i, entries) in all.into_iter().enumerate() {
-        if i < 3 {
-            let out = PySet::empty(py)?;
-            for (key, _) in entries {
-                out.add(decode(py, &key)?)?;
-            }
-            containers.push(out.into_any());
-        } else {
-            let out = PyDict::new(py);
-            for (key, value) in entries {
-                out.set_item(decode(py, &key)?, value)?;
-            }
-            containers.push(out.into_any());
-        }
+    for (i, owner) in all.into_iter().enumerate() {
+        containers.push(build_display(py, &owner, i)?);
     }
     let namespaces = PyTuple::new(py, containers)?;
     let regions = zones::names(py, &zones)?;
@@ -1227,10 +1271,102 @@ impl Configs {
 }
 #[pymethods]
 impl Configs {
+    /// Create a complete configuration with default rules and ordering flags.
+    ///
+    /// Parameters
+    /// ----------
+    /// yearfirst : bool or numpy.bool_, default True
+    ///     Prefer a year in the first position of ambiguous numeric dates.
+    /// dayfirst : bool or numpy.bool_, default False
+    ///     Prefer day before month; together with yearfirst, select Y/D/M.
+    ///
+    /// Returns
+    /// -------
+    /// Configs
+    ///     A fully initialized, independently editable configuration. Direct
+    ///     __new__ calls have the same validation and default rules as Configs().
+    ///
+    /// Raises
+    /// ------
+    /// TypeError
+    ///     A flag is not a Python/NumPy boolean, or arguments cannot be bound.
     #[new]
-    #[pyo3(signature=(*_args,**_kwargs))]
-    fn new(_args: &Bound<'_, PyTuple>, _kwargs: Option<&Bound<'_, PyDict>>) -> Self {
-        Self::empty()
+    #[pyo3(signature=(*args,**kwargs), text_signature="(yearfirst=True, dayfirst=False)")]
+    fn new(args: &Bound<'_, PyTuple>, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Self> {
+        const NAMES: [&str; 2] = ["yearfirst", "dayfirst"];
+        if args.len() > 2 {
+            return Err(crate::error_context::type_error(format!(
+                "Configs() takes at most 2 positional arguments ({} given)",
+                args.len()
+            )));
+        }
+        let mut values: [Option<Bound<'_, PyAny>>; 2] = [None, None];
+        for (i, value) in args.iter().enumerate() {
+            values[i] = Some(value);
+        }
+        if let Some(kwargs) = kwargs {
+            for (key, value) in kwargs {
+                let text = key.cast::<PyString>()?;
+                let name = text.to_str().map_err(|error| {
+                    if error.is_instance_of::<pyo3::exceptions::PyUnicodeEncodeError>(args.py()) {
+                        crate::error_context::type_error(
+                            "Configs() received an unknown keyword; use yearfirst or dayfirst",
+                        )
+                    } else {
+                        error
+                    }
+                })?;
+                let i = match name {
+                    "yearfirst" => 0,
+                    "dayfirst" => 1,
+                    _ => {
+                        return Err(crate::error_context::type_error(
+                            "Configs() received an unknown keyword; use yearfirst or dayfirst",
+                        ));
+                    }
+                };
+                if values[i].is_some() {
+                    return Err(crate::error_context::type_error(format!(
+                        "Configs() got multiple values for argument '{}'",
+                        NAMES[i]
+                    )));
+                }
+                values[i] = Some(value);
+            }
+        }
+        let flag = |i: usize, default| {
+            values[i].as_ref().map_or(Ok(default), |value| {
+                crate::numeric::boolean(value).map_err(|error| {
+                    crate::error_context::argument(args.py(), error, "Configs", NAMES[i], value)
+                })
+            })
+        };
+        let yearfirst = flag(0, true)?;
+        let dayfirst = flag(1, false)?;
+        Ok(Self {
+            owners: defaults().clone(),
+            cache: new_display_cache(),
+            #[cfg(Py_GIL_DISABLED)]
+            editor: Arc::new(AtomicPtr::new(std::ptr::null_mut())),
+            yearfirst,
+            dayfirst,
+            zones: Arc::new(ZoneMap::new()),
+        })
+    }
+    /// Leave the already-constructed configuration unchanged.
+    ///
+    /// Returns
+    /// -------
+    /// None
+    ///     No fields or token rules are changed. Create another Configs to use
+    ///     different ordering flags; use add/del/set/reset methods to edit rules.
+    #[pyo3(signature=(*args,**kwargs))]
+    fn __init__(
+        _slf: &Bound<'_, Self>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) {
+        let _ = (args, kwargs);
     }
     /// Return a configuration whose later edits do not affect the source.
     fn __copy__(&self) -> Self {
@@ -1335,54 +1471,40 @@ impl Configs {
             let temporary = temporary.bind(slf.py());
             for (i, namespace) in NAMES.iter().enumerate() {
                 let value = values.get_item(i)?;
-                if i < 3 {
+                // Capture owned entries before canonical validation; source edits
+                // cannot substitute a different value before preparation/application.
+                let entries: NamespaceEntries = if i < 3 {
                     let tokens = value.cast_exact::<PySet>().map_err(|_| {
                         crate::error_context::expected_type(
-                            &value,
-                            "",
-                            &format!("state.{namespace}"),
-                            "an exact set",
+                            &value, "", &format!("state.{namespace}"), "an exact set",
                         )
                     })?;
-                    for token in tokens.iter() {
-                        if !token.is_exact_instance_of::<PyString>() {
-                            return Err(crate::error_context::expected_type(
-                                &token,
-                                "",
-                                &format!("state.{namespace} token"),
-                                "an exact str",
-                            ));
-                        }
-                    }
+                    set_entries(tokens.as_any())?
                 } else {
                     let mapping = value.cast_exact::<PyDict>().map_err(|_| {
                         crate::error_context::expected_type(
-                            &value,
-                            "",
-                            &format!("state.{namespace}"),
-                            "an exact dict",
+                            &value, "", &format!("state.{namespace}"), "an exact dict",
                         )
                     })?;
-                    for (token, number) in mapping.iter() {
-                        if !token.is_exact_instance_of::<PyString>() {
-                            return Err(crate::error_context::expected_type(
-                                &token,
-                                "",
-                                &format!("state.{namespace} key"),
-                                "an exact str",
-                            ));
-                        }
+                    dict_entries(mapping)
+                };
+                for (token, number) in &entries {
+                    let token = token.bind(slf.py());
+                    if !token.is_exact_instance_of::<PyString>() {
+                        return Err(crate::error_context::expected_type(
+                            token, "", &format!("state.{namespace} {}", if i < 3 { "token" } else { "key" }), "an exact str",
+                        ));
+                    }
+                    if let Some(number) = number {
+                        let number = number.bind(slf.py());
                         if !number.is_exact_instance_of::<PyInt>() {
                             return Err(crate::error_context::expected_type(
-                                &number,
-                                "",
-                                &format!("state.{namespace} value"),
-                                "an exact int",
+                                number, "", &format!("state.{namespace} value"), "an exact int",
                             ));
                         }
                     }
                 }
-                replace(temporary, i, Some(&value))?;
+                replace_entries(temporary, i, entries)?;
             }
             let regions = if state.len() == 6 {
                 let keys = state.get_item(5)?;
@@ -1684,35 +1806,6 @@ impl Configs {
         self.dayfirst
     }
 
-    // Both truth conversions may reenter Configs; acquire the mutable borrow only afterward.
-    fn _flags(
-        slf: &Bound<'_, Self>,
-        yearfirst: &Bound<'_, PyAny>,
-        dayfirst: &Bound<'_, PyAny>,
-    ) -> PyResult<()> {
-        let _edit = edit(slf, "Configs")?;
-        let y = crate::numeric::boolean(yearfirst).map_err(|error| {
-            crate::error_context::argument(slf.py(), error, "", "yearfirst", yearfirst)
-        })?;
-        let d = crate::numeric::boolean(dayfirst).map_err(|error| {
-            crate::error_context::argument(slf.py(), error, "", "dayfirst", dayfirst)
-        })?;
-        let incoming = defaults().clone();
-        let cache = new_display_cache();
-        let zones = Arc::new(ZoneMap::new());
-        let retired = {
-            let mut cfg = write(slf)?;
-            cfg.yearfirst = y;
-            cfg.dayfirst = d;
-            (
-                std::mem::replace(&mut cfg.owners, incoming),
-                std::mem::replace(&mut cfg.cache, cache),
-                std::mem::replace(&mut cfg.zones, zones),
-            )
-        };
-        drop(retired);
-        Ok(())
-    }
     /// Return the configuration class, calendar-order flags, and namespace sizes.
     fn __repr__(&self) -> String {
         let [jump, pertain, utc, tzoffset, month, weekday, hms, ampm] =
@@ -1756,7 +1849,7 @@ impl Configs {
     }
     /// Add or update a jump token and return True.
     ///
-    /// :param token: A nonempty str, normalized to lowercase; str subclasses are not accepted.
+    /// :param token: A nonempty str, normalized to lowercase; real str subclasses use their stored text.
     ///
     /// The token is recognized in lowercase, uppercase, and titlecase.
     /// Jump tokens may overlap any other namespace.
@@ -1769,7 +1862,7 @@ impl Configs {
     }
     /// Remove a jump token and return whether it existed.
     ///
-    /// :param token: A nonempty str; removal is case-insensitive. Str subclasses are not accepted.
+    /// :param token: A nonempty str; removal is case-insensitive. Real str subclasses use their stored text.
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_jump(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
@@ -1788,7 +1881,7 @@ impl Configs {
     }
     /// Add or update a pertain token and return True.
     ///
-    /// :param token: A nonempty str, normalized to lowercase; str subclasses are not accepted.
+    /// :param token: A nonempty str, normalized to lowercase; real str subclasses use their stored text.
     ///
     /// The token is recognized in lowercase, uppercase, and titlecase.
     /// Conflicts between recognized case forms are rejected; overlap with jump is allowed.
@@ -1801,7 +1894,7 @@ impl Configs {
     }
     /// Remove a pertain token and return whether it existed.
     ///
-    /// :param token: A nonempty str; removal is case-insensitive. Str subclasses are not accepted.
+    /// :param token: A nonempty str; removal is case-insensitive. Real str subclasses use their stored text.
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_pertain(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
@@ -1820,7 +1913,7 @@ impl Configs {
     }
     /// Add or update a utc token and return True.
     ///
-    /// :param token: A nonempty str, normalized to lowercase; str subclasses are not accepted.
+    /// :param token: A nonempty str, normalized to lowercase; real str subclasses use their stored text.
     ///
     /// The token is recognized in lowercase, uppercase, and titlecase.
     /// Conflicts between recognized case forms are rejected; overlap with jump is allowed.
@@ -1833,7 +1926,7 @@ impl Configs {
     }
     /// Remove a utc token and return whether it existed.
     ///
-    /// :param token: A nonempty str; removal is case-insensitive. Str subclasses are not accepted.
+    /// :param token: A nonempty str; removal is case-insensitive. Real str subclasses use their stored text.
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_utc(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
@@ -1850,7 +1943,7 @@ impl Configs {
     }
     /// Add or update a timezone alias and return True.
     ///
-    /// :param token: A nonempty str, normalized to lowercase; str subclasses are not accepted.
+    /// :param token: A nonempty str, normalized to lowercase; real str subclasses use their stored text.
     /// :param hours: Signed hour component of the UTC offset; defaults to 0.
     /// :param minutes: Signed minute component; defaults to 0.
     /// :param seconds: Signed second component; defaults to 0.
@@ -1924,7 +2017,7 @@ impl Configs {
 
     /// Remove a tzoffset token and return whether it existed.
     ///
-    /// :param token: A nonempty str; removal is case-insensitive. Str subclasses are not accepted.
+    /// :param token: A nonempty str; removal is case-insensitive. Real str subclasses use their stored text.
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_tzoffset(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
@@ -1943,7 +2036,7 @@ impl Configs {
     }
     /// Add or update a month token and return True.
     ///
-    /// :param token: A nonempty str, normalized to lowercase; str subclasses are not accepted.
+    /// :param token: A nonempty str, normalized to lowercase; real str subclasses use their stored text.
     /// :param month: Month number from 1 (January) through 12 (December).
     /// The token is recognized in lowercase, uppercase, and titlecase.
     /// Conflicts between recognized case forms are rejected; overlap with jump is allowed.
@@ -1966,7 +2059,7 @@ impl Configs {
     }
     /// Remove a month token and return whether it existed.
     ///
-    /// :param token: A nonempty str; removal is case-insensitive. Str subclasses are not accepted.
+    /// :param token: A nonempty str; removal is case-insensitive. Real str subclasses use their stored text.
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_month(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
@@ -1985,7 +2078,7 @@ impl Configs {
     }
     /// Add or update a weekday token and return True.
     ///
-    /// :param token: A nonempty str, normalized to lowercase; str subclasses are not accepted.
+    /// :param token: A nonempty str, normalized to lowercase; real str subclasses use their stored text.
     /// :param weekday: Weekday number from 0 (Monday) through 6 (Sunday).
     /// The token is recognized in lowercase, uppercase, and titlecase.
     /// Conflicts between recognized case forms are rejected; overlap with jump is allowed.
@@ -2014,7 +2107,7 @@ impl Configs {
     }
     /// Remove a weekday token and return whether it existed.
     ///
-    /// :param token: A nonempty str; removal is case-insensitive. Str subclasses are not accepted.
+    /// :param token: A nonempty str; removal is case-insensitive. Real str subclasses use their stored text.
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_weekday(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
@@ -2033,7 +2126,7 @@ impl Configs {
     }
     /// Add or update a hms token and return True.
     ///
-    /// :param token: A nonempty str, normalized to lowercase; str subclasses are not accepted.
+    /// :param token: A nonempty str, normalized to lowercase; real str subclasses use their stored text.
     /// :param flag: 0 for hours, 1 for minutes, or 2 for seconds.
     /// The token is recognized in lowercase, uppercase, and titlecase.
     /// Conflicts between recognized case forms are rejected; overlap with jump is allowed.
@@ -2054,7 +2147,7 @@ impl Configs {
     }
     /// Remove a hms token and return whether it existed.
     ///
-    /// :param token: A nonempty str; removal is case-insensitive. Str subclasses are not accepted.
+    /// :param token: A nonempty str; removal is case-insensitive. Real str subclasses use their stored text.
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_hms(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
@@ -2073,7 +2166,7 @@ impl Configs {
     }
     /// Add or update a ampm token and return True.
     ///
-    /// :param token: A nonempty str, normalized to lowercase; str subclasses are not accepted.
+    /// :param token: A nonempty str, normalized to lowercase; real str subclasses use their stored text.
     /// :param flag: 0 for AM or 1 for PM.
     /// The token is recognized in lowercase, uppercase, and titlecase.
     /// Conflicts between recognized case forms are rejected; overlap with jump is allowed.
@@ -2094,7 +2187,7 @@ impl Configs {
     }
     /// Remove a ampm token and return whether it existed.
     ///
-    /// :param token: A nonempty str; removal is case-insensitive. Str subclasses are not accepted.
+    /// :param token: A nonempty str; removal is case-insensitive. Real str subclasses use their stored text.
     /// :returns: True if the token was removed, or False if it was absent.
     /// The removal affects this configuration only.
     fn del_ampm(slf: &Bound<'_, Self>, token: &Bound<'_, PyAny>) -> PyResult<bool> {
@@ -2119,12 +2212,6 @@ pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 const BOUNDARY: &str = r####"from rstimes import errors
 class _Boundary:
-    def __init__(self, yearfirst=True, dayfirst=False):
-        'Create configuration with default token rules.\n\nParameters\n----------\nyearfirst : bool, default True\n    Interpret the first value of an ambiguous calendar triple as year.\ndayfirst : bool, default False\n    Interpret the first non-year value as day. Together with yearfirst,\n    this selects Y/D/M; otherwise it selects D/M/Y.\n\nFlags accept only Python bool or NumPy boolean scalars. Calling __init__ again replaces the flags\nand resets all token rules. Word tokens are normalized to lowercase\nand recognized in lowercase, uppercase, and titlecase. Jump words may overlap\nany word table; other word-table conflicts are rejected. Register regional\nZoneInfo names with add_tzone; these use exact matching and are loaded once.\nFixed-offset aliases use tzoffset.\n\nToken properties return independent containers. copy.copy, copy.deepcopy and\npickle round trips create independent configurations. Editing rules or flags\nin either configuration does not change the other. Configs cannot be subclassed; use\nits add/del/set methods to customize rules. Saved state is independent. Replacements use an entry snapshot before numeric callbacks and commit only after validation; case-expanded conflicts are rejected.'
-        try:
-            self._flags(yearfirst, dayfirst)
-        except Exception as error:
-            errors._raise_argument_context(error, "Configs", "arguments", None)
     @classmethod
     def from_parserinfo(cls, info):
         'Copy vocabulary and calendar-order flags from dateutil parserinfo.\n\nRequires optional python-dateutil; install rsTimes[dateutil] and restart Python.\n\nParameters\n----------\ninfo : dateutil.parser.parserinfo\n    An instance or real subclass supplying the vocabulary and ordering flags.\n    Custom parsing methods and internal parserinfo caches are not copied.\n\nReturns\n-------\nConfigs\n    An independent configuration using the imported rules.\n\nRaises\n------\nImportError\n    python-dateutil is not installed; install rsTimes[dateutil] and restart Python.\nTypeError\n    The source is not a parserinfo instance or a non-None vocabulary table\n    has an unsupported outer container, or an ordering flag is not a Python\n    bool or NumPy boolean scalar. Integers such as 0 and 1, text and other\n    truth-value objects are not accepted. The message identifies the field.\nConfigError\n    A token, mapped value or cross-table combination is invalid.\nOverflowError\n    A numeric configuration value exceeds the supported integer range.\n\nNotes\n-----\nJUMP, PERTAIN and UTCZONE accept list, tuple or set; TZOFFSET accepts dict.\nMONTHS, WEEKDAYS, HMS and AMPM accept list or tuple. Real subclasses of these\ncontainers are accepted. None leaves that table empty; it does not restore\nits default vocabulary. Other outer types, including generators and empty\ncontainers of the wrong type, raise TypeError before iteration.\n\nEach source table is read once in its established order. A string row is one\ncomplete alias. Existing alias collections, value ranges, case variants and\nconflict checks apply. The imported configuration does not depend on later\nchanges to the source. TZOFFSET values are UTC offsets in seconds.\n\nExamples\n--------\n>>> from dateutil.parser import parserinfo\n>>> from rstimes import Configs\n>>> cfg = Configs.from_parserinfo(parserinfo(dayfirst=True))\n>>> cfg.dayfirst\nTrue\n'
@@ -2162,13 +2249,23 @@ class _Boundary:
                     getattr(cfg, destination)(incoming)
                 except Exception as error:
                     errors._raise_argument_context(error, "", "info." + name, value)
+            def word(value):
+                return str.__str__(value) if type(value) is not str and issubclass(type(value), str) else value
+            def words(value):
+                return {token if type(token) is str else word(token) for token in value}
+            def offsets(value):
+                # Retain the actual source dictionary-copy protocol once;
+                # only then prepare keys for this library's destination table.
+                incoming = dict(value)
+                return {(token if type(token) is str else word(token)): number
+                        for token, number in incoming.items()}
             def rows(value, offset):
-                return {token: i + offset for i, row in enumerate(value)
+                return {(token if type(token) is str else word(token)): i + offset for i, row in enumerate(value)
                         for token in ((row,) if issubclass(type(row), str) else row)}
-            table('JUMP', (list, tuple, set), 'a list, tuple, set or None', 'set_jump', set)
-            table('PERTAIN', (list, tuple, set), 'a list, tuple, set or None', 'set_pertain', set)
-            table('UTCZONE', (list, tuple, set), 'a list, tuple, set or None', 'set_utc', set)
-            table('TZOFFSET', (dict,), 'a dict or None', 'set_tzoffset', dict)
+            table('JUMP', (list, tuple, set), 'a list, tuple, set or None', 'set_jump', words)
+            table('PERTAIN', (list, tuple, set), 'a list, tuple, set or None', 'set_pertain', words)
+            table('UTCZONE', (list, tuple, set), 'a list, tuple, set or None', 'set_utc', words)
+            table('TZOFFSET', (dict,), 'a dict or None', 'set_tzoffset', offsets)
             table('MONTHS', (list, tuple), 'a list, tuple or None', 'set_month', lambda v: rows(v, 1))
             table('WEEKDAYS', (list, tuple), 'a list, tuple or None', 'set_weekday', lambda v: rows(v, 0))
             table('HMS', (list, tuple), 'a list, tuple or None', 'set_hms', lambda v: rows(v, 0))
@@ -2176,8 +2273,7 @@ class _Boundary:
             return cfg
         except Exception as error:
             errors._raise_argument_context(error, "Configs.from_parserinfo", "arguments", None)
-for _name in ("__init__", "from_parserinfo"):
-    setattr(Configs, _name, vars(_Boundary)[_name])
+setattr(Configs, "from_parserinfo", vars(_Boundary)["from_parserinfo"])
 "####;
 
 fn defaults() -> &'static [Namespace; 8] {

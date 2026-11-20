@@ -141,13 +141,11 @@ def integer(value):
 
 
 class ExpectedConfigs:
-    """Apply only the approved numeric and month-data policy to the oracle."""
+    """Apply approved numeric, month-data and construction policies to the oracle."""
     def __init__(self, *args, **kwargs):
-        if '_original' in self.__dict__:
-            self._original.__init__(*args, **kwargs)
-            if 'haziran' in self._original.month:
-                self._original.add_month('haziran', 6)
-        else:
+        # 2026-11-06: construction owns flags/defaults; repeated init is a
+        # no-op. The independent oracle still supplies all vocabulary rules.
+        if '_original' not in self.__dict__:
             self._original = OriginalConfigs(*args, **kwargs)
             self._original.add_month('haziran', 6)
 

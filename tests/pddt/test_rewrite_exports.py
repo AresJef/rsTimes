@@ -32,7 +32,7 @@ def test_clock_coordinates_utc_coordinates_and_explicit_microsecond_cut():
 
 def test_timestamp_naive_uses_one_local_zone_and_aware_does_not(monkeypatch,request):
     import rstimes._localization as local
-    local.named_timezone.cache_clear();request.addfinalizer(local.named_timezone.cache_clear)
+    local._named_timezone.cache_clear();request.addfinalizer(local._named_timezone.cache_clear)
     calls=[]
     def zone():calls.append(1);return timezone(timedelta(hours=8))
     monkeypatch.setattr(local,'local_timezone',zone)
@@ -45,7 +45,7 @@ def test_timestamp_naive_uses_one_local_zone_and_aware_does_not(monkeypatch,requ
 
 def test_timestamp_missing_and_ambiguous_local_values_need_explicit_policy(monkeypatch,request):
     import rstimes._localization as local
-    local.named_timezone.cache_clear();request.addfinalizer(local.named_timezone.cache_clear)
+    local._named_timezone.cache_clear();request.addfinalizer(local._named_timezone.cache_clear)
     monkeypatch.setattr(local,'local_timezone',lambda:ZoneInfo('America/New_York'))
     for value in ['2024-03-10 02:30','2024-11-03 01:30']:
         with pytest.raises(ValueError,match='tz_localize'):Pddt([value]).timestamp()

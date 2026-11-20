@@ -8,18 +8,13 @@ from os import environ
 from zoneinfo import ZoneInfo
 from typing import overload
 
-from ._native import _local_timezone_name, _localized_name, _resolve_optional_timezone
+from ._native import (_local_timezone_name, _localized_name, _resolve_optional_timezone,
+                      _local_timezone_identity, _publish_local_timezone_identity)
 from .errors import _own_error, _external_error, _preview, _raise_argument_context
 
 
-@lru_cache(maxsize=1)
-def local_timezone() -> ZoneInfo:
-    """Resolve the first actual local request; failed attempts remain retryable."""
-    name = environ.get("TZ")
-    if name is None:
-        name = _local_timezone_name()
-    elif name.startswith(":"):
-        name = name[1:]
+def _local_from_name(name: str) -> ZoneInfo:
+    """Validate this backend without reserving the shared successful identity."""
     try:
         return ZoneInfo(name)
     except (KeyError, ValueError) as error:
@@ -29,18 +24,37 @@ def local_timezone() -> ZoneInfo:
         )) from error
 
 
+@lru_cache(maxsize=1)
+def local_timezone() -> ZoneInfo:
+    """Resolve the shared first successful identity; failed attempts stay retryable."""
+    name = _local_timezone_identity()
+    if name is None:
+        name = environ.get("TZ")
+        if name is None:
+            name = _local_timezone_name()
+        elif name.startswith(":"):
+            name = name[1:]
+    zone = _local_from_name(name)
+    winner = _publish_local_timezone_identity(name)
+    return zone if winner == name else _local_from_name(winner)
+
+
 _UTC_ALIASES = frozenset({"z", "utc", "gmt", "gmt0", "gmt+0", "gmt-0", "zulu",
                          "universal", "greenwich", "etc/utc", "etc/gmt", "etc/gmt0",
                          "etc/gmt+0", "etc/gmt-0", "etc/zulu", "etc/universal"})
 
 
-@lru_cache(maxsize=128)
 def named_timezone(name) -> ZoneInfo | timezone:
     """Reuse standard timezone objects for actual name inputs."""
-    try:
-        lower = name.lower()
-    except Exception as error:
-        raise _external_error(error)
+    if type(name) is not str:
+        name = str.__str__(name)
+    return _named_timezone(name)
+
+
+@lru_cache(maxsize=128)
+def _named_timezone(name) -> ZoneInfo | timezone:
+    """Cache only prepared builtin text, never virtual hash/eq/lower rules."""
+    lower = name.lower()
     if lower == "local":
         return local_timezone()
     if lower in _UTC_ALIASES:
@@ -64,11 +78,8 @@ def resolve_timezone(value, parameter="tz"):
             return value
         if issubclass(type(value), str):
             if type(value) is str:
-                return named_timezone(value)
-            try:
-                return named_timezone(value)
-            except Exception as error:
-                raise _external_error(error)
+                return _named_timezone(value)
+            return named_timezone(value)
         if not issubclass(type(value), tzinfo):
             raise _own_error(TypeError("must be an IANA name, tzinfo, or None"), parameter, value)
         if issubclass(type(value), ZoneInfo):

@@ -28,13 +28,6 @@ fn _pddt_strptime<'py>(
     let mut rows = Rows::new(Unit::Microsecond);
     let mut read = |value: &Bound<'py, PyAny>| -> PyResult<()> {
         if let Ok(text) = value.cast::<PyString>() {
-            let converted;
-            let text = if value.is_exact_instance_of::<PyString>() {
-                text
-            } else {
-                converted = value.str().map_err(crate::error_context::external)?;
-                &converted
-            };
             if super::prepare::missing_text(text)? {
                 rows.missing();
                 return Ok(());
@@ -72,10 +65,6 @@ fn _pddt_strptime<'py>(
         rows.empty_zone = rows.sources[0].zone;
         rows.values.resize(size, rows.values[0]);
         rows.sources.resize(size, rows.sources[0]);
-        if size == 0 {
-            rows.values.clear();
-            rows.sources.clear();
-        }
     } else {
         if size.is_some() {
             return Err(crate::error_context::value_error(

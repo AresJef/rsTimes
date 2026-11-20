@@ -176,7 +176,7 @@ fn fold_dependent(value: &Bound<'_, PyAny>, original: i128, aware: bool) -> PyRe
     let replace = crate::protocol::method_definition(&class, "replace")?
         .ok_or_else(|| crate::error_context::runtime("datetime replacement is unavailable"))?;
     let kwargs = PyDict::new(py);
-    kwargs.set_item("fold", i32::from(!value.cast::<PyDateTime>()?.get_fold()))?;
+    kwargs.set_item("fold", i32::from(!stored.get_fold()))?;
     let alternate = replace
         .call((value,), Some(&kwargs))
         .map_err(crate::error_context::external)?;

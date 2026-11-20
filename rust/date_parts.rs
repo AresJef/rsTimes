@@ -92,13 +92,6 @@ impl<'a, 'py> Reader<'a, 'py> {
             input_unit: Unit::Second,
         };
         let mut parsed = if let Ok(text) = value.cast::<PyString>() {
-            let converted;
-            let text = if value.is_exact_instance_of::<PyString>() {
-                text
-            } else {
-                converted = value.str().map_err(crate::error_context::external)?;
-                &converted
-            };
             if matches!(
                 text.to_str()?,
                 "" | "NaT" | "NAT" | "nat" | "NaN" | "NAN" | "nan"

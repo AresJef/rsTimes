@@ -25,9 +25,12 @@ def test_flags_remain_snapshot_values_when_the_tables_are_builtin(engine):
     cfg = Configs(yearfirst=False, dayfirst=True)
     expr = pl.col("text").pldt.parse(unit="us", cfg=cfg)
     cfg.__init__(yearfirst=False, dayfirst=False)
-    new = pl.col("text").pldt.parse(unit="us", cfg=cfg)
+    after_init = pl.col("text").pldt.parse(unit="us", cfg=cfg)
+    other = Configs(yearfirst=False, dayfirst=False)
+    new = pl.col("text").pldt.parse(unit="us", cfg=other)
     frame = pl.LazyFrame({"text": ["07/05/2024", None]})
     assert frame.select(expr).collect(engine=engine)["text"].to_list() == [datetime(2024, 5, 7), None]
+    assert frame.select(after_init).collect(engine=engine)["text"].to_list() == [datetime(2024, 5, 7), None]
     assert frame.select(new).collect(engine=engine)["text"].to_list() == [datetime(2024, 7, 5), None]
 
 

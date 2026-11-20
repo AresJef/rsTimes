@@ -107,9 +107,9 @@ fn convert_inner(
                     "boolean values are not date or epoch inputs",
                 ));
             }
-            if ffi::PyLong_CheckExact(pointer) != 0 || ffi::PyBool_Check(pointer) != 0 {
+            if ffi::PyLong_CheckExact(pointer) != 0 {
                 let mut overflow = 0;
-                // SAFETY: exact int/bool was proved above. The public overflow
+                // SAFETY: exact int was proved above. The public overflow
                 // flag distinguishes a wider native path without creating a
                 // temporary Python exception for an otherwise accepted number.
                 let seconds = ffi::PyLong_AsLongLongAndOverflow(pointer, &mut overflow);

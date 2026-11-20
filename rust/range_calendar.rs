@@ -2,6 +2,17 @@
 const NS_DAY: i128 = 86_400_000_000_000;
 const OVERFLOW: &str = "date_range calendar arithmetic overflow";
 
+/// Shared endpoint vocabulary; callers retain their own error boundary.
+pub(crate) fn inclusive(value: &str) -> Result<(bool, bool), &'static str> {
+    match value {
+        "both" => Ok((true, true)),
+        "left" => Ok((true, false)),
+        "right" => Ok((false, true)),
+        "neither" => Ok((false, false)),
+        _ => Err("inclusive must be 'both', 'left', 'right' or 'neither'"),
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct Business {
     pub mask: [bool; 7],
@@ -66,12 +77,17 @@ pub(crate) enum Kind {
     Fixed(i128),
     Days,
     Week(Option<i64>),
-    Business,
+    Business {
+        custom: bool,
+    },
     Boundary {
         stride: i64,
         anchor: i64,
         start: bool,
         business: bool,
+    },
+    CustomBusinessMonth {
+        start: bool,
     },
     Semi {
         start: bool,
@@ -179,8 +195,28 @@ impl Frequency {
     /// Roll by the generation direction, independent of the multiplier magnitude.
     pub fn roll(&self, value: i128, direction: i64) -> Result<i128, &'static str> {
         let (day, clock) = split(value)?;
+        if let Kind::CustomBusinessMonth { .. } = self.kind {
+            // Backward rolling normalizes before the membership check and
+            // step. Forward rolling keeps the supplied clock for the step.
+            let (value, clock) = if self.normalize && direction < 0 {
+                (i128::from(day) * NS_DAY, 0)
+            } else {
+                (value, clock)
+            };
+            if (!self.normalize || clock == 0) && self.apply(self.apply(value, 1)?, -1)? == value {
+                return Ok(value);
+            }
+            return self.apply_calendar(value, direction);
+        }
         let had_clock = clock != 0;
-        let clock = if self.normalize { 0 } else { clock };
+        // Forward workday rolling applies the offset to the original clock
+        // before normalizing to midnight.
+        let clock =
+            if self.normalize && !(direction > 0 && matches!(self.kind, Kind::Business { .. })) {
+                0
+            } else {
+                clock
+            };
         let mut rolled = match self.kind {
             Kind::Fixed(_) | Kind::Days | Kind::Week(None) => day,
             Kind::Week(Some(weekday)) => {
@@ -192,7 +228,7 @@ impl Frequency {
                 })
                 .ok_or(OVERFLOW)?
             }
-            Kind::Business => self.business.roll(day, direction)?,
+            Kind::Business { .. } => self.business.roll(day, direction)?,
             Kind::Semi { start, day: middle } => {
                 let [y, m, d] = fields(day)?;
                 let mut month = month_index(y, m)?;
@@ -245,7 +281,7 @@ impl Frequency {
             .and_then(|v| v.checked_add(clock))
             .ok_or(OVERFLOW)?;
         let result = if rolled != day {
-            result.checked_add(self.offset).ok_or(OVERFLOW)?
+            self.add_offset(result, clock)?
         } else {
             result
         };
@@ -261,7 +297,8 @@ impl Frequency {
             Kind::Week(_) => day
                 .checked_add(n.checked_mul(7).ok_or(OVERFLOW)?)
                 .ok_or(OVERFLOW)?,
-            Kind::Business => self.business.shift(day, n)?,
+            Kind::Business { .. } => self.business.shift(day, n)?,
+            Kind::CustomBusinessMonth { start } => self.advance_custom_month(day, n, start)?,
             Kind::Semi { start, day: middle } => {
                 let [y, m, d] = fields(day)?;
                 let month = month_index(y, m)?;
@@ -296,6 +333,42 @@ impl Frequency {
         };
         Ok(target)
     }
+    fn advance_custom_month(&self, day: i64, n: i64, start: bool) -> Result<i64, &'static str> {
+        let [year, month, date] = fields(day)?;
+        let current = month_index(year, month)?;
+        let length = crate::calendar::days_in_month(year, month);
+        let first = day.checked_sub(date - 1).ok_or(OVERFLOW)?;
+        let edge = if start {
+            first
+        } else {
+            day.checked_add(length - date).ok_or(OVERFLOW)?
+        };
+        let direction = if start { 1 } else { -1 };
+        let anchor = self.business.roll(edge, direction)?;
+        let anchor_date = match anchor.checked_sub(first) {
+            Some(index) if (0..length).contains(&index) => index + 1,
+            // A sparse work calendar can put the anchor in another month.
+            // The frequency compares day-of-month even in that case.
+            _ => fields(anchor)?[2],
+        };
+        let shift = if n > 0 && date < anchor_date {
+            n - 1
+        } else if n <= 0 && date > anchor_date {
+            n + 1
+        } else {
+            n
+        };
+        if shift == 0 {
+            return Ok(anchor);
+        }
+        let target = current.checked_add(shift).ok_or(OVERFLOW)?;
+        let date = if start {
+            1
+        } else {
+            crate::calendar::days_in_month(target.div_euclid(12), target.rem_euclid(12) + 1)
+        };
+        self.business.roll(month_day(target, date)?, direction)
+    }
     /// Advance one whole frequency, keeping the full native clock and ns tail.
     pub fn apply(&self, value: i128, multiplier: i64) -> Result<i128, &'static str> {
         let n = self.n.checked_mul(multiplier).ok_or(OVERFLOW)?;
@@ -305,15 +378,60 @@ impl Frequency {
                 .and_then(|v| value.checked_add(v))
                 .ok_or(OVERFLOW);
         }
+        if matches!(self.kind, Kind::Days) && !self.normalize && self.offset == 0 {
+            // Moving a whole local day keeps the clock. Check the same
+            // source and result day bounds as split and advance_day.
+            const FIRST: i128 = (i64::MIN as i128) * NS_DAY;
+            const LIMIT: i128 = (i64::MAX as i128 + 1) * NS_DAY;
+            if !(FIRST..LIMIT).contains(&value) {
+                return Err(OVERFLOW);
+            }
+            // A sum of two signed-64-bit day coordinates fits i128.
+            let shifted = value + i128::from(n) * NS_DAY;
+            return (FIRST..LIMIT)
+                .contains(&shifted)
+                .then_some(shifted)
+                .ok_or(OVERFLOW);
+        }
+        self.apply_calendar(value, n)
+    }
+    fn apply_calendar(&self, value: i128, n: i64) -> Result<i128, &'static str> {
         let (day, clock) = split(value)?;
         let target = self.advance_day(day, n)?;
         let result = i128::from(target) * NS_DAY + clock;
-        let shifted = result.checked_add(self.offset).ok_or(OVERFLOW)?;
+        let shifted = self.add_offset(result, clock)?;
         Ok(if self.normalize {
             shifted.div_euclid(NS_DAY) * NS_DAY
         } else {
             shifted
         })
+    }
+
+    #[inline]
+    fn add_offset(&self, value: i128, clock: i128) -> Result<i128, &'static str> {
+        let offset = self.offset;
+        if offset == 0 {
+            return Ok(value);
+        }
+        let submicro = offset.rem_euclid(1_000);
+        if submicro != 0 && matches!(self.kind, Kind::Business { custom: true }) {
+            // CustomBusinessDay applies its offset to a microsecond wall clock.
+            let effective = offset.checked_sub(submicro).ok_or(OVERFLOW)?;
+            return value.checked_add(effective).ok_or(OVERFLOW);
+        }
+        let shifted = value.checked_add(offset).ok_or(OVERFLOW)?;
+        if submicro != 0
+            && !self.normalize
+            && matches!(
+                self.kind,
+                Kind::Business { custom: false } | Kind::CustomBusinessMonth { .. }
+            )
+        {
+            // The pinned timestamp offset restores the source tail if the
+            // applied offset changed it. A whole microsecond never changes it.
+            return shifted.checked_add(clock % 1_000).ok_or(OVERFLOW);
+        }
+        Ok(shifted)
     }
 }
 
@@ -351,5 +469,81 @@ impl Plan {
             _ => self.frequency.offset,
         };
         self.precision.max(crate::precision::quantum_unit(fraction))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn whole_local_days_preserve_clock_and_calendar_capacity() {
+        let frequency = Frequency {
+            kind: Kind::Days,
+            n: 1,
+            normalize: false,
+            offset: 0,
+            business: Business {
+                mask: [true; 7],
+                holidays: Vec::new(),
+            },
+        };
+        let first = i128::from(i64::MIN) * NS_DAY;
+        let last = i128::from(i64::MAX) * NS_DAY + NS_DAY - 1;
+        assert_eq!(frequency.apply(-1, 1), Ok(NS_DAY - 1));
+        assert_eq!(frequency.apply(NS_DAY - 1, -1), Ok(-1));
+        assert_eq!(frequency.apply(last - NS_DAY, 1), Ok(last));
+        assert_eq!(frequency.apply(last, 1), Err(OVERFLOW));
+        assert_eq!(frequency.apply(first, -1), Err(OVERFLOW));
+        assert_eq!(frequency.apply(first - 1, 1), Err(OVERFLOW));
+        assert_eq!(frequency.apply(last + 1, -1), Err(OVERFLOW));
+    }
+
+    #[test]
+    fn sparse_business_month_anchors_match_independent_day_coordinates() {
+        // January 2024 has no working day in this Monday-only calendar.
+        // Each row records the date returned for Jan 1..31 in pandas 3.0.6
+        // before adding -1 µs, for successive multipliers -2 through 2.
+        let anchors = [
+            19_667, 19_688, 19_695, 19_716, 19_758, 19_779, 19_786, 19_807,
+        ];
+        let begin = [
+            b"AAAAACCCCCCCCCCCCCCCCCCCCCCCCCC",
+            b"CCCCCEEEEEEEEEEEEEEEEEEEEEEEEEE",
+            b"EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE",
+            b"EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE",
+            b"EEEEGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+        ];
+        let end = [
+            b"BBBBBBBBBBBBBBBBBBBBBBBBBDDDDDD",
+            b"DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+            b"DDDDDDDDDDDDDDDDDDDDDDDDDFFFFFF",
+            b"DDDDDDDDDDDDDDDDDDDDDDDDFFFFFFF",
+            b"FFFFFFFFFFFFFFFFFFFFFFFFHHHHHHH",
+        ];
+        for (start, table) in [(true, begin), (false, end)] {
+            let frequency = Frequency {
+                kind: Kind::CustomBusinessMonth { start },
+                n: 1,
+                normalize: false,
+                offset: -1_000,
+                business: Business {
+                    mask: [true, false, false, false, false, false, false],
+                    holidays: (0..5).map(|week| 19_723 + 7 * week).collect(),
+                },
+            };
+            for (multiplier, choices) in (-2_i64..=2).zip(table) {
+                for (i, &choice) in choices.iter().enumerate() {
+                    let source = (19_723 + i as i128) * NS_DAY;
+                    let expected = anchors[usize::from(choice - b'A')] * NS_DAY - 1_000;
+                    assert_eq!(
+                        frequency.apply(source, multiplier),
+                        Ok(expected),
+                        "start={start}, Jan {}, multiplier={multiplier}",
+                        i + 1,
+                    );
+                }
+            }
+        }
     }
 }

@@ -45,12 +45,28 @@ def main():
     if args.core:
         paths = [
             "test_optional_dateutil.py", "test_release_matrix.py",
+            "test_product_ready_numpy_loader.py",
+            "test_product_ready_descriptor_binding.py",
+            "test_rewrite_numeric_preparation.py",
             "test_free_threaded_contract.py", "test_thread_case_watchdog.py",
             "parser/test_frozen_parse.py", "parser/test_entrypoints.py",
             "parser/test_behavior_revision.py", "parser/test_object_parse.py",
+            "parser/test_numeric_text.py", "parser/test_numeric_text_fast_paths.py",
+            "parser/test_numeric_short_decimal_fold_optimization.py", "parser/test_numeric_text_threads.py",
+            "parser/test_product_ready_parser.py",
+            "parser/test_product_ready_wide_epoch.py",
+            "parser/test_product_ready_configs.py",
+            "parser/test_product_ready_configs_owners.py",
+            "pydt/test_product_ready_pydt.py",
+            "pydt/test_product_ready_restore_private_slots.py",
+            "pydt/test_product_ready_iso_calendar.py",
+            "delta/test_product_ready_delta.py",
+            "delta/test_product_ready_completion_comparison.py",
+            "delta/test_single_pass_duration_merge.py",
+            "delta/test_product_ready_copy.py",
         ]
         if importlib.util.find_spec("polars") is not None:
-            paths.append("pldt")
+            paths.extend(("pldt", "test_review_iso_factory_disambiguation.py"))
         options = ["-q", *(str(root / "tests" / path) for path in paths),
                    "--junitxml", args.junitxml]
         raise SystemExit(run_tests(options))

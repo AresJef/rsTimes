@@ -36,16 +36,6 @@ impl<'a, 'py> FromPyObject<'a, 'py> for WideInteger {
     }
 }
 
-/// Standard datetime constructors accept the integer index protocol, not floats.
-#[derive(Clone, Copy)]
-struct IndexInteger(i64);
-impl<'a, 'py> FromPyObject<'a, 'py> for IndexInteger {
-    type Error = PyErr;
-    fn extract(value: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
-        Integer::extract(value).map(|n| Self(n.0))
-    }
-}
-
 /// Optional replacement fields use checked wide extraction before calendar bounds.
 #[derive(Clone, Copy)]
 struct FieldIndex(i64);
@@ -240,6 +230,11 @@ pub(crate) fn is_zoneinfo_instance(zone: &Bound<'_, PyAny>) -> bool {
             ) != 0
         }
     })
+}
+
+/// Borrow the original retained class for shared native provenance checks.
+pub(crate) fn zoneinfo_class(py: Python<'_>) -> Option<&Bound<'_, PyType>> {
+    ZONEINFO.get(py).map(|base| base.bind(py))
 }
 
 pub(crate) fn is_exact_zoneinfo(zone: &Bound<'_, PyAny>) -> bool {
@@ -2042,13 +2037,6 @@ pub(crate) fn lookup_selector(py: Python<'_>, token: &str, weekday: bool) -> PyR
     }
 }
 
-/// Let an internal caller try a name without using exceptions as control flow.
-#[pyfunction]
-fn _pydt_lookup_optional(token: &str, weekday: bool) -> Option<i32> {
-    let found = lookup_default_name(token, weekday);
-    (found >= 0).then_some(found)
-}
-
 /// Query the shared immutable default vocabulary without converting each name.
 pub(crate) fn lookup_default_name(token: &str, weekday: bool) -> i32 {
     crate::parser::config::default_calendar_name(token, weekday)
@@ -2092,33 +2080,30 @@ fn _pydt_name_matches(
     } else {
         i64::from(value.get_month())
     };
-    Ok(actual == i64::from(lookup_selector(value.py(), token, weekday)?))
+    let selected = lookup_selector(value.py(), token, weekday).map_err(|error| {
+        crate::error_context::location(
+            value.py(),
+            error,
+            "",
+            if weekday { "weekday" } else { "month" },
+        )
+    })?;
+    Ok(actual == i64::from(selected))
 }
 
 /// Read one ISO calendar field without allocating the complete Python result.
 #[pyfunction]
-fn _pydt_iso(value: &Bound<'_, PyDateTime>, year_field: bool) -> i64 {
-    let mut year = i64::from(value.get_year());
-    let jan1 = crate::calendar::ordinal(year, 1, 1);
+fn _pydt_iso(value: &Bound<'_, PyDateTime>, year_field: bool) -> PyResult<i64> {
+    let year = i64::from(value.get_year());
     let ordinal = crate::calendar::ordinal(
         year,
         i64::from(value.get_month()),
         i64::from(value.get_day()),
     );
-    let weekday = (ordinal - 1) % 7;
-    let mut week = (ordinal - jan1 + 1 - weekday + 9) / 7;
-    let long_year = |y| {
-        let day = (crate::calendar::ordinal(y, 1, 1) - 1) % 7;
-        day == 3 || (day == 2 && crate::calendar::leap(y))
-    };
-    if week == 0 {
-        year -= 1;
-        week = if long_year(year) { 53 } else { 52 };
-    } else if week == 53 && !long_year(year) {
-        year += 1;
-        week = 1;
-    }
-    if year_field { year } else { week }
+    // Native datetime fields already enforce1..9999, so January1 fits ordinal.
+    let start = crate::calendar::ordinal(year, 1, 1);
+    let iso = crate::calendar_query::iso_from_start(year, ordinal, start)?;
+    Ok(iso[usize::from(!year_field)])
 }
 
 /// Reuse NumPy's checked scalar decoder and Parser's established constructor shape.
@@ -2287,20 +2272,9 @@ fn _pydt_strptime<'py>(
     cfg: Option<&Bound<'py, PyAny>>,
 ) -> PyResult<Bound<'py, PyAny>> {
     let py = text.py();
-    let converted;
-    let text = if text.is_exact_instance_of::<pyo3::types::PyString>() {
-        text.cast::<pyo3::types::PyString>()?
-    } else if text.is_instance_of::<pyo3::types::PyString>() {
-        converted = text.str().map_err(crate::error_context::external)?;
-        &converted
-    } else {
-        return Err(crate::error_context::expected_type(
-            text,
-            "Pydt.strptime",
-            "dtstr",
-            "a string",
-        ));
-    };
+    let text = text.cast::<pyo3::types::PyString>().map_err(|_| {
+        crate::error_context::expected_type(text, "Pydt.strptime", "dtstr", "a string")
+    })?;
     let context = crate::parser::formatted::Context::prepare(&format, cfg)?;
     let parsed = crate::parser::formatted::read(&context, text)?;
     let fields = parsed.fields;
@@ -2348,29 +2322,8 @@ fn daylight<'py>(value: &Bound<'py, PyDateTime>) -> PyResult<(Bound<'py, PyAny>,
     let adjustment = zone
         .call_method1(pyo3::intern!(value.py(), "dst"), (value,))
         .map_err(crate::error_context::external)?;
-    if adjustment.is_none() {
-        return Ok((adjustment, -1));
-    }
-    let duration = adjustment
-        .cast::<PyDelta>()
-        .map_err(|_| crate::error_context::type_error("dst() must return None or timedelta"))?;
-    let nanos = if unsafe { ffi::PyDelta_CheckExact(adjustment.as_ptr()) != 0 } {
-        None
-    } else {
-        crate::interop::duration_nanoseconds(&adjustment)?
-    };
-    let nanos = nanos.unwrap_or_else(|| {
-        (i128::from(duration.get_days()) * 86_400_000_000
-            + i128::from(duration.get_seconds()) * 1_000_000
-            + i128::from(duration.get_microseconds()))
-            * 1000
-    });
-    if !(-86_400_000_000_000 < nanos && nanos < 86_400_000_000_000) {
-        return Err(crate::error_context::value_error(
-            "dst() must be strictly between -24 and +24 hours",
-        ));
-    }
-    Ok((adjustment, i64::from(nanos != 0)))
+    let marker = crate::host_zone::daylight_marker(&adjustment)?;
+    Ok((adjustment, marker))
 }
 
 /// Return the same legal duration after checking its actual value once.
@@ -2507,11 +2460,11 @@ fn selector(value: Option<&Bound<'_, PyAny>>, weekday: bool) -> PyResult<i64> {
     };
     let name = if weekday { "weekday" } else { "month" };
     let n = if value.is_instance_of::<pyo3::types::PyString>() {
-        i64::from(lookup_selector(
-            value.py(),
-            value.extract::<&str>()?,
-            weekday,
-        )?)
+        let text = value.extract::<&str>()?;
+        i64::from(
+            lookup_selector(value.py(), text, weekday)
+                .map_err(|error| crate::error_context::location(value.py(), error, "", name))?,
+        )
     } else if unsafe { ffi::PyIndex_Check(value.as_ptr()) != 0 } {
         crate::numeric::index_i64(value)?
     } else {
@@ -2565,7 +2518,7 @@ fn _pydt_move<'py>(
             )?
             .unwrap_or(-1);
             if part > 0 {
-                month = (i64::from(value.get_month()) - 1) / 3 * 3 + part.min(3);
+                month = (i64::from(value.get_month()) - 1) / 3 * 3 + part;
             }
         }
         2 => months = offset,
@@ -2825,7 +2778,6 @@ fn _pydt_is_boundary(
         }
         let us = value.get_microsecond();
         let matches = match kind {
-            9 => return Ok(true),
             8 => return Ok(us % 1000 == if end { 999 } else { 0 }),
             7 => us == if end { 999_999 } else { 0 },
             6 => {
@@ -3077,14 +3029,13 @@ fn _pydt_snap<'py>(value: &Bound<'py, PyDateTime>, unit: &str) -> PyResult<Bound
                 - (crate::calendar::ordinal(fields[0], fields[1], fields[2]) - 1).rem_euclid(7))
                 * day
         }
-        "D" | "h" | "m" | "min" | "s" | "ms" | "us" => {
+        "D" | "h" | "m" | "min" | "s" | "ms" => {
             let step = match unit {
                 "D" => day,
                 "h" => 3_600_000_000,
                 "m" | "min" => 60_000_000,
                 "s" => 1_000_000,
-                "ms" => 1000,
-                _ => 1,
+                _ => 1000,
             };
             period.step = step;
             period.width = step;
@@ -3369,9 +3320,9 @@ fn _pydt_from_doy<'py>(
 #[pyfunction]
 fn _pydt_from_iso<'py>(
     class: &Bound<'py, PyType>,
-    year: IndexInteger,
-    week: IndexInteger,
-    weekday: IndexInteger,
+    year: Integer,
+    week: Integer,
+    weekday: Integer,
     tz: &Bound<'py, PyAny>,
 ) -> PyResult<Bound<'py, PyAny>> {
     let year = year.0;
@@ -3766,11 +3717,7 @@ fn _pydt_is_local(value: &Bound<'_, PyDateTime>, local: &Bound<'_, PyAny>) -> Py
 
 /// Test integer calendar fields with the frozen convenience conversion.
 #[pyfunction]
-fn _pydt_matches(
-    value: &Bound<'_, PyDateTime>,
-    query: u8,
-    expected: IndexInteger,
-) -> PyResult<bool> {
+fn _pydt_matches(value: &Bound<'_, PyDateTime>, query: u8, expected: Integer) -> PyResult<bool> {
     let actual = match query {
         0 => i64::from(value.get_year()),
         1 => _pydt_calendar(value, 0)?,
@@ -4061,7 +4008,6 @@ pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_pydt_to_us, module)?)?;
     module.add_function(wrap_pyfunction!(_pydt_to_seconds, module)?)?;
     module.add_function(wrap_pyfunction!(lookup_selector, module)?)?;
-    module.add_function(wrap_pyfunction!(_pydt_lookup_optional, module)?)?;
     module.add_function(wrap_pyfunction!(_pydt_calendar, module)?)?;
     module.add_function(wrap_pyfunction!(_pydt_day_of_year, module)?)?;
     module.add_function(wrap_pyfunction!(_pydt_days_in_month, module)?)?;

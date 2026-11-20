@@ -1,11 +1,12 @@
 # Pldt: native Polars date columns and expressions
 
-This guide describes **rsTimes 0.2.0b3**. The older 0.2.0b2 distribution does
-not contain Pldt. The public classes are `Delta`, `Pydt`, `Pddt` and `Pldt`.
-The [release notes](releases/v0.2.0b3.md) describe the public release boundary.
-The [R18 qualification report](R18检查器优化与验收-20261105.md) separately
-records the local predecessor's complete export checks and measured gains;
-its timings are not reassigned to another binary.
+This guide describes `Pldt` in **rsTimes 1.0.0**. Date-text inputs read the
+stored contents of real `str` objects and subclasses. Call `str(value)`
+explicitly to use a subclass's conversion. Each factory defines its own
+grammar, precision, timezone, and missing-value rules.
+
+See the [Parser guide](Parser使用说明.md) and the
+[release notes](releases/v1.0.0.md).
 
 Install the optional Polars capability to use `Pldt`. NumPy remains a default
 dependency. Ordinary Pldt calculations require neither pandas nor dateutil,
@@ -47,6 +48,45 @@ time tables are eager DataFrames or native Struct Exprs. Not every result is
 wrapped as Pldt, and a native scalar is not automatically Pydt.
 
 ## Error boundaries
+
+Native target rules must have a reliable named origin. `ZoneInfo("UTC")`,
+`ZoneInfo.no_cache("Europe/Paris")` and passive subclasses created by those
+named constructors are supported. `ZoneInfo.from_file(...)` is rejected as a
+target, even if its display `key` is `"UTC"` or matches the file's real rules.
+The key is a label, not proof that the file contains the named IANA rules.
+The same check applies to empty/all-null input and expression preparation.
+Subclasses retain live behavior checks; overriding the private `_unpickle`
+lookup is also refused without running that lookup's business descriptor.
+Custom `__reduce__`/`__reduce_ex__` methods are not invoked by qualification.
+Only immutable native origin flags are reused in a bounded weak identity cache;
+subclass methods and instance shadowing are checked on every preparation.
+The cache neither retains business objects nor calls their hash/equality hooks.
+
+This boundary does not discard an existing aware source's actual instant.
+For example, an actual `12:00+02:00` source converted by `Pldt(..., tz="UTC")`
+becomes `10:00Z`. `Pldt.fromdatetime(..., tz="UTC")` instead retains its
+`12:00` wall fields, as that factory's replacement contract requires. Special
+pandas source columns use real source rules when their label cannot be trusted;
+ordinary native columns keep their buffer path. A source with a provable actual
+constant offset can retain the equivalent fixed output zone without trusting
+the label. Otherwise choose an explicit supported target if the source rules
+cannot themselves be retained in the output dtype.
+
+Invalid options identify the real public parameter: `tzinfo` for
+`.pldt.replace(tzinfo=...)`, `targ_tz`/`base_tz` for `tz_switch(...)`, and `tz`
+for construction/localization/conversion. For instance:
+
+```python
+from rstimes import Pldt
+
+x = Pldt([0], unit="us")
+try:
+    x.pldt.replace(tzinfo=42)
+except TypeError as error:
+    assert "tzinfo=" in str(error)
+else:
+    raise AssertionError("unsupported timezone type was accepted")
+```
 
 Python option preparation and eager operations raise the documented builtin
 errors, such as TypeError, ValueError or OverflowError. An Expr does not inspect
@@ -210,6 +250,15 @@ source roles and do not become general string parsers.
 | `now` / `today` / `utcnow` | Current time at requested resolution; today retains the clock, no fabricated ns |
 | `date_range` | Native common elapsed/calendar generation; only approved special rules delegate to optional pandas |
 
+For native business-day and custom business-month frequencies, an explicit
+`periods=0` still resolves the supplied endpoint and checks the direction.
+When the resolved endpoints match, the single date can be included, subject
+to `inclusive`. When both bounds are supplied, `periods` is omitted, and
+forward rolling puts the start after the requested end, Pddt and Pldt keep
+an empty range. For example, February 3–4, 2024 with a positive
+`BusinessDay(offset=timedelta(days=1))` remains empty in rsTimes. The
+fixed pandas 3.0.6 reference yields February 6 in that case.
+
 The three integer-calendar factories default to `unit="us"`; explicitly pass
 `"ms"`, `"us"` or `"ns"`, not `None`. The same rule applies to their Series
 and Expr namespace entries. This differs from the general constructor, where
@@ -288,6 +337,15 @@ ZoneInfo, not the original Python input identity. The backend's actual zone
 set is `tz_available`; local lookup is lazy. Native/host timezone database
 versions and historical representation/capacity differences remain explicit.
 
+A passive ZoneInfo subclass may use inherited native
+IANA rules. A target that overrides timezone semantics, instance methods or
+the metadata lookup needed to verify those rules raises ValueError. Its key
+is not a substitute for its real business rules, even when the key is UTC.
+Use a standard supported target, or convert a business-aware source to UTC
+before constructing the column. A genuine aware source still uses its actual
+offset protocol and retains its original callback exceptions. Empty/all-null
+inputs and Expr preparation enforce the same target boundary.
+
 Full ambiguous policies include raise/NaT/infer/true booleans/equal-length true
 boolean masks. Nonexistent accepts its complete single strategy or timedelta.
 Infer is native Rust and preserves logical order across chunks. Automatic
@@ -318,12 +376,21 @@ initialization. Ordinary new date results of a real Pldt subclass invoke its
 normal constructor once. Native Expr serialization remains Polars' protocol;
 rsTimes does not download plugins or execute arbitrary plans on load.
 
+Default business-state restoration snapshots the stored builtin dictionary and
+slot entries, then validates and applies that same batch. A dict subclass does
+not redirect this default storage read. Real state/reduction/copy hooks, slot
+setters, their original exceptions and the shared deep-copy memo keep their
+normal responsibilities.
+
 Named `copy` follows Python's hook binding: shallow hooks are obtained from the
 class and receive the source, deep hooks from the instance and receive one
 memo. Static/class methods and real descriptors retain those same rules and
-return choices. Protocol discovery reads actual class definitions rather than
-metaclass display properties; genuine state hooks keep their own behavior and
-exceptions, including Python's default state protocol.
+return choices. Registered reducers and actual
+__reduce_ex__/__reduce__ values use complete fallback, including None, missing
+descriptors and dynamic lookup. Only known library defaults use the native
+date-copy path; a static definition does not hide an actual business protocol.
+The same deep memo preserves aliases and cycles. Genuine callbacks retain
+their returned values and original exceptions.
 
 The installed `pldt.pyi` documents every own eager/namespace method. Concrete
 Pldt operations retain type information, including its typed `.pldt` and

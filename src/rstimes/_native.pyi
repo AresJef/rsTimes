@@ -12,6 +12,7 @@ import numpy as np
 import polars as pl
 from .delta import Delta as Delta
 from .parser import Configs as Configs, parse as parse, parse_str as parse_str, parse_to_epoch as parse_to_epoch
+from .parser import parse_to_integer as parse_to_integer, parse_to_float as parse_to_float
 
 _DateT = TypeVar("_DateT", bound=datetime)
 _SeriesT = TypeVar("_SeriesT", bound=pl.Series)
@@ -59,18 +60,14 @@ class _PddtOperand:
 @type_check_only
 class _PddtRangeEndpoints:
     """Range endpoints with separate local carrier and target-unit constraints."""
-    @property
-    def start(self) -> int | None:
-        """Return the prepared start tick, or None when absent."""
-    @property
-    def end(self) -> int | None:
-        """Return the prepared end tick, or None when absent."""
+    def carrier(self) -> tuple[int | None, int | None, _Unit]:
+        """Return both prepared local ticks and their common exact working unit.
+
+        This temporary carrier unit is separate from the final output unit.
+        """
     @property
     def unit(self) -> _Unit:
         """Return the chosen final date unit."""
-    @property
-    def carrier_unit(self) -> _Unit:
-        """Return the local-wall carrier unit used before final localization."""
     @property
     def zone(self) -> tzinfo | None:
         """Return the resolved timezone owner, independently of range length."""
@@ -216,6 +213,19 @@ def _integer_arg(value: object, entry: str, parameter: str) -> int:
     :param entry: Prepared entry input; native validation and ownership rules apply.
     :param parameter: Prepared parameter input; native validation and ownership rules apply.
     :returns: int; errors preserve the native or external exception contract.
+    """
+
+def _local_timezone_identity() -> str | None:
+    """Read the immutable first successful local name without discovering one.
+
+    :returns: str after a successful backend request, otherwise None.
+    """
+
+def _publish_local_timezone_identity(name: str) -> str:
+    """Publish a local name only after the caller validated its needed backend.
+
+    :param name: The prepared IANA name validated by this host or native request.
+    :returns: The winning immutable name, possibly published by another caller.
     """
 
 def _local_timezone_name() -> str:
@@ -692,7 +702,7 @@ def _pddt_snap(data: bytes, unit: str, zone: object | None, token: str, entry: s
     :returns: tuple[bytes, bool]; errors preserve the native or external exception contract.
     """
 
-def _pddt_strftime(data: bytes, unit: str, zone: object, context: _StrftimeContext) -> list[str | None]:
+def _pddt_strftime(data: bytes, unit: str, zone: object, context: _StrftimeContext) -> list[str | float]:
     """Ordinary numeric fractional output shares the native plan. Every system
 extension, dynamic zone and small/wide year retains mature pandas formatting.
 
@@ -700,7 +710,8 @@ extension, dynamic zone and small/wide year retains mature pandas formatting.
     :param unit: Prepared unit input; native validation and ownership rules apply.
     :param zone: Prepared zone input; native validation and ownership rules apply.
     :param context: Prepared context input; native validation and ownership rules apply.
-    :returns: list[str | None]; errors preserve the native or external exception contract.
+    :returns: Formatted strings, with float NaN for missing dates; errors preserve
+        the native or external exception contract.
     """
 
 def _pddt_strings(data: object, policy: _PddtPolicies, unit: str | None = None, default: object | None = None, yearfirst: bool | None = None, dayfirst: bool | None = None, isoformat: bool = True, strict: bool = False, cfg: object | None = None, target: object | None = None, entry: str = 'Pddt') -> tuple[bytes, _Unit, tzinfo | None] | None:
@@ -956,10 +967,12 @@ def _pldt_frequency(value: object) -> _RangeFrequency | None:
     :returns: _RangeFrequency | None; errors preserve the native or external exception contract.
     """
 
-def _pldt_integer_column(source: pl.Series) -> pl.Series:
+def _pldt_integer_column(source: pl.Series, entry: str, parameter: str) -> pl.Series:
     """Execute the checked private native boundary for _pldt_integer_column.
 
     :param source: Prepared source input; native validation and ownership rules apply.
+    :param entry: Public factory reporting a rejected component.
+    :param parameter: Calendar component represented by the source column.
     :returns: pl.Series; errors preserve the native or external exception contract.
     """
 
@@ -997,6 +1010,29 @@ def _pldt_iso_objects(data: object, target: type[_SeriesT], unit: str | None, tz
     :param column: Prepared column input; native validation and ownership rules apply.
     :returns: _SeriesT; errors preserve the native or external exception contract.
     """
+
+def _pldt_native_zone_rules(value: object, base: type, storage_type: type) -> bool:
+    """Check inherited IANA methods, provenance lookup and real storage.
+
+    Parameters
+    ----------
+    value : object
+        ZoneInfo subclass instance prepared as a target.
+    base : type
+        Original standard ZoneInfo type.
+    storage_type : type
+        Builtin get-set descriptor type.
+
+    Returns
+    -------
+    bool
+        True when native provenance, live methods, _unpickle lookup and storage
+        retain named IANA rules. File-origin objects return False before aliases.
+        Mutable class capabilities and business owners are never cached.
+        Only immutable origin flags use bounded weak identities, without
+        retaining owners or invoking their hash/equality protocols.
+    """
+    ...
 
 def _pldt_named_zone_context(key: str) -> _PldtZoneContext:
     """Execute the checked private native boundary for _pldt_named_zone_context.
@@ -1356,7 +1392,7 @@ def _pldt_strftime(source: pl.Series, context: _StrftimeContext, zone: object, t
     :returns: _SeriesT; errors preserve the native or external exception contract.
     """
 
-def _pldt_text(source: pl.Series, target: type[_SeriesT], prepared: _PldtTextContext | None, format: _PldtFormatContext | None, unit: str | None, tz: _PldtZoneContext | None, policy: _PldtPolicyContext) -> _SeriesT:
+def _pldt_text(source: pl.Series, target: type[_SeriesT], prepared: _PldtTextContext | None, format: _PldtFormatContext | None, unit: str | None, tz: _PldtZoneContext | None, policy: _PldtPolicyContext, name: str | None=None) -> _SeriesT:
     """Execute the checked private native boundary for _pldt_text.
 
     :param source: Prepared source input; native validation and ownership rules apply.
@@ -1366,6 +1402,7 @@ def _pldt_text(source: pl.Series, target: type[_SeriesT], prepared: _PldtTextCon
     :param unit: Prepared unit input; native validation and ownership rules apply.
     :param tz: Prepared tz input; native validation and ownership rules apply.
     :param policy: Prepared policy input; native validation and ownership rules apply.
+    :param name: Optional final name, converted after date validation and before the single SDK export.
     :returns: _SeriesT; errors preserve the native or external exception contract.
     """
 
@@ -1613,6 +1650,13 @@ def _pydt_days_in_month(value: object) -> int:
     :returns: int; errors preserve the native or external exception contract.
     """
 
+def _pydt_diff_input(dtobj: object) -> datetime:
+    """Parse a diff input with its fixed options and the shared parser engine.
+
+    :param dtobj: Supported date input; real protocols and stored string content apply.
+    :returns: Builtin datetime; errors retain the existing parser context.
+    """
+
 def _pydt_diff(value: datetime, other: datetime, unit: str, absolute: bool, inclusive: str) -> int:
     """Apply the frozen boundary-count inclusive rule without datetime subtraction.
 
@@ -1790,14 +1834,6 @@ def _pydt_lookup(token: object, weekday: bool) -> int:
     :param token: Prepared token input; native validation and ownership rules apply.
     :param weekday: Prepared weekday input; native validation and ownership rules apply.
     :returns: int; errors preserve the native or external exception contract.
-    """
-
-def _pydt_lookup_optional(token: str, weekday: bool) -> int | None:
-    """Let an internal caller try a name without using exceptions as control flow.
-
-    :param token: Prepared token input; native validation and ownership rules apply.
-    :param weekday: Prepared weekday input; native validation and ownership rules apply.
-    :returns: int | None; errors preserve the native or external exception contract.
     """
 
 def _pydt_matches(value: datetime, query: int, expected: SupportsIndex) -> bool:

@@ -55,7 +55,7 @@ def test_worker_configuration_snapshot_and_default_callbacks_are_not_replayed():
             calls.append("default")
             cfg.set_month({"jan": 2})
             return "14 Jan 2024"
-    old = expression(default=Reference("ignored"), cfg=cfg)
+    old = expression(default=Reference("14 Jan 2024"), cfg=cfg)
     new = expression(default="14 Jan 2024", cfg=cfg)
     cfg.set_month({"jan": 8})
     del cfg
@@ -65,8 +65,8 @@ def test_worker_configuration_snapshot_and_default_callbacks_are_not_replayed():
         a = lf.select(old).collect()["text"]
         b = lf.select(new).collect()["text"]
         assert a.to_list() == [datetime(2024, 1, 14, 12, 30), None]
-        assert b.to_list() == [datetime(2024, 2, 14, 12, 30), None]
-    assert calls == ["default"]
+        assert b.to_list() == [datetime(2024, 1, 14, 12, 30), None]
+    assert calls == []
 
 
 def test_worker_explicit_config_changes_ordinary_grammar_and_missing_is_exact():

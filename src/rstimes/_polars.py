@@ -1,6 +1,5 @@
 """Thin real-Series preparation; no user constructor is used to borrow a column."""
 from ._optional import POLARS as pl
-from ._native import _pldt_snapshot
 
 _BASE = None
 
@@ -11,7 +10,10 @@ def register(base):
 
 
 def plain_series(value):
-    """Keep ordinary Polars preparation fast; borrow business subclasses via SDK."""
-    if isinstance(value, pl.Series) and type(value) not in (pl.Series, _BASE):
-        return _pldt_snapshot(value, pl.Series)
+    """Retain a native owner without business clone or constructor callbacks."""
+    kind = type(value)
+    if kind not in (pl.Series, _BASE) and issubclass(kind, pl.Series):
+        # Public host methods capture _s once and return an independent base
+        # shell. Unlike SDK exchange, this also preserves Object payloads.
+        return pl.Series.to_frame(value).to_series()
     return pl.Series(value)

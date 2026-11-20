@@ -204,6 +204,37 @@ pub(crate) fn text_preview(py: Python<'_>, value: &str) -> PyResult<String> {
     helper(py, 5)?.call1((fragment, length))?.extract()
 }
 
+/// Bounded quoted display for native errors, including workers without Python.
+#[cold]
+pub(crate) fn native_text_preview(value: &str, quote: char) -> String {
+    const LIMIT: usize = 120;
+    let truncated = value
+        .chars()
+        .flat_map(char::escape_debug)
+        .nth(LIMIT - 2)
+        .is_some();
+    let suffix = if truncated {
+        format!("... (length {})", value.chars().count())
+    } else {
+        String::new()
+    };
+    let mut remaining = LIMIT - 2 - suffix.len();
+    let mut out = String::new();
+    out.push(quote);
+    for ch in value.chars() {
+        let escaped = ch.escape_debug();
+        let width = escaped.clone().count();
+        if width > remaining {
+            break;
+        }
+        out.extend(escaped);
+        remaining -= width;
+    }
+    out.push(quote);
+    out.push_str(&suffix);
+    out
+}
+
 /// Complete a native UTF8 row error without copying its whole text into Python.
 #[cold]
 #[inline(never)]
@@ -221,7 +252,15 @@ pub(crate) fn text_item(
     }
     let parameter = format!("data[{index}]");
     match text_preview(py, value).and_then(|preview| {
-        helper(py, 2)?.call1((error.value(py), entry, parameter, py.None(), true, preview))
+        helper(py, 2)?.call1((
+            error.value(py),
+            entry,
+            parameter,
+            py.None(),
+            true,
+            preview,
+            ("data", index),
+        ))
     }) {
         Ok(value) => PyErr::from_value(value),
         Err(secondary) => secondary,
@@ -266,9 +305,25 @@ pub(crate) fn item(
     } else {
         format!("{group}[{index}]")
     };
-    match value {
-        Some(value) => argument(py, error, entry, &parameter, value),
-        None => location(py, error, entry, &parameter),
+    let annotated = match value {
+        Some(value) => helper(py, 2).and_then(|f| {
+            f.call1((
+                error.value(py),
+                entry,
+                parameter,
+                value,
+                true,
+                py.None(),
+                (group, index),
+            ))
+        }),
+        None => {
+            helper(py, 3).and_then(|f| f.call1((error.value(py), entry, parameter, (group, index))))
+        }
+    };
+    match annotated {
+        Ok(value) => PyErr::from_value(value),
+        Err(secondary) => secondary,
     }
 }
 

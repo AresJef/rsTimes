@@ -44,8 +44,9 @@ impl Role {
             Err(Failure::new(
                 Kind::Value,
                 format!(
-                    "unknown {} name {text:?}",
-                    if self.names == 2 { "weekday" } else { "month" }
+                    "unknown {} name {}",
+                    if self.names == 2 { "weekday" } else { "month" },
+                    crate::error_context::native_text_preview(text, '"'),
                 ),
             ))
         } else {
@@ -302,82 +303,102 @@ fn transform(
         policy.check_len(source.len())?;
     }
     let same = source_name.map(|v| v.as_str()) == output.map(Zone::key);
-    let mut rows = Rows::new(unit);
-    rows.reserve(source.len())?;
-    let mut push = |row: usize, value: Option<i128>| -> Result<(), Failure> {
-        let Some(instant) = value else {
-            rows.missing();
-            return Ok(());
-        };
-        let wall = source_zone
-            .as_ref()
-            .map_or(Ok(instant), |zone| zone.wall(instant))
-            .map_err(|e| Failure::from(e).at(row))?;
-        let changed =
-            crate::date_transform::transform(wall, &options.kind, |index| values[index].get(row))
-                .map_err(|error| match error {
-                    crate::date_transform::Error::Value(message) => {
-                        Failure::new(Kind::Value, message)
-                    }
-                    crate::date_transform::Error::Capacity(message) => {
-                        Failure::new(Kind::Capacity, message)
-                    }
-                })
-                .map_err(|e| e.at(row))?;
-        let unchanged = changed == wall && same;
-        let known = unchanged || policy.is_none();
-        let value = if unchanged {
-            instant
-        } else if policy.is_some() {
-            changed
-        } else {
-            match output {
-                None => changed,
-                Some(zone) => {
-                    if let Some(offset) = zone.fixed_seconds() {
-                        changed - i128::from(offset) * 1_000_000_000
-                    } else {
-                        automatic(changed, instant, wall, zone).map_err(|e| e.at(row))?
+    let transform_row =
+        |row: usize, value: Option<i128>| -> Result<Option<(i128, bool)>, Failure> {
+            let Some(instant) = value else {
+                return Ok(None);
+            };
+            let wall = source_zone
+                .as_ref()
+                .map_or(Ok(instant), |zone| zone.wall(instant))
+                .map_err(|e| Failure::from(e).at(row))?;
+            let changed = crate::date_transform::transform(wall, &options.kind, |index| {
+                values[index].get(row)
+            })
+            .map_err(|error| match error {
+                crate::date_transform::Error::Value(message) => Failure::new(Kind::Value, message),
+                crate::date_transform::Error::Capacity(message) => {
+                    Failure::new(Kind::Capacity, message)
+                }
+            })
+            .map_err(|e| e.at(row))?;
+            let unchanged = changed == wall && same;
+            let known = unchanged || policy.is_none();
+            let value = if unchanged {
+                instant
+            } else if policy.is_some() {
+                changed
+            } else {
+                match output {
+                    None => changed,
+                    Some(zone) => {
+                        if let Some(offset) = zone.fixed_seconds() {
+                            changed - i128::from(offset) * 1_000_000_000
+                        } else {
+                            automatic(changed, instant, wall, zone).map_err(|e| e.at(row))?
+                        }
                     }
                 }
-            }
+            };
+            Ok(Some((value, known)))
         };
-        rows.push(value, 0, known, unit);
-        Ok(())
-    };
-    match source.dtype() {
-        DataType::Date => {
-            for (row, value) in source
-                .date()
-                .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-                .physical()
-                .iter()
-                .enumerate()
-            {
-                push(
-                    row,
-                    value.map(|value| i128::from(value) * 86_400_000_000_000),
-                )?
+    if policy.is_none() {
+        let mut output_ticks =
+            PrimitiveChunkedBuilder::<Int64Type>::new(source.name().clone(), source.len());
+        let mut first_output_error = None;
+        super::input::visit_nanos(source, |row, instant| {
+            let Some((value, _)) = transform_row(row, instant)? else {
+                output_ticks.append_null();
+                return Ok(());
+            };
+            // Constant quanta let the exact checked encoder specialize each
+            // native unit. Nanoseconds need only the signed64 capacity check.
+            let tick = match unit {
+                crate::epoch::Unit::Nanosecond => {
+                    i64::try_from(value).map_err(|_| crate::precision::TickError::Capacity)
+                }
+                crate::epoch::Unit::Microsecond => crate::precision::epoch_tick(value, 1000, false),
+                crate::epoch::Unit::Millisecond => {
+                    crate::precision::epoch_tick(value, 1_000_000, false)
+                }
+                crate::epoch::Unit::Second => {
+                    crate::precision::epoch_tick(value, 1_000_000_000, false)
+                }
+            };
+            match tick {
+                Ok(tick) => output_ticks.append_value(tick),
+                Err(error) => {
+                    if first_output_error.is_none() {
+                        first_output_error = Some((row, error));
+                    }
+                    output_ticks.append_null();
+                }
             }
+            Ok(())
+        })?;
+        // Every source transform still runs before a selected-unit failure.
+        // A later calendar/zone error therefore retains its original priority.
+        if let Some((row, error)) = first_output_error {
+            return Err(super::finish::tick_error(error, row));
         }
-        DataType::Datetime(_, _) => {
-            for (row, value) in source
-                .datetime()
-                .map_err(|e| Failure::new(Kind::Type, e.to_string()))?
-                .physical()
-                .iter()
-                .enumerate()
-            {
-                push(row, value.map(|value| i128::from(value) * unit.nanos()))?
-            }
-        }
-        _ => {
-            return Err(Failure::new(
-                Kind::Runtime,
-                "validated calendar source dtype was lost",
-            ));
-        }
+        return Ok(output_ticks
+            .finish()
+            .into_datetime(
+                super::input::resolution(unit),
+                TimeZone::opt_try_new(output.map(Zone::key))
+                    .map_err(|error| Failure::new(Kind::Value, error.to_string()))?,
+            )
+            .into_series());
     }
+    let mut rows = Rows::new(unit);
+    rows.reserve(source.len())?;
+    super::input::visit_nanos(source, |row, instant| {
+        match transform_row(row, instant)? {
+            Some((value, known)) => rows.push(value, 0, known, unit),
+            None => rows.missing(),
+        }
+        Ok(())
+    })?;
     rows.finish(
         source.name().clone(),
         Some(unit),

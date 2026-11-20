@@ -156,13 +156,14 @@ def test_unparseable_string_can_still_negotiate_subtraction():
 
 @pytest.mark.parametrize('kind',[ValueError,TypeError,ParseError,OverflowError,MemoryError])
 def test_string_conversion_failure_is_never_not_implemented(kind):
+    """Historical case ID; native string reads no longer execute this hook."""
     error=kind('string source failed')
     calls=[]
     class Text(str):
         def __str__(self):calls.append(1);raise error
         def __rsub__(self,other):pytest.fail('a real failure cannot negotiate')
-    with pytest.raises(kind) as caught:Pydt(2024,1,2)-Text('2024-01-01')
-    assert caught.value is error and calls==[1]
+    assert Pydt(2024,1,2)-Text('2024-01-01') == timedelta(days=1)
+    assert calls==[]
 
 
 @pytest.mark.parametrize('entry',[parse_str,parse_to_epoch])
@@ -214,6 +215,16 @@ def test_python_callback_does_not_rewrite_a_previously_owned_error(route):
         with pytest.raises(TypeError):
             call()
         assert calls == [] and error.args == original
+        return
+    if route in ("zone-hash", "pddt-unit"):
+        # R04/R05 now prepare stored text before name-cache hashing or unit
+        # comparison. These display hooks are not an input protocol callback.
+        result = call()
+        assert calls == [] and error.args == original
+        if route == "zone-hash":
+            assert result.utcoffset() == timedelta(0)
+        else:
+            assert result.unit == "us" and result.asi8.tolist() == [1704067200000000]
         return
     with pytest.raises(ValueError) as caught:call()
     assert caught.value is error and error.args==original and calls==[1]

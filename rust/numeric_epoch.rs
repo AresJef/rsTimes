@@ -1,6 +1,6 @@
 //! Shared numeric epoch protocols; each public boundary chooses its date roles.
 use pyo3::prelude::*;
-use pyo3::types::{PyByteArray, PyBytes, PyFloat, PyString};
+use pyo3::types::{PyByteArray, PyBytes, PyString};
 
 /// Input quantity, independent of a date column's final storage unit.
 #[derive(Clone, Copy)]
@@ -83,15 +83,8 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, quantity: Quantity) -> PyResult<Opt
         ));
     }
     if matches!(quantity, Quantity::Microseconds) {
-        if crate::numeric::supported_float(value) {
-            let number = if value.is_instance_of::<PyFloat>() {
-                value.extract::<f64>()?
-            } else {
-                crate::numeric::float_value(value)?
-            };
-            if number.is_nan() {
-                return Ok(None);
-            }
+        if crate::numeric::try_float_value(value)?.is_some_and(f64::is_nan) {
+            return Ok(None);
         }
         return crate::numeric::index_i128(value)?
             .checked_mul(1000)

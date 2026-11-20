@@ -384,15 +384,11 @@ impl DeltaValue {
                 clock_ns as i64,
             )
         };
-        let direction = if subtract { -1 } else { 1 };
-        let clock = left_clock + direction as i64 * right_clock;
-        let right_days = right_days
-            .checked_mul(direction)
-            .ok_or(ValueError::Overflow)?;
+        let clock = left_clock - right_clock;
         let days = left_days
-            .checked_add(right_days)
+            .checked_sub(right_days)
             .ok_or(ValueError::Overflow)?;
-        let calendar_sign = if reverse && subtract { -1 } else { 1 };
+        let calendar_sign = if reverse { -1 } else { 1 };
         Self::from_near_canonical(
             i128::from(self.years) * calendar_sign,
             i64::from(self.months()) * calendar_sign as i64,

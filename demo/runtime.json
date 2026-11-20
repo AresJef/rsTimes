@@ -1,12 +1,8 @@
 {
-  "environment": ".local/beta-b3-release-20h-20261105/public-oracle-demo",
-  "version": "0.2.0b3",
-  "release_manifest": "tasks/evidence/beta-b3-release-20h-20261105/sealed-release/release-manifest.json",
-  "status": "Public0.2.0b3; fullCI/publicinstall and all94 necessary comparisons strictPASS",
-  "selection": "published_release",
+  "environment": ".local/demo-1.0.0-oracle",
+  "version": "1.0.0",
+  "release_manifest": ".local/demo-1.0.0/release-manifest.json",
   "environments": {
-    "pddt": ".local/beta-b3-release-20h-20261105/public-main"
-  },
-  "validation": "Actual published files matched same48-position fullCI; local publicPyPI wheel/sdist and648-worker performance evidence checked",
-  "adoption_audit": "tasks/evidence/beta-b3-release-20h-20261105/adoption-completion-audit.json"
+    "pddt": ".local/demo-1.0.0-main"
+  }
 }

@@ -1,7 +1,7 @@
 //! Shared scalar date target reading, preserving the actual Python protocol.
 use crate::epoch::{Options, Unit, Zone};
 use pyo3::prelude::*;
-use pyo3::types::{PyFloat, PyString};
+use pyo3::types::PyString;
 #[derive(Clone, Copy)]
 pub(crate) struct Date {
     pub(crate) nanos: i128,
@@ -17,13 +17,6 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
         ));
     }
     if let Ok(text) = value.cast::<PyString>() {
-        let converted;
-        let text = if value.is_exact_instance_of::<PyString>() {
-            text
-        } else {
-            converted = value.str().map_err(crate::error_context::external)?;
-            &converted
-        };
         if crate::date_input::missing_text(text)? {
             return Ok(None);
         }
@@ -63,12 +56,7 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
             aware: false,
         }));
     }
-    if crate::numeric::supported_float(value) {
-        let number = if value.is_instance_of::<PyFloat>() {
-            value.extract::<f64>()?
-        } else {
-            crate::numeric::float_value(value)?
-        };
+    if let Some(number) = crate::numeric::try_float_value(value)? {
         if number.is_nan() {
             return Ok(None);
         }

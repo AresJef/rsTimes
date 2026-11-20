@@ -116,25 +116,25 @@ fn numpy_float_instance(value: &Bound<'_, PyAny>, kind: &NumpyFloat) -> bool {
     }
 }
 
-/// Read an admitted NumPy scalar's stored value through its base descriptor.
-pub(crate) fn float_value(value: &Bound<'_, PyAny>) -> PyResult<f64> {
-    let types = NUMPY
-        .get(value.py())
-        .ok_or_else(|| crate::error_context::runtime("NumPy scalar identities are not prepared"))?;
-    let kind = types
-        .floats
-        .iter()
-        .find(|kind| numpy_float_instance(value, kind))
-        .ok_or_else(|| {
-            crate::error_context::type_error(
-                "must be a Python float or NumPy float16, float32 or float64",
-            )
-        })?;
+/// Read a supported floating value once, with None for another actual type.
+pub(crate) fn try_float_value(value: &Bound<'_, PyAny>) -> PyResult<Option<f64>> {
+    if let Ok(number) = value.cast::<PyFloat>() {
+        return Ok(Some(number.value()));
+    }
+    let Some(kind) = NUMPY.get(value.py()).and_then(|types| {
+        types
+            .floats
+            .iter()
+            .find(|kind| numpy_float_instance(value, kind))
+    }) else {
+        return Ok(None);
+    };
     kind.read
         .bind(value.py())
         .call1((value,))
         .map_err(crate::error_context::external)?
         .extract::<f64>()
+        .map(Some)
 }
 
 /// Expose strict preparation to thin Python wrappers; errors stay cold.

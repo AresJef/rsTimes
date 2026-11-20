@@ -156,11 +156,11 @@ pub(super) fn same_zone(py: Python<'_>, a: &Zone, b: &Zone) -> PyResult<bool> {
         (Zone::Naive, _) | (_, Zone::Naive) => Ok(false),
         _ => {
             let a_key = match a {
-                Zone::Object(value) => crate::pydt::zoneinfo_key(value.bind(py))?,
+                Zone::Object(value) => crate::host_zone::reliable_named_key(value.bind(py))?,
                 _ => None,
             };
             let b_key = match b {
-                Zone::Object(value) => crate::pydt::zoneinfo_key(value.bind(py))?,
+                Zone::Object(value) => crate::host_zone::reliable_named_key(value.bind(py))?,
                 _ => None,
             };
             match (a_key, b_key) {
@@ -175,6 +175,38 @@ pub(super) fn same_zone(py: Python<'_>, a: &Zone, b: &Zone) -> PyResult<bool> {
 }
 
 pub(super) use crate::epoch::zone_object;
+
+/// Encode one real date without allowing the reserved pandas missing tick.
+pub(super) fn pack_tick(
+    nanos: i128,
+    unit: Unit,
+    lossless: bool,
+) -> Result<i64, crate::precision::TickError> {
+    let tick = crate::precision::epoch_tick(nanos, unit.nanos(), !lossless)?;
+    if tick == i64::MIN {
+        Err(crate::precision::TickError::Capacity)
+    } else {
+        Ok(tick)
+    }
+}
+
+/// Build the original output error only after the transform phase succeeds.
+pub(super) fn pack_error(
+    py: Python<'_>,
+    error: crate::precision::TickError,
+    entry: &str,
+    row: usize,
+) -> PyErr {
+    let error = match error {
+        crate::precision::TickError::Precision => crate::error_context::value_error(
+            "cannot preserve this date at the requested unit; choose a finer unit",
+        ),
+        crate::precision::TickError::Capacity => crate::error_context::overflow(
+            "date is outside the requested unit; explicitly choose a coarser unit",
+        ),
+    };
+    crate::error_context::location(py, error, entry, &format!("result[{row}]"))
+}
 
 /// Pack only after every row succeeds; reserved NaT cannot swallow a valid value.
 pub(super) fn pack<'py>(
@@ -195,19 +227,7 @@ pub(super) fn pack<'py>(
             .enumerate()
         {
             let tick = if let Some(ns) = value {
-                if lossless && ns.rem_euclid(unit.nanos()) != 0 {
-                    return Err(crate::error_context::location(
-                        py,
-                        crate::error_context::value_error(
-                            "cannot preserve this date at the requested unit; choose a finer unit",
-                        ),
-                        entry,
-                        &format!("result[{i}]"),
-                    ));
-                }
-                i64::try_from(ns.div_euclid(unit.nanos())).ok().filter(|v|*v!=i64::MIN)
-                    .ok_or_else(||crate::error_context::location(py,crate::error_context::overflow(
-                        "date is outside the requested unit; explicitly choose a coarser unit"),entry,&format!("result[{i}]")))?
+                pack_tick(*ns, unit, lossless).map_err(|error| pack_error(py, error, entry, i))?
             } else {
                 i64::MIN
             };

@@ -8,7 +8,7 @@ use crate::parser::fields::{Lenient, Nano, Policy, Precision, Strict};
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::{PyFloat, PyInt, PyString};
+use pyo3::types::{PyInt, PyString};
 
 const NS_DAY: i128 = 86_400_000_000_000;
 static MISSING: PyOnceLock<(Py<PyAny>, Py<PyAny>)> = PyOnceLock::new();
@@ -68,7 +68,7 @@ pub(crate) fn finish_text<P: Policy>(
         Zone::Object(object.clone_ref(py))
     } else if parsed.fields.is_tzoffset_set() {
         let offset = parsed.fields.timezone_microseconds();
-        if !(-86_400_000_000..86_400_000_000).contains(&offset) || offset == -86_400_000_000 {
+        if !crate::precision::valid_offset_us(offset) {
             return Err(crate::parser::invalid_offset(py, offset));
         }
         Zone::Offset(offset)
@@ -117,21 +117,25 @@ pub(crate) fn missing(value: &Bound<'_, PyAny>) -> bool {
         })
 }
 
-/// Missing date values at typed factory/field boundaries; no truth coercion.
-pub(crate) fn date_missing(value: &Bound<'_, PyAny>) -> PyResult<bool> {
+/// Recognize explicit missing markers before reaching NumPy date storage.
+/// None means the caller must check whether this is a NumPy datetime scalar.
+pub(crate) fn non_numpy_date_missing(value: &Bound<'_, PyAny>) -> PyResult<Option<bool>> {
     if missing(value) {
-        return Ok(true);
+        return Ok(Some(true));
     }
     if let Ok(text) = value.cast::<PyString>() {
-        return missing_text(text);
+        return missing_text(text).map(Some);
     }
-    if crate::numeric::supported_float(value) {
-        let number = if value.is_instance_of::<PyFloat>() {
-            value.extract::<f64>()?
-        } else {
-            crate::numeric::float_value(value)?
-        };
-        return Ok(number.is_nan());
+    if let Some(number) = crate::numeric::try_float_value(value)? {
+        return Ok(Some(number.is_nan()));
+    }
+    Ok(None)
+}
+
+/// Missing date values at typed factory/field boundaries; no truth coercion.
+pub(crate) fn date_missing(value: &Bound<'_, PyAny>) -> PyResult<bool> {
+    if let Some(missing) = non_numpy_date_missing(value)? {
+        return Ok(missing);
     }
     if let Some((ticks, code, _)) = crate::numpy_scalar::datetime_ticks(value)? {
         scalar_unit(code)?;
@@ -274,13 +278,6 @@ impl<'a, 'py, const SENTINEL: bool> Reader<'a, 'py, SENTINEL> {
             ));
         }
         if let Ok(text) = item.cast::<PyString>() {
-            let converted;
-            let text = if item.is_exact_instance_of::<PyString>() {
-                text
-            } else {
-                converted = item.str().map_err(crate::error_context::external)?;
-                &converted
-            };
             if missing_text(text)? {
                 return Ok(None);
             }
@@ -326,12 +323,7 @@ impl<'a, 'py, const SENTINEL: bool> Reader<'a, 'py, SENTINEL> {
                 true,
             )));
         }
-        if crate::numeric::supported_float(item) {
-            let value = if item.is_instance_of::<PyFloat>() {
-                item.extract::<f64>()?
-            } else {
-                crate::numeric::float_value(item)?
-            };
+        if let Some(value) = crate::numeric::try_float_value(item)? {
             if value.is_nan() {
                 return Ok(None);
             }

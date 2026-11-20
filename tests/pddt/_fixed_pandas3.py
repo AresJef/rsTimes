@@ -48,7 +48,7 @@ def date_range(*args,**kwargs):
         if key in _DATA:assert _DATA[key]==item
         _DATA[key]=item
         _PATH.parent.mkdir(exist_ok=True)
-        _PATH.write_text(json.dumps({'pandas':'3.0.6','pandas_path':pd.__file__,'cases':_DATA},ensure_ascii=False,indent=2)+'\n')
+        _PATH.write_text(json.dumps({'pandas':'3.0.6','cases':_DATA},ensure_ascii=False,indent=2)+'\n')
         return result
     item=_DATA[key]
     return SimpleNamespace(unit=item['unit'],asi8=np.array(item['ticks'],dtype='int64'),freq=_decode(item['freq']))

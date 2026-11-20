@@ -1,6 +1,6 @@
 //! One native timezone operation over a complete logical column or group.
+use super::finish::Failure;
 use super::zones::{Context, Policies, PolicyContext};
-use crate::epoch::Unit;
 use crate::temporal_zone::{Zone, ZoneData, ZoneError};
 use polars::prelude::*;
 use pyo3::prelude::*;
@@ -36,35 +36,6 @@ struct Options {
     policy: Policies,
     naive: bool,
     mask_scalar: bool,
-}
-
-struct Failure {
-    kind: ZoneError,
-    row: Option<usize>,
-}
-impl From<ZoneError> for Failure {
-    fn from(kind: ZoneError) -> Self {
-        Self { kind, row: None }
-    }
-}
-impl Failure {
-    fn python(self, py: Python<'_>, entry: &str) -> PyErr {
-        let error = super::zones::error(self.kind);
-        crate::error_context::location(
-            py,
-            error,
-            entry,
-            &self
-                .row
-                .map_or_else(|| "arguments".to_owned(), |row| format!("data[{row}]")),
-        )
-    }
-    fn polars(self, entry: &str) -> PolarsError {
-        let location = self
-            .row
-            .map_or_else(String::new, |row| format!("batch item {row}: "));
-        polars_err!(ComputeError:"{}: {}{}",entry,location,self.kind)
-    }
 }
 
 fn meta(source: &DataType, options: &Options) -> Result<(TimeUnit, Option<TimeZone>), ZoneError> {
@@ -131,20 +102,12 @@ fn output_field(fields: &[Field], options: Options) -> PolarsResult<Field> {
     ))
 }
 
-fn epoch_unit(unit: TimeUnit) -> Unit {
-    match unit {
-        TimeUnit::Milliseconds => Unit::Millisecond,
-        TimeUnit::Microseconds => Unit::Microsecond,
-        TimeUnit::Nanoseconds => Unit::Nanosecond,
-    }
-}
-
 fn execute(inputs: &[Series], mut options: Options) -> Result<Series, Failure> {
     let source = inputs
         .first()
         .ok_or(ZoneError::Value("timezone operation requires one source"))?;
     let (time_unit, output_zone) = meta(source.dtype(), &options)?;
-    let unit = epoch_unit(time_unit);
+    let unit = super::input::epoch_unit(time_unit);
     if let Some(mask) = inputs.get(1) {
         options.policy = options
             .policy
@@ -242,11 +205,11 @@ fn execute(inputs: &[Series], mut options: Options) -> Result<Series, Failure> {
             output.append_option(
                 value
                     .map(|value| {
-                        i64::try_from(i128::from(value) + delta).map_err(|_| Failure {
-                            kind: ZoneError::Capacity(
+                        i64::try_from(i128::from(value) + delta).map_err(|_| {
+                            Failure::from(ZoneError::Capacity(
                                 "timezone result exceeds the current unit; use as_unit explicitly",
-                            ),
-                            row: Some(row),
+                            ))
+                            .at(row)
                         })
                     })
                     .transpose()?,
@@ -285,10 +248,7 @@ fn execute(inputs: &[Series], mut options: Options) -> Result<Series, Failure> {
                 None => Ok(Some(value)),
             }
         })()
-        .map_err(|kind| Failure {
-            kind,
-            row: Some(row),
-        })?;
+        .map_err(|kind| Failure::from(kind).at(row))?;
         result.push(converted);
     }
     options.policy.complete(&mut result, &pending)?;
@@ -300,7 +260,7 @@ fn execute(inputs: &[Series], mut options: Options) -> Result<Series, Failure> {
                 crate::precision::TickError::Precision=>ZoneError::Value("timezone result cannot preserve precision at the current unit; use as_unit explicitly"),
                 crate::precision::TickError::Capacity=>ZoneError::Capacity("timezone result exceeds the current unit; use as_unit explicitly"),
             })
-        }).transpose().map_err(|kind|Failure{kind,row:Some(row)})?;
+        }).transpose().map_err(|kind| Failure::from(kind).at(row))?;
         output.append_option(value);
     }
     Ok(output

@@ -1564,6 +1564,7 @@ version = "0.55.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5ab55460ca2553d1a2bbaf2046998cfbbb685bc18d1e168b4367b63301eb271"
 dependencies = [
+ "atoi_simd",
  "bitflags 2.13.2",
  "bytemuck",
  "bytes",
@@ -1576,6 +1577,7 @@ dependencies = [
  "getrandom 0.4.3",
  "half",
  "hashbrown 0.17.1",
+ "itoa",
  "lz4",
  "num-traits",
  "polars-arrow-format",
@@ -1645,6 +1647,7 @@ dependencies = [
  "chrono",
  "either",
  "fast-float2",
+ "half",
  "hashbrown 0.17.1",
  "itoa",
  "num-traits",
@@ -2558,11 +2561,12 @@ dependencies = [
 
 [[package]]
 name = "rstimes"
-version = "0.2.0-beta.3"
+version = "1.0.0"
 dependencies = [
  "iana-time-zone",
  "jiff",
  "polars",
+ "polars-core",
  "pyo3",
  "pyo3-build-config",
  "pyo3-polars",

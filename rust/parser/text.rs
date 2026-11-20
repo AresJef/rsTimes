@@ -2,6 +2,30 @@
 use pyo3::{ffi, prelude::*, types::PyString};
 use std::{ffi::c_void, marker::PhantomData};
 
+/// Copy Python code points into an independently owned Unicode result.
+/// This is the existing configuration decoder, shared with format adapters.
+pub(crate) fn unicode<'py>(py: Python<'py>, points: &[u32]) -> PyResult<Bound<'py, PyString>> {
+    if points.iter().any(|&point| point > 0x10ffff) {
+        return Err(crate::error_context::value_error(
+            "invalid Unicode code point",
+        ));
+    }
+    // SAFETY: every point is in Python's Unicode range (surrogates included).
+    // The live slice remains valid while the public C API copies its contents.
+    unsafe {
+        Bound::from_owned_ptr_or_err(
+            py,
+            ffi::PyUnicode_FromKindAndData(
+                ffi::PyUnicode_4BYTE_KIND as i32,
+                points.as_ptr().cast(),
+                points.len() as isize,
+            ),
+        )
+    }?
+    .cast_into::<PyString>()
+    .map_err(Into::into)
+}
+
 /// Decode four little-endian ASCII digits with one checked native word.
 /// The two masks reject bytes outside 0..9 before combining decimal pairs.
 #[inline(always)]
@@ -16,7 +40,7 @@ fn ascii_four(word: u32) -> Option<i32> {
 
 /// Static character access for the one grammar. Indices are Unicode code
 /// points; one-byte storage exposes the existing ASCII numeric shortcuts.
-pub(super) trait CharacterRead {
+pub(crate) trait CharacterRead {
     fn len(&self) -> usize;
     fn get(&self, index: usize) -> u32;
     fn truncate(&mut self, end: usize);
@@ -113,7 +137,7 @@ pub(super) trait CharacterRead {
     }
 }
 
-pub(super) struct TextView<'a> {
+pub(crate) struct TextView<'a> {
     data: *const c_void,
     kind: u32,
     length: usize,
@@ -121,20 +145,20 @@ pub(super) struct TextView<'a> {
 }
 
 impl<'a> TextView<'a> {
-    pub(super) fn new(input: &'a Bound<'_, PyString>) -> PyResult<Self> {
+    pub(crate) fn new(input: &'a Bound<'_, PyString>) -> Self {
         // SAFETY: PyString is ready immutable Unicode; the borrowed Bound keeps
         // its storage alive even while configuration callbacks execute.
         unsafe {
-            Ok(Self {
+            Self {
                 data: ffi::PyUnicode_DATA(input.as_ptr()),
                 kind: ffi::PyUnicode_KIND(input.as_ptr()),
                 length: ffi::PyUnicode_GET_LENGTH(input.as_ptr()) as usize,
                 owner: PhantomData,
-            })
+            }
         }
     }
     #[inline]
-    pub(super) fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.length
     }
     /// Limit the view while retaining its borrowed Python owner.
@@ -191,13 +215,13 @@ enum Utf8Storage<'a> {
 
 /// A worker-local UTF8 view. ASCII borrows the native string; other input is
 /// decoded once into a caller-owned reusable arena, never per random access.
-pub(super) struct Utf8View<'a> {
+pub(crate) struct Utf8View<'a> {
     storage: Utf8Storage<'a>,
     length: usize,
 }
 
 impl<'a> Utf8View<'a> {
-    pub(super) fn new(input: &'a str, scratch: &'a mut Vec<u32>) -> Self {
+    pub(crate) fn new(input: &'a str, scratch: &'a mut Vec<u32>) -> Self {
         if input.is_ascii() {
             Self {
                 storage: Utf8Storage::Bytes(input.as_bytes()),
@@ -322,7 +346,7 @@ pub(super) struct Tokens {
 
 impl Tokens {
     #[inline]
-    pub(super) fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.ranges.len()
     }
     #[inline]
