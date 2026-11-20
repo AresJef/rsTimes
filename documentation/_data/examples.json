@@ -2795,7 +2795,8 @@
         "name",
         "return-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-input-containers",
@@ -2819,7 +2820,8 @@
         "shape-error",
         "scalar-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-missing-and-empty",
@@ -2842,7 +2844,8 @@
         "reserved-NaT",
         "unsupported-elements"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-negative-unit",
@@ -2862,7 +2865,8 @@
         "unit-preservation",
         "name"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-lossless-construction",
@@ -2889,7 +2893,8 @@
         "wide-year",
         "overflow"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-parse-options",
@@ -2917,7 +2922,8 @@
         "unit-error",
         "cfg-type-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-factory-sizes-and-numbers",
@@ -2946,7 +2952,8 @@
         "text-error",
         "lossless-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-date-source-factories",
@@ -2972,7 +2979,8 @@
         "multiplier",
         "wrong-factory-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-calendar-coordinate-factories",
@@ -2999,7 +3007,8 @@
         "length-error",
         "integer-type-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-text-and-combine-factories",
@@ -3028,7 +3037,8 @@
         "complete-format-error",
         "length-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-string-missing-representation",
@@ -3046,7 +3056,8 @@
         "return-type",
         "version-specific-string-missing"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-current-time-factories",
@@ -3071,7 +3082,8 @@
         "timezone",
         "size-type-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-zone-operation-roles",
@@ -3098,7 +3110,8 @@
         "mixed-zone-error",
         "strict-bool"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-ambiguous-candidates",
@@ -3124,7 +3137,8 @@
         "strict-independent",
         "ns-tail"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-ambiguous-infer-and-known-instants",
@@ -3145,7 +3159,8 @@
         "infer-insufficient-error",
         "aware-instants-no-relocalization"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-missing-local-times",
@@ -3168,7 +3183,8 @@
         "whole-day-gap",
         "still-in-gap-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-invalid-zone-policies",
@@ -3191,7 +3207,8 @@
         "unknown-policy",
         "unrelated-parse-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-registered-source-region",
@@ -3212,7 +3229,8 @@
         "ns-preserved",
         "registration-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-zone-metadata",
@@ -3241,7 +3259,8 @@
         "explicit-local-zone",
         "timestamp-local-role"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-range-endpoints",
@@ -3265,7 +3284,8 @@
         "Configs",
         "integer-index"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-range-frequency-families",
@@ -3287,7 +3307,8 @@
         "ns-default",
         "exact-decimal-step"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-range-custom-and-mature-frequencies",
@@ -3308,7 +3329,8 @@
         "fiscal-delegation",
         "mature-result-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-range-dst-and-unit",
@@ -3332,7 +3354,8 @@
         "type-error",
         "frequency-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-calendar-selectors",
@@ -3381,7 +3404,8 @@
         "ns-tail",
         "NaT"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-field-replacement",
@@ -3411,7 +3435,8 @@
         "type-error",
         "source-unchanged"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-positional-fields",
@@ -3438,7 +3463,8 @@
         "missing-source-target-validation",
         "exact-year-float64"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-relative-components",
@@ -3464,7 +3490,8 @@
         "integer-role",
         "calendar-vs-elapsed-DST"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-first-last-boundaries",
@@ -3496,7 +3523,8 @@
         "return-type",
         "metadata"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-rounding-grids-and-snap",
@@ -3525,7 +3553,8 @@
         "invalid-grid",
         "integer-role"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-calendar-query-forms",
@@ -3568,7 +3597,8 @@
         "row-error",
         "type-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-boundary-differences",
@@ -3597,7 +3627,8 @@
         "live-clock",
         "NaT-false"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-numeric-and-numpy-output",
@@ -3626,7 +3657,8 @@
         "unit-loss-error",
         "overflow"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-calendar-table-output",
@@ -3649,7 +3681,8 @@
         "UTC-DST-marker",
         "empty"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-object-output",
@@ -3677,7 +3710,8 @@
         "precision-capacity",
         "wide-year"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-text-output",
@@ -3703,7 +3737,8 @@
         "escaped",
         "invalid-option"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-localized-and-zone-text",
@@ -3726,7 +3761,8 @@
         "object-return",
         "missing"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-naive-timestamp-local",
@@ -3745,7 +3781,8 @@
         "explicit-policy-error",
         "subprocess"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-arithmetic-protocols",
@@ -3774,7 +3811,8 @@
         "precision-error",
         "missing"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-pandas-owned-dispatch",
@@ -3795,7 +3833,8 @@
         "pandas-owned-result",
         "DateOffset-delegation"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-copy-and-subclass",
@@ -3823,7 +3862,8 @@
         "name",
         "strict-bool"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-state-and-pickle",
@@ -3853,7 +3893,8 @@
         "invalid-state",
         "internal-key-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-original-hooks",
@@ -3876,7 +3917,8 @@
         "custom-hook-return",
         "original-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-native-pandas-numpy-exchange",
@@ -3899,7 +3941,8 @@
         "byteorder",
         "empty-metadata"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-polars-native-exchange",
@@ -3928,7 +3971,8 @@
         "null",
         "unsupported-container"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-valid-minimum-collision",
@@ -3948,7 +3992,8 @@
         "valid-MIN",
         "collision-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-arrow-and-polars-output",
@@ -3973,7 +4018,8 @@
         "timezone",
         "null"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-real-protocol-boundaries",
@@ -3996,7 +4042,8 @@
         "single-iterator",
         "original-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-namespace-reference",
@@ -10187,6 +10234,601 @@
       ],
       "reviewed": true,
       "page": "guides/pydt-protocols.md"
+    },
+    {
+      "id": "pddt-create-named-index",
+      "covers": [
+        "rstimes.Pddt",
+        "rstimes.Pddt.strftime"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The two dates use the explicit us unit and declared name.",
+      "checks": [
+        "import pandas as pd",
+        "assert type(events) is Pddt and isinstance(events,pd.DatetimeIndex)",
+        "assert events.unit == 'us' and events.tz is None and events.name == 'event'"
+      ],
+      "scenarios": [
+        "text-index",
+        "name",
+        "standard-index"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt.md"
+    },
+    {
+      "id": "pddt-floor-signed-unit-conversion",
+      "covers": [
+        "rstimes.Pddt.as_unit",
+        "rstimes.Pddt.asi8"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Flooring signed ticks selects 1 us and -2 us.",
+      "checks": [
+        "assert type(microseconds) is Pddt and microseconds.unit == 'us'",
+        "assert microseconds.asi8.tolist() == [1,-2]",
+        "try:\n    events.as_unit('us', round_ok=False)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('lossless conversion')"
+      ],
+      "scenarios": [
+        "signed-floor",
+        "checked-lossless"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt.md"
+    },
+    {
+      "id": "pddt-report-missing-date",
+      "covers": [
+        "rstimes.Pddt",
+        "rstimes.Pddt.isna"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The second input is consciously missing.",
+      "checks": [
+        "import pandas as pd",
+        "assert events[1] is pd.NaT and events.unit == 'us'",
+        "assert events.isna().tolist() == [False,True]"
+      ],
+      "scenarios": [
+        "missing-date",
+        "validity",
+        "stable-order"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt.md"
+    },
+    {
+      "id": "pddt-broadcast-typed-nat",
+      "covers": [
+        "rstimes.Pddt.fromdatetime64",
+        "rstimes.Pddt.isna",
+        "rstimes.Pddt.unit"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "A scalar NumPy datetime64[ns] NaT carries ns through its two-row broadcast.",
+      "checks": [
+        "assert type(events) is Pddt and events.unit == 'ns'",
+        "assert events.isna().tolist() == [True,True] and events.tz is None"
+      ],
+      "scenarios": [
+        "typed-nat",
+        "scalar-broadcast",
+        "unit-inference"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-factories.md"
+    },
+    {
+      "id": "pddt-build-wide-calendar-date",
+      "covers": [
+        "rstimes.Pddt.fromdayofyear",
+        "rstimes.Pddt.year"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Year 10000 at day 1 fits in a signed microsecond tick.",
+      "checks": [
+        "assert type(events) is Pddt and events.unit == 'us'",
+        "assert events.year.tolist() == [10000] and events.month.tolist() == [1]"
+      ],
+      "scenarios": [
+        "wide-year",
+        "microsecond-capacity"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-factories.md"
+    },
+    {
+      "id": "pddt-parse-format-to-utc",
+      "covers": [
+        "rstimes.Pddt.strptime",
+        "rstimes.Pddt.isoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The source offsets subtract eight and nine hours from the written clocks.",
+      "checks": [
+        "from datetime import timezone",
+        "assert type(events) is Pddt and events.unit == 'us' and events.tz is timezone.utc",
+        "assert events.asi8.tolist() == [1704081600000000, 1704078000000000]",
+        "assert events.isna().tolist() == [False,False]"
+      ],
+      "scenarios": [
+        "strptime-format",
+        "mixed-source-offsets",
+        "UTC-target"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-factories.md"
+    },
+    {
+      "id": "pddt-schedule-three-working-days",
+      "covers": [
+        "rstimes.Pddt.date_range"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The first three weekdays starting Friday January 5 are January 5, 8, and 9.",
+      "checks": [
+        "assert type(days) is Pddt and days.name == 'work' and days.unit == 'us'",
+        "assert days.day.tolist() == [5,8,9] and days.isna().sum() == 0"
+      ],
+      "scenarios": [
+        "business-days",
+        "weekend-skip"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-ranges.md"
+    },
+    {
+      "id": "pddt-keep-workday-submicro-offset",
+      "covers": [
+        "rstimes.Pddt.date_range"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The second date is the next business day and one microsecond later.",
+      "checks": [
+        "assert type(days) is Pddt and days.unit == 'us'",
+        "assert days.asi8.tolist() == [1704067200000000,1704153600000001]",
+        "try:\n    Pddt.date_range(date(2024, 1, 1), periods=2, freq=rule, unit='s')\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('subsecond range unit')"
+      ],
+      "scenarios": [
+        "subsecond-business-offset",
+        "inferred-unit",
+        "coarse-unit-error"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-ranges.md"
+    },
+    {
+      "id": "pddt-zero-custom-month-ends",
+      "covers": [
+        "rstimes.Pddt.date_range"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The approved zero-period month-end rule rolls to Dec 28 at midnight.",
+      "checks": [
+        "assert type(days) is Pddt and days.unit == 'us' and days.asi8.tolist() == [1703721600000000]",
+        "assert len(Pddt.date_range('2024-01-01', periods=0, freq='D')) == 0"
+      ],
+      "scenarios": [
+        "rolled-endpoint",
+        "zero-periods"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-ranges.md"
+    },
+    {
+      "id": "pddt-even-interval-grid",
+      "covers": [
+        "rstimes.Pddt.date_range"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Floor of coordinates 0, 5/3, 10/3, 5 yields 0,1,3,5 ticks.",
+      "checks": [
+        "assert type(grid) is Pddt and grid.unit == 'ns' and grid.tz is None",
+        "assert grid.asi8.tolist() == [0,1,3,5]"
+      ],
+      "scenarios": [
+        "exact-endpoint-grid",
+        "nanosecond-resolution"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-ranges.md"
+    },
+    {
+      "id": "pddt-pair-calendar-fields-positionally",
+      "covers": [
+        "rstimes.Pddt.to_date"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The first date moves to February and the second to April, both fitted to month ends.",
+      "checks": [
+        "assert type(moved) is Pddt and moved.unit=='us' and moved.name=='event'",
+        "assert moved.month.tolist()==[2,4] and moved.day.tolist()==[29,30]"
+      ],
+      "scenarios": [
+        "column-field",
+        "position-not-label",
+        "month-end-fit"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-calendar.md"
+    },
+    {
+      "id": "pddt-set-microsecond-and-tail",
+      "covers": [
+        "rstimes.Pddt.pddt",
+        "rstimes.Pddt.pddt.replace"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "1 microsecond plus a 2 ns tail is a fraction of 1002 ns.",
+      "checks": [
+        "assert type(changed) is Pddt and changed.unit=='ns'",
+        "assert changed.microsecond.tolist()==[1] and changed.nanosecond.tolist()==[2]",
+        "assert events.nanosecond.tolist()==[789]"
+      ],
+      "scenarios": [
+        "strict-field-replace",
+        "nanosecond-tail",
+        "preserved-source"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-calendar.md"
+    },
+    {
+      "id": "pddt-query-month-with-missing-date",
+      "covers": [
+        "rstimes.Pddt.is_month"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The valid date is in February, and the missing row answers false.",
+      "checks": [
+        "import pandas as pd",
+        "assert type(events.is_month('February')) is pd.Index",
+        "assert str(events.is_month('February').dtype)=='bool'",
+        "try:\n    events.is_month(None)\nexcept TypeError:\n    pass\nelse:\n    raise AssertionError('missing query target')"
+      ],
+      "scenarios": [
+        "month-query",
+        "missing-source",
+        "invalid-target"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-boundaries.md"
+    },
+    {
+      "id": "pddt-count-midnights-with-missing-date",
+      "covers": [
+        "rstimes.Pddt.diff"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "One valid day boundary plus one absent result.",
+      "checks": [
+        "import pandas as pd",
+        "assert type(counts) is pd.Index and counts.name=='diff'",
+        "assert str(counts.dtype)=='Int64' and counts[0]==1 and counts[1] is pd.NA"
+      ],
+      "scenarios": [
+        "boundary-count",
+        "nullable-integer"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-boundaries.md"
+    },
+    {
+      "id": "pddt-select-dst-occurrences-by-row",
+      "covers": [
+        "rstimes.Pddt",
+        "rstimes.Pddt.isoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The two values are at 05:30Z and 06:30Z during the New York fall-back.",
+      "checks": [
+        "assert type(events) is Pddt and events.unit=='us'",
+        "assert events.asi8.tolist()==[1730611800000000, 1730615400000000]",
+        "assert str(events.tz)=='America/New_York' and events.isna().sum()==0"
+      ],
+      "scenarios": [
+        "ambiguous-clock",
+        "position-mask",
+        "tz-dtype"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-timezones.md"
+    },
+    {
+      "id": "pddt-move-missing-clock-forward",
+      "covers": [
+        "rstimes.Pddt.tz_localize"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "02:30 is inside the spring gap and the nearest valid subsequent clock is 03:00.",
+      "checks": [
+        "assert type(events) is Pddt and events.unit=='us' and events[0].hour==3 and events[0].minute==0",
+        "assert events.asi8.tolist()==[1710054000000000]",
+        "assert clock.tz is None"
+      ],
+      "scenarios": [
+        "nonexistent-clock",
+        "nearest-valid-boundary"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-timezones.md"
+    },
+    {
+      "id": "pddt-export-utc-microseconds-and-nat",
+      "covers": [
+        "rstimes.Pddt.tomicroseconds"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "At 08:00 Asia/Shanghai this instant is 123 ns after UTC epoch, so floor microseconds is 0.",
+      "checks": [
+        "import pandas as pd",
+        "assert type(ticks) is pd.Index and str(ticks.dtype)=='Int64'",
+        "assert events.unit=='ns' and str(events.tz)=='Asia/Shanghai'",
+        "assert ticks[0]==0 and ticks[1] is pd.NA and events.asi8[0]==123"
+      ],
+      "scenarios": [
+        "instant-export",
+        "floor-to-us",
+        "nullable-result"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-output.md"
+    },
+    {
+      "id": "pddt-format-native-nanosecond-text",
+      "covers": [
+        "rstimes.Pddt.strftime"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The nine stored fraction digits are copied into the formatted string.",
+      "checks": [
+        "import pandas as pd",
+        "assert type(text) is pd.Index and text.name=='event'",
+        "assert events.unit=='ns' and events.nanosecond.tolist()==[789]"
+      ],
+      "scenarios": [
+        "nanosecond-text",
+        "original-name",
+        "stored-precision"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-output.md"
+    },
+    {
+      "id": "pddt-export-local-hours-table",
+      "covers": [
+        "rstimes.Pddt.timedf"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The first local clock has hour 12; the missing date gives a missing row.",
+      "checks": [
+        "import pandas as pd",
+        "assert type(calendar) is pd.DataFrame and calendar.shape==(2,9)",
+        "assert str(calendar.tm_hour.dtype)=='Int8' and calendar.iloc[1].isna().all()",
+        "assert calendar.index.equals(pd.RangeIndex(2))"
+      ],
+      "scenarios": [
+        "calendar-table",
+        "nullable-integer-fields"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-output.md"
+    },
+    {
+      "id": "pddt-use-index-in-dataframe",
+      "covers": [
+        "rstimes.Pddt",
+        "rstimes.Pddt.get_loc"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The second row indexes February 29 and contains the count 8.",
+      "checks": [
+        "assert isinstance(sales.index,pd.DatetimeIndex) and sales.index.name=='day'",
+        "assert sales.index.get_loc('2024-02-29') == 1"
+      ],
+      "scenarios": [
+        "pandas-index",
+        "date-label-selection"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-interop.md"
+    },
+    {
+      "id": "pddt-export-arrow-native-ticks",
+      "covers": [
+        "rstimes.Pddt"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Arrow reads the single UTC ns tick and the second row's missing bit.",
+      "checks": [
+        "assert column.type==pa.timestamp('ns',tz='UTC') and column.null_count==1",
+        "assert column.cast(pa.int64()).to_pylist()==[123,None]"
+      ],
+      "scenarios": [
+        "arrow",
+        "nanosecond-dtype",
+        "timezone-and-validity"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-interop.md"
+    },
+    {
+      "id": "pddt-apply-row-calendar-deltas",
+      "covers": [
+        "rstimes.Pddt.__add__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The first date advances one day; the second advances one calendar month.",
+      "checks": [
+        "assert type(moved) is Pddt and moved.name=='event' and moved.unit=='us'",
+        "assert moved.month.tolist()==[2,3] and moved.day.tolist()==[1,29]"
+      ],
+      "scenarios": [
+        "delta-row-operands",
+        "position",
+        "metadata"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-protocols.md"
+    },
+    {
+      "id": "pddt-copy-index-keeps-business-state",
+      "covers": [
+        "rstimes.Pddt.copy"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The same dates are copied, and the review label appears only in the copied state.",
+      "checks": [
+        "import numpy as np",
+        "assert type(trial) is Schedule and trial.name=='day' and trial.unit=='us'",
+        "assert trial.asi8.tolist()==events.asi8.tolist() and not np.shares_memory(trial.asi8,events.asi8)",
+        "assert trial.labels is not events.labels"
+      ],
+      "scenarios": [
+        "deep-copy",
+        "date-storage",
+        "application-state"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-protocols.md"
     }
   ]
 }
