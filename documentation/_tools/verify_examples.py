@@ -188,8 +188,10 @@ def run_page(page: Path, profile: str) -> dict:
         if registrations[name].get("format") != "contract":
             raise ValueError(f"{relative}: {name} must be registered as a behavior check")
     groups = standalone_groups(programs, registrations, profile, expected["gil_enabled"])
-    old, old_tries, old_failures, transcript = regression_groups(page, text, "legacy")
-    regressions, regression_tries, regression_failures, regression_output = regression_groups(page, regression_text, "contract")
+    legacy_source = text if any(profile in registrations[name]["profiles"] for name in legacy) else ""
+    check_source = regression_text if any(profile in registrations[name]["profiles"] for name in contract_names) else ""
+    old, old_tries, old_failures, transcript = regression_groups(page, legacy_source, "legacy")
+    regressions, regression_tries, regression_failures, regression_output = regression_groups(page, check_source, "contract")
     transcript += regression_output
     failures = [group for group in groups if group["status"] != "pass"]
     if failures:

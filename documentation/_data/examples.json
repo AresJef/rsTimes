@@ -615,7 +615,8 @@
         "return-and-type",
         "declared-parameter-branches"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-object-inputs",
@@ -635,7 +636,8 @@
         "return-and-type",
         "declared-parameter-branches"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-string-subclasses",
@@ -655,7 +657,8 @@
         "return-and-type",
         "declared-parameter-branches"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-order-default",
@@ -675,7 +678,8 @@
         "return-and-type",
         "declared-parameter-branches"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-strict-fields",
@@ -694,7 +698,8 @@
         "return-and-type",
         "declared-parameter-branches"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-timezone-responsibilities",
@@ -715,7 +720,8 @@
         "return-and-type",
         "declared-parameter-branches"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-region-constructor",
@@ -734,7 +740,8 @@
         "return-and-type",
         "declared-parameter-branches"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-integer-precision",
@@ -754,7 +761,8 @@
         "return-and-type",
         "declared-parameter-branches"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-custom-constructor-errors",
@@ -774,7 +782,8 @@
         "return-and-type",
         "declared-parameter-branches"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-order-flags",
@@ -800,7 +809,8 @@
         "type-error",
         "read-only"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-word-set-lifecycle",
@@ -833,7 +843,8 @@
         "absent-delete",
         "integer-index"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-mapping-lifecycle",
@@ -870,7 +881,8 @@
         "absent-delete",
         "integer-index"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-snapshot-ownership",
@@ -896,7 +908,8 @@
         "ownership",
         "return-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-semantic-tokens",
@@ -919,7 +932,8 @@
         "token-meaning",
         "all-clock-unit-codes"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-fixed-offset",
@@ -943,7 +957,8 @@
         "None",
         "absent-delete"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-region-lifecycle",
@@ -967,7 +982,8 @@
         "empty",
         "None"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-errors-and-reset",
@@ -996,7 +1012,8 @@
         "reinitialize",
         "subclass-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-independent-copy",
@@ -1017,7 +1034,8 @@
         "memo",
         "ownership"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-pickle-state",
@@ -1040,7 +1058,8 @@
         "state-v2",
         "independent-edit"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-invalid-state",
@@ -1058,7 +1077,8 @@
         "invalid-state",
         "atomic-validation"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-object-protocols",
@@ -1087,7 +1107,8 @@
         "format-error",
         "return-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "configs-additional-protocols",
@@ -1138,7 +1159,8 @@
         "offset-seconds",
         "type-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parserinfo-empty-and-offset",
@@ -1160,7 +1182,8 @@
         "offset-seconds",
         "type-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parserinfo-rejected-inputs",
@@ -1182,7 +1205,8 @@
         "offset-seconds",
         "type-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-pandas-precision",
@@ -1203,7 +1227,8 @@
         "timezone",
         "error-role"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-polars-epoch",
@@ -1223,7 +1248,8 @@
         "timezone",
         "error-role"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-polars-rejections",
@@ -1244,7 +1270,8 @@
         "timezone",
         "error-role"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-offset-and-callback",
@@ -1264,7 +1291,8 @@
         "timezone",
         "error-role"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "core-without-optional-packages",
@@ -1351,7 +1379,8 @@
         "type-error",
         "overflow"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "unix-ms-input-and-range",
@@ -1375,7 +1404,8 @@
         "type-error",
         "overflow"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "unix-ms-errors",
@@ -1399,7 +1429,8 @@
         "type-error",
         "overflow"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "error-public-protocols",
@@ -8797,6 +8828,601 @@
         "assert type(schedule[0]) is Timestamp and schedule.tz is None",
         "assert schedule.asi8.tolist() == [1705363200000000]"
       ]
+    },
+    {
+      "id": "parse-one-date-string",
+      "covers": [
+        "rstimes.parse_str"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "May 7, 2024 at 12:30 standard naive datetime.",
+      "checks": [
+        "from datetime import datetime",
+        "assert type(value) is datetime",
+        "assert value == datetime(2024, 5, 7, 12, 30) and value.tzinfo is None"
+      ],
+      "scenarios": [
+        "scalar-string",
+        "datetime-result"
+      ],
+      "reviewed": true,
+      "page": "guides/parsing.md"
+    },
+    {
+      "id": "parse-fill-calendar-default",
+      "covers": [
+        "rstimes.parse_str"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "A complete default supplies the missing year, month and day.",
+      "checks": [
+        "from datetime import datetime",
+        "assert type(value) is datetime",
+        "assert value == datetime(2024, 5, 7, 12, 30) and value.tzinfo is None"
+      ],
+      "scenarios": [
+        "complete-default",
+        "partial-text"
+      ],
+      "reviewed": true,
+      "page": "guides/parsing.md"
+    },
+    {
+      "id": "parse-reject-impossible-day",
+      "covers": [
+        "rstimes.parse_str",
+        "rstimes.errors.ParseError"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "February 30 is an invalid explicit date.",
+      "checks": [
+        "assert issubclass(ParseError, ValueError)"
+      ],
+      "scenarios": [
+        "strict-field",
+        "parse-error"
+      ],
+      "reviewed": true,
+      "page": "guides/parsing.md"
+    },
+    {
+      "id": "parse-explicit-format-fraction",
+      "covers": [
+        "rstimes.Pydt.strptime"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The first six fractional digits determine the microseconds.",
+      "checks": [
+        "assert type(value) is Pydt and value.microsecond == 123456 and value.tzinfo is None"
+      ],
+      "scenarios": [
+        "format",
+        "fraction-truncation"
+      ],
+      "reviewed": true,
+      "page": "guides/parsing.md"
+    },
+    {
+      "id": "parse-keep-explicit-offset",
+      "covers": [
+        "rstimes.parse_str"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "+08:00 is 28,800 seconds east of UTC.",
+      "checks": [
+        "from datetime import datetime, timedelta",
+        "assert type(value) is datetime",
+        "assert value.utcoffset() == timedelta(hours=8) and value.hour == 8"
+      ],
+      "scenarios": [
+        "recognized-offset",
+        "aware-result"
+      ],
+      "reviewed": true,
+      "page": "guides/parsing.md"
+    },
+    {
+      "id": "parse-numeric-seconds-to-ms",
+      "covers": [
+        "rstimes.parse_to_epoch"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "One second equals one thousand milliseconds.",
+      "checks": [
+        "assert type(milliseconds) is int and milliseconds == 1000"
+      ],
+      "scenarios": [
+        "epoch-input-seconds",
+        "ms-result"
+      ],
+      "reviewed": true,
+      "page": "guides/parsing.md"
+    },
+    {
+      "id": "parse-exact-nanosecond-tick",
+      "covers": [
+        "rstimes.parse_to_epoch"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "123456789 nanoseconds after the epoch.",
+      "checks": [
+        "assert type(nanoseconds) is int and nanoseconds == 123456789"
+      ],
+      "scenarios": [
+        "epoch-ns",
+        "aware-UTC"
+      ],
+      "reviewed": true,
+      "page": "guides/parsing.md"
+    },
+    {
+      "id": "numeric-grouped-integer",
+      "covers": [
+        "rstimes.parse_to_integer"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The two groups after the leading 1 have three digits.",
+      "checks": [
+        "assert type(quantity) is int and quantity == 1234567",
+        "assert parse_to_integer('1.234.567', allow_grouping=True) == quantity",
+        "assert parse_to_integer('1,234', allow_grouping=True) == 1234",
+        "assert parse_to_integer('12.5', strict=False) == 12",
+        "assert parse_to_integer(str(-(2**127))) == -(2**127)",
+        "assert parse_to_integer(str(2**127-1)) == 2**127-1",
+        "try:\n    parse_to_integer(str(2**127))\nexcept OverflowError:\n    pass\nelse:\n    raise AssertionError('signed upper bound')"
+      ],
+      "scenarios": [
+        "grouped-integer",
+        "loose-fragment",
+        "signed-128-bit-limits"
+      ],
+      "reviewed": true,
+      "page": "guides/numeric-text.md"
+    },
+    {
+      "id": "numeric-extract-decimal-amount",
+      "covers": [
+        "rstimes.parse_to_float"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Dot groups the thousands and comma introduces the fractional part.",
+      "checks": [
+        "assert type(amount) is float and amount == 1234.56",
+        "assert parse_to_float('1,234,567', allow_grouping=True) == 1234567.0",
+        "assert parse_to_float('1.25e-3') == 0.00125"
+      ],
+      "scenarios": [
+        "loose-text",
+        "mixed-marks",
+        "exponent"
+      ],
+      "reviewed": true,
+      "page": "guides/numeric-text.md"
+    },
+    {
+      "id": "numeric-float-single-decimal",
+      "covers": [
+        "rstimes.parse_to_float"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "A single comma takes decimal priority for floats.",
+      "checks": [
+        "import math",
+        "assert type(value) is float and value == 1.234",
+        "assert math.copysign(1.0, parse_to_float('-0')) == -1.0",
+        "assert parse_to_float('1e+', strict=False) == 1.0",
+        "try:\n    parse_to_float('1e309')\nexcept OverflowError:\n    pass\nelse:\n    raise AssertionError('finite binary64 limit')"
+      ],
+      "scenarios": [
+        "ambiguous-separator",
+        "signed-zero",
+        "overflow"
+      ],
+      "reviewed": true,
+      "page": "guides/numeric-text.md"
+    },
+    {
+      "id": "numeric-invalid-integer-groups",
+      "covers": [
+        "rstimes.parse_to_integer"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The group 23 has two digits between separators.",
+      "checks": [
+        "try:\n    parse_to_integer('1,23,456', allow_grouping=True)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('malformed grouping')",
+        "assert parse_to_integer('123,456', allow_grouping=True) == 123456",
+        "try:\n    parse_to_integer('1.234,56', allow_grouping=True)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('decimal result in integer parser')",
+        "try:\n    parse_to_integer(' 12 ')\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('strict whitespace')",
+        "import numpy as np",
+        "assert parse_to_integer('123,456', allow_grouping=np.bool_(True)) == 123456"
+      ],
+      "scenarios": [
+        "invalid-grouping",
+        "repaired-token"
+      ],
+      "reviewed": true,
+      "page": "guides/numeric-text.md"
+    },
+    {
+      "id": "unix-ms-floor-negative-fraction",
+      "covers": [
+        "rstimes.to_unix_ms"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "A value 1 us before the epoch is in the -1ms tick.",
+      "checks": [
+        "assert type(milliseconds) is int and milliseconds == -1"
+      ],
+      "scenarios": [
+        "submillisecond-floor",
+        "pre-epoch",
+        "aware-input"
+      ],
+      "reviewed": true,
+      "page": "guides/unix-milliseconds.md"
+    },
+    {
+      "id": "unix-ms-restore-utc-datetime",
+      "covers": [
+        "rstimes.from_unix_ms"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The epoch minus 1 ms is the last whole millisecond of 1969.",
+      "checks": [
+        "from datetime import datetime, timezone",
+        "assert type(value) is datetime and value.tzinfo is timezone.utc",
+        "assert value.microsecond == 999000"
+      ],
+      "scenarios": [
+        "negative-tick",
+        "UTC-result"
+      ],
+      "reviewed": true,
+      "page": "guides/unix-milliseconds.md"
+    },
+    {
+      "id": "configs-use-day-first",
+      "covers": [
+        "rstimes.Configs",
+        "rstimes.parse_str"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Day before month reads 01/02 as February 1.",
+      "checks": [
+        "from datetime import datetime",
+        "assert type(value) is datetime",
+        "assert rules.dayfirst is True and rules.yearfirst is False",
+        "assert parse_str('01/02/2024', cfg=rules, dayfirst=False).month == 1"
+      ],
+      "scenarios": [
+        "ambiguous-date-order",
+        "explicit-override"
+      ],
+      "reviewed": true,
+      "page": "guides/configs.md"
+    },
+    {
+      "id": "configs-add-month-word",
+      "covers": [
+        "rstimes.Configs.add_month",
+        "rstimes.parse_str"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The registered word represents October.",
+      "checks": [
+        "assert rules.month['harvest'] == 10 and value.month == 10",
+        "assert parse_str('7 HARVEST 2024', cfg=rules) == value"
+      ],
+      "scenarios": [
+        "custom-month",
+        "saved-case-forms"
+      ],
+      "reviewed": true,
+      "page": "guides/configs.md"
+    },
+    {
+      "id": "configs-fixed-offset-alias",
+      "covers": [
+        "rstimes.Configs.add_tzoffset",
+        "rstimes.parse_str"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "+08:30 is 30,600 seconds.",
+      "checks": [
+        "from datetime import timedelta",
+        "assert value.utcoffset() == timedelta(minutes=510)",
+        "assert rules.tzoffset['desktime'] == 30600"
+      ],
+      "scenarios": [
+        "alias",
+        "fixed-offset"
+      ],
+      "reviewed": true,
+      "page": "guides/configs.md"
+    },
+    {
+      "id": "configs-reset-vocabulary",
+      "covers": [
+        "rstimes.Configs.reset_settings",
+        "rstimes.Configs.month",
+        "rstimes.Configs.order_hint"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Reset restores vocabulary while retaining the constructor's flags.",
+      "checks": [
+        "assert rules.dayfirst is True and rules.yearfirst is False",
+        "assert rules.month['jan'] == 1 and 'harvest' not in rules.month"
+      ],
+      "scenarios": [
+        "reset-vocabulary",
+        "flags-preserved"
+      ],
+      "reviewed": true,
+      "page": "guides/configs.md"
+    },
+    {
+      "id": "configs-copy-month-mapping",
+      "covers": [
+        "rstimes.Configs.__copy__",
+        "rstimes.Configs.add_month",
+        "rstimes.parse_str"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Changing one copied rule makes harvest February only in the copy.",
+      "checks": [
+        "assert type(trial) is Configs and source is not trial",
+        "assert source.month['harvest'] == 10 and trial.month['harvest'] == 2"
+      ],
+      "scenarios": [
+        "shallow-copy",
+        "separate-vocabulary"
+      ],
+      "reviewed": true,
+      "page": "guides/configs-state.md"
+    },
+    {
+      "id": "configs-restore-rules",
+      "covers": [
+        "rstimes.Configs.__reduce_ex__",
+        "rstimes.Configs.order_hint",
+        "rstimes.Configs.month"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The reduction preserves the explicit order flags and single custom month.",
+      "checks": [
+        "assert type(restored) is Configs and restored is not rules",
+        "assert restored.dayfirst is True and restored.yearfirst is False",
+        "assert restored.month['harvest'] == 10"
+      ],
+      "scenarios": [
+        "pickle-round-trip",
+        "settings-and-flags"
+      ],
+      "reviewed": true,
+      "page": "guides/configs-state.md"
+    },
+    {
+      "id": "parserinfo-import-day-first",
+      "covers": [
+        "rstimes.Configs.from_parserinfo",
+        "rstimes.parse_str"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "public-install",
+        "windows-full"
+      ],
+      "expectation_basis": "Day-first parses the first number as the day.",
+      "checks": [
+        "from datetime import datetime",
+        "assert type(value) is datetime",
+        "assert type(rules) is Configs and rules.dayfirst is True",
+        "assert value == datetime(2024, 2, 1) and value.tzinfo is None"
+      ],
+      "scenarios": [
+        "dateutil-import",
+        "date-order"
+      ],
+      "reviewed": true,
+      "page": "guides/parserinfo.md"
+    },
+    {
+      "id": "parser-read-pandas-nanoseconds",
+      "covers": [
+        "rstimes.parse_to_epoch"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full",
+        "public-install"
+      ],
+      "expectation_basis": "A UTC pandas Timestamp 123 ns after the epoch retains the exact tick.",
+      "checks": [
+        "assert type(stamp) is pd.Timestamp and stamp.unit == 'ns'",
+        "assert type(ticks) is int and ticks == 123"
+      ],
+      "scenarios": [
+        "pandas-timestamp",
+        "nanosecond-ticks"
+      ],
+      "reviewed": true,
+      "page": "guides/parser-interop.md"
+    },
+    {
+      "id": "parser-read-polars-datetime-ticks",
+      "covers": [
+        "rstimes.parse_to_epoch"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "public-install"
+      ],
+      "expectation_basis": "The sole non-null Datetime(ns, UTC) element holds a tick of 123.",
+      "checks": [
+        "assert type(column) is pl.Series and column.dtype == dtype",
+        "assert column.name == 'event' and column.null_count() == 0",
+        "assert type(ticks) is int and ticks == 123"
+      ],
+      "scenarios": [
+        "polars-native-scalar",
+        "nanosecond-ticks",
+        "no-pandas-runtime"
+      ],
+      "reviewed": true,
+      "page": "guides/parser-interop.md"
+    },
+    {
+      "id": "parse-compact-iso-clock",
+      "covers": [
+        "rstimes.Pydt.fromisoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "103000 is 10:30:00 and -0430 is the UTC offset in hours and minutes.",
+      "checks": [
+        "from datetime import timedelta",
+        "assert type(value) is Pydt",
+        "assert value.utcoffset() == -timedelta(hours=4, minutes=30)",
+        "assert Pydt.fromisoformat('2024-W09-4').date().isoformat() == '2024-02-29'"
+      ],
+      "scenarios": [
+        "compact-iso-time",
+        "negative-offset",
+        "iso-week-date"
+      ],
+      "reviewed": true,
+      "page": "guides/parsing.md"
+    },
+    {
+      "id": "parser-date-to-midnight",
+      "covers": [
+        "rstimes.parse"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "February 29 converted from a date to a standard naive datetime at midnight.",
+      "checks": [
+        "from datetime import datetime",
+        "assert type(value) is datetime",
+        "assert value == datetime(2024, 2, 29) and value.tzinfo is None"
+      ],
+      "scenarios": [
+        "date-scalar",
+        "midnight-conversion"
+      ],
+      "reviewed": true,
+      "page": "guides/parser-interop.md"
     }
   ]
 }

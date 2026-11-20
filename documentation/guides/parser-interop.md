@@ -1,101 +1,85 @@
-# Parse native scalar inputs
+# Read exact ticks from a native date value
 
-Use `parse` when you need a datetime object and `parse_to_epoch` when you need
-exact integer ticks. Their result destinations have different precision and
-capacity. A pandas Timestamp is a datetime input; a Polars Series is a separate
-column input supported by the single-value epoch adapter.
+Use `parse_to_epoch` when you need integer ticks. Choose `parse` to
+obtain a standard Python datetime from a supported scalar.
 
-## pandas Timestamp precision
+## Start a Python date at midnight
 
-The integer result reads the Timestamp's real ticks and unit. Converting it
-to a standard datetime instead retains the microsecond fields available to
-that destination, without inventing a nanosecond attribute.
+(parser-date-to-midnight)=
+```python
+from datetime import date
 
-```{doctest} parser-pandas-precision
->>> from datetime import datetime, timedelta, timezone, tzinfo
->>> import pandas as pd
->>> from rstimes import parse, parse_to_epoch
->>> source = pd.Timestamp(123, unit='ns', tz='UTC')
->>> plain = parse(source)
->>> (type(plain) is datetime, plain.microsecond, plain.utcoffset() == timedelta(0))
-(True, 0, True)
->>> (type(parse_to_epoch(source, unit='ns')) is int, parse_to_epoch(source, unit='ns'))
-(True, 123)
->>> regional = source.tz_convert('Asia/Shanghai')
->>> (parse_to_epoch(regional, unit='ns'), parse_to_epoch(regional, unit='ns', ignoretz=True))
-(123, 28800000000123)
->>> for missing in (pd.NaT,):
-...     try:
-...         parse_to_epoch(missing)
-...     except ValueError:
-...         continue
-...     raise AssertionError('NaT is not an epoch value')
+from rstimes import parse
+
+value = parse(date(2024, 2, 29))
+print(value.isoformat())
 ```
 
-## One-value Polars Datetime Series
+**Output**
 
-The epoch adapter accepts exactly one non-null value in a real Polars Datetime
-Series. It preserves the unit and nanosecond tail. `ignoretz=False` reads the
-instant; `True` reads the local clock without its zone offset.
+```text
+2024-02-29T00:00:00
+```
 
-```{doctest} parser-polars-epoch
->>> import polars as pl
->>> column = pl.Series('event', [123], dtype=pl.Datetime('ns', 'UTC'))
->>> regional = column.dt.convert_time_zone('Asia/Shanghai')
->>> (parse_to_epoch(column, unit='ns'), parse_to_epoch(regional, unit='ns'))
-(123, 123)
->>> parse_to_epoch(regional, unit='ns', ignoretz=True)
-28800000000123
->>> parse_to_epoch(column, unit='ns', input_unit='ms')
+The result is a datetime without a timezone. A standard datetime input
+keeps any timezone already attached to it.
+
+## Preserve a pandas Timestamp's nanoseconds
+
+(parser-read-pandas-nanoseconds)=
+```python
+import pandas as pd
+from rstimes import parse_to_epoch
+
+stamp = pd.Timestamp(123, unit="ns", tz="UTC")
+ticks = parse_to_epoch(stamp, unit="ns")
+print(ticks)
+```
+
+**Output**
+
+```text
 123
 ```
 
-`input_unit` changes numeric input, not a native Datetime column's own unit.
-This adapter is not a batch parser. A null value or a Series of length other
-than one raises `ValueError`; a non-Datetime Series raises `TypeError`.
-`parse()` does not accept a Series as a scalar datetime input. Use Pldt or its
-namespace for whole-column work.
+The integer preserves the original instant and its nanoseconds.
+`parse(stamp)` uses the standard datetime's microsecond fields. A
+missing pandas `NaT` raises `ValueError` at the integer output.
 
-```{doctest} parser-polars-rejections
->>> from datetime import date
->>> invalid_columns = ((pl.Series([], dtype=pl.Datetime('ns')), ValueError), (pl.Series([0, 1], dtype=pl.Datetime('ns')), ValueError), (pl.Series([None], dtype=pl.Datetime('ns')), ValueError), (pl.Series([1]), TypeError), (pl.Series([date(2024, 1, 1)], dtype=pl.Date), TypeError))
->>> for column, expected in invalid_columns:
-...     try:
-...         parse_to_epoch(column)
-...     except expected:
-...         continue
-...     raise AssertionError(column.dtype)
->>> try:
-...     parse(pl.Series([0], dtype=pl.Datetime('ns')))
-... except TypeError as error:
-...     print(type(error).__name__)
-TypeError
+## Read one non-null Polars Datetime value
+
+(parser-read-polars-datetime-ticks)=
+```python
+import polars as pl
+from rstimes import parse_to_epoch
+
+dtype = pl.Datetime("ns", "UTC")
+column = pl.Series("event", [123], dtype=dtype)
+ticks = parse_to_epoch(column, unit="ns")
+print(ticks)
 ```
 
-## Fixed offsets and real timezone callbacks
+**Output**
 
-Offsets can include their supported second and microsecond components. They
-are not rounded into a guessed region or host-local abbreviation. A callback
-inside an actual timezone object keeps its original exception.
-
-```{doctest} parser-offset-and-callback
->>> offset = timezone(timedelta(hours=5, minutes=30, seconds=1, microseconds=500000))
->>> value = datetime(1970, 1, 1, tzinfo=offset)
->>> parse_to_epoch(value, unit='ns')
--19801500000000
->>> failure = RuntimeError('application timezone failed')
->>> class BusinessZone(tzinfo):
-...     def utcoffset(self, value):
-...         raise failure
->>> value = datetime(2024, 1, 1, tzinfo=BusinessZone())
->>> try:
-...     parse_to_epoch(value)
-... except RuntimeError as error:
-...     print(error is failure)
-True
+```text
+123
 ```
 
-NumPy arrays and NumPy timedelta64 values do not become scalar parser dates.
-Date-like scalar and one-dimensional date-column workflows have separate
-entry points. See the [parsing guide](parsing.md) for scalar defaults, errors,
-and result constructors.
+Pass one element in a real Datetime Series. The adapter reads the Series'
+declared unit and zone. The default `ignoretz=False` uses the instant.
+With `ignoretz=True`, the local clock is interpreted against the epoch.
+A null or a length other than one raises `ValueError`. A Series with
+another dtype raises `TypeError`.
+
+`input_unit` applies to numeric input. A native date value keeps its
+source unit. Use [Pldt](pldt.md) for a whole column.
+
+## Use a scalar datetime's actual offset
+
+An aware datetime contributes its actual offset, including supported
+seconds and microseconds. An exception from a timezone callback
+propagates to the caller. See [Unix millisecond helpers](unix-milliseconds.md)
+for a narrower interface that takes an aware datetime.
+
+NumPy arrays and timedelta64 values are outside the scalar date
+inputs. See [parse dates into datetimes or epoch ticks](parsing.md).
