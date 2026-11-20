@@ -6008,7 +6008,8 @@
         "select",
         "collect"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-parse-native-and-text",
@@ -6041,7 +6042,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-parser-configuration-snapshot",
@@ -6069,7 +6071,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-numeric-date-factories",
@@ -6102,7 +6105,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-calendar-and-date-factories",
@@ -6138,7 +6142,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-iso-format-and-combine",
@@ -6174,7 +6179,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-calendar-selectors",
@@ -6229,7 +6235,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-calendar-fields-and-rows",
@@ -6265,7 +6272,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-calendar-relative-and-unit",
@@ -6296,7 +6304,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-concrete-delta-rules",
@@ -6327,7 +6336,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-period-boundaries",
@@ -6363,7 +6373,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-rounding-snap-fsp",
@@ -6397,7 +6408,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-zone-boundaries-and-errors",
@@ -6431,7 +6443,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-calendar-integer-and-boolean-queries",
@@ -6492,7 +6505,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-query-row-arguments-and-errors",
@@ -6528,7 +6542,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-all-boundary-differences",
@@ -6560,7 +6575,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-real-clock-snapshot",
@@ -6592,7 +6608,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-timezone-operation-roles",
@@ -6627,7 +6644,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-timezone-ambiguity-policies",
@@ -6659,7 +6677,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-timezone-gap-policies",
@@ -6689,7 +6708,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-timezone-row-queries",
@@ -6719,7 +6739,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-timezone-errors-and-local-default",
@@ -6750,7 +6771,8 @@
         "select",
         "collect"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-native-output-types",
@@ -6787,7 +6809,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-time-table-struct-output",
@@ -6817,7 +6840,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-text-output-and-locales",
@@ -6852,7 +6876,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-collected-native-versus-protected-export",
@@ -6880,7 +6905,8 @@
         "select",
         "collect"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-logical-domain-window-and-group",
@@ -6911,7 +6937,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-concrete-vector-domain",
@@ -6939,7 +6966,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-rule-snapshot-and-dynamic-rejection",
@@ -6967,7 +6995,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-default-callback-snapshot-order",
@@ -6995,7 +7024,8 @@
         "collect",
         "streaming"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "expr-native-serialization",
@@ -7023,7 +7053,8 @@
         "select",
         "collect"
       ],
-      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution."
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
     },
     {
       "id": "inherited-polars-dt-fields",
@@ -11890,6 +11921,729 @@
       ],
       "reviewed": true,
       "page": "guides/pldt-state.md"
+    },
+    {
+      "id": "expr-input-execution-helper",
+      "page": "guides/expressions-inputs.md",
+      "format": "contract",
+      "covers": [],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Shared runner definitions; subsequent cases exercise the actual expressions.",
+      "scenarios": [],
+      "reviewed": true
+    },
+    {
+      "id": "expr-parse-native-query",
+      "covers": [
+        "polars.Expr.pldt",
+        "polars.Expr.pldt.parse"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The single nonmissing timestamp is 123 ns after the epoch.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('ns')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('ns')}\n    assert column.to_physical().to_list() == [123,None]"
+      ],
+      "scenarios": [
+        "registration",
+        "text",
+        "nanoseconds",
+        "null",
+        "schema",
+        "streaming",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions.md"
+    },
+    {
+      "id": "expr-parse-aware-text-utc",
+      "covers": [
+        "polars.Expr.pldt.parse"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The +05:30 source clock maps to 0 ns UTC, and null passes through.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('ns','UTC')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('ns','UTC')}\n    assert column.to_physical().to_list() == [0,None]",
+        "without_target = pl.col('raw').pldt.parse(unit='ns')",
+        "for run in (lambda: frame.select(without_target), lambda: frame.lazy().select(without_target).collect()):\n    try:\n        run()\n    except pl.exceptions.PolarsError as error:\n        assert 'tz' in str(error).lower()\n    else:\n        raise AssertionError('Aware text accepted without a target')"
+      ],
+      "scenarios": [
+        "aware-text",
+        "utc",
+        "target-zone-error",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-inputs.md"
+    },
+    {
+      "id": "expr-native-unsigned-calendar",
+      "covers": [
+        "polars.Expr.pldt.fromdayofyear",
+        "polars.Expr.pldt.fromisocalendar",
+        "polars.Expr.pldt.fromordinal"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The 60th day is February 29 in 2024 and March 1 in 2023.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('us')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('us')}\n    assert column.to_physical().to_list() == [1709164800000000,1677628800000000,None]",
+        "for dtype in (pl.UInt8, pl.UInt16, pl.UInt128):\n    native = frame.with_columns(pl.col('year').cast(pl.UInt128), pl.col('doy').cast(dtype), pl.Series('week',[9,9,None],dtype=dtype),pl.Series('ordinal',[1,0,None],dtype=dtype))\n    choices = [(pl.col('year').pldt.fromdayofyear(pl.col('doy')), [1709164800000000,1677628800000000,None]), (pl.col('year').pldt.fromisocalendar(pl.col('week'),4), [1709164800000000,1677715200000000,None]), (pl.col('ordinal').pldt.fromordinal(), [-62135596800000000,-62135683200000000,None])]\n    for candidate, expected in choices:\n        inferred = candidate.alias('event')\n        for evaluated in (native.select(inferred),native.lazy().select(inferred).collect()):\n            assert evaluated.schema == {'event':pl.Datetime('us')}\n            assert evaluated['event'].to_physical().to_list() == expected"
+      ],
+      "scenarios": [
+        "calendar-factory",
+        "unsigned-columns",
+        "schema",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-inputs.md"
+    },
+    {
+      "id": "expr-strptime-chosen-resolution",
+      "covers": [
+        "polars.Expr.pldt.strptime"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Reading nine decimal digits and truncating to us produces 123456 ticks.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('us')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('us')}\n    assert column.to_physical().to_list() == [123456,None]",
+        "try:\n    pl.col('raw').pldt.strptime('%H:%M:%S.%f')\nexcept ValueError as error:\n    assert 'unit' in str(error)\nelse:\n    raise AssertionError('The format accepted unresolved precision')"
+      ],
+      "scenarios": [
+        "explicit-format",
+        "static-option-error",
+        "precision-reduction",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-inputs.md"
+    },
+    {
+      "id": "expr-report-invalid-row",
+      "covers": [
+        "polars.Expr.pldt.parse"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "February 29 exists in 2024 and February 30 does not.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "assert frame.lazy().select(expr).collect_schema() == {'raw':pl.Datetime('us')}",
+        "for run in (lambda: frame.select(expr), lambda: frame.lazy().select(expr).collect()):\n    try:\n        run()\n    except pl.exceptions.PolarsError as error:\n        assert 'Pldt.parse' in str(error) and 'day=30' in str(error)\n    else:\n        raise AssertionError('Malformed data was accepted')",
+        "permissive = pl.col('raw').pldt.parse(unit='us')",
+        "for evaluated in (frame.select(permissive),frame.lazy().select(permissive).collect()):\n    assert evaluated['raw'].to_physical().to_list() == [1709164800000000]*2"
+      ],
+      "scenarios": [
+        "row-error",
+        "valid-schema",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-inputs.md"
+    },
+    {
+      "id": "expr-fit-date-in-next-month",
+      "covers": [
+        "polars.Expr.pldt.to_next_month"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The original January 31 UTC midnight plus 123 ns fits to February 29 and keeps the tail.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('ns','UTC')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('ns','UTC')}\n    assert column.to_physical().to_list() == [1709164800000000123,None]"
+      ],
+      "scenarios": [
+        "calendar-fit",
+        "timezone",
+        "nanoseconds",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-calendar.md"
+    },
+    {
+      "id": "expr-replace-field-by-column",
+      "covers": [
+        "polars.Expr.pldt.replace"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The two nonmissing January epoch clocks receive days 2 and 3.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('us')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('us')}\n    assert column.to_physical().to_list() == [86400000000,172800000000,None]"
+      ],
+      "scenarios": [
+        "positional-companion",
+        "date-field",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-calendar.md"
+    },
+    {
+      "id": "expr-apply-concrete-delta",
+      "covers": [
+        "polars.Expr.pldt.add_delta",
+        "polars.Expr.pldt.sub_delta"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "One nanosecond changes the valid tick and preserves the null.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('ns')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('ns')}\n    assert column.to_physical().to_list() == [123456790,None]",
+        "opposite = pl.col('event').pldt.sub_delta(Delta(nanoseconds=1))",
+        "assert type(opposite) is pl.Expr",
+        "query = frame.lazy().select(opposite)",
+        "assert query.collect_schema() == {'event': pl.Datetime('ns')}",
+        "for result in (frame.select(opposite), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('ns')}\n    assert column.to_physical().to_list() == [123456788,None]"
+      ],
+      "scenarios": [
+        "concrete-delta",
+        "addition",
+        "subtraction",
+        "nanoseconds",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-calendar.md"
+    },
+    {
+      "id": "expr-find-exact-month-end",
+      "covers": [
+        "polars.Expr.pldt.to_end_of",
+        "polars.Expr.pldt.is_end_of"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "January contains 31 days, so its last millisecond is 31*86400000-1.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('ms','UTC')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('ms','UTC')}\n    assert column.to_physical().to_list() == [2678399999,None]",
+        "on_end = expr.pldt.is_end_of('M')",
+        "assert type(on_end) is pl.Expr",
+        "query = frame.lazy().select(on_end)",
+        "assert query.collect_schema() == {'event': pl.Boolean}",
+        "for result in (frame.select(on_end), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Boolean}\n    assert column.to_list() == [True,False]"
+      ],
+      "scenarios": [
+        "calendar-month",
+        "fixed-unit",
+        "predicate",
+        "UTC",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-boundaries.md"
+    },
+    {
+      "id": "expr-round-signed-ticks",
+      "covers": [
+        "polars.Expr.pldt.round",
+        "polars.Expr.pldt.ceil",
+        "polars.Expr.pldt.floor"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Ties round to an even bucket; floor and ceil follow their signs.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('ns')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('ns')}\n    assert column.to_physical().to_list() == [2000,2000,-2000,None]",
+        "ceiling = pl.col('event').pldt.ceil('us')",
+        "assert type(ceiling) is pl.Expr",
+        "query = frame.lazy().select(ceiling)",
+        "assert query.collect_schema() == {'event': pl.Datetime('ns')}",
+        "for result in (frame.select(ceiling), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('ns')}\n    assert column.to_physical().to_list() == [2000,3000,-1000,None]",
+        "floor = pl.col('event').pldt.floor('us')",
+        "assert type(floor) is pl.Expr",
+        "query = frame.lazy().select(floor)",
+        "assert query.collect_schema() == {'event': pl.Datetime('ns')}",
+        "for result in (frame.select(floor), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('ns')}\n    assert column.to_physical().to_list() == [1000,2000,-2000,None]"
+      ],
+      "scenarios": [
+        "signed-date-rounding",
+        "tie-to-even",
+        "strict-grid",
+        "nanoseconds",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-boundaries.md"
+    },
+    {
+      "id": "expr-match-month-column",
+      "covers": [
+        "polars.Expr.pldt.is_month",
+        "polars.Expr.pldt.month"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The first row is in January; the February date fails its January target; the null returns False.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'match': pl.Boolean}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['match']\n    assert type(column) is pl.Series and result.schema == {'match': pl.Boolean}\n    assert column.to_list() == [True,False,False]",
+        "calendar_month = pl.col('event').pldt.month",
+        "assert type(calendar_month) is pl.Expr",
+        "query = frame.lazy().select(calendar_month)",
+        "assert query.collect_schema() == {'event': pl.Int64}",
+        "for result in (frame.select(calendar_month), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Int64}\n    assert column.to_list() == [1,2,None]"
+      ],
+      "scenarios": [
+        "query-target-column",
+        "boolean-output",
+        "integer-output",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-queries.md"
+    },
+    {
+      "id": "expr-count-month-crossings",
+      "covers": [
+        "polars.Expr.pldt.diff"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "One second across midnight advances the calendar month bucket by one.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'months': pl.Int64}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['months']\n    assert type(column) is pl.Series and result.schema == {'months': pl.Int64}\n    assert column.to_list() == [1,None]"
+      ],
+      "scenarios": [
+        "calendar-difference",
+        "int64",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-queries.md"
+    },
+    {
+      "id": "expr-iso-field-structure",
+      "covers": [
+        "polars.Expr.pldt.isocalendar"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "February 29 is Thursday of ISO week 9.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Struct({'year':pl.UInt32,'week':pl.UInt32,'day':pl.UInt32})}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Struct({'year':pl.UInt32,'week':pl.UInt32,'day':pl.UInt32})}\n    assert column.to_list() == [{'year':2024,'week':9,'day':4},None]"
+      ],
+      "scenarios": [
+        "ISO-calendar",
+        "Struct",
+        "outer-null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-queries.md"
+    },
+    {
+      "id": "expr-localize-then-convert",
+      "covers": [
+        "polars.Expr.pldt.tz_localize",
+        "polars.Expr.pldt.tz_convert"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Local Shanghai 08:00 at the epoch is 0 UTC microseconds.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('us','UTC')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('us','UTC')}\n    assert column.to_physical().to_list() == [0,None]",
+        "local = pl.col('event').pldt.tz_localize('Asia/Shanghai')",
+        "assert type(local) is pl.Expr",
+        "query = frame.lazy().select(local)",
+        "assert query.collect_schema() == {'event': pl.Datetime('us','Asia/Shanghai')}",
+        "for result in (frame.select(local), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('us','Asia/Shanghai')}\n    assert column.to_physical().to_list() == [0,None]"
+      ],
+      "scenarios": [
+        "attach-zone",
+        "convert-instant",
+        "UTC",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-timezones.md"
+    },
+    {
+      "id": "expr-shift-daylight-saving-gap",
+      "covers": [
+        "polars.Expr.pldt.parse",
+        "polars.Expr.pldt.isoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The spring gap ends at 03:00 local, 07:00 UTC.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'raw': pl.String}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['raw']\n    assert type(column) is pl.Series and result.schema == {'raw': pl.String}\n    assert column.to_list() == ['2024-03-10T03:00:00-04:00',None]",
+        "boundary = pl.col('raw').pldt.parse(unit='ns',tz='America/New_York',nonexistent='shift_forward')",
+        "assert type(boundary) is pl.Expr",
+        "query = frame.lazy().select(boundary)",
+        "assert query.collect_schema() == {'raw': pl.Datetime('ns','America/New_York')}",
+        "for result in (frame.select(boundary), query.collect(), query.collect(engine='streaming')):\n    column = result['raw']\n    assert type(column) is pl.Series and result.schema == {'raw': pl.Datetime('ns','America/New_York')}\n    assert column.to_physical().to_list() == [1710054000000000000,None]"
+      ],
+      "scenarios": [
+        "gap-policy",
+        "timezone",
+        "nanoseconds",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-timezones.md"
+    },
+    {
+      "id": "expr-select-time-field-from-struct",
+      "covers": [
+        "polars.Expr.pldt.timedf",
+        "polars.Expr.pldt.utctimedf"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "At the epoch the local hour in Shanghai is 8 and UTC hour is 0.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'hour': pl.Int8}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['hour']\n    assert type(column) is pl.Series and result.schema == {'hour': pl.Int8}\n    assert column.to_list() == [8,None]",
+        "utc_hour = pl.col('event').pldt.utctimedf().struct.field('tm_hour').alias('hour')",
+        "assert type(utc_hour) is pl.Expr",
+        "query = frame.lazy().select(utc_hour)",
+        "assert query.collect_schema() == {'hour': pl.Int8}",
+        "for result in (frame.select(utc_hour), query.collect(), query.collect(engine='streaming')):\n    column = result['hour']\n    assert type(column) is pl.Series and result.schema == {'hour': pl.Int8}\n    assert column.to_list() == [0,None]"
+      ],
+      "scenarios": [
+        "local-clock",
+        "utc-clock",
+        "struct-field",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-output.md"
+    },
+    {
+      "id": "expr-format-iso-to-text",
+      "covers": [
+        "polars.Expr.pldt.isoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The epoch with a 123456789 ns remainder needs nine fractional digits.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'label': pl.String}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['label']\n    assert type(column) is pl.Series and result.schema == {'label': pl.String}\n    assert column.to_list() == ['1970-01-01T00:00:00.123456789',None]",
+        "assert frame.schema == {'event':pl.Datetime('ns')}"
+      ],
+      "scenarios": [
+        "format",
+        "native-string",
+        "nanoseconds",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-output.md"
+    },
+    {
+      "id": "expr-broadcast-group-offset",
+      "covers": [
+        "polars.Expr.pldt.add"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Site A broadcasts its max 3 days, and site B its max 4 days. Null stays missing.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('us')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('us')}\n    assert column.to_physical().to_list() == [259200000000,345600000000,259200000000,None]",
+        "wrong_length = pl.col('event').pldt.add(days=pl.col('days').head(1))",
+        "for run in (lambda: frame.select(wrong_length),lambda: frame.lazy().select(wrong_length).collect()):\n    try:\n        run()\n    except pl.exceptions.PolarsError as error:\n        assert 'length' in str(error).lower()\n    else:\n        raise AssertionError('A concrete one-row column was broadcast')"
+      ],
+      "scenarios": [
+        "window",
+        "grouped-aggregate",
+        "scalar-broadcast",
+        "length-error",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-execution.md"
+    },
+    {
+      "id": "expr-freeze-parser-default",
+      "covers": [
+        "polars.Expr.pldt.parse",
+        "polars.Series.pldt.parse"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "January 14 at 12:30 is captured before the config edit; the eager path uses August 14.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('us')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('us')}\n    assert column.to_physical().to_list() == [1705235400000000,None]",
+        "eager = frame['raw'].pldt.parse(cfg=config,default='14 Jan 2024')",
+        "assert eager.to_physical().to_list() == [1723638600000000,None]"
+      ],
+      "scenarios": [
+        "parser-config",
+        "default",
+        "snapshot",
+        "live-eager",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-execution.md"
+    },
+    {
+      "id": "expr-restore-native-query",
+      "covers": [
+        "polars.Expr.pldt.add"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Restoring this local native plan preserves an exact one-nanosecond increment.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('ns')}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('ns')}\n    assert column.to_physical().to_list() == [1,None]",
+        "assert type(prepared) is pl.Expr",
+        "query = frame.lazy().select(prepared)",
+        "assert query.collect_schema() == {'event': pl.Datetime('ns')}",
+        "for result in (frame.select(prepared), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('ns')}\n    assert column.to_physical().to_list() == [1,None]"
+      ],
+      "scenarios": [
+        "native-serialization",
+        "same-environment",
+        "nanoseconds",
+        "null",
+        "select",
+        "collect"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-execution.md"
     }
   ]
 }

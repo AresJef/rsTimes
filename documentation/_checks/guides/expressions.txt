@@ -1,0 +1,16 @@
+```{doctest} expr-lazy-parse
+>>> import polars as pl
+>>> from rstimes import Pldt
+>>> frame = pl.DataFrame({'raw': ['1970-01-01T00:00:00.000000123', None]})
+>>> expression = pl.col('raw').pldt.parse(unit='ns').alias('time')
+>>> isinstance(expression, pl.Expr)
+True
+>>> result = frame.lazy().select(expression).collect()
+>>> eager = frame.select(expression)
+>>> eager.equals(result)
+True
+>>> (result.shape, result.schema == {'time': pl.Datetime('ns')})
+((2, 1), True)
+>>> (type(result['time']) is pl.Series, result['time'].to_physical().to_list())
+(True, [123, None])
+```

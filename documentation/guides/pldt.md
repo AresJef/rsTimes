@@ -26,7 +26,9 @@ Use `import rstimes.pldt` or `from rstimes import Pldt` to register the
 namespace. A Series call returns a computed Pldt. For a date expression,
 see [compute an Expr](expressions.md). To supply missing Y/M/D fields in
 partial text, give `default` a complete date. A recognized missing token
-keeps its position. Malformed dates raise a parsing error.
+keeps its position. Unrecognized input raises a parsing error. Set
+`strict=True` to reject explicitly out-of-range fields. The default
+parser can fit recognized fields to their valid ranges.
 
 ## Choose the storage unit
 

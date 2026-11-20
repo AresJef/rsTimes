@@ -1,7 +1,8 @@
 # Polars date expressions
 
-Real eager select and lazy collect, static schemas, parsing, transformations and execution boundaries.
-Start with the first guide, then choose the operation you need.
+Start by running a date query in both a DataFrame and a LazyFrame.
+Choose a guide for date inputs, calculations, timezones or output.
+For native column calculations, see [Pldt and Series](polars.md).
 
 ```{toctree}
 :maxdepth: 1
