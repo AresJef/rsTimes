@@ -1,15 +1,28 @@
 # Errors and exception protocols
 
+## Catch a strict parsing error
+
+(ref-parse-field-error)=
+```python
+from rstimes import parse_str
+from rstimes.errors import ParseError
+
+try:
+    parse_str("2024-02-30", strict=True)
+except ParseError as error:
+    print(type(error).__name__)
+```
+
+**Output**
+
+```text
+ParseError
+```
+
 Import domain errors from `rstimes.errors` for parsing and configuration
 failures. Other operations use the builtin and callback error families below.
-The concrete examples verify their own exception identities; there is a known
-limitation to a universal preservation guarantee.
-
-**Known defect RV05:** error-context preview can invoke a str-subclass hook in a
-class's real type name and replace an original integer callback exception.
-See the [executed counterexamples](../compatibility/known-issues.md). The normal
-examples here verify their own exception identities; they do not establish a
-universal exception-preservation guarantee for that defective configuration.
+For input handling and practical recovery, see the
+[troubleshooting guide](../troubleshooting.md).
 
 | Class | Meaning | Bases |
 |---|---|---|
@@ -22,45 +35,12 @@ or the appropriate domain subclass. Real arithmetic or destination capacity
 failures use `OverflowError`. Optional integrations use an explanatory
 `ImportError` when absent. Catch the error that the call actually raises.
 
-```{doctest} error-responsibilities
->>> from rstimes import Configs, parse_str
->>> from rstimes.errors import RstimesError, ParseError, ConfigError
->>> all(issubclass(kind, RstimesError) and issubclass(kind, ValueError) for kind in (ParseError, ConfigError))
-True
->>> try:
-...     parse_str('2024-02-30', strict=True)
-... except ParseError as error:
-...     print(type(error).__name__, 'parse_str' in str(error), 'day' in str(error).lower())
-ParseError True True
->>> try:
-...     Configs().add_month('monday', 2)
-... except ConfigError as error:
-...     print(type(error).__name__)
-ConfigError
->>> try:
-...     Configs().add_month('harvest', True)
-... except TypeError as error:
-...     print(type(error).__name__, isinstance(error, RstimesError))
-TypeError False
-```
-
 ## Preserve application failures
 
 A callback's original exception object, arguments, and cause chain remain
 available. An added entry note does not change the exception into a different
 class. A callback can itself raise a domain class; that still remains its
 original exception.
-
-```{doctest} error-original-callback
->>> original = ParseError('business record failed')
->>> def build(*args, **kwargs):
-...     raise original
->>> try:
-...     parse_str('2024-01-02', dtclass=build)
-... except ParseError as error:
-...     print(error is original, error.args)
-True ('business record failed',)
-```
 
 ## Standard exception interface
 
@@ -83,48 +63,6 @@ are ordinary Python protocols; use pickle for trusted exception persistence.
 | <span id="rstimes.errors.RstimesError.__getstate__"></span><span id="rstimes.errors.ParseError.__getstate__"></span><span id="rstimes.errors.ConfigError.__getstate__"></span><span id="rstimes.errors.RstimesError.__setstate__"></span><span id="rstimes.errors.ParseError.__setstate__"></span><span id="rstimes.errors.ConfigError.__setstate__"></span>`E.__getstate__()` / `E.__setstate__(state)` | Read or apply ordinary exception metadata; this is not a date-value format. |
 | <span id="rstimes.errors.RstimesError.__reduce__"></span><span id="rstimes.errors.ParseError.__reduce__"></span><span id="rstimes.errors.ConfigError.__reduce__"></span><span id="rstimes.errors.RstimesError.__reduce_ex__"></span><span id="rstimes.errors.ParseError.__reduce_ex__"></span><span id="rstimes.errors.ConfigError.__reduce_ex__"></span>`E.__reduce__()` / `E.__reduce_ex__(protocol)` | Return reconstruction information used by pickle. |
 
-```{doctest} error-public-protocols
->>> import pickle
->>> kinds = (RstimesError, ParseError, ConfigError)
->>> for kind in kinds:
-...     value = kind.__new__(kind, 'created')
-...     assert value.__init__('detail', 3) is None
-...     assert type(value) is kind and value.args == ('detail', 3)
-...     value.args = ('clean',)
-...     assert value.__str__() == 'clean' and value.__format__('') == 'clean'
-...     assert value.__repr__().startswith(kind.__name__ + '(')
-...     assert type(value.__hash__()) is int
-...     assert value.__eq__(value) is True and value.__ne__(value) is False
-...     assert value.__eq__(kind('clean')) is NotImplemented
-...     for method in ('__lt__', '__le__', '__gt__', '__ge__'):
-...         assert getattr(value, method)(kind()) is NotImplemented
-...     assert value.add_note('check source row') is None
-...     assert value.__notes__ == ['check source row']
-...     assert value.with_traceback(None) is value and value.__traceback__ is None
-...     value.field = 'record'
-...     assert value.__getstate__()['field'] == 'record'
-...     other = kind('other')
-...     assert other.__setstate__({'field': 'input'}) is None and other.field == 'input'
-...     for recipe in (value.__reduce__(), value.__reduce_ex__(pickle.HIGHEST_PROTOCOL)):
-...         assert type(recipe) is tuple and callable(recipe[0])
-...         assert type(recipe[0](*recipe[1])) is kind
-...     restored = pickle.loads(pickle.dumps(value))
-...     assert type(restored) is kind and restored.args == ('clean',)
-...     assert restored.field == 'record' and restored.__notes__ == ['check source row']
-...     try:
-...         value.add_note(1)
-...     except TypeError:
-...         pass
-...     else:
-...         raise AssertionError('non-string note accepted')
-...     try:
-...         value.__format__('.2f')
-...     except TypeError:
-...         pass
-...     else:
-...         raise AssertionError('numeric exception format accepted')
-```
-
 See Python's [exception reference](https://docs.python.org/3/library/exceptions.html)
 and [data model](https://docs.python.org/3/reference/datamodel.html) for the full
 standard protocols. Batch errors identify a reliable row or argument when
@@ -143,25 +81,3 @@ classes. They describe an error and do not carry a date value, unit or timezone.
 | <span id="rstimes.errors.RstimesError.__suppress_context__"></span><span id="rstimes.errors.ParseError.__suppress_context__"></span><span id="rstimes.errors.ConfigError.__suppress_context__"></span>`E.__suppress_context__` | Boolean controlling implicit context display; it does not erase the context object. |
 | <span id="rstimes.errors.RstimesError.__traceback__"></span><span id="rstimes.errors.ParseError.__traceback__"></span><span id="rstimes.errors.ConfigError.__traceback__"></span>`E.__traceback__` | Traceback object after a raise, or None; `with_traceback` returns the same exception. |
 | <span id="rstimes.errors.RstimesError.__notes__"></span><span id="rstimes.errors.ParseError.__notes__"></span><span id="rstimes.errors.ConfigError.__notes__"></span>`E.__notes__` | List of strings created by `add_note`; absent on a new instance until a note is added. |
-
-```{doctest} error-chain-attributes
->>> from types import TracebackType
->>> for kind in (RstimesError, ParseError, ConfigError):
-...     error = kind('record')
-...     assert error.__cause__ is None and error.__context__ is None
-...     assert error.__traceback__ is None and error.__suppress_context__ is False
-...     assert not hasattr(error, '__notes__')
-...     assert error.add_note('input row 7') is None
-...     assert error.__notes__ == ['input row 7']
-...     cause = ValueError('source')
-...     try:
-...         try:
-...             raise cause
-...         except ValueError:
-...             raise error from cause
-...     except kind as caught:
-...         assert caught is error and caught.__cause__ is cause
-...         assert caught.__context__ is cause and caught.__suppress_context__ is True
-...         assert isinstance(caught.__traceback__, TracebackType)
-...         assert caught.with_traceback(None) is caught and caught.__traceback__ is None
-```

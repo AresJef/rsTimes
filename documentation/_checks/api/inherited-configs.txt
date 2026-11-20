@@ -1,0 +1,14 @@
+```{doctest} configs-additional-protocols
+>>> from rstimes import Configs
+>>> config = Configs.__new__(Configs, yearfirst=False, dayfirst=True)
+>>> config.__init__(yearfirst=True, dayfirst=False)
+>>> (config.order_hint(), config.__getstate__(), type(config.__hash__()) is int)
+('D/M/Y', None, True)
+>>> other = Configs(False, True)
+>>> (config == other, config.__eq__(other) is NotImplemented, config.__ne__(config))
+(False, True, False)
+>>> (type(config.__str__()) is str, config.__format__('') == config.__str__())
+(True, True)
+>>> all(getattr(config, method)(other) is NotImplemented for method in ('__lt__', '__le__', '__gt__', '__ge__'))
+True
+```

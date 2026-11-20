@@ -84,6 +84,9 @@ def qualify_builtin_types(app, doctree):
 def setup(app):
     app.connect("autoapi-skip-member", skip_private)
     app.connect("doctree-read", qualify_builtin_types)
+    examples = runpy.run_path(str(HERE / '_tools/link_examples.py'))
+    app.connect('builder-inited', examples['load_links'])
+    app.connect('doctree-read', examples['link_examples'])
     integrity = runpy.run_path(str(HERE / '_tools/build_integrity.py'))
     app.connect('builder-inited', integrity['build_started'], priority=900)
     app.connect('build-finished', integrity['build_finished'], priority=900)

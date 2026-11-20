@@ -1,14 +1,23 @@
 # API reference
 
-The class/function reference is extracted from the public package's installed
-stubs. Namespace pages provide the registered Series/Expr signatures and
-return roles. Inherited references document actual calls on rsTimes objects;
-their links to provider documentation supply additional native options.
+Find the signature, arguments, return type and errors for a public entry
+by its name. The rsTimes classes and functions use the declarations from
+the installed 1.0.0 wheel. The Series and Expr references describe their
+registered namespaces. Follow an example link to see a runnable use.
 
-Use [guides](../guides/index.md) to learn a workflow, and
-[known rsTimes cases](../compatibility/known-issues.md) for the deferred protocol
-limits. Inherited visibility does not promise that an unrelated dtype operation
-accepts a date column.
+| Task | Reference |
+| --- | --- |
+| Parse a date or numeric token, or configure parsing | [Parser and Configs](reference/rstimes/parser/index.rst) |
+| Change an elapsed or calendar amount | [Delta](reference/rstimes/delta/index.rst) |
+| Work with a Python datetime | [Pydt](reference/rstimes/pydt/index.rst) |
+| Work with a pandas datetime index | [Pddt](reference/rstimes/pddt/index.rst) |
+| Work with a native Polars date column | [Pldt](reference/rstimes/pldt/index.rst) and [Series.pldt](polars-series.rst) |
+| Build a native date expression | [Expr.pldt](polars-expressions.rst) |
+| Diagnose a failed call | [Errors](errors.md) and [troubleshooting](../troubleshooting.md) |
+
+The inherited references describe supported arguments, return families, and
+date-dtype limits on actual rsTimes objects. They link to native parameter
+references for additional options.
 
 ```{toctree}
 :maxdepth: 1

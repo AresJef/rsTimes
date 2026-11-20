@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "target_status": "published_0.2.0b3_full_validation_pending",
+  "target_status": "published_1.0.0",
   "examples": [
     {
       "id": "install-check-distribution-version",
@@ -617,7 +617,8 @@
         "return-type",
         "unsupported-format"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parser-epoch-units",
@@ -1159,7 +1160,8 @@
         "return-type",
         "NotImplemented"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "parserinfo-normal",
@@ -1537,7 +1539,8 @@
         "state",
         "pickle"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "error-responsibilities",
@@ -1560,7 +1563,8 @@
         "standard-error",
         "entry-context"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "error-original-callback",
@@ -1578,7 +1582,8 @@
       "scenarios": [
         "original-domain-callback-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-constructor",
@@ -2748,7 +2753,8 @@
         "None-state",
         "NotImplemented"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-external-timezone-boundary",
@@ -4065,7 +4071,8 @@
         "strict-invalid-date",
         "original-source"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-namespace-regional-policies",
@@ -4085,7 +4092,8 @@
         "ambiguous-policy",
         "nonexistent-policy"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pldt-native-construction",
@@ -7094,7 +7102,8 @@
         "full-nanoseconds",
         "Boolean-null"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-polars-dt-transformations",
@@ -7135,7 +7144,8 @@
         "business-holiday",
         "source-unchanged"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-polars-dt-text-and-scalars",
@@ -7161,7 +7171,8 @@
         "scalar-null",
         "microsecond-truncation"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-polars-dt-duration-role",
@@ -7190,7 +7201,8 @@
         "integer-total",
         "fractional-output"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-polars-dt-index-protocol",
@@ -7215,7 +7227,8 @@
         "exact-Series",
         "native-TypeError"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-calendar-fields",
@@ -7255,7 +7268,8 @@
       "scenarios": [
         "literal Gregorian calendar fields, weekday3/2 and 123456us+789ns; NaT float/mask output"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-storage-metadata",
@@ -7297,7 +7311,8 @@
       "scenarios": [
         "literal1709210096123456789ns, int64MinNaT, UTCns vs ndarray UTC, real daily frequency and shape"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-views",
@@ -7321,7 +7336,8 @@
       "scenarios": [
         "actual Pddt return family, exact ticks/unit/zone/name; identity only where asserted; inherited object init no date mutation"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-position-selection",
@@ -7343,7 +7359,8 @@
       "scenarios": [
         "literal positional selections, Timestamp/NaT vs Pddt; immutable setitem and shape errors"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-label-indexers",
@@ -7367,7 +7384,8 @@
       "scenarios": [
         "literal duplicate and missing positions; inclusive labels, pad/tolerance, -1, IndexError/KeyError"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-time-indexers",
@@ -7388,7 +7406,8 @@
       "scenarios": [
         "literal sorted UTC midnight clock selection and masked last valid label"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-label-metadata",
@@ -7413,7 +7432,8 @@
       "scenarios": [
         "single-level and singleton duties; names/inplace metadata, equality vs identity, actual scalar errors"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-container-selection",
@@ -7441,7 +7461,8 @@
       "scenarios": [
         "literal changed rows and source unchanged; per-version mask returns, nativeDatetimeIndex exits and required frequency"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-sets-and-ordering",
@@ -7470,7 +7491,8 @@
       "scenarios": [
         "literal duplicate multiplicities, NaT ordering, positional permutations and date families"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-align-and-group",
@@ -7498,7 +7520,8 @@
       "scenarios": [
         "literal -1 alignment, duplicate error, counts and map of real Pddt values; ndarray masks"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-reductions",
@@ -7522,7 +7545,8 @@
       "scenarios": [
         "independent3day timestamps, sample deviation1day, allNaT/empty, explicit byte count bounds"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-array-exports",
@@ -7544,7 +7568,8 @@
       "scenarios": [
         "literal123ns fraction and NaT; Pythonus truncation vs Timestampns, NumPy/object/int families"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-table-and-period-exports",
@@ -7565,7 +7590,8 @@
       "scenarios": [
         "exact28payload timestamps through tables; PeriodIndex warning and literal Julian day2460310.5"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-comparison-protocols",
@@ -7588,7 +7614,8 @@
       "scenarios": [
         "literal Boolean comparisons incl NaT, standard aware date input"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-array-protocols",
@@ -7609,7 +7636,8 @@
       "scenarios": [
         "literal fullns input, NumPy date add vs elapsed differences and immutable rebinding"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-unsupported-protocols",
@@ -7653,7 +7681,8 @@
       "scenarios": [
         "each actual unsupported date operator TypeError, truth ValueError, disabled hash, unsupported str AttributeError"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-display-protocols",
@@ -7673,7 +7702,8 @@
       "scenarios": [
         "date/name/unit/zone/missing display fields and invalid numericformat TypeError"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-legacy-pandas2",
@@ -7699,7 +7729,8 @@
         "returntype",
         "warning/error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-pandas31-replace",
@@ -7716,7 +7747,8 @@
         "returntype",
         "warning/error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pddt-versioned-defaults",
@@ -7739,7 +7771,8 @@
         "boolrejection",
         "deprecation"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-container-metadata",
@@ -7772,7 +7805,8 @@
       "scenarios": [
         "literal ns/UTC/validity, byte counts and real sorted input"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-container-selection",
@@ -7804,7 +7838,8 @@
       "scenarios": [
         "actualPldtvsplainSeries selections; standarddatetime microseconds vs exactns, null andBoolean-maskrejection"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-container-chunks",
@@ -7827,7 +7862,8 @@
       "scenarios": [
         "exact2chunks, mutatecloneonly, plainSerieschunks, allocationthenrealinit"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-registered-accessor",
@@ -7845,7 +7881,8 @@
       "scenarios": [
         "actualregisterednamespace onPldt; Int64year, unitconversion, no constructorcall"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-dtype-accessors",
@@ -7869,7 +7906,8 @@
       "scenarios": [
         "actualnamespacegetters and normalnondate-dtypeerrors; catpanicrecordedseparately"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-generic-extension",
@@ -7889,7 +7927,8 @@
       "scenarios": [
         "literal genericExtension wrapping andstorage roundtrip; exactns/zone/null, ordinarySeriesreturns, wrongdtypeerrors"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-jax-export",
@@ -7905,7 +7944,8 @@
       "scenarios": [
         "actualPldtDatetimeTypeError,validMINNumPyguardOverflowError,explicitJAXx64falsecastrejection,andliteralint64plusindependentboolvalidity"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-torch-export",
@@ -7921,7 +7961,8 @@
       "scenarios": [
         "actualPldtDatetimeTypeErrorandvalidMINguard;nativephysicalint64tensor+Booleanmaskliteralroundtrip"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-plotting",
@@ -7940,7 +7981,8 @@
       "scenarios": [
         "actualAltairChartobjectsandembeddeddate/nullJSON;nativeencodings/densitytransformvslabelledrelativewholeseconds"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-missing-dependencies",
@@ -7962,7 +8004,8 @@
         "nativeerrorclass",
         "metadata"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-numeric-rejections",
@@ -8053,7 +8096,8 @@
       "scenarios": [
         "independentplainPolarsdtypeerrorswithvalidnumericparameters;actualPldteverycall"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-date-extrema",
@@ -8080,7 +8124,8 @@
       "scenarios": [
         "literal nsdates, stdDatetimeustruncation, actualPldt/plainSeriesreturnsandnullablepeakflags"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-physical-numerical-kernels",
@@ -8102,7 +8147,8 @@
       "scenarios": [
         "independentmathsqrt8/cbrt8/ratio7, actualFloat64metadataandunit-dependentidenticalinstant"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-exponential-tick-statistics",
@@ -8125,7 +8171,8 @@
       "scenarios": [
         "independentalpha1/2numericalanswers, gapweightingandnativeBydtypeerrors"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-peak-boundaries",
@@ -8147,7 +8194,8 @@
         "missingneighbor",
         "Boolean-null"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-comparisons",
@@ -8179,7 +8227,8 @@
       "scenarios": [
         "literalnativeBooleanSeries/nullcomparisonsemanticsandnumericalis_closerejection"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-membership",
@@ -8208,7 +8257,8 @@
       "scenarios": [
         "actualnativePldtmemberandmissing-awaremasks,indexedunique,scalarvalue/name/nullchecks"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-display-and-hash",
@@ -8231,7 +8281,8 @@
       "scenarios": [
         "truth/hashprotocolTypeErrorvsUInt64rowhash,nativePldtclassdisplayandinvalidformat"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-reflected-subtraction",
@@ -8249,7 +8300,8 @@
       "scenarios": [
         "Executed ordinary rsTimes receiver usage; actual native return unit, values and nulls."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-frame-and-dummies",
@@ -8268,7 +8320,8 @@
       "scenarios": [
         "literalnsFramecolumnvaluesandUInt8onehotdate/nullcategory;explicitrenaming/dropNullscenarios"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-initialization-text",
@@ -8286,7 +8339,8 @@
       "scenarios": [
         "Executed ordinary rsTimes receiver usage; actual native return unit, values and nulls."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-exact-native-reconstruction",
@@ -8307,7 +8361,8 @@
         "ns",
         "validity"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-fills-and-casts",
@@ -8336,7 +8391,8 @@
       "scenarios": [
         "Names and native transforms on an rsTimes date column; exact ticks, UTC, nulls, dtype changes and necessary dtype errors."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-fill-and-shift",
@@ -8355,7 +8411,8 @@
       "scenarios": [
         "Typed scalar expression with complete date dtype; missing and shifted rows; actual lazy collection."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-replacement",
@@ -8377,7 +8434,8 @@
       "scenarios": [
         "Whole-date replacement and completeness errors, nullable mask selection, sorting, exact data and unchanged receiver."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-mutation",
@@ -8399,7 +8457,8 @@
       "scenarios": [
         "Actual cloned rsTimes receiver mutation versus returned replacement; matching date dtype, None and unchanged original."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-nesting-and-sampling",
@@ -8422,7 +8481,8 @@
       "scenarios": [
         "Exact nested date ticks and validity, native return families, seeded sampling repeatability and multisets."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-summaries",
@@ -8451,7 +8511,8 @@
       "scenarios": [
         "Python datetime scalar UTC/microsecond return versus int counts/positions; nulls and empty reductions; explicit by-column selection."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-ordering",
@@ -8478,7 +8539,8 @@
       "scenarios": [
         "Native date Series preserves ns/UTC; native numeric rank/index/count and DataFrame return roles; null, duplicate, order and multiset checks."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-search",
@@ -8497,7 +8559,8 @@
       "scenarios": [
         "Actual scalar datetime lookup on explicit us dtype, absent result None, scalar index versus vector native index Series."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-binning",
@@ -8520,7 +8583,8 @@
       "scenarios": [
         "Actual date breakpoints versus sorted ranks and physical-us compatibility cuts; category dtype/nulls; numeric-only rejections."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-runs-and-callbacks",
@@ -8542,7 +8606,8 @@
       "scenarios": [
         "Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-row-windows",
@@ -8565,7 +8630,8 @@
       "scenarios": [
         "Two-row window, min_samples, explicit epoch-second mathematical answers; date dtype versus Float64 rank; null/empty source."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-time-windows",
@@ -8588,7 +8654,8 @@
       "scenarios": [
         "Separate sorted UTC date by-axis and 3-second right-closed windows; date metadata, values and native rank output."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-window-statistics",
@@ -8609,7 +8676,8 @@
       "scenarios": [
         "Sample ddof1 Float64 standard deviation in physical ns and variance in ns squared; one-row null and explicit mathematical tolerance."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-window-boundaries",
@@ -8632,7 +8700,8 @@
       "scenarios": [
         "Numerical-kernel dtype rejection on actual date receiver; cumulative Expr actually evaluated to native date Series with exact ticks."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-sql",
@@ -8650,7 +8719,8 @@
       "scenarios": [
         "Actually executed native SQL DataFrame with exact ns/UTC column, selected null rows, explicit table name and unchanged source."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-arrow",
@@ -8669,7 +8739,8 @@
       "scenarios": [
         "Actual PyArrow TimestampArray and PyCapsule-stream consumption, ns/UTC, valid i64 MIN versus null, empty data and unchanged source."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "recipe-event-renewals",
@@ -8851,7 +8922,8 @@
         "exact-return-type",
         "not-date-ticks"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "inherited-pldt-native-reflected-matrix",
@@ -8871,7 +8943,8 @@
         "datetime-dtype-rejection",
         "source-and-null-unchanged"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-native-array-dispatch-protocols",
@@ -8896,7 +8969,8 @@
         "name",
         "source-unchanged"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "error-chain-attributes",
@@ -8931,7 +9005,8 @@
         "traceback-type",
         "instance-created-notes"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "optional-missing-pandas",
@@ -10303,7 +10378,7 @@
     {
       "id": "pydt-deepcopy-appointment-notes",
       "covers": [
-        "rstimes.Pydt.__deepcopy__"
+        "rstimes.Pydt.__reduce_ex__"
       ],
       "format": "python",
       "profiles": [
@@ -12644,6 +12719,672 @@
       ],
       "reviewed": true,
       "page": "guides/expressions-execution.md"
+    },
+    {
+      "id": "ref-configs-allocate-order",
+      "covers": [
+        "rstimes.Configs.__new__",
+        "rstimes.Configs.__init__",
+        "rstimes.Configs.order_hint"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The flags selected during allocation remain active after initialization is called.",
+      "checks": [
+        "assert type(config) is Configs and config.yearfirst is False and config.dayfirst is True",
+        "assert config.__init__() is None and config.order_hint() == 'D/M/Y'"
+      ],
+      "scenarios": [
+        "flags",
+        "allocation",
+        "state"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-configs.md"
+    },
+    {
+      "id": "ref-delta-default-format",
+      "covers": [
+        "rstimes.Delta.__format__",
+        "rstimes.Delta.__str__"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "An empty format selects the regular object display.",
+      "checks": [
+        "assert type(format(change,'')) is str",
+        "try:\n    format(change,'.1f')\nexcept TypeError:\n    pass\nelse:\n    raise AssertionError('Unsupported numeric formatting succeeded')"
+      ],
+      "scenarios": [
+        "display",
+        "format-error",
+        "Delta"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-delta.md"
+    },
+    {
+      "id": "ref-pydt-clock-output",
+      "covers": [
+        "rstimes.Pydt.timetz",
+        "rstimes.Pydt.fold",
+        "rstimes.Pydt.microsecond",
+        "rstimes.Pydt.time"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "timetz carries the stored clock, microseconds, timezone, and fold.",
+      "checks": [
+        "from datetime import time, timezone",
+        "assert type(clock) is time and clock.tzinfo is timezone.utc",
+        "assert event.fold == clock.fold == 1 and event.microsecond == clock.microsecond == 123456",
+        "assert event.time().tzinfo is None and event.time().fold == 1"
+      ],
+      "scenarios": [
+        "clock-output",
+        "fold",
+        "timezone",
+        "microseconds"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pydt.md"
+    },
+    {
+      "id": "ref-parse-field-error",
+      "covers": [
+        "rstimes.errors.ParseError",
+        "rstimes.parse_str"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "February 30 is an explicitly invalid day in strict mode.",
+      "checks": [
+        "from rstimes.errors import RstimesError",
+        "try:\n    parse_str('2024-02-30',strict=True)\nexcept ParseError as error:\n    assert isinstance(error,(RstimesError,ValueError))\n    assert 'day=30' in str(error)\nelse:\n    raise AssertionError('Invalid strict date accepted')"
+      ],
+      "scenarios": [
+        "strict-parsing",
+        "field-error",
+        "exception-type",
+        "error-context"
+      ],
+      "reviewed": true,
+      "page": "api/errors.md"
+    },
+    {
+      "id": "ref-pddt-date-field-replace",
+      "covers": [
+        "rstimes.Pddt.pddt",
+        "rstimes.Pddt.pddt.replace"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The explicit day changes February 29 to February 1 and preserves the clock and missing position.",
+      "checks": [
+        "assert type(changed) is Pddt and changed.unit == 'ns' and str(changed.tz) == 'UTC'",
+        "assert changed.name == 'event' and changed.isna().tolist() == [False,True]",
+        "assert source.isoformat().dropna().tolist() == ['2024-02-29T12:34:56.123456789+00:00']"
+      ],
+      "scenarios": [
+        "field-replacement",
+        "namespace",
+        "nanoseconds",
+        "UTC",
+        "NaT"
+      ],
+      "reviewed": true,
+      "page": "api/namespaces.md"
+    },
+    {
+      "id": "ref-pddt-wrap-datetime-array",
+      "covers": [
+        "rstimes.Pddt.__array_wrap__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The supplied array yields a named native DatetimeIndex carrying its own ticks and NaT.",
+      "checks": [
+        "import pandas as pd",
+        "assert type(converted) is pd.DatetimeIndex and converted.unit == 'ns' and converted.tz is None",
+        "assert converted.asi8.tolist() == [456,-2**63] and source.asi8.tolist() == [123,-2**63]"
+      ],
+      "scenarios": [
+        "array-protocol",
+        "dtype",
+        "name",
+        "NaT"
+      ],
+      "reviewed": true,
+      "page": "api/array-dispatch-protocols.md"
+    },
+    {
+      "id": "ref-pddt-native-field",
+      "covers": [
+        "rstimes.Pddt.quarter"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "January is quarter one and July is quarter three; the native numeric index can carry missing values.",
+      "checks": [
+        "import pandas as pd",
+        "assert isinstance(quarters,pd.Index) and type(quarters) is not Pddt",
+        "assert quarters.dtype.kind == 'f' and events.unit == 'us' and str(events.tz) == 'UTC'"
+      ],
+      "scenarios": [
+        "native-calendar-field",
+        "numeric-result",
+        "NaT"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pddt-fields.md"
+    },
+    {
+      "id": "ref-pddt-take-missing",
+      "covers": [
+        "rstimes.Pddt.take"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Passing a date missing marker with allow_fill=True inserts NaT at -1.",
+      "checks": [
+        "assert type(selected) is Pddt and selected.unit == 'ns' and str(selected.tz) == 'UTC'",
+        "assert selected.asi8.tolist() == [1704067200000000000,-2**63]"
+      ],
+      "scenarios": [
+        "native-take",
+        "pandas-versions",
+        "explicit-fill",
+        "NaT"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pddt-compatibility.md"
+    },
+    {
+      "id": "ref-pddt-exact-label",
+      "covers": [
+        "rstimes.Pddt.get_loc"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The exact second date label is at position 1.",
+      "checks": [
+        "assert dates.name == 'event' and dates.unit == 'us' and dates.tz is None",
+        "try:\n    dates.get_loc('2024-01-02')\nexcept KeyError:\n    pass\nelse:\n    raise AssertionError('Absent date label matched')"
+      ],
+      "scenarios": [
+        "label-lookup",
+        "position",
+        "KeyError"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pddt-indexing.md"
+    },
+    {
+      "id": "ref-pddt-drop-missing-duplicates",
+      "covers": [
+        "rstimes.Pddt.dropna",
+        "rstimes.Pddt.unique"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The missing date is removed and the repeated leap day appears once.",
+      "checks": [
+        "assert type(selected) is Pddt and selected.name == 'event' and selected.unit == 'us'",
+        "assert dates.isna().tolist() == [False,True,False,False]"
+      ],
+      "scenarios": [
+        "native-selection",
+        "deduplicate",
+        "NaT"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pddt-containers.md"
+    },
+    {
+      "id": "ref-pddt-export-index-series",
+      "covers": [
+        "rstimes.Pddt.to_series"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Alternative labels belong to the Series while its values preserve exact dates and NaT.",
+      "checks": [
+        "import pandas as pd",
+        "assert type(series) is pd.Series and series.name == 'event'",
+        "assert str(series.dtype) == 'datetime64[ns, UTC]' and series.array.asi8.tolist() == [5,-2**63]"
+      ],
+      "scenarios": [
+        "native-series",
+        "labels",
+        "nanoseconds",
+        "timezone",
+        "NaT"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pddt-output.md"
+    },
+    {
+      "id": "ref-pddt-numpy-equality",
+      "covers": [
+        "rstimes.Pddt.__array_ufunc__",
+        "rstimes.Pddt.__eq__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "An equal date matches and NaT equality is False.",
+      "checks": [
+        "assert type(match) is np.ndarray and match.dtype == np.dtype('bool')",
+        "assert (events == events).tolist() == [True,False]"
+      ],
+      "scenarios": [
+        "numpy",
+        "array-dispatch",
+        "NaT"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pddt-protocols.md"
+    },
+    {
+      "id": "ref-pldt-native-gather",
+      "covers": [
+        "rstimes.Pldt.gather"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The gather follows the chosen order and keeps the middle null.",
+      "checks": [
+        "import polars as pl",
+        "assert type(picked) is pl.Series and picked.dtype == pl.Datetime('ns','UTC') and picked.name == 'event'",
+        "assert events.to_physical().to_list() == [5,None,9]"
+      ],
+      "scenarios": [
+        "native-gather",
+        "index-order",
+        "nanoseconds",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-container.md"
+    },
+    {
+      "id": "ref-pldt-native-fill",
+      "covers": [
+        "rstimes.Pldt.fill_null"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Forward fill copies the preceding date into the missing row.",
+      "checks": [
+        "import polars as pl",
+        "assert type(filled) is pl.Series and filled.dtype == pl.Datetime('ns','UTC') and filled.name == 'event'",
+        "assert filled.null_count() == 0 and events.is_null().to_list() == [False,True,False]"
+      ],
+      "scenarios": [
+        "native-fill",
+        "timezone",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-transformations.md"
+    },
+    {
+      "id": "ref-pldt-native-argmin",
+      "covers": [
+        "rstimes.Pldt.arg_min"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The smallest nonmissing tick is at zero-based position 2.",
+      "checks": [
+        "assert type(events.arg_min()) is int and events[2].year == 1970",
+        "assert events.to_physical().to_list() == [9,None,5]"
+      ],
+      "scenarios": [
+        "native-reduction",
+        "position",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-analysis.md"
+    },
+    {
+      "id": "ref-pldt-native-rolling-min",
+      "covers": [
+        "rstimes.Pldt.rolling_min"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The first window is incomplete; later windows contain the two adjacent dates.",
+      "checks": [
+        "import polars as pl",
+        "assert type(rolling) is pl.Series and rolling.dtype == pl.Datetime('ns','UTC') and rolling.name == 'event'"
+      ],
+      "scenarios": [
+        "native-window",
+        "minimum",
+        "nanoseconds",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-windows.md"
+    },
+    {
+      "id": "ref-pldt-native-date-comparison",
+      "covers": [
+        "rstimes.Pldt.__gt__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Nine exceeds eight, the missing source stays null, and equal ticks do not match.",
+      "checks": [
+        "import polars as pl",
+        "assert type(match) is pl.Series and match.dtype == pl.Boolean and match.name == 'event'"
+      ],
+      "scenarios": [
+        "native-comparison",
+        "positional",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-comparisons.md"
+    },
+    {
+      "id": "ref-pldt-native-frame",
+      "covers": [
+        "rstimes.Pldt.to_frame"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The named frame column keeps the two values and the original date dtype.",
+      "checks": [
+        "import polars as pl",
+        "assert type(frame) is pl.DataFrame and type(frame['event']) is pl.Series",
+        "assert frame.schema == {'event':pl.Datetime('ns','UTC')}"
+      ],
+      "scenarios": [
+        "native-dataframe",
+        "name",
+        "nanoseconds",
+        "timezone",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-representations.md"
+    },
+    {
+      "id": "ref-pldt-native-lower-bound",
+      "covers": [
+        "rstimes.Pldt.lower_bound"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The lower bound is a numeric Int64 Series holding the minimum signed storage tick.",
+      "checks": [
+        "import polars as pl",
+        "assert type(lower) is pl.Series and lower.dtype == pl.Int64",
+        "assert lower.is_null().to_list() == [False]"
+      ],
+      "scenarios": [
+        "native-storage-bound",
+        "nanoseconds",
+        "valid-minimum"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-numeric.md"
+    },
+    {
+      "id": "ref-pldt-native-registered-accessor",
+      "covers": [
+        "rstimes.Pldt.pldt",
+        "polars.Series.pldt",
+        "polars.Series.pldt.day"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "February 29 yields day 29 and preserves the null.",
+      "checks": [
+        "import polars as pl",
+        "assert type(days) is pl.Series and days.dtype == pl.Int64 and days.name == 'event'",
+        "assert type(events.pldt) is type(pl.Series(events).pldt)"
+      ],
+      "scenarios": [
+        "registered-accessor",
+        "calendar-field",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-accessors.md"
+    },
+    {
+      "id": "ref-pldt-native-epoch",
+      "covers": [
+        "rstimes.Pldt.dt",
+        "rstimes.Pldt.dt.epoch"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The epoch and 1.25-second instant occupy second buckets 0 and 1.",
+      "checks": [
+        "import polars as pl",
+        "assert type(seconds) is pl.Series and seconds.dtype == pl.Int64 and seconds.name == 'event'",
+        "assert events.dtype == pl.Datetime('ns','UTC')"
+      ],
+      "scenarios": [
+        "native-dt",
+        "epoch-integer",
+        "second-output",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-polars-datetime.md"
+    },
+    {
+      "id": "ref-pldt-native-arrow-array",
+      "covers": [
+        "rstimes.Pldt.to_arrow"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Arrow represents the minimum valid ns tick and a null independently.",
+      "checks": [
+        "assert isinstance(array,pa.TimestampArray) and array.type == pa.timestamp('ns','UTC')",
+        "assert array.is_null().to_pylist() == [False,True]"
+      ],
+      "scenarios": [
+        "native-arrow",
+        "valid-minimum",
+        "timezone",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-arrow.md"
+    },
+    {
+      "id": "ref-pldt-native-sql-sort",
+      "covers": [
+        "rstimes.Pldt.sql"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The SQL filter removes the null and orders the two remaining ticks.",
+      "checks": [
+        "import polars as pl",
+        "assert type(ordered) is pl.DataFrame and ordered.schema == {'event':pl.Datetime('ns','UTC')}"
+      ],
+      "scenarios": [
+        "native-sql",
+        "order",
+        "filter",
+        "timezone"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-sql.md"
+    },
+    {
+      "id": "ref-pldt-missing-torch",
+      "covers": [
+        "rstimes.Pldt.to_torch"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The native operation raises a dependency error when PyTorch is absent.",
+      "checks": [
+        "import importlib.util",
+        "assert importlib.util.find_spec('torch') is None",
+        "assert events.to_physical().to_list() == [1,None]",
+        "try:\n    events.to_torch()\nexcept ModuleNotFoundError as error:\n    assert 'torch' in str(error).lower()\nelse:\n    raise AssertionError('A missing dependency was ignored')"
+      ],
+      "scenarios": [
+        "missing-dependency",
+        "native-tensor",
+        "ModuleNotFoundError"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-optional-dependencies.md"
+    },
+    {
+      "id": "ref-pldt-torch-integer-ticks",
+      "covers": [
+        "rstimes.Pldt.to_physical",
+        "rstimes.Pldt.is_not_null",
+        "rstimes.Pldt.to_torch"
+      ],
+      "format": "python",
+      "profiles": [
+        "optional-exports",
+        "optional-exports-current"
+      ],
+      "expectation_basis": "Carry nulls separately from the integer tensor.",
+      "checks": [
+        "import torch",
+        "assert isinstance(ticks,torch.Tensor) and ticks.dtype == torch.int64",
+        "assert isinstance(valid,torch.Tensor) and valid.dtype == torch.bool",
+        "try:\n    events.to_torch()\nexcept TypeError:\n    pass\nelse:\n    raise AssertionError('Arrow datetime mapped to a Torch dtype')"
+      ],
+      "scenarios": [
+        "optional-PyTorch",
+        "physical-integers",
+        "nanoseconds",
+        "validity"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-optional.md"
     }
   ]
 }
