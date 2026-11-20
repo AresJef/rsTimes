@@ -1,0 +1,55 @@
+```{doctest} free-threaded-actual-date-work
+>>> import os
+>>> import sys
+>>> import sysconfig
+>>> (sysconfig.get_config_var('Py_GIL_DISABLED'), sys._is_gil_enabled())
+(1, False)
+>>> (os.environ.get('PYTHON_GIL') is None, 'gil' not in sys._xoptions)
+(True, True)
+>>> import pandas as pd
+>>> import polars as pl
+>>> from rstimes import Configs, Delta, Pydt, Pddt, Pldt, parse_str
+>>> sys._is_gil_enabled()
+False
+>>> scalar = Pydt(2024, 1, 31) + Delta(months=1)
+>>> (type(scalar) is Pydt, scalar.isoformat())
+(True, '2024-02-29T00:00:00')
+>>> index = Pddt([123, None], unit='ns', name='event') + Delta(nanoseconds=1)
+>>> (type(index) is Pddt, index.unit, index.name, index.asi8.tolist())
+(True, 'ns', 'event', [124, -9223372036854775808])
+>>> pd.isna(index[1])
+True
+>>> column = Pldt([123, None], unit='ns', name='event') + Delta(nanoseconds=1)
+>>> (type(column) is Pldt, column.dtype, column.to_physical().to_list(), column.is_null().to_list())
+(True, Datetime(time_unit='ns', time_zone=None), [124, None], [False, True])
+>>> expression = pl.col('event').pldt.add(nanoseconds=1)
+>>> type(expression) is pl.Expr
+True
+>>> frame = column.to_frame()
+>>> eager = frame.select(expression)
+>>> lazy = frame.lazy().select(expression).collect()
+>>> (eager.equals(lazy), eager.schema == {'event': pl.Datetime('ns')}, eager['event'].to_physical().to_list())
+(True, True, [125, None])
+>>> sys._is_gil_enabled()
+False
+```
+
+```{doctest} free-threaded-shared-config-reads
+>>> from concurrent.futures import ThreadPoolExecutor
+>>> from threading import Barrier
+>>> cfg = Configs()
+>>> added = cfg.add_month('harvest', 10)
+>>> (type(added) is bool, added)
+(True, True)
+>>> ready = Barrier(2)
+>>> def read_date(text):
+...     ready.wait(timeout=5)
+...     result = parse_str(text, cfg=cfg)
+...     return result.month, result.day, sys._is_gil_enabled()
+>>> with ThreadPoolExecutor(max_workers=2) as pool:
+...     results = list(pool.map(read_date, ['7 harvest 2024', '8 harvest 2024']))
+>>> results
+[(10, 7, False), (10, 8, False)]
+>>> sys._is_gil_enabled()
+False
+```

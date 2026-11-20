@@ -5899,17 +5899,15 @@
         "pandas-current",
         "windows-full"
       ],
-      "expectation_basis": "Independent standard/intended control compared with explicitly labelled observed wrong product behavior.",
+      "expectation_basis": "The custom target requires a ValueError. A genuinely aware source still converts its actual offset.",
       "scenarios": [
         "known-defect",
         "intended-contract-not-met",
         "actual-current-candidate-reproduction"
       ],
       "reviewed": true,
-      "verification_role": "known-defect-reproduction",
-      "known_issue_ids": [
-        "RV03"
-      ]
+      "verification_role": "release-regression",
+      "format": "contract"
     },
     {
       "id": "known-named-copy-reduction-defect",
@@ -5924,17 +5922,15 @@
         "pandas-current",
         "windows-full"
       ],
-      "expectation_basis": "Independent standard/intended control compared with explicitly labelled observed wrong product behavior.",
+      "expectation_basis": "Named and standard copy both use actual available reducers.",
       "scenarios": [
         "known-defect",
         "intended-contract-not-met",
         "actual-current-candidate-reproduction"
       ],
       "reviewed": true,
-      "verification_role": "known-defect-reproduction",
-      "known_issue_ids": [
-        "RV04"
-      ]
+      "verification_role": "release-regression",
+      "format": "contract"
     },
     {
       "id": "known-named-copy-dynamic-fallback",
@@ -5949,17 +5945,15 @@
         "pandas-current",
         "windows-full"
       ],
-      "expectation_basis": "Independent standard/intended control compared with explicitly labelled observed wrong product behavior.",
+      "expectation_basis": "Named and standard copy both use actual available reducers.",
       "scenarios": [
         "known-defect",
         "intended-contract-not-met",
         "actual-current-candidate-reproduction"
       ],
       "reviewed": true,
-      "verification_role": "known-defect-reproduction",
-      "known_issue_ids": [
-        "RV04"
-      ]
+      "verification_role": "release-regression",
+      "format": "contract"
     },
     {
       "id": "known-type-name-preview-defect",
@@ -5976,17 +5970,15 @@
         "pandas-current",
         "windows-full"
       ],
-      "expectation_basis": "Independent standard/intended control compared with explicitly labelled observed wrong product behavior.",
+      "expectation_basis": "Error previews preserve the exact original LookupError in all three routes.",
       "scenarios": [
         "known-defect",
         "intended-contract-not-met",
         "actual-current-candidate-reproduction"
       ],
       "reviewed": true,
-      "verification_role": "known-defect-reproduction",
-      "known_issue_ids": [
-        "RV05"
-      ]
+      "verification_role": "release-regression",
+      "format": "contract"
     },
     {
       "id": "expr-lazy-parse",
@@ -8761,7 +8753,8 @@
       "scenarios": [
         "Real eager and lazy two-stage event parsing/month renewal; ns UTC/null schema and exact ticks."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "recipe-calendar-scalar",
@@ -8782,7 +8775,8 @@
       "scenarios": [
         "Month end clamping versus30calendar days on scalar Pydt; nonreversibility and unchanged source."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "recipe-calendar-batches",
@@ -8803,7 +8797,8 @@
       "scenarios": [
         "SharedDelta on pandas/Polars batches keeps123ns, name, unit and native missing roles; np.int64 explicitly checked."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "recipe-calendar-destination-resolution",
@@ -8824,7 +8819,8 @@
       "scenarios": [
         "Exact1nsDelta follows scalar microsecond rounding while ns batches retain one ns."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "recipe-exact-arrow-exchange",
@@ -8844,7 +8840,8 @@
       "scenarios": [
         "Validminimum/null/123ns data; checked NumPy collision rejection and Arrow native round-trip keeps explicit dtype/name/validity."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "recipe-explicit-nat-collision",
@@ -8862,7 +8859,8 @@
       "scenarios": [
         "Explicitallow_nat_collision accepts one documented loss; unrelatedvalidnsdata and originalsourcechecked."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "free-threaded-actual-date-work",
@@ -8885,7 +8883,8 @@
       "scenarios": [
         "Actual3.14t/3.15t public wheel; default GILoff before/after imports and four-class/date-expression work; exactns/NaT/null schema and lazy collect."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "free-threaded-shared-config-reads",
@@ -8903,7 +8902,8 @@
       "scenarios": [
         "FinishedsharedConfigsvocabulary, two actual synchronized worker reads, month/dayanswers and GILoff inworkers/afterwork."
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-native-array-priority-metadata",
@@ -13385,6 +13385,351 @@
       ],
       "reviewed": true,
       "page": "api/inherited-pldt-optional.md"
+    },
+    {
+      "id": "compat-reject-custom-date-target",
+      "covers": [
+        "rstimes.Pldt",
+        "rstimes.Pldt.__init__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The custom business zone has rules that differ from its native key.",
+      "checks": [
+        "from datetime import timezone",
+        "import polars as pl",
+        "aware = datetime(2024,1,1,12,tzinfo=zone)",
+        "converted = Pldt([aware],tz='UTC',unit='us')",
+        "assert converted.dtype == pl.Datetime('us','UTC') and converted.to_physical().to_list() == [1704103200000000]",
+        "assert aware.astimezone(timezone.utc).hour == 10"
+      ],
+      "scenarios": [
+        "custom-target-error",
+        "external-source",
+        "timezone",
+        "utc"
+      ],
+      "reviewed": true,
+      "page": "compatibility/known-issues.md"
+    },
+    {
+      "id": "compat-copy-business-reduction",
+      "covers": [
+        "rstimes.Pddt.copy"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The available reduction returns an application string when the preceding hooks are unavailable.",
+      "checks": [
+        "from copy import copy, deepcopy",
+        "assert type(events.copy()) is str",
+        "assert copy(events) == deepcopy(events) == events.copy(deep=True) == 'application copy'"
+      ],
+      "scenarios": [
+        "named-copy",
+        "custom-reducer",
+        "fallback"
+      ],
+      "reviewed": true,
+      "page": "compatibility/known-issues.md"
+    },
+    {
+      "id": "compat-preserve-index-exception",
+      "covers": [
+        "rstimes.Delta",
+        "rstimes.Delta.__new__"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "An existing exception raised by the real __index__ callback preserves identity.",
+      "checks": [
+        "try:\n    Delta(days=Count())\nexcept ProjectInputError as error:\n    assert error is original and error.args == ('invalid application input',)\nelse:\n    raise AssertionError('Application hook was bypassed')"
+      ],
+      "scenarios": [
+        "integer-protocol",
+        "error-identity"
+      ],
+      "reviewed": true,
+      "page": "compatibility/known-issues.md"
+    },
+    {
+      "id": "free-threaded-check-after-query",
+      "covers": [
+        "polars.Expr.pldt",
+        "polars.Expr.pldt.add"
+      ],
+      "format": "python",
+      "profiles": [
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The actual compiled free-threaded runtime adds one ns and leaves the GIL disabled.",
+      "checks": [
+        "import os",
+        "assert before is sys._is_gil_enabled() is False",
+        "assert os.environ.get('PYTHON_GIL') is None and 'gil' not in sys._xoptions",
+        "assert type(expr) is pl.Expr and type(events) is pl.Series and events.dtype == pl.Datetime('ns')",
+        "assert frame.select(expr)['event'].to_physical().to_list() == [124,None]"
+      ],
+      "scenarios": [
+        "free-threaded",
+        "GIL-before-after",
+        "select",
+        "collect",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "compatibility/free-threaded.md"
+    },
+    {
+      "id": "free-threaded-read-shared-month",
+      "covers": [
+        "rstimes.Configs",
+        "rstimes.Configs.add_month",
+        "rstimes.parse_str"
+      ],
+      "format": "python",
+      "profiles": [
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Both October dates use the same completed mapping.",
+      "checks": [
+        "from datetime import datetime",
+        "import sys",
+        "assert type(parse_str('7 harvest 2024',cfg=config)) is datetime",
+        "assert sys._is_gil_enabled() is False"
+      ],
+      "scenarios": [
+        "free-threaded",
+        "shared-config",
+        "real-threads"
+      ],
+      "reviewed": true,
+      "page": "compatibility/free-threaded.md"
+    },
+    {
+      "id": "type-check-registered-expr",
+      "covers": [
+        "polars.Expr.pldt",
+        "polars.Expr.pldt.floor"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Four ns floors to the previous multiple of three; the second date is null.",
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "assert frame.lazy().select(expr).collect_schema() == {'event':pl.Datetime('ns')}",
+        "assert frame.select(expr)['event'].to_physical().to_list() == [3,None]",
+        "assert type(frame.select(expr)['event']) is pl.Series",
+        "try:\n    source.pldt.floor(3)\nexcept TypeError:\n    pass\nelse:\n    raise AssertionError('A plain integer frequency was accepted')"
+      ],
+      "scenarios": [
+        "static-typing",
+        "runtime-registration",
+        "fixed-frequency",
+        "select",
+        "collect",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "compatibility/type-checking.md"
+    },
+    {
+      "id": "renewal-calculate-from-text-feed",
+      "covers": [
+        "polars.Expr.pldt.parse",
+        "polars.Expr.pldt.add"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The independently calculated UTC renewal dates have the specified 123 ns and 789 ns tails.",
+      "checks": [
+        "assert type(parsed) is type(renewal) is pl.Expr",
+        "assert type(dates) is pl.DataFrame and dates.schema == {'event':pl.Datetime('ns','UTC'),'renewal':pl.Datetime('ns','UTC')}",
+        "assert frame.select(parsed)['event'].to_physical().to_list() == [1706702400000000123,None,1709208000000000789]",
+        "eager = frame.with_columns(parsed).select('event',renewal)",
+        "assert eager['renewal'].to_physical().to_list() == [1709208000000000123,None,1711713600000000789]",
+        "assert dates['event'].to_physical().to_list() == [1706702400000000123,None,1709208000000000789]",
+        "assert dates['renewal'].is_null().to_list() == [False,True,False]"
+      ],
+      "scenarios": [
+        "end-to-end-text-feed",
+        "calendar-month",
+        "timezone",
+        "nanoseconds",
+        "select",
+        "collect",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "recipes/ingest-and-query.md"
+    },
+    {
+      "id": "calendar-recipe-month-to-leap-day",
+      "covers": [
+        "rstimes.Pydt.__add__",
+        "rstimes.Delta"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "January 31 plus one month fits to the 29th in 2024.",
+      "checks": [
+        "assert type(renewal) is Pydt and renewal.tzinfo is None",
+        "assert (renewal-Delta(months=1)).isoformat() == '2024-01-29T12:00:00'"
+      ],
+      "scenarios": [
+        "calendar-month",
+        "scalar",
+        "month-end"
+      ],
+      "reviewed": true,
+      "page": "recipes/calendar-across-containers.md"
+    },
+    {
+      "id": "calendar-recipe-match-column-results",
+      "covers": [
+        "rstimes.Pddt.__add__",
+        "rstimes.Pldt.__add__",
+        "rstimes.Delta"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Both date collections preserve the 123 ns tail and one missing position.",
+      "checks": [
+        "import polars as pl",
+        "assert type(index) is Pddt and index.unit == 'ns' and index.tz is None and index.name == 'event'",
+        "assert type(column) is Pldt and column.dtype == pl.Datetime('ns') and column.name == 'event'",
+        "assert index.isna().tolist() == column.is_null().to_list() == [False,True]",
+        "assert index.asi8.tolist() == [1709208000000000123,-2**63] and column.to_physical().to_list() == [1709208000000000123,None]"
+      ],
+      "scenarios": [
+        "calendar-month",
+        "pandas",
+        "Polars",
+        "nanoseconds",
+        "missing"
+      ],
+      "reviewed": true,
+      "page": "recipes/calendar-across-containers.md"
+    },
+    {
+      "id": "exchange-roundtrip-full-date-tick",
+      "covers": [
+        "rstimes.Pldt.to_arrow",
+        "rstimes.Pldt",
+        "rstimes.Pldt.__init__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Arrow preserves the valid full-range integer and a separate null in ns UTC.",
+      "checks": [
+        "import pyarrow as pa",
+        "assert isinstance(arrow,pa.TimestampArray) and arrow.type == pa.timestamp('ns','UTC')",
+        "assert type(restored) is Pldt and restored.dtype == pl.Datetime('ns','UTC') and restored.name == 'event'",
+        "assert arrow.cast(pa.int64()).to_pylist() == [-2**63,None,123]"
+      ],
+      "scenarios": [
+        "end-to-end-arrow",
+        "minimum-tick",
+        "timezone",
+        "nanoseconds",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "recipes/precise-exchange.md"
+    },
+    {
+      "id": "units-project-nanos-at-destination",
+      "covers": [
+        "rstimes.Delta",
+        "rstimes.Pydt.__add__"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "1500 ns is 1.5 us, which projects onto the even microsecond tick 2.",
+      "checks": [
+        "assert type(date) is Pydt and date.microsecond == 2 and date.tzinfo is None"
+      ],
+      "scenarios": [
+        "exact-delta",
+        "target-precision",
+        "ties-to-even"
+      ],
+      "reviewed": true,
+      "page": "concepts/units-and-missing.md"
+    },
+    {
+      "id": "returns-native-and-rstimes-weekday",
+      "covers": [
+        "polars.Series.pldt.weekday",
+        "rstimes.Pldt.dt.weekday"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The Unix epoch was a Thursday, day 3 with a zero-based Monday or day 4 with a one-based Monday.",
+      "checks": [
+        "import polars as pl",
+        "assert type(dates.pldt.weekday) is type(dates.dt.weekday()) is pl.Series",
+        "assert dates.pldt.weekday.dtype == pl.Int64 and dates.dt.weekday().dtype == pl.Int8",
+        "assert dates.dtype == pl.Datetime('us') and dates.name == 'event'"
+      ],
+      "scenarios": [
+        "weekday-numbering",
+        "inherited-native",
+        "return-dtype",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "concepts/returns-and-protocols.md"
     }
   ]
 }

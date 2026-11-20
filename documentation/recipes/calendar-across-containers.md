@@ -1,73 +1,52 @@
-# Apply a calendar change across scalar, pandas and Polars dates
+# Add a calendar month across date containers
 
-Use Delta to describe a change, then choose the date container for your data.
-The example starts on January 31 at noon. Adding one month reaches February 29
-in leap year 2024. Adding 30 calendar days instead reaches March 1. A month is
-not a fixed number of days, and a clamped month change need not be reversible.
+## Change a scalar date
 
-```{doctest} recipe-calendar-scalar
->>> from datetime import datetime
->>> from rstimes import Delta, Pydt
->>> start = Pydt(2024, 1, 31, 12)
->>> monthly = Delta(months=1)
->>> renewal = start + monthly
->>> (type(renewal) is Pydt, renewal.isoformat())
-(True, '2024-02-29T12:00:00')
->>> (start + Delta(days=30)).isoformat()
-'2024-03-01T12:00:00'
->>> (renewal - monthly).isoformat()
-'2024-01-29T12:00:00'
->>> start.isoformat()
-'2024-01-31T12:00:00'
+(calendar-recipe-month-to-leap-day)=
+```python
+from rstimes import Delta, Pydt
+
+start = Pydt(2024, 1, 31, 12)
+renewal = start + Delta(months=1)
+print(renewal.isoformat())
 ```
 
-For batches, Pddt supplies a pandas DatetimeIndex subclass and Pldt supplies a
-Polars Series subclass. Both batches below carry a 123 ns tail and a missing
-row. The same Delta retains that tail while each container keeps its own
-missing-value representation and unit metadata.
+**Output**
 
-```{doctest} recipe-calendar-batches
->>> import numpy as np
->>> import pandas as pd
->>> import polars as pl
->>> from rstimes import Pddt, Pldt
->>> first, expected = 1706702400000000123, 1709208000000000123
->>> indexed = Pddt([first, None], unit='ns', name='event')
->>> column = Pldt([first, None], unit='ns', name='event')
->>> index_result, column_result = indexed + monthly, column + monthly
->>> (type(index_result) is Pddt, index_result.name, index_result.unit)
-(True, 'event', 'ns')
->>> type(index_result.asi8[0]) is np.int64
-True
->>> (int(index_result.asi8[0]) == expected, pd.isna(index_result[1]))
-(True, True)
->>> (type(column_result) is Pldt, column_result.name, column_result.dtype)
-(True, 'event', Datetime(time_unit='ns', time_zone=None))
->>> column_result.to_physical().to_list() == [expected, None]
-True
->>> (int(indexed.asi8[0]) == first, column.to_physical().to_list() == [first, None])
-(True, True)
+```text
+2024-02-29T12:00:00
 ```
 
-A standard datetime/Pydt destination has microsecond resolution. Delta keeps
-exact ns internally, then applies the destination's final rounding rule.
-Adding one ns to this scalar leaves it unchanged; adding one ns to either
-ns batch changes its stored tick. Do not infer a common output resolution
-from the common Delta input.
+A calendar month uses the destination month's valid final day.
+The reverse change begins from February 29, so subtracting a month
+from the result reaches January 29.
 
-```{doctest} recipe-calendar-destination-resolution
->>> fine = Delta(nanoseconds=1)
->>> (type(start + fine) is Pydt, start + fine == start)
-(True, True)
->>> int((indexed + fine).asi8[0]) == first + 1
-True
->>> (column + fine).to_physical().to_list() == [first + 1, None]
-True
+## Apply the same change to two native date collections
+
+(calendar-recipe-match-column-results)=
+```python
+from rstimes import Delta, Pddt, Pldt
+
+month = Delta(months=1)
+values = ["2024-01-31T12:00:00.000000123", None]
+index = Pddt(values, unit="ns", name="event") + month
+column = Pldt(values, unit="ns", name="event") + month
+print(index.isoformat().dropna().tolist())
+print(column.isoformat().to_list())
 ```
 
-This recipe deliberately uses naive local fields. For aware dates, read the
-container's [scalar](../guides/pydt-timezones.md),
-[pandas](../guides/pddt-timezones.md), or
-[Polars](../guides/pldt-timezones.md) timezone guide before choosing repeated-
-or missing-time behavior. For complete relative and absolute fields, see
-[Delta](../guides/delta.md).
+**Output**
+
+```text
+['2024-02-29T12:00:00.000000123']
+['2024-02-29T12:00:00.000000123', None]
+```
+
+Pddt retains its NaT and Pldt retains its native null. The print
+for Pddt drops the missing value from display. Both date results
+preserve their nanosecond storage and name. Pydt stores
+microseconds and applies its own final rounding for finer changes.
+
+See [date arithmetic](../guides/delta-interop.md) for elapsed
+duration and [timezone rules](../concepts/time-and-calendars.md)
+for aware clocks.

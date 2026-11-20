@@ -1,7 +1,7 @@
 # End-to-end date workflows
 
-These recipes connect the container guides into complete tasks. Every Python
-block is executed with the declared package/dependency profile.
+Start with a feed, choose a calendar change, or keep an exact date
+when exchanging data between containers.
 
 ```{toctree}
 :maxdepth: 1

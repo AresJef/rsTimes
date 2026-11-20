@@ -1,0 +1,94 @@
+```{doctest} known-zoneinfo-target-defect
+>>> from datetime import datetime, timedelta, timezone
+>>> from zoneinfo import ZoneInfo
+>>> from copy import copy, deepcopy
+>>> import polars as pl
+>>> from rstimes import Pldt, Pddt, Delta
+>>> class BusinessZone(ZoneInfo):
+...     def utcoffset(self, value):
+...         return timedelta(hours=2)
+...     def dst(self, value):
+...         return timedelta(0)
+...     def fromutc(self, value):
+...         return (value + timedelta(hours=2)).replace(tzinfo=self)
+>>> zone = BusinessZone('UTC')
+>>> local_clock = datetime(2024, 1, 1, 12)
+>>> intended = local_clock.replace(tzinfo=zone).astimezone(timezone.utc)
+>>> intended.isoformat()
+'2024-01-01T10:00:00+00:00'
+>>> try:
+...     Pldt([local_clock], tz=zone, unit='us')
+... except ValueError as error:
+...     assert 'custom target timezone rules' in str(error)
+... else:
+...     raise AssertionError('Custom target was accepted')
+>>> Pldt([local_clock.replace(tzinfo=zone)], tz='UTC', unit='us').to_physical().to_list()
+[1704103200000000]
+>>> Pldt([intended], tz='UTC', unit='us').to_physical().to_list()
+[1704103200000000]
+```
+
+```{doctest} known-named-copy-reduction-defect
+>>> for base in (Pddt, Pldt):
+...     class Business(base):
+...         __copy__ = None
+...         __deepcopy__ = None
+...         __reduce_ex__ = None
+...         def __reduce__(self):
+...             return str, ('application reduction',)
+...     value = Business([0], unit='us')
+...     assert copy(value) == deepcopy(value) == 'application reduction'
+...     for deep in (False, True):
+...         assert value.copy(deep=deep) == 'application reduction'
+```
+
+```{doctest} known-named-copy-dynamic-fallback
+>>> class NoneReducer:
+...     def __get__(self, instance, owner):
+...         return None
+>>> class MissingReducer:
+...     def __get__(self, instance, owner):
+...         raise AttributeError('application reduction is absent')
+>>> for base in (Pddt, Pldt):
+...     for descriptor, expected_error in ((NoneReducer(), TypeError), (MissingReducer(), AttributeError)):
+...         class Business(base):
+...             __copy__ = None
+...             __deepcopy__ = None
+...             __reduce_ex__ = descriptor
+...             def __reduce__(self):
+...                 return str, ('available fallback',)
+...         value = Business([0], unit='us')
+...         assert copy(value) == deepcopy(value) == 'available fallback'
+...         for deep in (False, True):
+...             assert value.copy(deep=deep) == 'available fallback'
+>>> for base in (Pddt, Pldt):
+...     class Dynamic(base):
+...         __copy__ = None
+...         __deepcopy__ = None
+...         def __getattribute__(self, name):
+...             if name == '__reduce_ex__':
+...                 return lambda protocol: (str, ('dynamic reduction',))
+...             return super().__getattribute__(name)
+...     value = Dynamic([0], unit='us')
+...     assert copy(value) == deepcopy(value) == 'dynamic reduction'
+...     assert value.copy() == value.copy(deep=True) == 'dynamic reduction'
+```
+
+```{doctest} known-type-name-preview-defect
+>>> original = LookupError('actual integer callback failed')
+>>> display = RuntimeError('type-name display hook ran')
+>>> class TypeName(str):
+...     def __getitem__(self, key):
+...         raise display
+>>> class BadIndex:
+...     def __index__(self):
+...         raise original
+>>> BadIndex.__name__ = TypeName('ActualBadIndex')
+>>> for action in (lambda: Delta(day=BadIndex()), lambda: Pddt.fromordinal(BadIndex(), size=1), lambda: Pldt.fromordinal(BadIndex(), size=1)):
+...     try:
+...         action()
+...     except LookupError as caught:
+...         assert caught is original
+...     else:
+...         raise AssertionError('original integer error was not preserved')
+```

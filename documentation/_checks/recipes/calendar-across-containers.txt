@@ -1,0 +1,48 @@
+```{doctest} recipe-calendar-scalar
+>>> from datetime import datetime
+>>> from rstimes import Delta, Pydt
+>>> start = Pydt(2024, 1, 31, 12)
+>>> monthly = Delta(months=1)
+>>> renewal = start + monthly
+>>> (type(renewal) is Pydt, renewal.isoformat())
+(True, '2024-02-29T12:00:00')
+>>> (start + Delta(days=30)).isoformat()
+'2024-03-01T12:00:00'
+>>> (renewal - monthly).isoformat()
+'2024-01-29T12:00:00'
+>>> start.isoformat()
+'2024-01-31T12:00:00'
+```
+
+```{doctest} recipe-calendar-batches
+>>> import numpy as np
+>>> import pandas as pd
+>>> import polars as pl
+>>> from rstimes import Pddt, Pldt
+>>> first, expected = 1706702400000000123, 1709208000000000123
+>>> indexed = Pddt([first, None], unit='ns', name='event')
+>>> column = Pldt([first, None], unit='ns', name='event')
+>>> index_result, column_result = indexed + monthly, column + monthly
+>>> (type(index_result) is Pddt, index_result.name, index_result.unit)
+(True, 'event', 'ns')
+>>> type(index_result.asi8[0]) is np.int64
+True
+>>> (int(index_result.asi8[0]) == expected, pd.isna(index_result[1]))
+(True, True)
+>>> (type(column_result) is Pldt, column_result.name, column_result.dtype)
+(True, 'event', Datetime(time_unit='ns', time_zone=None))
+>>> column_result.to_physical().to_list() == [expected, None]
+True
+>>> (int(indexed.asi8[0]) == first, column.to_physical().to_list() == [first, None])
+(True, True)
+```
+
+```{doctest} recipe-calendar-destination-resolution
+>>> fine = Delta(nanoseconds=1)
+>>> (type(start + fine) is Pydt, start + fine == start)
+(True, True)
+>>> int((indexed + fine).asi8[0]) == first + 1
+True
+>>> (column + fine).to_physical().to_list() == [first + 1, None]
+True
+```

@@ -70,7 +70,9 @@
         "expr-lazy-parse",
         "expr-parse-native-and-text",
         "getting-started-polars-parse-null",
-        "expr-parse-native-query"
+        "expr-parse-native-query",
+        "free-threaded-check-after-query",
+        "type-check-registered-expr"
       ],
       "profiles": [
         "full",
@@ -95,6 +97,7 @@
         "polars-only"
       ],
       "scenarios": [
+        "GIL-before-after",
         "String-unit",
         "actual-Expr",
         "all-native-source-schemas",
@@ -103,7 +106,9 @@
         "deferred-error",
         "dtype-and-unit",
         "eager-select",
+        "fixed-frequency",
         "fixed-schema",
+        "free-threaded",
         "independent-validity",
         "lazy-collect",
         "missing",
@@ -113,8 +118,10 @@
         "null-preservation",
         "numeric-tick-role",
         "registration",
+        "runtime-registration",
         "schema",
         "select",
+        "static-typing",
         "streaming",
         "text",
         "valid-MIN"
@@ -156,7 +163,9 @@
         "recipe-event-renewals",
         "free-threaded-actual-date-work",
         "expr-broadcast-group-offset",
-        "expr-restore-native-query"
+        "expr-restore-native-query",
+        "free-threaded-check-after-query",
+        "renewal-calculate-from-text-feed"
       ],
       "profiles": [
         "full",
@@ -182,12 +191,16 @@
       ],
       "scenarios": [
         "Actual3.14t/3.15t public wheel; default GILoff before/after imports and four-class/date-expression work; exactns/NaT/null schema and lazy collect.",
+        "GIL-before-after",
         "Real eager and lazy two-stage event parsing/month renewal; ns UTC/null schema and exact ticks.",
         "all-relative-components",
         "all3units",
+        "calendar-month",
         "capacity-error",
         "collect",
+        "end-to-end-text-feed",
         "explicit-unit",
+        "free-threaded",
         "grouped-aggregate",
         "independent-null",
         "length-error",
@@ -203,6 +216,7 @@
         "scalar-broadcast",
         "select",
         "signed-subtraction",
+        "timezone",
         "valid-MIN",
         "window"
       ],
@@ -1447,7 +1461,8 @@
       },
       "examples": [
         "expr-rounding-snap-fsp",
-        "expr-round-signed-ticks"
+        "expr-round-signed-ticks",
+        "type-check-registered-expr"
       ],
       "profiles": [
         "full",
@@ -1474,13 +1489,16 @@
       "scenarios": [
         "all-fsp",
         "collect",
+        "fixed-frequency",
         "nanoseconds",
         "null",
         "positive-fixed-grid",
+        "runtime-registration",
         "select",
         "signed-date-rounding",
         "signed-rounding",
         "snap-later",
+        "static-typing",
         "storage-preserved",
         "strict-grid",
         "tie-to-even",
@@ -4068,7 +4086,8 @@
         "expr-parse-aware-text-utc",
         "expr-report-invalid-row",
         "expr-shift-daylight-saving-gap",
-        "expr-freeze-parser-default"
+        "expr-freeze-parser-default",
+        "renewal-calculate-from-text-feed"
       ],
       "profiles": [
         "full",
@@ -4102,12 +4121,14 @@
         "all-native-source-schemas",
         "aware-target",
         "aware-text",
+        "calendar-month",
         "collect",
         "current-eager-rules",
         "default",
         "deferred-error",
         "dtype-and-unit",
         "eager-select",
+        "end-to-end-text-feed",
         "fixed-schema",
         "gap-policy",
         "independent-default-date-only",
@@ -15971,7 +15992,8 @@
         }
       },
       "examples": [
-        "pldt-integer-calendar-queries"
+        "pldt-integer-calendar-queries",
+        "returns-native-and-rstimes-weekday"
       ],
       "profiles": [
         "full",
@@ -15997,10 +16019,14 @@
         "Int64",
         "all23integer-queries",
         "full-valid-MIN",
+        "inherited-native",
         "native-null",
         "ns-tail",
+        "null",
         "original-name",
-        "signed-dates"
+        "return-dtype",
+        "signed-dates",
+        "weekday-numbering"
       ]
     },
     {
@@ -16172,7 +16198,8 @@
         "core-without-optional-packages",
         "free-threaded-shared-config-reads",
         "upgrade-configs-date-order",
-        "configs-use-day-first"
+        "configs-use-day-first",
+        "free-threaded-read-shared-month"
       ],
       "profiles": [
         "core",
@@ -16192,10 +16219,13 @@
         "configs-order",
         "core",
         "explicit-override",
+        "free-threaded",
         "normal",
         "numpy-bool",
         "optional-absent",
         "read-only",
+        "real-threads",
+        "shared-config",
         "type-error"
       ],
       "dependency_profiles_available": [
@@ -17563,7 +17593,8 @@
         "error-responsibilities",
         "free-threaded-shared-config-reads",
         "configs-add-month-word",
-        "configs-copy-month-mapping"
+        "configs-copy-month-mapping",
+        "free-threaded-read-shared-month"
       ],
       "profiles": [
         "core",
@@ -17587,13 +17618,16 @@
         "domain-error",
         "empty",
         "entry-context",
+        "free-threaded",
         "integer-index",
         "normal",
+        "real-threads",
         "reinitialize",
         "reset",
         "saved-case-forms",
         "separate-vocabulary",
         "shallow-copy",
+        "shared-config",
         "snapshot",
         "standard-error",
         "subclass-error",
@@ -20046,7 +20080,11 @@
         "delta-set-day-next-month",
         "delta-round-at-datetime-result",
         "delta-keep-index-nanosecond",
-        "pldt-calendar-day-versus-duration"
+        "pldt-calendar-day-versus-duration",
+        "compat-preserve-index-exception",
+        "calendar-recipe-month-to-leap-day",
+        "calendar-recipe-match-column-results",
+        "units-project-nanos-at-destination"
       ],
       "profiles": [
         "core",
@@ -20068,6 +20106,7 @@
         "Month end clamping versus30calendar days on scalar Pydt; nonreversibility and unchanged source.",
         "NaN",
         "None-rejection",
+        "Polars",
         "absolute-bounds",
         "absolute-day",
         "actual-current-candidate-reproduction",
@@ -20083,6 +20122,8 @@
         "datetime-result",
         "daylight-saving",
         "elapsed-duration",
+        "error-identity",
+        "exact-delta",
         "fixed-unit-error",
         "fixed-unit-ns",
         "float-types",
@@ -20093,15 +20134,20 @@
         "known-defect",
         "lossless-error",
         "metadata",
+        "missing",
         "missing-operand",
         "month-end",
+        "nanoseconds",
         "normal",
         "null",
         "operator",
         "optional-absent",
         "overflow",
+        "pandas",
+        "scalar",
         "shape-error",
         "stdlib-date-result",
+        "target-precision",
         "ties-to-even"
       ],
       "owner": "rstimes.Delta",
@@ -20117,11 +20163,6 @@
         "core",
         "polars-only"
       ],
-      "known_issue_ids": [
-        "RV05"
-      ],
-      "product_conformance": "known-defect-present",
-      "known_issue_page": "compatibility/known-issues",
       "verification_scope": "Documentation facts and labelled reproductions; not a product functional-conformance pass."
     },
     {
@@ -21253,7 +21294,8 @@
       "examples": [
         "delta-immutable-construction",
         "delta-input-errors",
-        "known-type-name-preview-defect"
+        "known-type-name-preview-defect",
+        "compat-preserve-index-exception"
       ],
       "profiles": [
         "core",
@@ -21271,6 +21313,7 @@
         "actual-current-candidate-reproduction",
         "bool-rejection",
         "constructor",
+        "error-identity",
         "float-types",
         "immutability",
         "infinity",
@@ -21293,11 +21336,6 @@
         "core",
         "polars-only"
       ],
-      "known_issue_ids": [
-        "RV05"
-      ],
-      "product_conformance": "known-defect-present",
-      "known_issue_page": "compatibility/known-issues",
       "verification_scope": "Documentation facts and labelled reproductions; not a product functional-conformance pass."
     },
     {
@@ -23409,7 +23447,8 @@
         "recipe-calendar-destination-resolution",
         "free-threaded-actual-date-work",
         "delta-keep-index-nanosecond",
-        "pddt-apply-row-calendar-deltas"
+        "pddt-apply-row-calendar-deltas",
+        "calendar-recipe-match-column-results"
       ],
       "profiles": [
         "full",
@@ -23427,6 +23466,7 @@
         "DateOffset-delegation",
         "Exact1nsDelta follows scalar microsecond rounding while ns batches retain one ns.",
         "NotImplemented",
+        "Polars",
         "Polars-date",
         "Polars-datetime",
         "Polars-duration",
@@ -23436,6 +23476,7 @@
         "all-arithmetic-directions",
         "all-components",
         "all-ns-amounts",
+        "calendar-month",
         "calendar-vs-elapsed-DST",
         "callback-return",
         "combined-cancellation",
@@ -23455,6 +23496,7 @@
         "metadata",
         "missing",
         "name",
+        "nanoseconds",
         "native-ns",
         "negative",
         "no-reinit",
@@ -23463,6 +23505,7 @@
         "original-error",
         "overflow",
         "ownership",
+        "pandas",
         "pandas-owned-result",
         "position",
         "precision-error",
@@ -27676,7 +27719,8 @@
         "known-named-copy-reduction-defect",
         "pddt-copy-and-subclass",
         "pddt-original-hooks",
-        "pddt-copy-index-keeps-business-state"
+        "pddt-copy-index-keeps-business-state",
+        "compat-copy-business-reduction"
       ],
       "profiles": [
         "full",
@@ -27691,14 +27735,17 @@
         "actual-current-candidate-reproduction",
         "application-state",
         "custom-hook-return",
+        "custom-reducer",
         "date-storage",
         "deep",
         "deep-copy",
+        "fallback",
         "genuine-construction",
         "intended-contract-not-met",
         "known-defect",
         "memo",
         "name",
+        "named-copy",
         "no-reinit",
         "original-error",
         "ownership",
@@ -27716,11 +27763,6 @@
         "nogil314",
         "nogil315"
       ],
-      "known_issue_ids": [
-        "RV04"
-      ],
-      "product_conformance": "known-defect-present",
-      "known_issue_page": "compatibility/known-issues",
       "verification_scope": "Documentation facts and labelled reproductions; not a product functional-conformance pass."
     },
     {
@@ -30370,11 +30412,6 @@
         "nogil314",
         "nogil315"
       ],
-      "known_issue_ids": [
-        "RV05"
-      ],
-      "product_conformance": "known-defect-present",
-      "known_issue_page": "compatibility/known-issues",
       "verification_scope": "Documentation facts and labelled reproductions; not a product functional-conformance pass."
     },
     {
@@ -41694,7 +41731,9 @@
         "pldt-read-numpy-seconds",
         "pldt-capture-date-column",
         "pldt-read-index-utc-instants",
-        "pldt-arrow-valid-endpoint-roundtrip"
+        "pldt-arrow-valid-endpoint-roundtrip",
+        "compat-reject-custom-date-target",
+        "exchange-roundtrip-full-date-tick"
       ],
       "profiles": [
         "core",
@@ -41752,6 +41791,7 @@
         "constructor-native-type",
         "copy-isolation",
         "custom-source-offset",
+        "custom-target-error",
         "dayfirst",
         "default-date-only",
         "dimension-error",
@@ -41759,9 +41799,11 @@
         "empty",
         "empty-mask",
         "empty-metadata",
+        "end-to-end-arrow",
         "explicit-loss",
         "explicit-name",
         "explicit-unit",
+        "external-source",
         "full-int64-domain",
         "full-position-mask",
         "full-row-mask",
@@ -41777,6 +41819,7 @@
         "known-defect",
         "local-subprocess",
         "lossless-construction",
+        "minimum-tick",
         "missing",
         "mixed-input",
         "multi-chunk",
@@ -41837,6 +41880,7 @@
         "unsupported-dtype",
         "unsupported-unit",
         "us",
+        "utc",
         "valid-MIN",
         "wrong-source-role",
         "zone-metadata"
@@ -41852,11 +41896,6 @@
         "nogil315",
         "polars-only"
       ],
-      "known_issue_ids": [
-        "RV03"
-      ],
-      "product_conformance": "known-defect-present",
-      "known_issue_page": "compatibility/known-issues",
       "verification_scope": "Documentation facts and labelled reproductions; not a product functional-conformance pass."
     },
     {
@@ -41952,7 +41991,8 @@
         "recipe-calendar-batches",
         "recipe-calendar-destination-resolution",
         "free-threaded-actual-date-work",
-        "pldt-calendar-day-versus-duration"
+        "pldt-calendar-day-versus-duration",
+        "calendar-recipe-match-column-results"
       ],
       "profiles": [
         "full",
@@ -41983,12 +42023,14 @@
         "DST",
         "Exact1nsDelta follows scalar microsecond rounding while ns batches retain one ns.",
         "NumPy-scalar-array",
+        "Polars",
         "SharedDelta on pandas/Polars batches keeps123ns, name, unit and native missing roles; np.int64 explicitly checked.",
         "actual-TypeError",
         "all-Delta-fields",
         "all-approved-directions",
         "all-arithmetic-directions",
         "calendar-day",
+        "calendar-month",
         "calendar-vs-elapsed",
         "capacity",
         "common-unit",
@@ -42001,8 +42043,10 @@
         "generator",
         "genuine-business-override",
         "independent-null",
+        "missing",
         "missing-parameter-error",
         "named-date-result-required",
+        "nanoseconds",
         "native-Duration",
         "native-Object",
         "native-fallback",
@@ -42014,6 +42058,7 @@
         "once-callback",
         "operator",
         "original-exception",
+        "pandas",
         "row-Delta-vector",
         "scalar",
         "source-nullskip",
@@ -43072,7 +43117,9 @@
         "pldt-business-zone-as-source",
         "pldt-read-numpy-seconds",
         "pldt-capture-date-column",
-        "pldt-read-index-utc-instants"
+        "pldt-read-index-utc-instants",
+        "compat-reject-custom-date-target",
+        "exchange-roundtrip-full-date-tick"
       ],
       "profiles": [
         "full",
@@ -43132,6 +43179,7 @@
         "constructor-native-type",
         "copy-isolation",
         "custom-source-offset",
+        "custom-target-error",
         "dayfirst",
         "default-date-only",
         "dimension-error",
@@ -43139,9 +43187,11 @@
         "empty",
         "empty-mask",
         "empty-metadata",
+        "end-to-end-arrow",
         "explicit-loss",
         "explicit-name",
         "explicit-unit",
+        "external-source",
         "full-int64-domain",
         "full-position-mask",
         "full-row-mask",
@@ -43157,6 +43207,7 @@
         "known-defect",
         "local-subprocess",
         "lossless-construction",
+        "minimum-tick",
         "missing",
         "mixed-input",
         "multi-chunk",
@@ -43213,15 +43264,11 @@
         "unsupported-dtype",
         "unsupported-unit",
         "us",
+        "utc",
         "valid-MIN",
         "wrong-source-role",
         "zone-metadata"
       ],
-      "known_issue_ids": [
-        "RV03"
-      ],
-      "product_conformance": "known-defect-present",
-      "known_issue_page": "compatibility/known-issues",
       "verification_scope": "Documentation facts and labelled reproductions; not a product functional-conformance pass."
     },
     {
@@ -48078,11 +48125,6 @@
         "subclass",
         "valid-MIN"
       ],
-      "known_issue_ids": [
-        "RV04"
-      ],
-      "product_conformance": "known-defect-present",
-      "known_issue_page": "compatibility/known-issues",
       "verification_scope": "Documentation facts and labelled reproductions; not a product functional-conformance pass."
     },
     {
@@ -52922,7 +52964,8 @@
         }
       },
       "examples": [
-        "inherited-polars-dt-fields"
+        "inherited-polars-dt-fields",
+        "returns-native-and-rstimes-weekday"
       ],
       "profiles": [
         "full",
@@ -52948,7 +52991,11 @@
         "Boolean-null",
         "ISO-weekday",
         "full-nanoseconds",
-        "native-field-dtypes"
+        "inherited-native",
+        "native-field-dtypes",
+        "null",
+        "return-dtype",
+        "weekday-numbering"
       ],
       "delegation_note": "Native Polars defaults/errors/results verified on actual Pldt; .pldt semantics are separate."
     },
@@ -55143,11 +55190,6 @@
         "unsigned-columns",
         "upper-cap"
       ],
-      "known_issue_ids": [
-        "RV05"
-      ],
-      "product_conformance": "known-defect-present",
-      "known_issue_page": "compatibility/known-issues",
       "verification_scope": "Documentation facts and labelled reproductions; not a product functional-conformance pass."
     },
     {
@@ -65534,10 +65576,12 @@
       "examples": [
         "inherited-pldt-native-arrow",
         "recipe-exact-arrow-exchange",
-        "ref-pldt-native-arrow-array"
+        "ref-pldt-native-arrow-array",
+        "exchange-roundtrip-full-date-tick"
       ],
       "profiles": [
         "full",
+        "pandas-current",
         "pandas2",
         "polars-current",
         "windows-full"
@@ -65559,6 +65603,9 @@
       "scenarios": [
         "Actual PyArrow TimestampArray and PyCapsule-stream consumption, ns/UTC, valid i64 MIN versus null, empty data and unchanged source.",
         "Validminimum/null/123ns data; checked NumPy collision rejection and Arrow native round-trip keeps explicit dtype/name/validity.",
+        "end-to-end-arrow",
+        "minimum-tick",
+        "nanoseconds",
         "native-arrow",
         "null",
         "timezone",
@@ -70108,7 +70155,9 @@
         "recipe-calendar-scalar",
         "recipe-calendar-destination-resolution",
         "free-threaded-actual-date-work",
-        "pydt-add-dateutil-month"
+        "pydt-add-dateutil-month",
+        "calendar-recipe-month-to-leap-day",
+        "units-project-nanos-at-destination"
       ],
       "profiles": [
         "core",
@@ -70139,6 +70188,7 @@
         "date-vs-duration",
         "dateutil",
         "dateutil-arithmetic",
+        "exact-delta",
         "external-result",
         "float-error",
         "forward",
@@ -70150,8 +70200,11 @@
         "original-error",
         "overflow",
         "reflected",
+        "scalar",
         "sub-ns-error",
+        "target-precision",
         "text-date",
+        "ties-to-even",
         "weekday-selection"
       ],
       "dependency_profiles_available": [
@@ -85140,7 +85193,8 @@
         "configs-fixed-offset-alias",
         "configs-copy-month-mapping",
         "parserinfo-import-day-first",
-        "ref-parse-field-error"
+        "ref-parse-field-error",
+        "free-threaded-read-shared-month"
       ],
       "profiles": [
         "core",
@@ -85172,10 +85226,12 @@
         "explicit-override",
         "field-error",
         "fixed-offset",
+        "free-threaded",
         "optional-absent",
         "original-domain-callback-error",
         "parse-error",
         "partial-text",
+        "real-threads",
         "recognized-offset",
         "return-and-type",
         "saved-case-forms",
@@ -85183,6 +85239,7 @@
         "scalar-string",
         "separate-vocabulary",
         "shallow-copy",
+        "shared-config",
         "standard-error",
         "strict-field",
         "strict-parsing"
