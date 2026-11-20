@@ -1,6 +1,6 @@
 # rsTimes release procedure
 
-This is the maintainer procedure validated while publishing rsTimes 0.2.0b3.
+This maintainer procedure was used for rsTimes 0.2.0b3 and 1.0.0.
 Its observed records are evidence for that release, not reusable authorization
 or acceptance for another artifact.
 
@@ -30,7 +30,7 @@ Verify the requested version is absent on PyPI and the tag is absent on GitHub.
 An existing version with any conflicting file is a stop for that write, not a
 reason to overwrite files or try a different version without authorization.
 
-For this run the account checks and absent b3 version were completed in S01.
+For b3 the account checks and absent version were recorded in S01.
 The user completed PyPI login; no publisher or account settings were changed.
 
 ## 2. Integrate the adopted source and prepare release metadata
@@ -51,7 +51,7 @@ Freeze the README and its public links before tagging. The README is package
 metadata. Make maintenance-only follow-ups to this guide, which is excluded
 from the wheel and source distribution.
 
-This run uses Python `0.2.0b3`, Cargo `0.2.0-beta.3` and tag `v0.2.0b3`.
+The historical b3 run used Python `0.2.0b3`, Cargo `0.2.0-beta.3` and tag `v0.2.0b3`.
 Mechanical synchronization preserved all 135 adopted production inputs; release
 wiring did not change product algorithms. RV03–RV05 remain deferred.
 
@@ -78,7 +78,7 @@ fork collaboration. Wait for the actual pilot result, mark Ready, and normally
 merge the expected exact head. Do not force-push main or use an admin bypass.
 
 Batch small unrelated release-wiring edits when a valid cold pilot is already
-running. This run kept the initial pilot alive while a publisher-only commit
+running. The b3 run kept the initial pilot alive while a publisher-only commit
 was prepared locally, so dependency qualification/cache completion was not
 cancelled unnecessarily. The final PR head still receives its own applicable
 validation. A demonstrated correctness blocker takes priority; this is a cost
@@ -260,7 +260,7 @@ Synchronize approved source/docs locally without overwriting unrelated dirty
 work, changing the root branch or staging its existing index.
 
 Finalize this document only after replacing pending facts with actual records.
-Add the concise reference to AGENTS; the README link was frozen before the tag.
+Summarize the verified public release in AGENTS. Keep the tagged README fixed.
 Post-publication procedure, runtime selection and adoption records use a
 separately identified normal follow-up PR and merge. A necessary test-control
 repair is identified as verification maintenance and receives its own checks;
@@ -278,7 +278,73 @@ Completion is reported separately as configuration, actual Actions success,
 GitHub publication, PyPI publication and public-package installation success.
 Save the final report, completion audit, raw identities and budget settlement.
 
-## This run's verified release records
+## Verified publication record for 1.0.0
+
+Python and Cargo are both `1.0.0`. The tag `v1.0.0` points to
+`d900219a0360e780cb10b108fd15d402879db572` (tree `f6a95e4e5e30678f0e38c5f948adcc74c649f231`).
+The annotated tag object is `915480e175d8d41dab7c4ba050e72e1e409550b2`. Full CI run `44667590001`
+attempt 1 passed all 56 required jobs. The 48 wheels and one sdist came
+from that run. The bundle manifest SHA-256 is
+`d536e4c2bf3e6ec7a30b49b3146b6e90c8c2360ec250df1e1f62c6aefd07a2de`.
+[Release files and notes](https://github.com/AresJef/rsTimes/releases/tag/v1.0.0) · [Full CI](https://github.com/AresJef/rsTimes/actions/runs/44667590001).
+
+The matrix recorded 181 native installation views, three independent sdist
+rebuilds and two upstream comparison runs. The case audit checked 186 XML
+lanes. In each comparison lane, eight Configs tests changed with the approved
+real-string subclass behavior. The replacement tests passed and all other
+older case outcomes and skip reasons were preserved.
+
+The six macOS ARM64 release wheels passed all 105 required performance
+comparisons against the adopted baseline. Independent readback confirmed
+22,680 selected pairs and 1,890 controls. The highest precision uncertainty
+was 2.603%, the highest stability spread was
+4.468%, and the worst conservative cost increase was
+2.752%. A CPython 3.12 Delta comparison was initially
+inconclusive on stability. Its one full retest passed under the original
+limits. The original result remains in the evidence.
+
+All 52 GitHub uploads and 49 PyPI files matched the sealed contents, including
+the release metadata and receipt relevant to each service. All 49 PyPI file
+attestations were verified. A clean CPython 3.13 environment using the default
+unpinned `python -m pip install rsTimes` installed 1.0.0. The published README
+example printed `2024-02-29`. [PyPI 1.0.0](https://pypi.org/project/rsTimes/1.0.0/).
+
+The publication workflow covered 48 actual PyPI positions and 144 dependency
+views. The first attempt passed 47 positions. In Windows ARM64 CPython 3.15t,
+a deliberately blocked test process was reaped on time but emitted no stack
+diagnostic. That diagnostic assertion failed. A single-job rerun on the same
+tag passed all three original views. The other jobs kept their original run
+times and results. The product files and tests kept their original identities.
+[Publication and installation run](https://github.com/AresJef/rsTimes/actions/runs/44704979606).
+
+### Successful 1.0.0 CI timing
+
+The native span runs from each platform's first native job start to its last
+native job finish. It includes scheduling gaps between jobs. Summed job time
+adds the six job durations for that platform.
+
+| Platform | ABI positions | Native span | Summed native job time |
+| --- | ---: | ---: | ---: |
+| linux-arm64 | 6 | 1h 57m 11s | 2h 24m 17s |
+| linux-musl-arm64 | 6 | 1h 36m 51s | 4h 18m 56s |
+| linux-musl-x86_64 | 6 | 1h 51m 20s | 3h 17m 04s |
+| linux-x86_64 | 6 | 1h 44m 26s | 2h 07m 17s |
+| macos-arm64 | 6 | 2h 06m 38s | 2h 55m 57s |
+| macos-x86_64 | 6 | 3h 00m 38s | 5h 47m 12s |
+| windows-arm64 | 6 | 1h 46m 39s | 3h 52m 30s |
+| windows-x86_64 | 6 | 2h 03m 09s | 3h 36m 28s |
+
+Full-CI wall time was **4h 19m 56s**, including scheduling,
+three independent rebuilds, two upstream comparisons and the final bundle.
+All 56 job durations add to 29h 18m 40s. The full CI
+qualified all 16 internal Polars runtimes from a cold cache. The 16 selected
+public t installs used qualified cached runtimes. The first publication attempt
+took 27m 13s and the single recovery job
+took 5m 11s. The entire publication
+and public installation window, including recovery, took
+35m 15s.
+
+## Historical verified release record for 0.2.0b3
 
 | Stage | Actual evidence | State |
 |---|---|---|
@@ -379,7 +445,7 @@ inherited result or just a digest. Save the JSON file with real newlines.
 The final authorized write is then a single immutable annotated tag:
 
 ```bash
-git tag --annotate "$release_tag" "$release_source" --file "$certificate_file"
+git tag --annotate --cleanup=verbatim "$release_tag" "$release_source" --file "$certificate_file"
 git cat-file -p "$release_tag"
 git push origin "refs/tags/${release_tag}"
 gh api "repos/AresJef/rsTimes/git/ref/tags/${release_tag}"

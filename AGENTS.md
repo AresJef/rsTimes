@@ -2,7 +2,14 @@
 
 2026-11-05。现行核心断言共26条／77子条款；适用范围和例外是断言的一部分。已采用实现范围见下；未批准的扩展不因断言文字而自动启动。
 
-## 当前公开采用：rsTimes 0.2.0b3
+## 当前公开发行：rsTimes 1.0.0（2026-11-20）
+
+- Python 与 Cargo 均为 1.0.0。正式 tag `v1.0.0` 指向 `d900219a0360e780cb10b108fd15d402879db572`，注释对象为 `915480e175d8d41dab7c4ba050e72e1e409550b2`。
+- 完整 CI 运行 `44667590001` 首轮 56 个必要任务全部通过。48 个 wheel 和 1 个 sdist 已在 GitHub 和 PyPI 实际读回。48 个公开安装位置及 144 个依赖视图均通过。公开安装首轮 47 个通过，Windows ARM64 CPython 3.15t 使用原文件和原测试单独重跑通过。
+- 六个 macOS ARM64 ABI 的 105 项必要性能比较全部严格通过。每项 216 个完整配对和 36 个真实 worker。结论绑定正式发行实物和采用基线，无性能例外。macOS ARM64 CP313 native SHA-256 为 `c045c00eb090f80f367b3b65b06684e953cbc758ec0d9966df29cd850ae3c927`。
+- [发行记录与维护流程](docs/RELEASING.md#verified-publication-record-for-100) · [GitHub Release](https://github.com/AresJef/rsTimes/releases/tag/v1.0.0) · [PyPI](https://pypi.org/project/rsTimes/1.0.0/)
+
+## 历史公开发行：rsTimes 0.2.0b3
 
 - **公开采用Python0.2.0b3／Cargo0.2.0-beta.3／v0.2.0b3。**源码dc878ef53f531f09c3bfe22348850bf9f163c7ee，树49c399cc688f3c0185558fbd319368e068638bff，注释tag对象57c9590fe163065bdfc93f7981400a67806fd80f。核心类仍Delta、Pydt、Pddt、Pldt；发行算法与R18 final01一致，135生产输入中只有4项版本／交付元数据变化。RV03—RV05与P3仍未处理，不把历史成绩或旧例外转记本包。
 - 同源main CI41982305161 attempt1的56必要job成功，32普通＋16t共48 wheel／1sdist；104原ZIP、184真实安装检查／186XML、3个fresh-target独立sdist重建及2oracle均已独立读回。代表普通23843PASS／5条件SKIP、t23846PASS／2、两oracle各29947PASS／18；各位置以实际XML为准，旧案例无未解释变化。干净完整CI墙钟3小时6分37秒；16项上游SDK资格实际cache miss，不能用暖pilot代替此完整时间。
