@@ -16,6 +16,7 @@ import subprocess
 import sys
 import sysconfig
 from tempfile import TemporaryDirectory
+from types import ModuleType
 
 ROOT = Path(__file__).resolve().parents[1]
 BLOCK = re.compile(r"^```\{doctest\}(?:[ \t]+([^\n]*))?\n(.*?)^```[ \t]*$", re.M | re.S)
@@ -82,10 +83,9 @@ def check_runtime(actual, profile):
     return expected
 
 
-def execute_program(program):
+def execute_program(program, namespace):
     """Run only inside a fresh, isolated interpreter working outside the source."""
     gil_before = getattr(sys, "_is_gil_enabled", lambda: True)()
-    namespace = {"__name__": "__main__"}
     output, diagnostic = io.StringIO(), io.StringIO()
     caught, checks_error = None, None
     with redirect_stdout(output), redirect_stderr(diagnostic):
@@ -196,14 +196,20 @@ def run_page(page: Path, profile: str) -> dict:
     failures = [group for group in groups if group["status"] != "pass"]
     if failures:
         transcript += json.dumps(failures, ensure_ascii=False, indent=2)
+    gil_after = getattr(sys, "_is_gil_enabled", lambda: True)()
+    actual_identity["gil_after_page"] = gil_after
+    gil_changed = gil_after is not expected["gil_enabled"]
+    if gil_changed:
+        transcript += "\nThe GIL state changed while running this page.\n"
+    failure_count = len(failures) + old_failures + regression_failures + int(gil_changed)
     return {
         "page": relative,
         "page_sha256": sha(content), "profile": profile,
         "tested_at_utc": datetime.now(timezone.utc).isoformat(),
         "verifier_sha256": sha(Path(__file__).read_bytes()),
         "groups": groups + old + regressions, "attempted": len(groups) + old_tries + regression_tries,
-        "failures": len(failures) + old_failures + regression_failures,
-        "status": "fail" if failures or old_failures or regression_failures else "pass",
+        "failures": failure_count,
+        "status": "fail" if failure_count else "pass",
         "identity": actual_identity, "transcript": transcript,
     }
 
@@ -231,6 +237,8 @@ def main() -> int:
                 print(failure)
             for failure in (group for group in result["groups"] if group.get("status") == "fail"):
                 print(json.dumps(failure, ensure_ascii=False))
+            if result["identity"]["gil_enabled"] is not result["identity"]["gil_after_page"]:
+                print("The GIL state changed while running this page.")
         return int(result["failures"] > 0)
     failed = 0
     for page in pages:
@@ -242,6 +250,10 @@ def main() -> int:
 
 if __name__ == "__main__":
     if sys.argv[1:] == ["--execute"]:
-        print(json.dumps(execute_program(json.load(sys.stdin))))
+        # A copied script can define importable __main__ classes while keeping
+        # the example namespace free of any verifier imports or variables.
+        example_main = ModuleType("__main__")
+        sys.modules["__main__"] = example_main
+        print(json.dumps(execute_program(json.load(sys.stdin), vars(example_main))))
         raise SystemExit()
     raise SystemExit(main())

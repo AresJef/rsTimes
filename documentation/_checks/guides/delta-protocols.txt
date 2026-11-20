@@ -1,0 +1,127 @@
+```{doctest} delta-immutable-construction
+>>> from rstimes import Delta
+>>> value = Delta.__new__(Delta, nanoseconds=7)
+>>> (type(value) is Delta, value.nanoseconds)
+(True, 7)
+>>> original_hash = hash(value)
+>>> value.__init__(nanoseconds=999) is None
+True
+>>> (value.nanoseconds, hash(value) == original_hash)
+(7, True)
+>>> try:
+...     value.nanoseconds = 9
+... except AttributeError as error:
+...     print(type(error).__name__)
+AttributeError
+```
+
+```{doctest} delta-value-protocols
+>>> same = Delta(nanoseconds=1000)
+>>> (same == Delta(microseconds=1), same != Delta(), hash(same) == hash(Delta(microseconds=1)))
+(True, True, True)
+>>> (value.__eq__(None) is NotImplemented, value.__ne__(None) is NotImplemented)
+(True, True)
+>>> all(getattr(value, method)(Delta()) is NotImplemented for method in ('__lt__', '__le__', '__gt__', '__ge__'))
+True
+>>> try:
+...     value < Delta()
+... except TypeError as error:
+...     print(type(error).__name__)
+TypeError
+>>> (bool(Delta()), bool(value), bool(Delta(nanosecond=0)))
+(False, True, True)
+>>> (type(repr(value)) is str, 'nanoseconds=7' in repr(value), str(value) == repr(value), format(value) == str(value))
+(True, True, True, True)
+>>> try:
+...     format(value, '.2f')
+... except TypeError as error:
+...     print(type(error).__name__)
+TypeError
+```
+
+```{doctest} delta-direct-arithmetic-protocols
+>>> from datetime import date, timedelta
+>>> change = Delta(days=1)
+>>> change.__add__(date(2024, 2, 28)) == date(2024, 2, 29)
+True
+>>> change.__radd__(timedelta(hours=2)) == Delta(days=1, hours=2)
+True
+>>> change.__sub__(timedelta(hours=2)) == Delta(hours=22)
+True
+>>> change.__rsub__(timedelta(hours=2)) == Delta(days=-1, hours=2)
+True
+>>> (change.__radd__(Delta()) is NotImplemented, change.__rsub__(Delta()) is NotImplemented)
+(True, True)
+>>> (-change == Delta(days=-1), abs(-change) == change)
+(True, True)
+```
+
+```{doctest} delta-ordered-batches
+>>> from datetime import datetime
+>>> operands = (item for item in (date(2024, 2, 28), datetime(2024, 2, 28, 12), timedelta(hours=2)))
+>>> results = change.apply_many(operands)
+>>> [type(item).__name__ for item in results]
+['date', 'datetime', 'Delta']
+>>> results == [date(2024, 2, 29), datetime(2024, 2, 29, 12), Delta(days=1, hours=2)]
+True
+>>> (change.apply_many([]), list(operands))
+([], [])
+```
+
+```{doctest} delta-batch-callback
+>>> failure = RuntimeError('business calendar unavailable')
+>>> class BusinessDate(date):
+...     def __add__(self, other):
+...         raise failure
+>>> try:
+...     change.apply_many([date(2024, 1, 1), BusinessDate(2024, 1, 2)])
+... except RuntimeError as error:
+...     print(error is failure)
+True
+```
+
+```{doctest} delta-subclass-copy
+>>> from copy import copy, deepcopy
+>>> initializations = []
+>>> class BusinessDelta(Delta):
+...     def __init__(self, *, days=0):
+...         initializations.append(days)
+...         self.items = []
+...         self.alias = self.items
+...         self.loop = self
+>>> business = BusinessDelta(days=1)
+>>> shallow, deep = copy(business), deepcopy(business)
+>>> (type(shallow) is BusinessDelta, shallow is not business, shallow.items is business.items)
+(True, True, True)
+>>> (type(deep) is BusinessDelta, deep.items is not business.items, deep.items is deep.alias, deep.loop is deep)
+(True, True, True, True)
+>>> initializations
+[1]
+>>> (value.__copy__() == value, value.__deepcopy__({}) == value)
+(True, True)
+```
+
+```{doctest} delta-state-and-pickle
+>>> import pickle
+>>> state = value.__getstate__()
+>>> (state[0], state[1], len(state[2]), state[2][:8])
+('rstimes.delta', 2, 17, (0, 0, 0, 0, 0, 0, 0, 7))
+>>> value.__setstate__(state) is None
+True
+>>> restored = pickle.loads(pickle.dumps(value, protocol=pickle.HIGHEST_PROTOCOL))
+>>> (type(restored) is Delta, restored == value, restored is not value)
+(True, True, True)
+>>> for recipe in (value.__reduce__(), value.__reduce_ex__(pickle.HIGHEST_PROTOCOL)):
+...     assert type(recipe) is tuple and callable(recipe[0])
+...     assert recipe[0](*recipe[1]) == value
+>>> try:
+...     value.__setstate__(Delta(days=1).__getstate__())
+... except ValueError as error:
+...     print(type(error).__name__, value.nanoseconds)
+ValueError 7
+>>> try:
+...     value.__setstate__((state[0], 1, state[2], state[3]))
+... except ValueError as error:
+...     print(type(error).__name__)
+ValueError
+```

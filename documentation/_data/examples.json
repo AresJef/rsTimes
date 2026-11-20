@@ -100,7 +100,8 @@
         "calendar-order",
         "date-return"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-nanoseconds",
@@ -121,7 +122,8 @@
         "return-type",
         "ns-projection"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-rounding-destinations",
@@ -143,7 +145,8 @@
         "date-vs-datetime",
         "anchor-coordinate"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-relative-fields",
@@ -170,7 +173,8 @@
         "negative",
         "constructor-input-roles"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-absolute-fields",
@@ -199,7 +203,8 @@
         "field-bounds",
         "return-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-merge",
@@ -221,7 +226,8 @@
         "negative",
         "absolute-field-presence"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-anchored-span",
@@ -244,7 +250,8 @@
         "no-anchor-error",
         "duration-directions"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-input-errors",
@@ -269,7 +276,8 @@
         "overflow",
         "absolute-bounds"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-immutable-construction",
@@ -291,7 +299,8 @@
         "immutability",
         "read-only-property"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-value-protocols",
@@ -322,7 +331,8 @@
         "representation",
         "format-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-direct-arithmetic-protocols",
@@ -346,7 +356,8 @@
         "reflected-dispatch",
         "NotImplemented"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-ordered-batches",
@@ -365,7 +376,8 @@
         "empty",
         "return-types"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-batch-callback",
@@ -383,7 +395,8 @@
         "callback-error",
         "atomic-return"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-subclass-copy",
@@ -405,7 +418,8 @@
         "metadata",
         "memo-cycle"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-state-and-pickle",
@@ -428,7 +442,8 @@
         "state-validation",
         "return-types"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-timestamp-fields",
@@ -448,7 +463,8 @@
         "ns",
         "field-merge-vs-sequence"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-vector-nanoseconds",
@@ -471,7 +487,8 @@
         "unit",
         "return-types"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-fixed-unit-and-pairing",
@@ -492,7 +509,8 @@
         "shape-error",
         "missing-operand"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-numpy-scalars",
@@ -515,7 +533,8 @@
         "NaT",
         "return-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-numpy-batch",
@@ -533,7 +552,8 @@
         "numpy-batch",
         "return-types"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-dateutil-adapter",
@@ -553,7 +573,8 @@
         "unsupported-rules",
         "base-return"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-anchor-resolution",
@@ -571,7 +592,8 @@
         "anchor-types",
         "ns-projection"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "delta-inherited-protocols",
@@ -1580,7 +1602,8 @@
         "type-error",
         "range-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-numeric-factories",
@@ -1604,7 +1627,8 @@
         "timezone-convert",
         "return-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-seconds-protocol",
@@ -1628,7 +1652,8 @@
         "text-error",
         "float-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-calendar-factories",
@@ -1650,7 +1675,8 @@
         "nonpositive-error",
         "return-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-source-factories",
@@ -1675,7 +1701,8 @@
         "multiplier",
         "NaT-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-combine",
@@ -1695,7 +1722,8 @@
         "timezone-attach",
         "return-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-text-factories",
@@ -1718,7 +1746,8 @@
         "strptime",
         "fractional-precision"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-current-time",
@@ -1740,7 +1769,8 @@
         "aware-UTC",
         "return-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-parser-option-branches",
@@ -1770,7 +1800,8 @@
         "factory-type-error",
         "text-combine"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-factory-subtypes-and-index",
@@ -1805,7 +1836,8 @@
         "None-error",
         "calendar-zone-attach"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-calendar-selectors",
@@ -1854,7 +1886,8 @@
         "return-type",
         "clock-and-timezone-retained"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-fields-and-replace",
@@ -1880,7 +1913,8 @@
         "strict-date-error",
         "month-role"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-add-sub-components",
@@ -1906,7 +1940,8 @@
         "None-error",
         "fractional-Delta"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-calendar-queries",
@@ -1959,7 +1994,8 @@
         "invalid-name",
         "type-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-zone-operations",
@@ -1989,7 +2025,8 @@
         "strict-naive-bool",
         "unsupported-state"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-fold-and-gap",
@@ -2019,7 +2056,8 @@
         "wall-clock-subtraction",
         "instant-subtraction"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-calendar-dst",
@@ -2040,7 +2078,8 @@
         "wall-clock",
         "elapsed-instant"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-zone-queries",
@@ -2070,7 +2109,8 @@
         "negative-DST",
         "fractional-offset"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-process-local-zone",
@@ -2092,7 +2132,8 @@
         "local-match",
         "local-nonmatch"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-timezone-callback-error",
@@ -2111,7 +2152,8 @@
         "callback",
         "original-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-first-last-days",
@@ -2136,7 +2178,8 @@
         "query-true",
         "query-false"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-start-end-boundaries",
@@ -2162,7 +2205,8 @@
         "unchanged-identity",
         "return-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-missing-midnight",
@@ -2183,7 +2227,8 @@
         "missing-midnight",
         "same-date"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-rounding-and-snap",
@@ -2208,7 +2253,8 @@
         "named-period",
         "invalid-frequency"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-fractional-precision",
@@ -2229,7 +2275,8 @@
         "float-error",
         "bool-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-boundary-diff",
@@ -2255,7 +2302,8 @@
         "unit-error",
         "bool-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-boundary-invalid-inputs",
@@ -2284,7 +2332,8 @@
         "bool-error",
         "query-false"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-epoch-output",
@@ -2307,7 +2356,8 @@
         "return-type",
         "boolean-option-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-calendar-output",
@@ -2337,7 +2387,8 @@
         "naive-DST-unknown",
         "date-clock-role"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-time-output-offset",
@@ -2359,7 +2410,8 @@
         "regional-time-without-date",
         "inherited-constant-types"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-text-output",
@@ -2386,7 +2438,8 @@
         "type-error",
         "timespec-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-localized-output",
@@ -2407,7 +2460,8 @@
         "unsupported-locale",
         "type-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-relative-to-now",
@@ -2429,7 +2483,8 @@
         "past",
         "future"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-comparison-protocols",
@@ -2456,7 +2511,8 @@
         "naive-aware-error",
         "equality"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-arithmetic-protocols",
@@ -2483,7 +2539,8 @@
         "external-result",
         "overflow"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-subclass-copy",
@@ -2506,7 +2563,8 @@
         "memo",
         "no-reinitialization"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-state-and-pickle",
@@ -2532,7 +2590,8 @@
         "date-immutable",
         "invalid-state"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-original-business-error",
@@ -2550,7 +2609,8 @@
         "callback",
         "original-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-numpy-date-units",
@@ -2570,7 +2630,8 @@
         "multiplier",
         "date-difference"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-numpy-duration-units",
@@ -2593,7 +2654,8 @@
         "sub-ns-error",
         "capacity-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-pandas-precision",
@@ -2624,7 +2686,8 @@
         "zone",
         "NaT-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-dateutil-operands",
@@ -2646,7 +2709,8 @@
         "external-result",
         "original-error"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pydt-inherited-entry-forms",
@@ -2705,7 +2769,8 @@
         "instant-error-demonstration",
         "builtin-carrier-workaround"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "pddt-construction-unit",
@@ -9423,6 +9488,705 @@
       ],
       "reviewed": true,
       "page": "guides/parser-interop.md"
+    },
+    {
+      "id": "delta-set-day-next-month",
+      "covers": [
+        "rstimes.Delta",
+        "rstimes.Delta.__radd__"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "One month advances to February and the absolute day sets the 15th.",
+      "checks": [
+        "assert type(result) is date and result == date(2024, 2, 15)"
+      ],
+      "scenarios": [
+        "calendar-month",
+        "absolute-day"
+      ],
+      "reviewed": true,
+      "page": "guides/delta.md"
+    },
+    {
+      "id": "delta-round-at-datetime-result",
+      "covers": [
+        "rstimes.Delta",
+        "rstimes.Delta.__radd__"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "1.5 microseconds ties to the even 2 microseconds at the final datetime.",
+      "checks": [
+        "assert type(result) is datetime and result.microsecond == 2",
+        "assert result.tzinfo is None"
+      ],
+      "scenarios": [
+        "ties-to-even",
+        "datetime-result"
+      ],
+      "reviewed": true,
+      "page": "guides/delta.md"
+    },
+    {
+      "id": "delta-combined-months-versus-two-moves",
+      "covers": [
+        "rstimes.Delta.__add__",
+        "rstimes.Delta.__radd__"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The direct March move retains day 31; the intermediate February move fits day 29.",
+      "checks": [
+        "assert (month + month).months == 2",
+        "assert start + (month + month) == date(2024, 3, 31)",
+        "assert (start + month) + month == date(2024, 3, 29)"
+      ],
+      "scenarios": [
+        "calendar-composition",
+        "month-end-fit"
+      ],
+      "reviewed": true,
+      "page": "guides/delta.md"
+    },
+    {
+      "id": "delta-span-from-month-start",
+      "covers": [
+        "rstimes.Delta.to_timedelta"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Jan 31 to leap-year Feb 29 is 29 whole days.",
+      "checks": [
+        "from datetime import timedelta",
+        "assert type(span) is timedelta",
+        "assert span.days == 29 and span.seconds == span.microseconds == 0"
+      ],
+      "scenarios": [
+        "anchored-span",
+        "whole-days"
+      ],
+      "reviewed": true,
+      "page": "guides/delta.md"
+    },
+    {
+      "id": "delta-numpy-duration-plus-delta",
+      "covers": [
+        "rstimes.Delta.__radd__",
+        "rstimes.Delta.microseconds",
+        "rstimes.Delta.nanoseconds"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "1500 ns plus 1000 ns leaves 2 whole microseconds and a 500 ns remainder.",
+      "checks": [
+        "assert type(change) is Delta and change.microseconds == 2 and change.nanoseconds == 500",
+        "assert (duration - Delta(microseconds=1)).nanoseconds == 500"
+      ],
+      "scenarios": [
+        "numpy-left-scalar",
+        "nanoseconds",
+        "subtraction"
+      ],
+      "reviewed": true,
+      "page": "guides/delta-interop.md"
+    },
+    {
+      "id": "delta-keep-index-nanosecond",
+      "covers": [
+        "rstimes.Pddt.__add__",
+        "rstimes.Pddt.isoformat",
+        "rstimes.Delta"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "A single nanosecond after the UTC coordinate zero remains one tick in the ns index.",
+      "checks": [
+        "assert type(shifted) is Pddt and shifted.unit == 'ns' and shifted.name == 'event'",
+        "assert shifted.asi8.tolist() == [1] and shifted.tz is None",
+        "try:\n    Pddt([0], unit='us') + Delta(nanoseconds=1)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('lossless fixed unit')"
+      ],
+      "scenarios": [
+        "fixed-unit-ns",
+        "lossless-error",
+        "metadata"
+      ],
+      "reviewed": true,
+      "page": "guides/delta-interop.md"
+    },
+    {
+      "id": "delta-import-dateutil-hours",
+      "covers": [
+        "rstimes.Delta.from_relativedelta",
+        "rstimes.Delta.to_timedelta"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "public-install",
+        "windows-full"
+      ],
+      "expectation_basis": "One and a half hours is 5,400 seconds.",
+      "checks": [
+        "from datetime import timedelta",
+        "assert type(change) is Delta",
+        "assert change.to_timedelta() == timedelta(seconds=5400)"
+      ],
+      "scenarios": [
+        "dateutil-adapter",
+        "fractional-hours"
+      ],
+      "reviewed": true,
+      "page": "guides/delta-interop.md"
+    },
+    {
+      "id": "delta-compare-equal-fixed-values",
+      "covers": [
+        "rstimes.Delta.__eq__"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "One microsecond is 1,000 nanoseconds.",
+      "checks": [
+        "assert hash(whole) == hash(same)",
+        "assert not (whole != same)"
+      ],
+      "scenarios": [
+        "normalized-equality",
+        "hash-consistency"
+      ],
+      "reviewed": true,
+      "page": "guides/delta-protocols.md"
+    },
+    {
+      "id": "delta-reuse-rule-across-dates",
+      "covers": [
+        "rstimes.Delta.apply_many"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "February 2024 ends on the 29th, and June ends on the 30th.",
+      "checks": [
+        "assert type(ends) is list and all(type(value) is date for value in ends)",
+        "assert ends == [date(2024, 2, 29), date(2024, 6, 30)]"
+      ],
+      "scenarios": [
+        "ordered-batch",
+        "month-end-fit"
+      ],
+      "reviewed": true,
+      "page": "guides/delta-protocols.md"
+    },
+    {
+      "id": "delta-copy-business-data",
+      "covers": [
+        "rstimes.Delta.__deepcopy__"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Deepcopy preserves the day and gives the copy its own mutable labels list.",
+      "checks": [
+        "assert type(trial) is Rule and trial is not original",
+        "assert trial.days == original.days == 1 and trial.labels is not original.labels"
+      ],
+      "scenarios": [
+        "deep-copy",
+        "subclass-business-state"
+      ],
+      "reviewed": true,
+      "page": "guides/delta-protocols.md"
+    },
+    {
+      "id": "pydt-build-a-wall-clock",
+      "covers": [
+        "rstimes.Pydt",
+        "rstimes.Pydt.isoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The explicit fields form February 29 at 09:30 with no timezone.",
+      "checks": [
+        "assert type(opening) is Pydt and opening.tzinfo is None",
+        "assert opening.minute == 30 and opening.microsecond == 0"
+      ],
+      "scenarios": [
+        "fields",
+        "naive-datetime"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt.md"
+    },
+    {
+      "id": "pydt-clock-seconds-versus-unix-seconds",
+      "covers": [
+        "rstimes.Pydt.fromseconds",
+        "rstimes.Pydt.fromtimestamp"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Shanghai's +08:00 offset moves the epoch instant to its 08:00 clock.",
+      "checks": [
+        "assert type(wall) is type(instant) is Pydt and wall.hour == 0 and instant.hour == 8",
+        "assert wall.tomicroseconds() == 0 and instant.tomicroseconds(utc=True) == 0"
+      ],
+      "scenarios": [
+        "wall-seconds",
+        "utc-seconds",
+        "explicit-zone"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt.md"
+    },
+    {
+      "id": "pydt-combine-calendar-and-clock",
+      "covers": [
+        "rstimes.Pydt.combine"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The date contributes May 7 and the time contributes 09:30.",
+      "checks": [
+        "assert type(meeting) is Pydt and meeting.date() == date(2024, 5, 7)",
+        "assert meeting.time() == time(9, 30) and meeting.tzinfo is None"
+      ],
+      "scenarios": [
+        "combined-date-time",
+        "naive-result"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt.md"
+    },
+    {
+      "id": "pydt-select-day-in-short-month",
+      "covers": [
+        "rstimes.Pydt.to_datetime"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "February in a leap year ends on day 29; the unchanged clock remains 16:30.",
+      "checks": [
+        "assert type(result) is Pydt and result.day == 29 and result.hour == 16",
+        "assert result.minute == 30 and result.tzinfo is None",
+        "try:\n    start.replace(month=2)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('strict field replacement')"
+      ],
+      "scenarios": [
+        "month-end-selector",
+        "preserved-clock",
+        "strict-replace"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-calendar.md"
+    },
+    {
+      "id": "pydt-add-two-calendar-days",
+      "covers": [
+        "rstimes.Pydt.add"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Feb 28 plus two days includes leap day and reaches Mar 1.",
+      "checks": [
+        "assert type(moved) is Pydt and moved == Pydt(2024, 3, 1, 9)"
+      ],
+      "scenarios": [
+        "relative-days",
+        "calendar-month-boundary"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-calendar.md"
+    },
+    {
+      "id": "pydt-read-day-of-year",
+      "covers": [
+        "rstimes.Pydt.day_of_year"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "31 January days plus 29 days in February equals 60.",
+      "checks": [
+        "assert type(value.day_of_year) is int and value.day_of_year == 60"
+      ],
+      "scenarios": [
+        "calendar-query",
+        "integer-result"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-calendar.md"
+    },
+    {
+      "id": "pydt-start-of-month",
+      "covers": [
+        "rstimes.Pydt.to_start_of"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The February boundary is February 1 at midnight.",
+      "checks": [
+        "assert type(value.to_start_of('M')) is Pydt",
+        "assert value.to_start_of('M') == Pydt(2024, 2, 1)"
+      ],
+      "scenarios": [
+        "month-boundary",
+        "microsecond-scalar"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-boundaries.md"
+    },
+    {
+      "id": "pydt-nearest-second-midpoint",
+      "covers": [
+        "rstimes.Pydt.round",
+        "rstimes.Pydt.snap"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "10.5 seconds rounds to even 10 and snaps to the later 11.",
+      "checks": [
+        "assert value.round('s') == Pydt(2024, 1, 1, second=10)",
+        "assert value.snap(unit='s') == Pydt(2024, 1, 1, second=11)",
+        "assert value.floor('s') < value < value.ceil('s')"
+      ],
+      "scenarios": [
+        "half-even",
+        "snap-tie",
+        "floor-and-ceiling"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-boundaries.md"
+    },
+    {
+      "id": "pydt-truncate-fractional-value",
+      "covers": [
+        "rstimes.Pydt.fsp"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The first three decimal digits are 123; removing lower precision leaves 123000us.",
+      "checks": [
+        "assert type(value.fsp(3)) is Pydt and value.fsp(3).microsecond == 123000"
+      ],
+      "scenarios": [
+        "value-truncation",
+        "preserved-microsecond-type"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-boundaries.md"
+    },
+    {
+      "id": "pydt-count-crossed-midnights",
+      "covers": [
+        "rstimes.Pydt.diff"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "This interval crosses midnight once.",
+      "checks": [
+        "from datetime import timedelta",
+        "assert late - early == timedelta(seconds=1)",
+        "assert type(late.diff(early, 'D')) is int and late.diff(early, 'D') == 1"
+      ],
+      "scenarios": [
+        "day-boundary-count",
+        "elapsed-duration"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-boundaries.md"
+    },
+    {
+      "id": "pydt-local-clock-to-utc",
+      "covers": [
+        "rstimes.Pydt.tz_localize",
+        "rstimes.Pydt.tz_convert"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "January 1 at 08:00 Asia/Shanghai is January 1 at 00:00 UTC.",
+      "checks": [
+        "from datetime import timedelta, timezone",
+        "assert type(in_utc) is Pydt",
+        "assert local.utcoffset() == timedelta(hours=8) and in_utc.hour == 0",
+        "assert in_utc.tzinfo is timezone.utc and in_utc.timestamp() == local.timestamp()"
+      ],
+      "scenarios": [
+        "localization",
+        "instant-preservation"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-timezones.md"
+    },
+    {
+      "id": "pydt-fall-back-folds",
+      "covers": [
+        "rstimes.Pydt",
+        "rstimes.Pydt.replace"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The early occurrence is EDT, and the second occurrence is EST an hour later.",
+      "checks": [
+        "from datetime import timedelta",
+        "assert type(first) is type(second) is Pydt",
+        "assert first.fold == 0 and second.fold == 1",
+        "assert first.utcoffset() == -timedelta(hours=4) and second.utcoffset() == -timedelta(hours=5)",
+        "assert second.timestamp() - first.timestamp() == 3600",
+        "try:\n    Pydt(2024, 3, 10, 2, 30, tzinfo=zone)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('nonexistent regional clock')"
+      ],
+      "scenarios": [
+        "fold",
+        "regional-offsets",
+        "nonexistent-time"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-timezones.md"
+    },
+    {
+      "id": "pydt-export-wall-versus-utc-microseconds",
+      "covers": [
+        "rstimes.Pydt.tomicroseconds"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The local clock is 28,800 seconds after midnight; the actual UTC instant is the epoch.",
+      "checks": [
+        "assert type(value.tomicroseconds()) is int",
+        "assert value.toseconds() == 28800.0 and value.toseconds(utc=True) == 0.0"
+      ],
+      "scenarios": [
+        "wall-coordinate",
+        "UTC-coordinate"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-output.md"
+    },
+    {
+      "id": "pydt-format-three-fractional-digits",
+      "covers": [
+        "rstimes.Pydt.strftime"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The fraction 123456us starts with the three millisecond digits 123.",
+      "checks": [
+        "assert type(text) is str and value.microsecond == 123456",
+        "assert value.strftime('%f|%.9f|%.0f') == '123456|.123456000|'"
+      ],
+      "scenarios": [
+        "format-truncate",
+        "format-padding",
+        "zero-digit-directive"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-output.md"
+    },
+    {
+      "id": "pydt-read-negative-numpy-tick",
+      "covers": [
+        "rstimes.Pydt.fromdatetime64"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The earlier whole microsecond lies one microsecond before the epoch.",
+      "checks": [
+        "assert type(value) is Pydt and value.tzinfo is None",
+        "assert value.tomicroseconds() == -1"
+      ],
+      "scenarios": [
+        "numpy-epoch-tick",
+        "negative-floor"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-interop.md"
+    },
+    {
+      "id": "pydt-subtract-nanosecond-timestamp",
+      "covers": [
+        "rstimes.Pydt.__sub__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The exact \u22121500ns difference rounds to the even \u22122us.",
+      "checks": [
+        "from datetime import timedelta",
+        "assert type(difference) is timedelta",
+        "assert difference == timedelta(microseconds=-2) and start < stamp"
+      ],
+      "scenarios": [
+        "pandas-timestamp",
+        "nanosecond-difference",
+        "ties-to-even"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-interop.md"
+    },
+    {
+      "id": "pydt-add-dateutil-month",
+      "covers": [
+        "rstimes.Pydt.__add__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "public-install",
+        "windows-full"
+      ],
+      "expectation_basis": "January 31 fits February's final day and keeps the 09:00 clock.",
+      "checks": [
+        "assert type(shifted) is Pydt and shifted == Pydt(2024, 2, 29, 9)"
+      ],
+      "scenarios": [
+        "dateutil-arithmetic",
+        "month-end"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-interop.md"
+    },
+    {
+      "id": "pydt-pickle-an-appointment",
+      "covers": [
+        "rstimes.Pydt.__reduce_ex__"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "A same-interpreter trusted pickle preserves the exact scalar and the label.",
+      "checks": [
+        "assert type(restored) is Appointment and restored is not event",
+        "assert restored == event and restored.tzinfo is None and restored.label == 'Renewal'"
+      ],
+      "scenarios": [
+        "trusted-round-trip",
+        "custom-scalar-state"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-protocols.md"
+    },
+    {
+      "id": "pydt-deepcopy-appointment-notes",
+      "covers": [
+        "rstimes.Pydt.__deepcopy__"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The copied note list can change without changing the original.",
+      "checks": [
+        "assert type(trial) is Appointment and trial == event and trial is not event",
+        "assert trial.notes is not event.notes and len(trial.notes) == 2"
+      ],
+      "scenarios": [
+        "deep-copy",
+        "shared-memo-contract"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-protocols.md"
     }
   ]
 }

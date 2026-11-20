@@ -1,208 +1,114 @@
-# Calendar changes with Delta
+# Move a date with Delta
 
-`Delta` holds relative amounts and optional absolute date or clock settings.
-Plural arguments add a relative amount. Singular arguments select a field.
-The original date is unchanged.
+Use a relative amount such as `months=1` to move a date. Use an absolute
+setting such as `day=15` to choose a field in the result.
 
-## Month ends
+## Set the day of a recurring date
 
-Moving January 31 forward one month reaches the final day of February. The
-reverse move starts from that new day, so it need not return January 31.
+(delta-set-day-next-month)=
+```python
+from datetime import date
 
-```{doctest} delta-month-end
->>> from datetime import date, timedelta
->>> from rstimes import Delta
->>> leap_day = date(2024, 1, 31) + Delta(months=1)
->>> (type(leap_day) is date, leap_day.isoformat())
-(True, '2024-02-29')
->>> (leap_day - Delta(months=1)).isoformat()
-'2024-01-29'
+from rstimes import Delta
+
+start = date(2024, 1, 31)
+result = start + Delta(months=1, day=15)
+print(result)
 ```
 
-## Nanoseconds and the destination
+**Output**
 
-Delta combines fixed amounts in nanoseconds. A remainder of 1,001 nanoseconds
-contains one microsecond and one nanosecond. Standard `timedelta` has microsecond
-resolution: conversion rounds at that destination, using ties to even.
-
-```{doctest} delta-nanoseconds
->>> span = Delta(nanoseconds=1001)
->>> (span.microseconds, span.nanoseconds)
-(1, 1)
->>> result = span.to_timedelta()
->>> (type(result) is timedelta, result == timedelta(microseconds=1))
-(True, True)
+```text
+2024-02-15
 ```
 
-Half a nanosecond rounds to the even nanosecond when Delta is constructed.
-Projection to a datetime or timedelta then applies that destination's separate
-microsecond rounding. The source's microsecond coordinate matters.
+With no explicit day, a move into a shorter month uses that month's last
+day. See [the month-end example](../getting-started/index.md#add-one-month-to-a-billing-date).
+Multiples of whole months can be combined with `years` or `quarters`.
 
-```{doctest} delta-rounding-destinations
->>> from datetime import datetime
->>> (Delta(nanoseconds=0.5), Delta(nanoseconds=1.5), Delta(nanoseconds=2.5)) == (Delta(), Delta(nanoseconds=2), Delta(nanoseconds=2))
-True
->>> Delta(nanoseconds=1500).to_timedelta() == timedelta(microseconds=2)
-True
->>> start = datetime(2024, 1, 1, microsecond=1)
->>> (start + Delta(nanoseconds=500)).microsecond
-2
->>> Delta(nanoseconds=500).to_timedelta(start) == timedelta(microseconds=1)
-True
->>> (date(2024, 1, 1) - Delta(nanoseconds=1)).isoformat()
-'2023-12-31'
->>> (datetime(2024, 1, 1) - Delta(nanoseconds=1)).isoformat()
-'2024-01-01T00:00:00'
+## Keep a submicrosecond change until the result
+
+(delta-round-at-datetime-result)=
+```python
+from datetime import datetime
+
+from rstimes import Delta
+
+start = datetime(2024, 1, 1, microsecond=1)
+result = start + Delta(nanoseconds=500)
+print(result.isoformat())
 ```
 
-## Read the normalized fields
+**Output**
 
-Relative years, quarters, and months normalize together. Weeks and all smaller
-fixed units normalize into days and a nonnegative clock remainder. A year is
-not converted into a fixed number of days. There are eight relative properties;
-quarters, weeks, and milliseconds are constructor inputs rather than separate
-normalized properties.
-
-```{doctest} delta-relative-fields
->>> change = Delta(years=1, quarters=1, months=10, weeks=1, days=2, hours=3, minutes=4, seconds=5, milliseconds=6, microseconds=7, nanoseconds=8)
->>> relative_fields = ('years', 'months', 'days', 'hours', 'minutes', 'seconds', 'microseconds', 'nanoseconds')
->>> tuple(getattr(change, field) for field in relative_fields)
-(2, 1, 9, 3, 4, 5, 6007, 8)
->>> all(type(getattr(change, field)) is int for field in relative_fields)
-True
->>> negative = Delta(nanoseconds=-1)
->>> tuple(getattr(negative, field) for field in relative_fields)
-(0, 0, -1, 23, 59, 59, 999999, 999)
+```text
+2024-01-01T00:00:00.000002
 ```
 
-Nine absolute properties record independent settings. An unset property is
-`None`; clock zero and weekday zero are real settings. `millisecond` combines
-with the last three digits of `microsecond` to form the stored microsecond
-setting. `nanosecond` selects the tail after the six microsecond digits.
+The complete result lies halfway between two microseconds. A datetime
+result uses the even microsecond. A Python date selects the day of the
+exact result calculated from midnight. Fixed-unit date columns keep
+their unit and require an exactly representable result.
 
-```{doctest} delta-absolute-fields
->>> settings = Delta(year=2024, month=2, day=29, weekday=3, hour=0, minute=1, second=2, millisecond=3, microsecond=456789, nanosecond=10)
->>> absolute_fields = ('year', 'month', 'day', 'weekday', 'hour', 'minute', 'second', 'microsecond', 'nanosecond')
->>> tuple(getattr(settings, field) for field in absolute_fields)
-(2024, 2, 29, 3, 0, 1, 2, 3789, 10)
->>> tuple(getattr(Delta(), field) for field in absolute_fields)
-(None, None, None, None, None, None, None, None, None)
->>> (bool(Delta()), bool(Delta(hour=0)), bool(Delta(nanosecond=0)))
-(False, True, True)
->>> bounded = Delta(year=10000, month=13, day=32)
->>> (bounded.year, bounded.month, bounded.day)
-(9999, 12, 31)
+Integer contributions stay exact. Fractional weeks through nanoseconds
+use the values of the supplied binary floats. Delta rounds their combined
+total to the nearest nanosecond, with ties to even. Projection to a
+microsecond datetime or timedelta happens at that result.
+
+## Combine two months in one change
+
+(delta-combined-months-versus-two-moves)=
+```python
+from datetime import date
+
+from rstimes import Delta
+
+start = date(2024, 1, 31)
+month = Delta(months=1)
+print(start + (month + month))
+print((start + month) + month)
 ```
 
-Absolute year, month, and day must be positive, with the upper limits shown
-above. Weekday is Monday=0 through Sunday=6. Other clock fields use their
-ordinary ranges; an absolute nanosecond must be 0 through 999. These absolute
-settings do not extend the destination's supported years.
+**Output**
 
-## Combine changes or apply them in sequence
-
-Adding two Deltas adds relative amounts and takes each explicitly set absolute
-field from the right. Subtracting keeps the left's absolute field, taking the
-right's only when the left has none. Subtraction reverses relative amounts and
-leaves absolute settings intact.
-
-```{doctest} delta-merge
->>> (Delta(months=2, hour=9) + Delta(months=1, hour=0)) == Delta(months=3, hour=0)
-True
->>> (Delta(months=2, hour=9) - Delta(months=1, hour=0)) == Delta(months=1, hour=9)
-True
->>> (-Delta(days=1, month=2)).days, (-Delta(days=1, month=2)).month
-(-1, 2)
->>> absolute_span = abs(Delta(days=-2, hours=3))
->>> (type(absolute_span) is Delta, absolute_span.days, absolute_span.hours)
-(True, 1, 21)
->>> combined = Delta(nanosecond=2) + Delta(microsecond=1)
->>> (combined.microsecond, combined.nanosecond)
-(1, 2)
+```text
+2024-03-31
+2024-03-29
 ```
 
-Merging is a field operation. Applying the two Deltas successively can have a
-different result. In particular, applying an absolute microsecond without an
-absolute nanosecond clears the source's nanosecond tail. The
-[nanosecond interoperability guide](delta-interop.md) demonstrates this on a
-nanosecond timestamp.
+The combined move reaches March directly. Two moves pass through
+February 29 and carry that day into March. Combining Delta values adds
+the relative amounts. When two absolute settings address the same field,
+addition takes the right setting and subtraction keeps the left setting
+if it is present. Each absolute field is independent.
 
-## Get a standard time span
+## Measure a calendar month from a specific date
 
-Without a start, `to_timedelta()` accepts only fixed relative amounts. Supply a
-date or datetime start for calendar years, months, or absolute settings. The
-anchored result follows `(start + delta) - start`; a date start therefore
-returns whole days. A standard datetime sharing one timezone object uses
-Python's wall-clock subtraction semantics. A pandas Timestamp start keeps
-nanoseconds through the elapsed difference before the final conversion.
+(delta-span-from-month-start)=
+```python
+from datetime import date
 
-```{doctest} delta-anchored-span
->>> leap_span = Delta(months=1).to_timedelta(date(2024, 1, 31))
->>> (type(leap_span) is timedelta, leap_span.days)
-(True, 29)
->>> try:
-...     Delta(months=1).to_timedelta()
-... except ValueError as error:
-...     print(type(error).__name__)
-ValueError
->>> (Delta(days=1) + timedelta(hours=2)) == Delta(days=1, hours=2)
-True
->>> (timedelta(hours=2) + Delta(days=1)) == Delta(days=1, hours=2)
-True
->>> (Delta(days=1) - timedelta(hours=2)) == Delta(hours=22)
-True
->>> (timedelta(hours=2) - Delta(days=1)) == Delta(days=-1, hours=2)
-True
+from rstimes import Delta
+
+span = Delta(months=1).to_timedelta(
+    date(2024, 1, 31)
+)
+print(span)
 ```
 
-## Validate inputs by their role
+**Output**
 
-Relative years, quarters, months, and absolute settings accept integers and
-the integer index protocol. Fixed amounts from weeks through nanoseconds also
-accept Python floats and NumPy float16/32/64. Booleans, numeric strings,
-Decimal, Fraction, complex values, and arbitrary `float()` adapters do not
-become numeric date fields. `None` is reserved for unset absolute settings.
-NaN raises `ValueError`; infinities and values exceeding the checked range
-raise `OverflowError`.
-
-```{doctest} delta-input-errors
->>> from decimal import Decimal
->>> from fractions import Fraction
->>> import numpy as np
->>> class Count:
-...     def __index__(self):
-...         return 2
->>> Delta(months=Count()).months
-2
->>> rejected = ({'years': 1.0}, {'days': True}, {'hours': np.bool_(False)}, {'nanoseconds': None}, {'nanosecond': True}, {'seconds': Decimal('1')}, {'seconds': Fraction(1, 2)}, {'hour': 1.0})
->>> for arguments in rejected:
-...     try:
-...         Delta(**arguments)
-...     except TypeError:
-...         continue
-...     raise AssertionError(arguments)
->>> for value in (-1, 1000):
-...     try:
-...         Delta(nanosecond=value)
-...     except ValueError:
-...         continue
-...     raise AssertionError(value)
->>> for field in ('year', 'month', 'day'):
-...     try:
-...         Delta(**{field: 0})
-...     except ValueError:
-...         continue
-...     raise AssertionError(field)
->>> for value, error_type in ((float('nan'), ValueError), (float('inf'), OverflowError), (2**63, OverflowError)):
-...     try:
-...         Delta(days=value)
-...     except error_type:
-...         continue
-...     raise AssertionError(value)
->>> (Delta(seconds=np.float32(0.5)).microseconds, Delta(nanoseconds=np.int64(7)).nanoseconds)
-(500000, 7)
+```text
+29 days, 0:00:00
 ```
 
-See [copying and protocols](delta-protocols.md) for immutability, equality,
-ordered batches, subclass state, and persistence. Full parameter signatures
-are in the [Delta reference](../api/reference/rstimes/delta/index.rst).
+`to_timedelta(start)` measures the difference between the adjusted
+date and its start. With no start, the Delta must contain only fixed
+relative units and have no absolute settings.
+
+Relative years, quarters, and months use integers. Fixed relative units
+can use supported Python and NumPy floats as well. Use `None` to leave an
+absolute field unset. Zero is a real clock setting, such as `hour=0`.
+Use the [Delta signature and parameter reference](../api/reference/rstimes/delta/index.rst)
+for the ranges. See [combine Delta with other time values](delta-interop.md)
+for NumPy, datetime columns, and dateutil.

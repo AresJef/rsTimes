@@ -1,0 +1,125 @@
+```{doctest} delta-timestamp-fields
+>>> import pandas as pd
+>>> from rstimes import Delta
+>>> source = pd.Timestamp(1789, unit='ns')
+>>> a, b = Delta(nanosecond=2), Delta(microsecond=1)
+>>> together, successive = source + (a + b), (source + a) + b
+>>> (type(together) is pd.Timestamp, together.value, successive.value)
+(True, 1002, 1000)
+>>> (source + Delta(microseconds=1)).value
+2789
+>>> (source + Delta(microsecond=0)).value
+0
+```
+
+```{doctest} delta-vector-nanoseconds
+>>> import polars as pl
+>>> from rstimes import Pydt, Pddt, Pldt
+>>> index = Pddt([1, None], unit='ns', name='event')
+>>> shifted_index = index + Delta(nanoseconds=1)
+>>> (type(shifted_index) is Pddt, shifted_index.unit, shifted_index.name, shifted_index.asi8.tolist())
+(True, 'ns', 'event', [2, -9223372036854775808])
+>>> column = Pldt([1, None], unit='ns', name='event')
+>>> shifted_column = column + Delta(nanoseconds=1)
+>>> (type(shifted_column) is Pldt, shifted_column.dtype == pl.Datetime('ns'), shifted_column.name, shifted_column.to_physical().to_list())
+(True, True, 'event', [2, None])
+>>> scalar = Pydt(1970, 1, 1) + Delta(nanoseconds=1)
+>>> (type(scalar) is Pydt, scalar.microsecond)
+(True, 0)
+```
+
+```{doctest} delta-fixed-unit-and-pairing
+>>> for dates in (Pddt([0], unit='us'), Pldt([0], unit='us')):
+...     try:
+...         dates + Delta(nanoseconds=1)
+...     except ValueError:
+...         continue
+...     raise AssertionError('precision loss was accepted')
+>>> cancelled = Delta(microseconds=1, nanoseconds=-1000)
+>>> (bool(cancelled), (Pddt([0], unit='us') + cancelled).asi8.tolist(), (Pldt([0], unit='us') + cancelled).to_physical().to_list())
+(False, [0], [0])
+>>> row_changes = [Delta(nanoseconds=1), Delta(nanoseconds=2)]
+>>> (Pldt([0, 0], unit='ns') + row_changes).to_physical().to_list()
+[1, 2]
+>>> try:
+...     Pldt([0, 0], unit='ns') + [Delta()]
+... except ValueError as error:
+...     print(type(error).__name__)
+ValueError
+>>> try:
+...     Pldt([None], unit='ns') + [None]
+... except TypeError as error:
+...     print(type(error).__name__)
+TypeError
+```
+
+```{doctest} delta-numpy-scalars
+>>> from datetime import date, datetime, timedelta
+>>> import numpy as np
+>>> duration = np.timedelta64(1500, 'ns') + Delta(microseconds=1)
+>>> (type(duration) is Delta, duration.microseconds, duration.nanoseconds)
+(True, 2, 500)
+>>> coarse = np.datetime64('2024-01-01', 'D')
+>>> (type(coarse + Delta(days=1)) is date, type(Delta(days=1) + coarse) is datetime)
+(True, True)
+>>> (coarse + Delta(days=1)).isoformat()
+'2024-01-02'
+>>> fine = np.datetime64(1500, 'ns') + Delta()
+>>> (type(fine) is datetime, fine.isoformat())
+(True, '1970-01-01T00:00:00.000002')
+>>> (np.datetime64(1, 'ns') - Delta(nanoseconds=1)).isoformat()
+'1970-01-01T00:00:00'
+>>> for unit in ('ps', 'fs', 'as'):
+...     try:
+...         Delta() + np.timedelta64(1, unit)
+...     except TypeError as error:
+...         assert 'unsupported NumPy timedelta64 unit' in str(error)
+...         continue
+...     raise AssertionError(unit)
+>>> for unit in ('Y', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us', 'ns'):
+...     zero = np.datetime64(0, unit)
+...     forward, backward = zero + Delta(days=1), zero - Delta(days=1)
+...     expected_type = date if unit in ('Y', 'M', 'W', 'D') else datetime
+...     assert type(forward) is expected_type and type(backward) is expected_type
+...     assert (forward.year, forward.month, forward.day) == (1970, 1, 2)
+...     assert (backward.year, backward.month, backward.day) == (1969, 12, 31)
+...     assert type(Delta(days=1) + zero) is datetime
+>>> for unit, seconds in (('Y', 31556952), ('M', 2629746)):
+...     assert (Delta() + np.timedelta64(1, unit)).to_timedelta() == timedelta(seconds=seconds)
+>>> for missing in (np.datetime64('NaT', 'ns'), np.timedelta64('NaT', 'ns')):
+...     try:
+...         Delta() + missing
+...     except ValueError as error:
+...         assert 'NaT' in str(error)
+...         continue
+...     raise AssertionError('NaT accepted')
+```
+
+```{doctest} delta-numpy-batch
+>>> from datetime import timedelta
+>>> batch = Delta(nanoseconds=500).apply_many([np.timedelta64(1000, 'ns'), np.datetime64(1000, 'ns')])
+>>> (type(batch[0]) is Delta, batch[0].microseconds, batch[0].nanoseconds, type(batch[1]) is datetime, batch[1].microsecond)
+(True, 1, 500, True, 2)
+```
+
+```{doctest} delta-dateutil-adapter
+>>> from dateutil.relativedelta import relativedelta, MO
+>>> converted = Delta.from_relativedelta(relativedelta(months=1, hours=1.5, microseconds=0.001))
+>>> (type(converted) is Delta, converted.months, converted.hours, converted.minutes, converted.nanoseconds)
+(True, 1, 1, 30, 1)
+>>> for unsupported in (relativedelta(weekday=MO(1)), relativedelta(leapdays=1)):
+...     try:
+...         Delta.from_relativedelta(unsupported)
+...     except ValueError:
+...         continue
+...     raise AssertionError('unrepresentable dateutil rule')
+```
+
+```{doctest} delta-anchor-resolution
+>>> from datetime import timedelta
+>>> tiny = Delta(nanoseconds=500)
+>>> plain_start = datetime(1970, 1, 1, microsecond=1)
+>>> precise_start = pd.Timestamp(1000, unit='ns')
+>>> (tiny.to_timedelta(plain_start), tiny.to_timedelta(precise_start))
+(datetime.timedelta(microseconds=1), datetime.timedelta(0))
+```

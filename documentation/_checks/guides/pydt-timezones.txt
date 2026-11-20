@@ -1,0 +1,133 @@
+```{doctest} pydt-zone-operations
+>>> from datetime import datetime, timedelta, timezone, tzinfo
+>>> from zoneinfo import ZoneInfo
+>>> from rstimes import Pydt
+>>> wall = Pydt(1970, 1, 1, 8)
+>>> attached = wall.tz_localize('Asia/Shanghai')
+>>> (type(attached) is Pydt, attached.isoformat(), attached.tz is attached.tzinfo)
+(True, '1970-01-01T08:00:00+08:00', True)
+>>> attached.tz_convert('UTC').isoformat()
+'1970-01-01T00:00:00+00:00'
+>>> (attached.tz_localize(None).isoformat(), attached.tz_convert(None).isoformat())
+('1970-01-01T08:00:00', '1970-01-01T00:00:00')
+>>> (attached.tz_switch(None).isoformat(), attached.replace(tzinfo=None).isoformat())
+('1970-01-01T08:00:00', '1970-01-01T08:00:00')
+>>> attached.astimezone('UTC').isoformat()
+'1970-01-01T00:00:00+00:00'
+>>> wall.tz_switch('UTC', base_tz='Asia/Shanghai', naive=True).isoformat()
+'1970-01-01T00:00:00'
+>>> for call in (lambda: wall.tz_convert('UTC'), lambda: attached.tz_localize('UTC'), lambda: wall.tz_switch('UTC')):
+...     try:
+...         call()
+...     except ValueError:
+...         continue
+...     raise AssertionError('missing or conflicting source zone accepted')
+>>> try:
+...     wall.tz_switch('UTC', base_tz='Asia/Shanghai', naive=1)
+... except TypeError as error:
+...     print(type(error).__name__)
+TypeError
+```
+
+```{doctest} pydt-fold-and-gap
+>>> region = ZoneInfo('America/New_York')
+>>> first = Pydt(2024, 11, 3, 1, 30, tzinfo=region, fold=0)
+>>> second = Pydt(2024, 11, 3, 1, 30, tzinfo=region, fold=1)
+>>> (first.tz is region, second.tz is region, first.utcoffset_seconds(), second.utcoffset_seconds())
+(True, True, -14400, -18000)
+>>> (first.tz_convert('UTC').isoformat(), second.tz_convert('UTC').isoformat())
+('2024-11-03T05:30:00+00:00', '2024-11-03T06:30:00+00:00')
+>>> (first.is_dst(), second.is_dst(), second.timestamp() - first.timestamp())
+(True, False, 3600.0)
+>>> second - first
+datetime.timedelta(0)
+>>> second.tz_convert('UTC') - first.tz_convert('UTC')
+datetime.timedelta(seconds=3600)
+>>> for fold in (0, 1):
+...     try:
+...         Pydt(2024, 3, 10, 2, 30, tzinfo=region, fold=fold)
+...     except ValueError:
+...         continue
+...     raise AssertionError('nonexistent time accepted')
+>>> try:
+...     first.replace(month=3, day=10, hour=2)
+... except ValueError as error:
+...     print(type(error).__name__)
+ValueError
+```
+
+```{doctest} pydt-calendar-dst
+>>> before = Pydt(2024, 3, 9, 12, tzinfo=region)
+>>> after = before.add(days=1)
+>>> (after.isoformat(), after - before, after.tz_convert('UTC') - before.tz_convert('UTC'))
+('2024-03-10T12:00:00-04:00', datetime.timedelta(days=1), datetime.timedelta(seconds=82800))
+```
+
+```{doctest} pydt-zone-queries
+>>> utc = Pydt(2024, 1, 1, tzinfo='UTC')
+>>> named_utc = Pydt(2024, 1, 1, tzinfo=ZoneInfo('UTC'))
+>>> (utc.is_utc(), named_utc.is_utc(), named_utc.tzinfo.key)
+(True, False, 'UTC')
+>>> (type(utc.tz_available) is set, {'UTC', 'Asia/Shanghai', 'America/New_York'} <= utc.tz_available)
+(True, True)
+>>> (wall.tz, wall.utcoffset_seconds(), wall.utcoffset(), wall.dst(), wall.tzname(), wall.is_dst())
+(None, None, None, None, None, False)
+>>> class NegativeDaylight(tzinfo):
+...     def utcoffset(self, value):
+...         return timedelta(0)
+...     def dst(self, value):
+...         return timedelta(hours=-1)
+>>> negative_daylight = Pydt(2024, 1, 1, tzinfo=NegativeDaylight())
+>>> (negative_daylight.dst(), negative_daylight.is_dst())
+(datetime.timedelta(days=-1, seconds=82800), True)
+>>> fractional = Pydt(1970, 1, 1, tzinfo=timezone(timedelta(microseconds=-500000)))
+>>> (fractional.utcoffset(), fractional.utcoffset_seconds())
+(datetime.timedelta(days=-1, seconds=86399, microseconds=500000), -1)
+```
+
+```{doctest} pydt-process-local-zone
+>>> import os, subprocess, sys
+>>> program = '\n'.join([
+...     'from rstimes import Pydt',
+...     "local = Pydt(1970, 1, 1, 8).astimezone()",
+...     "assert local.tzinfo.key == 'Asia/Shanghai' and local.is_local() is True",
+...     "assert local.tz_convert('UTC').isoformat() == '1970-01-01T00:00:00+00:00'",
+...     "assert Pydt(1970, 1, 1, tzinfo='America/New_York').is_local() is False",
+... ])
+>>> result = subprocess.run([sys.executable, '-I', '-c', program], env=dict(os.environ, TZ='Asia/Shanghai'), check=True, capture_output=True, text=True, timeout=20)
+>>> (result.returncode, result.stdout, result.stderr)
+(0, '', '')
+```
+
+```{doctest} pydt-timezone-callback-error
+>>> failure = RuntimeError('application daylight rule failed')
+>>> class BusinessZone(tzinfo):
+...     def utcoffset(self, value):
+...         return timedelta(0)
+...     def dst(self, value):
+...         raise failure
+>>> custom = Pydt(2024, 1, 1, tzinfo=BusinessZone())
+>>> try:
+...     custom.is_dst()
+... except RuntimeError as error:
+...     print(error is failure)
+True
+```
+
+```{doctest} pydt-external-timezone-boundary
+>>> region = ZoneInfo('America/New_York')
+>>> instant = Pydt(2024, 11, 3, 5, 30, tzinfo='UTC')
+>>> own = instant.tz_convert(region)
+>>> (own.isoformat(), own.fold)
+('2024-11-03T01:30:00-04:00', 0)
+>>> external = region.fromutc(Pydt(2024, 11, 3, 5, 30, tzinfo=region))
+>>> (external.isoformat(), external.fold, external.timestamp() - instant.timestamp())
+('2024-11-03T01:30:00-05:00', 1, 3600.0)
+>>> base_conversion = datetime.astimezone(instant, region)
+>>> (base_conversion.isoformat(), base_conversion.fold)
+('2024-11-03T01:30:00-05:00', 1)
+>>> builtin = datetime.fromtimestamp(instant.timestamp(), timezone.utc)
+>>> safe = builtin.astimezone(region)
+>>> (type(safe) is datetime, safe.isoformat(), safe.fold, safe.timestamp() == instant.timestamp())
+(True, '2024-11-03T01:30:00-04:00', 0, True)
+```
