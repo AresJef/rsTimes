@@ -1,255 +1,430 @@
 {
-  "schema": 1,
-  "version": "0.2.0b3",
-  "source_commit": "dc878ef53f531f09c3bfe22348850bf9f163c7ee",
-  "tag": "v0.2.0b3",
-  "github_release_url": "https://github.com/AresJef/rsTimes/releases/tag/v0.2.0b3",
-  "pypi_url": "https://pypi.org/project/rsTimes/0.2.0b3/",
+  "schema": 2,
+  "version": "1.0.0",
+  "source_commit": "d900219a0360e780cb10b108fd15d402879db572",
+  "tag": "v1.0.0",
+  "github_release_url": "https://github.com/AresJef/rsTimes/releases/tag/v1.0.0",
+  "pypi_url": "https://pypi.org/project/rsTimes/1.0.0/",
   "files": {
-    "rstimes-0.2.0b3-cp312-cp312-macosx_11_0_arm64.whl": {
-      "sha256": "3353cd7b7c6ee3bd6202dfb45471e8f0130ee835125943b66f0dfd2c79e6fe33",
+    "rstimes-1.0.0-cp312-cp312-macosx_11_0_arm64.whl": {
+      "sha256": "04f80a0530789a104db8d42552f640738383d481510435ee5177d50e54162bc6",
+      "size": 7316518,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/e6/83/1c5016c500e82e92baaec03961fd8735eca065efb50b0167a0a3e6ed1cc9/rstimes-0.2.0b3-cp312-cp312-macosx_11_0_arm64.whl"
+      "url": "https://files.pythonhosted.org/packages/31/ef/dc9a294b812b27254c113875f9ffcdc75a381ecec0ac2ba7436b8a0097be/rstimes-1.0.0-cp312-cp312-macosx_11_0_arm64.whl",
+      "native": "rstimes/_native.cpython-312-darwin.so",
+      "native_sha256": "a673c3baa8a6c9b474d6953c757c89616625153ca3e2e15fef881edccaa776d4"
     },
-    "rstimes-0.2.0b3-cp312-cp312-macosx_11_0_x86_64.whl": {
-      "sha256": "5e6c9f43803fec65a97cffbce652e9f2e20b3a43960ace255d6009734c85aa75",
+    "rstimes-1.0.0-cp312-cp312-macosx_11_0_x86_64.whl": {
+      "sha256": "4469c1a2635d77c264f5d2e8dcd39e4eb6642ec02cecace1a94d49c84994739c",
+      "size": 8038169,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/e9/d6/eee47c18b1df3c869e9c4e1f12c40f04384384dce99697222c1c255f8e3f/rstimes-0.2.0b3-cp312-cp312-macosx_11_0_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/3f/56/e243fc41e50f21cfb4e3107ddd39bc3b4c66743e5ce63110650098e1c2ff/rstimes-1.0.0-cp312-cp312-macosx_11_0_x86_64.whl",
+      "native": "rstimes/_native.cpython-312-darwin.so",
+      "native_sha256": "d43e404105ee6b077152169f630f9bac562c72e44a418b75d0f7e4de11f602f5"
     },
-    "rstimes-0.2.0b3-cp312-cp312-manylinux_2_28_aarch64.whl": {
-      "sha256": "ce63f384b07ccb7930959415b1f553a6f1fe9c025c5aef574831416b951b1961",
+    "rstimes-1.0.0-cp312-cp312-manylinux_2_28_aarch64.whl": {
+      "sha256": "2bc365decdd26af57b7f8869c6a88ec302220e49c78160aba586590be9772df4",
+      "size": 7671473,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/29/68/751fbb4d1087eb879a8632eee61cda61a7ac337a1d79af43aa20c8e3ff17/rstimes-0.2.0b3-cp312-cp312-manylinux_2_28_aarch64.whl"
+      "url": "https://files.pythonhosted.org/packages/43/d2/1131b638c723f157fdbb942528367a18c8786a5bfe5be81181c44dfbe1f0/rstimes-1.0.0-cp312-cp312-manylinux_2_28_aarch64.whl",
+      "native": "rstimes/_native.cpython-312-aarch64-linux-gnu.so",
+      "native_sha256": "a3d77eb0cd454887331e7c8078da7ea02f552c8ef63ecb3325187902d2b5528f"
     },
-    "rstimes-0.2.0b3-cp312-cp312-manylinux_2_28_x86_64.whl": {
-      "sha256": "4e8a68b8044f19eaac390fbcad171e3ae5d8816adf9e89e1857e1659016f8bcb",
+    "rstimes-1.0.0-cp312-cp312-manylinux_2_28_x86_64.whl": {
+      "sha256": "85df845fde16e3dd967bac53160d41eefc04b4d3feef4d5a7518e42d6ce759b2",
+      "size": 8135140,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/a9/08/b86784f15959bdb5ec0efc53af3e71a4dcc8f01b713e4918b8dcd4734ca7/rstimes-0.2.0b3-cp312-cp312-manylinux_2_28_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/f7/80/2479f99bc869a591a04e7930cbc96eb9e246ff5d75b5803f42d92bdcb1a4/rstimes-1.0.0-cp312-cp312-manylinux_2_28_x86_64.whl",
+      "native": "rstimes/_native.cpython-312-x86_64-linux-gnu.so",
+      "native_sha256": "2285ca80b0121fa50ba4aeb6f50d6c0605598eb4a0996804df245314c26a25d5"
     },
-    "rstimes-0.2.0b3-cp312-cp312-musllinux_1_2_aarch64.whl": {
-      "sha256": "82d8cf17b6c5e9bc66d2a1c123e6f63da08d2eb9a80ddd3840519effda1d1b59",
+    "rstimes-1.0.0-cp312-cp312-musllinux_1_2_aarch64.whl": {
+      "sha256": "6ae259e8edeb0657b19f49fb5f4a6024500f5d8860238749811eb4b0386f31f4",
+      "size": 7740873,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/32/46/f2083f0678bdd7d5010c96eef0c9def5c4b51fd242fbb60707c828639440/rstimes-0.2.0b3-cp312-cp312-musllinux_1_2_aarch64.whl"
+      "url": "https://files.pythonhosted.org/packages/9a/7f/06fa99c1980c95ae883a38ce4e4c705a75d75d0cd3cae8f8f28840673552/rstimes-1.0.0-cp312-cp312-musllinux_1_2_aarch64.whl",
+      "native": "rstimes/_native.cpython-312-aarch64-linux-musl.so",
+      "native_sha256": "f9e8a541de20a4aa67400321761fa2a42710e68db0c51f8b582ac0f9059aa618"
     },
-    "rstimes-0.2.0b3-cp312-cp312-musllinux_1_2_x86_64.whl": {
-      "sha256": "99bd18c20ae06f7d47034f5cd15b16cb91667350c97b8ef22d045301ef3a9b96",
+    "rstimes-1.0.0-cp312-cp312-musllinux_1_2_x86_64.whl": {
+      "sha256": "8e1900e46bb0160da17aa698883187e1adf937bdc4a5f13d13f62eb4b3c606d0",
+      "size": 8333136,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/ef/1a/8fc0618872e34656a98b68aac4c2a83ff4e55f8135462c3a8e5470e8ad52/rstimes-0.2.0b3-cp312-cp312-musllinux_1_2_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/a1/4c/b2b49249b661d29c24780ce23e8d18bd17c7d949fde666e618f06c35ad2e/rstimes-1.0.0-cp312-cp312-musllinux_1_2_x86_64.whl",
+      "native": "rstimes/_native.cpython-312-x86_64-linux-musl.so",
+      "native_sha256": "226ebd9afe0b0f872aaea2b44621520bb999adeeb7c0cd64e0faf2eb25750b06"
     },
-    "rstimes-0.2.0b3-cp312-cp312-win_amd64.whl": {
-      "sha256": "50810d796df663aff980224392cf0c41ebcb8ae71a09368ac3129bf97878f8a2",
+    "rstimes-1.0.0-cp312-cp312-win_amd64.whl": {
+      "sha256": "81a4c0df181a936a284e1cc151073a00124ba1851ac6f41e83445232cd79df95",
+      "size": 8391672,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/60/ed/7cb1bf25758218a3361bbd9399817550ab92099a07b6966555a5cc5f00c6/rstimes-0.2.0b3-cp312-cp312-win_amd64.whl"
+      "url": "https://files.pythonhosted.org/packages/8e/86/51ea9327be5e94370fe66bc24c0945e1f0588acc4a785cb7e19423f5ff66/rstimes-1.0.0-cp312-cp312-win_amd64.whl",
+      "native": "rstimes/_native.cp312-win_amd64.pyd",
+      "native_sha256": "0117c8f064b0a1324a5679ebfb27b5cecc48d1ef886439c4ee433fa18b84c717"
     },
-    "rstimes-0.2.0b3-cp312-cp312-win_arm64.whl": {
-      "sha256": "45ec2edcd0c6a16516abcddce5c9219f760ae6a721b6c464e5440d06df81e9f5",
+    "rstimes-1.0.0-cp312-cp312-win_arm64.whl": {
+      "sha256": "29dc2d88cf9eeaca7fb8b18c0c91af61f2c693237e5ede89518794ec79ac3708",
+      "size": 7540051,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/65/b6/923c44f7a7f1599293b156cfc0b6a39d44371ab82ed1197c4511ee5d907b/rstimes-0.2.0b3-cp312-cp312-win_arm64.whl"
+      "url": "https://files.pythonhosted.org/packages/02/85/6dbcd6d4402cd0d5d98fe1e56727b370279f2021877b3a0b71f9a9a78049/rstimes-1.0.0-cp312-cp312-win_arm64.whl",
+      "native": "rstimes/_native.cp312-win_arm64.pyd",
+      "native_sha256": "d58ed5a1e66b1f41f74cb6d6a450cfd9a5971d114dd292832ebffaf6d3f6d346"
     },
-    "rstimes-0.2.0b3-cp313-cp313-macosx_11_0_arm64.whl": {
-      "sha256": "59b7d661d7d0a5aceaa1e1c15587a8061df74d7c2ec90520a4b811d4053346a5",
+    "rstimes-1.0.0-cp313-cp313-macosx_11_0_arm64.whl": {
+      "sha256": "6154955596e9210e035b94de9a5f19e2913dc71fb7b81a88535eaee56ca2b684",
+      "size": 7316148,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/11/dd/01b9df624d58ce4fc4cc2bc8cfcd6701ce0cf4ebb3a32bc792a8c957a0c1/rstimes-0.2.0b3-cp313-cp313-macosx_11_0_arm64.whl"
+      "url": "https://files.pythonhosted.org/packages/d4/04/72f5562ce73162cfb150448a77f3996d384f37beff10c089113051a5ce3c/rstimes-1.0.0-cp313-cp313-macosx_11_0_arm64.whl",
+      "native": "rstimes/_native.cpython-313-darwin.so",
+      "native_sha256": "c045c00eb090f80f367b3b65b06684e953cbc758ec0d9966df29cd850ae3c927"
     },
-    "rstimes-0.2.0b3-cp313-cp313-macosx_11_0_x86_64.whl": {
-      "sha256": "0aabc87a4ec5698d430080949c4c2a02003ad6416225ba6a810580e5b9b13c99",
+    "rstimes-1.0.0-cp313-cp313-macosx_11_0_x86_64.whl": {
+      "sha256": "2381d2f228e88f259120e7d1f981be426ed44a98d7bca0721b1f59b1de36ad48",
+      "size": 8039133,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/bb/85/a4cdc56013001c20a70c914a5c5460b9e57558d497b6d8e758addfb321df/rstimes-0.2.0b3-cp313-cp313-macosx_11_0_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/55/d7/5291dc7a7dd68d1660dd2dd704bd6b3a8475e10e72f61d3e484f8e84ea0f/rstimes-1.0.0-cp313-cp313-macosx_11_0_x86_64.whl",
+      "native": "rstimes/_native.cpython-313-darwin.so",
+      "native_sha256": "82cbbcf285910cf40f12bf9b9db15c215959ca9ab2e616623a3c024bcf3e03a2"
     },
-    "rstimes-0.2.0b3-cp313-cp313-manylinux_2_28_aarch64.whl": {
-      "sha256": "f5ccc463350d899bc0fa89d11eb8fd25912ff87f14aa25b7359c892307d6e662",
+    "rstimes-1.0.0-cp313-cp313-manylinux_2_28_aarch64.whl": {
+      "sha256": "02c93b9a5aafff536f069b29b9126c46830f7fcbda8367d4efaee8a73f4d33f7",
+      "size": 7673981,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/fe/f1/b3e8dbbd8d684edcbb5af31e9995282287ce322580111ae0e86819a12dfc/rstimes-0.2.0b3-cp313-cp313-manylinux_2_28_aarch64.whl"
+      "url": "https://files.pythonhosted.org/packages/ff/72/85445fa90d279e948238b59699d2fc0c69df03c78bfd6be10567a1f46b30/rstimes-1.0.0-cp313-cp313-manylinux_2_28_aarch64.whl",
+      "native": "rstimes/_native.cpython-313-aarch64-linux-gnu.so",
+      "native_sha256": "7606ee4a1793bf81ae65079708151221155a481b5257401502dd0f0065aa7f56"
     },
-    "rstimes-0.2.0b3-cp313-cp313-manylinux_2_28_x86_64.whl": {
-      "sha256": "391ede73bb3322390a9fee591ab0856f6e31a6356e352cb120530d9abefbffb9",
+    "rstimes-1.0.0-cp313-cp313-manylinux_2_28_x86_64.whl": {
+      "sha256": "7907d7c54ffdde65d55edff4d2018cee75581184a652531db367e5499f8e3f07",
+      "size": 8135144,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/9b/f1/2bb99dc10d1d010fa53c0f383a4a0839a46f9139ba9bd0d57b07f188a402/rstimes-0.2.0b3-cp313-cp313-manylinux_2_28_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/89/91/da4e75d157d8ce3b5b18db6c13a2a1784dd3a78e18faef4c23fb8bc74719/rstimes-1.0.0-cp313-cp313-manylinux_2_28_x86_64.whl",
+      "native": "rstimes/_native.cpython-313-x86_64-linux-gnu.so",
+      "native_sha256": "9901b72f6564eadcd2a4966f0397b36de4beb5da1542db6ecc8b1ad868a166f1"
     },
-    "rstimes-0.2.0b3-cp313-cp313-musllinux_1_2_aarch64.whl": {
-      "sha256": "32741e648a2b2e55b8b86df554648c587fabe7c5b139094b19c69a7d044d373c",
+    "rstimes-1.0.0-cp313-cp313-musllinux_1_2_aarch64.whl": {
+      "sha256": "64e1b0f337843408361cc2fdcf720157675fb858db09f37f8ed1ac40c938f0ed",
+      "size": 7741426,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/dd/1c/bca900d7d7fd3580b3344fefe2f4732f2851aea6563dab11162c093044d8/rstimes-0.2.0b3-cp313-cp313-musllinux_1_2_aarch64.whl"
+      "url": "https://files.pythonhosted.org/packages/95/ce/cc65baea7358b042b7e4a35cafe5cff51832c90f0f369004e6b3ac261a61/rstimes-1.0.0-cp313-cp313-musllinux_1_2_aarch64.whl",
+      "native": "rstimes/_native.cpython-313-aarch64-linux-musl.so",
+      "native_sha256": "18f51290c5eed811b2d1b0b2acdfc79708121cfdadafb66eb8c2b7d602c63fcb"
     },
-    "rstimes-0.2.0b3-cp313-cp313-musllinux_1_2_x86_64.whl": {
-      "sha256": "31468cb37f7ca05674a36b415dc5d9e57f610ffce27d48d953c48753d43af9bb",
+    "rstimes-1.0.0-cp313-cp313-musllinux_1_2_x86_64.whl": {
+      "sha256": "1902b5d2853e7cd94b1ce7caf104ea7860ddbfa5d4fb320502cfc73c090d76c8",
+      "size": 8334055,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/0f/61/075f0236b0091f38fbde3f982fc9366b02b5ccd9a187e8c94518befb31ac/rstimes-0.2.0b3-cp313-cp313-musllinux_1_2_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/2b/6a/fbe8d0cfa3a803683ba05b58a16aaadcbac838b103620081af6e14b0ec05/rstimes-1.0.0-cp313-cp313-musllinux_1_2_x86_64.whl",
+      "native": "rstimes/_native.cpython-313-x86_64-linux-musl.so",
+      "native_sha256": "4c341efed8e81539441f49d3266eb13c6ae850da659668634ca558aef2f10b9c"
     },
-    "rstimes-0.2.0b3-cp313-cp313-win_amd64.whl": {
-      "sha256": "6856dc4c2a9888ff95736ea5d1128552c6d8f3a6e658fbae91b61300f8222daa",
+    "rstimes-1.0.0-cp313-cp313-win_amd64.whl": {
+      "sha256": "a97b11e581c87989f7efa10ed10445a833488451c30ae902dce8f5c5eb34fd0e",
+      "size": 8391736,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/c6/57/f2f590dc8bba3d41bc0a2976b39da4e26a0a5aa92b2268864454a8202a6b/rstimes-0.2.0b3-cp313-cp313-win_amd64.whl"
+      "url": "https://files.pythonhosted.org/packages/ce/71/89f4496887eab491281726e9281fca3c689ebb6189adf86ae9ad5e16f6d9/rstimes-1.0.0-cp313-cp313-win_amd64.whl",
+      "native": "rstimes/_native.cp313-win_amd64.pyd",
+      "native_sha256": "17b4e6d81ead67947629afeff2a7b7e326dd4b929805029fb5ae85f3244c43f9"
     },
-    "rstimes-0.2.0b3-cp313-cp313-win_arm64.whl": {
-      "sha256": "315a922a905aad9479006286415f7f2711d844012a8f3d932df1968afb3167a9",
+    "rstimes-1.0.0-cp313-cp313-win_arm64.whl": {
+      "sha256": "522850015476e5d00423d2563b1c0bab19d3dde16b9e862a5dee3388f8fdbdd1",
+      "size": 7539980,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/d6/78/a5373608615939ae0d593dc28386f05ee6312a17d537e25f4ebd04df0006/rstimes-0.2.0b3-cp313-cp313-win_arm64.whl"
+      "url": "https://files.pythonhosted.org/packages/6d/84/44eda43ef515e69bf85f0e6b8b33cdca06aee38cf0c5cd8e1158c3576789/rstimes-1.0.0-cp313-cp313-win_arm64.whl",
+      "native": "rstimes/_native.cp313-win_arm64.pyd",
+      "native_sha256": "9da9eecf21174867a0602afbc309d65a82b8616f00118b9a5675d172b00d5681"
     },
-    "rstimes-0.2.0b3-cp314-cp314-macosx_11_0_arm64.whl": {
-      "sha256": "2b0a5aace6251178f1f4546d2c84f9ed2d9046f6cb23be92130e67369119139e",
+    "rstimes-1.0.0-cp314-cp314-macosx_11_0_arm64.whl": {
+      "sha256": "0b2eb0d3664cfca6897ef5bd44f4293787db5f68b793a015765145ad49f31a16",
+      "size": 7315582,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/68/df/223ad8b606a71ab7f3c16508d40fd998cf8947e4218e6455583068e5f06e/rstimes-0.2.0b3-cp314-cp314-macosx_11_0_arm64.whl"
+      "url": "https://files.pythonhosted.org/packages/76/5b/120a37dd4639c8d2b4c1598808407879d33d9172aa46ea02f45d50353b1d/rstimes-1.0.0-cp314-cp314-macosx_11_0_arm64.whl",
+      "native": "rstimes/_native.cpython-314-darwin.so",
+      "native_sha256": "7b3799fc5959993d4afd7e96640477116a016d0f5a206be64b5918eba637d399"
     },
-    "rstimes-0.2.0b3-cp314-cp314-macosx_11_0_x86_64.whl": {
-      "sha256": "7dabe21bb7de1540bb80158e17e0258665487540bcb2a3513c8bf72014f0a61b",
+    "rstimes-1.0.0-cp314-cp314-macosx_11_0_x86_64.whl": {
+      "sha256": "e97ce09105e8757f96817c6e9edc5a5a29a4a4796e0e4da0a4f8d354d10c3b91",
+      "size": 8038861,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/67/10/34be9f629d97513b8a7ce4fa1203aaf4f78e15ff270456be482a0bc4251a/rstimes-0.2.0b3-cp314-cp314-macosx_11_0_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/00/79/288bac47823939bd07c3a7bb45a962246a545f6eff97e3b5e7ad04176b30/rstimes-1.0.0-cp314-cp314-macosx_11_0_x86_64.whl",
+      "native": "rstimes/_native.cpython-314-darwin.so",
+      "native_sha256": "c2eda8d7b5057989922c4366dac4e981fd9f077b90d488f993e7a2cc767a242c"
     },
-    "rstimes-0.2.0b3-cp314-cp314-manylinux_2_28_aarch64.whl": {
-      "sha256": "df21044d1d227e5cf42f33f921b5357b710e7dbdd7107973a1660bc7f6400ac5",
+    "rstimes-1.0.0-cp314-cp314-manylinux_2_28_aarch64.whl": {
+      "sha256": "f47a726b1310e91d0259b1882878ff0289006a4f4f1c27b123baaf9fa6d530a3",
+      "size": 7670659,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/29/ac/857fe05b946bc8dae1557dedb1403e8f318062f6a8bb8c0f6c6ef9eab9f6/rstimes-0.2.0b3-cp314-cp314-manylinux_2_28_aarch64.whl"
+      "url": "https://files.pythonhosted.org/packages/92/1c/6b9de4462f91dbc00a00f94926c5d3b8fafcef7c34960c55abe0a59a8a8a/rstimes-1.0.0-cp314-cp314-manylinux_2_28_aarch64.whl",
+      "native": "rstimes/_native.cpython-314-aarch64-linux-gnu.so",
+      "native_sha256": "50b726bf455a260fb545afcf6827a94b4176276c7aef198738ebacf3c5168d6b"
     },
-    "rstimes-0.2.0b3-cp314-cp314-manylinux_2_28_x86_64.whl": {
-      "sha256": "7157fe9f50e24d07372b02c89786c1c98cc341d8fdec766c15339bbe3e449aeb",
+    "rstimes-1.0.0-cp314-cp314-manylinux_2_28_x86_64.whl": {
+      "sha256": "082711b9d1c3370d64257f81eddffd115fc487cef82c893bdb9c5676a51a627c",
+      "size": 8136105,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/9b/f7/fe0a4ea5ae04ee1bcdc5433345a10c6b345c9c3cb2997b5188df00a16ac9/rstimes-0.2.0b3-cp314-cp314-manylinux_2_28_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/b2/bb/dd5ca2b1a9bbeaf95560c9ce9b1f88a078e27016c5e2eaf038858b885f4a/rstimes-1.0.0-cp314-cp314-manylinux_2_28_x86_64.whl",
+      "native": "rstimes/_native.cpython-314-x86_64-linux-gnu.so",
+      "native_sha256": "97df93ff56b9adb13aad653d502cda6afe6353af11acc5289492d440deda2101"
     },
-    "rstimes-0.2.0b3-cp314-cp314-musllinux_1_2_aarch64.whl": {
-      "sha256": "a90fd27ca5976b90bfd93314e445d2cc79063cfe3f4c98e5ce1edfba8d336099",
+    "rstimes-1.0.0-cp314-cp314-musllinux_1_2_aarch64.whl": {
+      "sha256": "4f96f5e5d144e63526a9a1f90dcf52700928412fef19b5e573be438129b6bca7",
+      "size": 7739850,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/a0/91/f0eda0774a2be3e17dec07bb795f746372b412cb5d1a03e47f69827666f7/rstimes-0.2.0b3-cp314-cp314-musllinux_1_2_aarch64.whl"
+      "url": "https://files.pythonhosted.org/packages/f6/8a/cbc0e9e536f845a05936f82a61cdfdb09536e49b8c1be3042c6a87754abf/rstimes-1.0.0-cp314-cp314-musllinux_1_2_aarch64.whl",
+      "native": "rstimes/_native.cpython-314-aarch64-linux-musl.so",
+      "native_sha256": "422647ffd90297491c915379fa5dda13b314fa4b47ca4858c85a99fc545ef370"
     },
-    "rstimes-0.2.0b3-cp314-cp314-musllinux_1_2_x86_64.whl": {
-      "sha256": "662897593b4c0b1ca1f6627744d26820f4dcac139eb10bf5bb6d6e3f793b34f3",
+    "rstimes-1.0.0-cp314-cp314-musllinux_1_2_x86_64.whl": {
+      "sha256": "d6c01092d605456cd33e5b12b937166ee733734fec28b34943cd3aa498273929",
+      "size": 8333357,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/d6/59/572945b1ca495fd0e53281e7ef26b0e33e5da834ea6ae449c325c1158113/rstimes-0.2.0b3-cp314-cp314-musllinux_1_2_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/ba/79/d754f1e2d88c21edf2b6afe842ec07e95463622274fe3c05e9f535749568/rstimes-1.0.0-cp314-cp314-musllinux_1_2_x86_64.whl",
+      "native": "rstimes/_native.cpython-314-x86_64-linux-musl.so",
+      "native_sha256": "f07c4f804c480b9dd8f8dadb3cfbcc003fcf3217b661f379b2da7c5db248b2a1"
     },
-    "rstimes-0.2.0b3-cp314-cp314t-macosx_11_0_arm64.whl": {
-      "sha256": "22645ffd77229c9322da56256fbf1b6390eadbb5ac1b61727dca130ea9eddbf7",
+    "rstimes-1.0.0-cp314-cp314t-macosx_11_0_arm64.whl": {
+      "sha256": "dceb1d39854a73c02ee02e78dd95f9164fd8d44ed74e4cedb55ff6d19519ebc8",
+      "size": 7294788,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/5b/d4/4c17349f38557b43a0f82a2213b7a1a92eb4f65ba5a368e2a52c53e82456/rstimes-0.2.0b3-cp314-cp314t-macosx_11_0_arm64.whl"
+      "url": "https://files.pythonhosted.org/packages/20/31/90d8000b687cc2f69e346ce2cf8fa0aecddc9dbe9152ae4ce9e32232e850/rstimes-1.0.0-cp314-cp314t-macosx_11_0_arm64.whl",
+      "native": "rstimes/_native.cpython-314t-darwin.so",
+      "native_sha256": "920319c127c8d9987594f3743bbe174bad19c984b440317fd57415c27e2bb709"
     },
-    "rstimes-0.2.0b3-cp314-cp314t-macosx_14_0_x86_64.whl": {
-      "sha256": "f44a17a61d38b96f939be4fc5635690ee746c298a1ea6b0fb8bde5828e7785ec",
+    "rstimes-1.0.0-cp314-cp314t-macosx_14_0_x86_64.whl": {
+      "sha256": "54ca6ecd7f79b3832547207b0ac88c2b21f61d517d8297f09597aa747807bde6",
+      "size": 8006767,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/c1/99/23bd9fcc159290384bcff68a3923c59c35b69b2637bd0f2632fbd8e525e5/rstimes-0.2.0b3-cp314-cp314t-macosx_14_0_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/98/fe/9a127eecc7dfa38c797ac00967b4a44c139beb7ef4582ec69bf19cb2cede/rstimes-1.0.0-cp314-cp314t-macosx_14_0_x86_64.whl",
+      "native": "rstimes/_native.cpython-314t-darwin.so",
+      "native_sha256": "398a4b8e98716c0a6a022fe034396aa219913310f63ba3098a880b02ede941a0"
     },
-    "rstimes-0.2.0b3-cp314-cp314t-manylinux_2_28_aarch64.whl": {
-      "sha256": "cabe3990f98f6144695ad4ff76563f5ab39532b5e88a8b576ad18a1591ae57e1",
+    "rstimes-1.0.0-cp314-cp314t-manylinux_2_28_aarch64.whl": {
+      "sha256": "0716f3ce990f5906683c1e0fd7cf7296030bfe0523fa873522ec762146a59fc9",
+      "size": 7653515,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/64/10/a857189a00d59aef640c6d851c615a27599a9f3d28b2d6f73fa24d8747be/rstimes-0.2.0b3-cp314-cp314t-manylinux_2_28_aarch64.whl"
+      "url": "https://files.pythonhosted.org/packages/08/74/d44a5b1222f00d0a2e0d55a409f4fe0d028fc2351fbbcdda3d982081c802/rstimes-1.0.0-cp314-cp314t-manylinux_2_28_aarch64.whl",
+      "native": "rstimes/_native.cpython-314t-aarch64-linux-gnu.so",
+      "native_sha256": "88a7ab7d135bba920a34cba3d68f45b372407f42e27678da1cfb23aecd4e494b"
     },
-    "rstimes-0.2.0b3-cp314-cp314t-manylinux_2_28_x86_64.whl": {
-      "sha256": "4c3219c53f5319fce5784dfa71bd6c53237c4da4b7b2eb26aa3ab60c147c5107",
+    "rstimes-1.0.0-cp314-cp314t-manylinux_2_28_x86_64.whl": {
+      "sha256": "6c4b4c0490466cb3c54888211b0ad17dd0fa22a51777c03daa22791d2c04c086",
+      "size": 8110547,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/c0/46/af781163e5313f87a9d8914dd8e0c7f934da8144598cf9708f6da0d73e49/rstimes-0.2.0b3-cp314-cp314t-manylinux_2_28_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/5f/d2/d0fe0043d49fad99faca7054870c7e140d3ac93fefc6ef481294cc6e1f4d/rstimes-1.0.0-cp314-cp314t-manylinux_2_28_x86_64.whl",
+      "native": "rstimes/_native.cpython-314t-x86_64-linux-gnu.so",
+      "native_sha256": "33535be0c40db51fc61a47b7d29fb4124add021e5cc0f95927d79ef20e95655d"
     },
-    "rstimes-0.2.0b3-cp314-cp314t-musllinux_1_2_aarch64.whl": {
-      "sha256": "11c7a9964e246e3fe5fae58642aba0bb693c57e1b7393087abdb68e1887168aa",
+    "rstimes-1.0.0-cp314-cp314t-musllinux_1_2_aarch64.whl": {
+      "sha256": "03707afcb0b8cb5d766ea07cb03c877f56b138ee91f764d014f77e1d622f0240",
+      "size": 7719668,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/f6/de/a8e0fda40637cf22c0a8e65055663ffecd62f49b062a75533562e10ab10e/rstimes-0.2.0b3-cp314-cp314t-musllinux_1_2_aarch64.whl"
+      "url": "https://files.pythonhosted.org/packages/6c/a3/63964ec45bf9e2c15ed4da804cfc77db7bdd7e467f2da99fcdc37c668ac5/rstimes-1.0.0-cp314-cp314t-musllinux_1_2_aarch64.whl",
+      "native": "rstimes/_native.cpython-314t-aarch64-linux-musl.so",
+      "native_sha256": "36616aef45171c92b36c7a8bd27f5ce5964e1a25d9c97abeab5a72690303298b"
     },
-    "rstimes-0.2.0b3-cp314-cp314t-musllinux_1_2_x86_64.whl": {
-      "sha256": "94da8e1665bbf002701a4cb29e884a40190715d53e43eed52a1ab0d4a727d730",
+    "rstimes-1.0.0-cp314-cp314t-musllinux_1_2_x86_64.whl": {
+      "sha256": "d9408f09cea93b71b58c80d6e8410ca2e72242c04f079bcfc0f87beaf547fa53",
+      "size": 8309729,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/5d/89/7ad0413272e82b27c86369b77bbc02f8d7e654de69bdbe02466ded94096c/rstimes-0.2.0b3-cp314-cp314t-musllinux_1_2_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/16/ab/990eeed0dceeec67c2cb215a5e83e6cc6d4b6315427a148478108cbd0cee/rstimes-1.0.0-cp314-cp314t-musllinux_1_2_x86_64.whl",
+      "native": "rstimes/_native.cpython-314t-x86_64-linux-musl.so",
+      "native_sha256": "444d7f8c1187eac7bb0a795279ee7cfce967857d53cfed2bc82a55ff6e9c8c7b"
     },
-    "rstimes-0.2.0b3-cp314-cp314t-win_amd64.whl": {
-      "sha256": "36256c30d8ae4499ee608b65d5a70595469f89353fbb7a48eef1041666304811",
+    "rstimes-1.0.0-cp314-cp314t-win_amd64.whl": {
+      "sha256": "c44e38a95d3d0487a8c0603b3855287380e20388453ece4ede32063f07cafb3f",
+      "size": 8369755,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/cf/e1/e90b09b37b756e060f3b7d23982d546895c59cfd48899acf2d4bf3efcf8a/rstimes-0.2.0b3-cp314-cp314t-win_amd64.whl"
+      "url": "https://files.pythonhosted.org/packages/24/60/6ee8511979caa6f924fe1b022f97b12e4cc680a0481fc0f5370321224671/rstimes-1.0.0-cp314-cp314t-win_amd64.whl",
+      "native": "rstimes/_native.cp314t-win_amd64.pyd",
+      "native_sha256": "efcb697a3b03668b4445af7e62a274529f5c4f9d7b6e0b85cf2612492367d411"
     },
-    "rstimes-0.2.0b3-cp314-cp314t-win_arm64.whl": {
-      "sha256": "18b4c6561226dea536565c1a3c2756c72610c87ae425f3459bc92da1ebd93470",
+    "rstimes-1.0.0-cp314-cp314t-win_arm64.whl": {
+      "sha256": "22d1d6afb8023f98febd7d4b431af1c78fc4c3bd7186f3b7c44c7a9864f1aaa9",
+      "size": 7511752,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/3d/96/e04528452b49d23258f20dd7d4a9111d4dd4e186e62773d299cbf8229f44/rstimes-0.2.0b3-cp314-cp314t-win_arm64.whl"
+      "url": "https://files.pythonhosted.org/packages/ab/1e/ba5950711fe67f1e3b5853462d5f381e0c8fceb9616eb2a656cc7c8c07ce/rstimes-1.0.0-cp314-cp314t-win_arm64.whl",
+      "native": "rstimes/_native.cp314t-win_arm64.pyd",
+      "native_sha256": "453dfdbecc0b19ce839b8afdfdc924dfd2c028371699ff500e190ac12f8b3a44"
     },
-    "rstimes-0.2.0b3-cp314-cp314-win_amd64.whl": {
-      "sha256": "3b9fe4d15c550370b766d1febb16e97d6287c3d2fca6e2db19adce8512c6da8a",
+    "rstimes-1.0.0-cp314-cp314-win_amd64.whl": {
+      "sha256": "6066237369964f1bbcf24b6925654f8f47a356f856b648b39c927b61906bca5e",
+      "size": 8390388,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/16/4c/37acb5de1e024249d4d56cb54828c063d1ccaed916a3fd46a040c706bf8a/rstimes-0.2.0b3-cp314-cp314-win_amd64.whl"
+      "url": "https://files.pythonhosted.org/packages/ab/51/42eee35cdb20810eff8ad9357e691f591ddf1a7607b03e11532d9327e849/rstimes-1.0.0-cp314-cp314-win_amd64.whl",
+      "native": "rstimes/_native.cp314-win_amd64.pyd",
+      "native_sha256": "c2f3d349e32621e5b475f6dae26381d776625c43025d17a211462f31d4fdf934"
     },
-    "rstimes-0.2.0b3-cp314-cp314-win_arm64.whl": {
-      "sha256": "1d97fac0ff3932a3a7bda28d9d93306f7071d55e7c618080b4f0eb11cccb239b",
+    "rstimes-1.0.0-cp314-cp314-win_arm64.whl": {
+      "sha256": "344018330c810b50ed03687f63e8e1ce5040be2213069c57b7bdd9d8a297c58d",
+      "size": 7536750,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/83/70/daa2b147dbefbca359579e7789bb20a8d9a07481943d9194bdbffc5c06a5/rstimes-0.2.0b3-cp314-cp314-win_arm64.whl"
+      "url": "https://files.pythonhosted.org/packages/54/1f/e582d76abe842b0f16af0bc5f37971b76e877905d298209496a8c1e87050/rstimes-1.0.0-cp314-cp314-win_arm64.whl",
+      "native": "rstimes/_native.cp314-win_arm64.pyd",
+      "native_sha256": "17b2943d5c307ec471cd96595a30aa75b57a66196bd764929554db330a498444"
     },
-    "rstimes-0.2.0b3-cp315-cp315-macosx_11_0_arm64.whl": {
-      "sha256": "3633ba32de820a3c68edaf03dd7098d90e1bccc8b6e6b050c439da1b8842af9b",
+    "rstimes-1.0.0-cp315-cp315-macosx_11_0_arm64.whl": {
+      "sha256": "6109b45762e51c30b978acdd719416d17b18f92eb781e864049b9c6da5884d49",
+      "size": 7315189,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/3c/b1/f20528db09581bdb7dc83fb5a7f8cb30220275b68b62916ba15d772bddc8/rstimes-0.2.0b3-cp315-cp315-macosx_11_0_arm64.whl"
+      "url": "https://files.pythonhosted.org/packages/df/5e/499849d9ae58bc9a03be64b3f516f5b99eac8eefcf630a41924581a4f2ea/rstimes-1.0.0-cp315-cp315-macosx_11_0_arm64.whl",
+      "native": "rstimes/_native.cpython-315-darwin.so",
+      "native_sha256": "4a0611c328827cb1948560953f5d0b816e2331cc44bfc3c57cdb02fc9ba3bdd7"
     },
-    "rstimes-0.2.0b3-cp315-cp315-macosx_11_0_x86_64.whl": {
-      "sha256": "e2ce2a8d803857120e9adce16ac8dfafd83f0eafecaaa6b85734b5bf731e6fb0",
+    "rstimes-1.0.0-cp315-cp315-macosx_11_0_x86_64.whl": {
+      "sha256": "6a57652a991002fb94e022dfdf42bafc9cdf6ea83de1c6d119837b37f51da87f",
+      "size": 8039774,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/b3/ff/f688ab620647f75e0bb320de5d5226cda531f76faa3923b48f49409187cc/rstimes-0.2.0b3-cp315-cp315-macosx_11_0_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/8b/33/b9f3dca6dc881d9471a18836f04e830a220795c636e8578874c3c2cb7499/rstimes-1.0.0-cp315-cp315-macosx_11_0_x86_64.whl",
+      "native": "rstimes/_native.cpython-315-darwin.so",
+      "native_sha256": "d6a264d98565231149d6352380aff54366250cd70f3c90afa7e69cca6d7e3ac3"
     },
-    "rstimes-0.2.0b3-cp315-cp315-manylinux_2_28_aarch64.whl": {
-      "sha256": "fae6b161f46d3511fc6d66991beb3b1417519923e2f9203585e8211bd9a0c39d",
+    "rstimes-1.0.0-cp315-cp315-manylinux_2_28_aarch64.whl": {
+      "sha256": "c3d8b47b0ae74e9178db83e553b756b6195d2960303e940347d0154acd76a813",
+      "size": 7671488,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/e5/48/853059576145cc0824271ce8177f9baf89f187af2d0eb0deceed51fba68a/rstimes-0.2.0b3-cp315-cp315-manylinux_2_28_aarch64.whl"
+      "url": "https://files.pythonhosted.org/packages/01/03/e1df1657ad49d5ec05650193b61fdb1b2bacaa018e7f5c7fa5c8447fb3ef/rstimes-1.0.0-cp315-cp315-manylinux_2_28_aarch64.whl",
+      "native": "rstimes/_native.cpython-315-aarch64-linux-gnu.so",
+      "native_sha256": "f7872705765d96ea55d2cf07c8d4f11b37788e1880ab5f947b20a631e77247bd"
     },
-    "rstimes-0.2.0b3-cp315-cp315-manylinux_2_28_x86_64.whl": {
-      "sha256": "33a91f627202c24e1d50bdd84a0ccccfa54292ce19625b940fbbb6246084735c",
+    "rstimes-1.0.0-cp315-cp315-manylinux_2_28_x86_64.whl": {
+      "sha256": "7decfe6f34f61712f5fd176594535d8e1cdf6614d69582a47fdfad9bd915ea19",
+      "size": 8136028,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/08/a5/bdeab06753ee01d030d23ce02b52f475d3f08d92c5e1da388ed501715e3c/rstimes-0.2.0b3-cp315-cp315-manylinux_2_28_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/c1/4d/2360d9b415273088ee5fc275676d473ceae3768a4b0dd78c06d309df60b0/rstimes-1.0.0-cp315-cp315-manylinux_2_28_x86_64.whl",
+      "native": "rstimes/_native.cpython-315-x86_64-linux-gnu.so",
+      "native_sha256": "39a8613897a2beaf0630dad9238eabf9b1fa755ec72e3fd1ac4a2b49f712f24f"
     },
-    "rstimes-0.2.0b3-cp315-cp315-musllinux_1_2_aarch64.whl": {
-      "sha256": "a5af700cd805e8b7d44dd14c16f22596ac0f4ec312720ec44a428b7e365b793e",
+    "rstimes-1.0.0-cp315-cp315-musllinux_1_2_aarch64.whl": {
+      "sha256": "e5f9c814bc630286e3a9be9cb19c0aeca10cd8011004ec8c9fdec2dd6dfe456d",
+      "size": 7739682,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/44/7e/016f872368fe151900562c8d950304403d57e2a7fc29ffd04a55bd0c30c0/rstimes-0.2.0b3-cp315-cp315-musllinux_1_2_aarch64.whl"
+      "url": "https://files.pythonhosted.org/packages/27/e5/0cd94e510b0728459b8184c3e2fbf1b142ca43f58f8aee12a29dbbe60c7e/rstimes-1.0.0-cp315-cp315-musllinux_1_2_aarch64.whl",
+      "native": "rstimes/_native.cpython-315-aarch64-linux-musl.so",
+      "native_sha256": "d6f68651a10668b795509240bf7a2d77d24ee35993d36094d9712dcb3fbc67b6"
     },
-    "rstimes-0.2.0b3-cp315-cp315-musllinux_1_2_x86_64.whl": {
-      "sha256": "9321eb2a921f8c7221323b46ea05b8a38e31d2165c5fc9b0eac0461083db813b",
+    "rstimes-1.0.0-cp315-cp315-musllinux_1_2_x86_64.whl": {
+      "sha256": "f8d465942c9c1971803db155659c476c32ff1a8ced09282f99b32eeb7721603f",
+      "size": 8332392,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/43/7f/df8295a9d163f8f471fc052a65adfaffcb6f52edd71f1723ea1de284485c/rstimes-0.2.0b3-cp315-cp315-musllinux_1_2_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/66/68/8fd0cdc89d40be19811e27218cc7cbd4ae5b5551104eea16b47a957cf67b/rstimes-1.0.0-cp315-cp315-musllinux_1_2_x86_64.whl",
+      "native": "rstimes/_native.cpython-315-x86_64-linux-musl.so",
+      "native_sha256": "15021ee6d95a49df15ab6c680b590c6693f925af5f9ae9cc3493ec78caea6f56"
     },
-    "rstimes-0.2.0b3-cp315-cp315t-macosx_11_0_arm64.whl": {
-      "sha256": "817a41d00d193e72520aae4ce4c30b5fb36284c88984b5daf905cea7bb6ad79b",
+    "rstimes-1.0.0-cp315-cp315t-macosx_11_0_arm64.whl": {
+      "sha256": "9aa22ebfd4ea6bf7427c6247ab114fe77559b4af8b57cecb3806b0eb15b32dfd",
+      "size": 7295246,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/28/63/c8406de0ac92fe6fc41bfde916e076dba440ffde72dbfaa435242e58791f/rstimes-0.2.0b3-cp315-cp315t-macosx_11_0_arm64.whl"
+      "url": "https://files.pythonhosted.org/packages/11/48/d5f470bb72c7f397f68a593c6745f1500e4b9e73d6fd482ed2ff0801000f/rstimes-1.0.0-cp315-cp315t-macosx_11_0_arm64.whl",
+      "native": "rstimes/_native.cpython-315t-darwin.so",
+      "native_sha256": "909bcebaa756c7bd8d3fb4c6aefdb293b45e43e01385537dfce0db8d09c376b0"
     },
-    "rstimes-0.2.0b3-cp315-cp315t-macosx_14_0_x86_64.whl": {
-      "sha256": "399163e7dee5b2360ecddd350b54740124877a2fef354a97d26798d3d4de6020",
+    "rstimes-1.0.0-cp315-cp315t-macosx_14_0_x86_64.whl": {
+      "sha256": "d22585f8f622ed2e800d61e6fe54c3c8f92bb3bc1fd3956bf64c0b2aaf5755fd",
+      "size": 8006450,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/15/8d/25d6f11b97bc1996a4872ffd3803d4fd0c5a287d84981812e77d7f9b5f98/rstimes-0.2.0b3-cp315-cp315t-macosx_14_0_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/12/2f/41bae422ca7ac6f4f1f7961ea0aa3b975e3b383d5b30eee78af493d1319b/rstimes-1.0.0-cp315-cp315t-macosx_14_0_x86_64.whl",
+      "native": "rstimes/_native.cpython-315t-darwin.so",
+      "native_sha256": "8a4378203cd70fe8880c509811e5336da70aa773c75133e9544e7f028a523d6d"
     },
-    "rstimes-0.2.0b3-cp315-cp315t-manylinux_2_28_aarch64.whl": {
-      "sha256": "dfe1aa0797134f35f328f7f368f0beb09b15f191a0ec8af64cf6d60f63cd43f3",
+    "rstimes-1.0.0-cp315-cp315t-manylinux_2_28_aarch64.whl": {
+      "sha256": "0b3d41cc56036ae7dfbb6747e520a4d76c275f99df53a28d6699ece40ae45dc8",
+      "size": 7653997,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/81/3b/d2d05b3758230c1592ee90355179ad00eb70f3ada5f44a7c54953b05770c/rstimes-0.2.0b3-cp315-cp315t-manylinux_2_28_aarch64.whl"
+      "url": "https://files.pythonhosted.org/packages/f3/a5/9a9085bb7e2e8301212171e1c08cfffe7f20d4fd24ac0672e670f27c1405/rstimes-1.0.0-cp315-cp315t-manylinux_2_28_aarch64.whl",
+      "native": "rstimes/_native.cpython-315t-aarch64-linux-gnu.so",
+      "native_sha256": "5ebafa668fd3afc42306fefdd62d1f2ed501523c3c171c0ae7c1be7d966c18de"
     },
-    "rstimes-0.2.0b3-cp315-cp315t-manylinux_2_28_x86_64.whl": {
-      "sha256": "1c1e3ba03f7d69d4c0ee32630b8094d206765bbbfef286fd97db140685927f7a",
+    "rstimes-1.0.0-cp315-cp315t-manylinux_2_28_x86_64.whl": {
+      "sha256": "2c5a437601f3522cf8e1347b81a7cd2c4ad649f9b828cd724fff665e556f21b9",
+      "size": 8109794,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/4b/83/cf9f76fcf789746b44e9a0bc6c74692573655e8b95f6d3cd9b44d918cd6c/rstimes-0.2.0b3-cp315-cp315t-manylinux_2_28_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/9a/60/0ef88c4e9071febb03beac101894eadad1a2940641303466c532e7b06af7/rstimes-1.0.0-cp315-cp315t-manylinux_2_28_x86_64.whl",
+      "native": "rstimes/_native.cpython-315t-x86_64-linux-gnu.so",
+      "native_sha256": "d4a5225ffdaeaab377ac2fe3bdb1cef649fa8d15400b8afd5e21e58a9fe9f66c"
     },
-    "rstimes-0.2.0b3-cp315-cp315t-musllinux_1_2_aarch64.whl": {
-      "sha256": "f2acb26e700e569b3ddb7fb83d50888e0720d3b85627166048bd5ac0dc6d1686",
+    "rstimes-1.0.0-cp315-cp315t-musllinux_1_2_aarch64.whl": {
+      "sha256": "427051b6ed423ece5d83dc4dcc76a56264f4f347cf45224268e80bee007003e2",
+      "size": 7719426,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/b5/85/21019c4ee3a5cf9661ddc0fc1272c4c004a71d7f9c671fc48f87a1c4145f/rstimes-0.2.0b3-cp315-cp315t-musllinux_1_2_aarch64.whl"
+      "url": "https://files.pythonhosted.org/packages/4d/07/1c5c59ad5a4a36ebdeffb6224b37ea0f4152ede4750eaff7719d57b27040/rstimes-1.0.0-cp315-cp315t-musllinux_1_2_aarch64.whl",
+      "native": "rstimes/_native.cpython-315t-aarch64-linux-musl.so",
+      "native_sha256": "990e46d69513e6d71f18db353511bf10a4d7bd6e8dbc826d91e1caefe8f5a14f"
     },
-    "rstimes-0.2.0b3-cp315-cp315t-musllinux_1_2_x86_64.whl": {
-      "sha256": "108e121b421410b11bc39c7fc137c71931fedf1f00f60444b0e88f999986efd6",
+    "rstimes-1.0.0-cp315-cp315t-musllinux_1_2_x86_64.whl": {
+      "sha256": "dcd8030b5b75b2e3485eca6624077618c96a558fff1ce9b3e018d675ec3bdc92",
+      "size": 8309470,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/f5/27/fcd9f56a80539fffd926a43675b64c428a18c2c7fb892f878f0eb9560ba4/rstimes-0.2.0b3-cp315-cp315t-musllinux_1_2_x86_64.whl"
+      "url": "https://files.pythonhosted.org/packages/44/a5/463b521d2f40107b217602eff3cbf95e7bf4c5b49d37fafc7f54618eb620/rstimes-1.0.0-cp315-cp315t-musllinux_1_2_x86_64.whl",
+      "native": "rstimes/_native.cpython-315t-x86_64-linux-musl.so",
+      "native_sha256": "2400ed62b957c5aa21d6577de8ded511b1e281c5cf3dee20eeeb6906eb0ea729"
     },
-    "rstimes-0.2.0b3-cp315-cp315t-win_amd64.whl": {
-      "sha256": "e785b92cbfea3e12e583a0b75ca42976ef71f60927dd51e6cf530c88fd8fe857",
+    "rstimes-1.0.0-cp315-cp315t-win_amd64.whl": {
+      "sha256": "3a19bf0735232c740a63f2b1a8ec150a183b5feb73fadfd07de514ba37364891",
+      "size": 8369900,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/8c/62/0f6c6eb0a45f8e143aaef9f7509d5184136e306c0b704d473bde1f55bdb5/rstimes-0.2.0b3-cp315-cp315t-win_amd64.whl"
+      "url": "https://files.pythonhosted.org/packages/00/4f/003375e277c4b848219a9943340f7fbc36e5c3b2d90b3910f1a9cdc677a1/rstimes-1.0.0-cp315-cp315t-win_amd64.whl",
+      "native": "rstimes/_native.cp315t-win_amd64.pyd",
+      "native_sha256": "c1375609d0a6244ab62d86af3accb315255944226e712a34880737baf2422122"
     },
-    "rstimes-0.2.0b3-cp315-cp315t-win_arm64.whl": {
-      "sha256": "4ba1f8b93049c1471a7d7474514012b05307c4b1647b34a5e3cb1f5457a4c93d",
+    "rstimes-1.0.0-cp315-cp315t-win_arm64.whl": {
+      "sha256": "3488c408a8c19c07135d2eeaf545492778b6378c824624bea99efffa82f06fa0",
+      "size": 7511919,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/47/a6/35711dc618820a50eba545978f0a4b1a4f57e720f3b62cfca4b9f7d143be/rstimes-0.2.0b3-cp315-cp315t-win_arm64.whl"
+      "url": "https://files.pythonhosted.org/packages/7f/b6/9d3b7e1626dab553ed0be569b0d9fb8a6be23e99802cca3b2c234949e44a/rstimes-1.0.0-cp315-cp315t-win_arm64.whl",
+      "native": "rstimes/_native.cp315t-win_arm64.pyd",
+      "native_sha256": "6b7291e4524bc3c092eadb7b8cd35e0d7ca78a236dd3e12c148cd8132142a133"
     },
-    "rstimes-0.2.0b3-cp315-cp315-win_amd64.whl": {
-      "sha256": "8e55db069a2ab6b0764848368bfb2340f91ad6ec81059406d7a3c24fdd291009",
+    "rstimes-1.0.0-cp315-cp315-win_amd64.whl": {
+      "sha256": "618ae174e9af1168ae53ce125d9f34a3f880918cc3a379a2ab8eafd201ae7be5",
+      "size": 8390622,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/3f/5c/a015b9ad846b03ab5c131f7544afc7f14f60be4e878ef4bd995b5ccb275e/rstimes-0.2.0b3-cp315-cp315-win_amd64.whl"
+      "url": "https://files.pythonhosted.org/packages/62/ba/56f66a26edb65608abf7b51b4f78b312e95feb01ee3216b761ae40b6ba95/rstimes-1.0.0-cp315-cp315-win_amd64.whl",
+      "native": "rstimes/_native.cp315-win_amd64.pyd",
+      "native_sha256": "8a813d2fdec0d92b80af158dea27e59cfe54ee148dd8cf35d7fa36bace1a5280"
     },
-    "rstimes-0.2.0b3-cp315-cp315-win_arm64.whl": {
-      "sha256": "00c2016cc32b345e28e6adbd7fdf8030ef1702774d4400e2e531d750a0b79c12",
+    "rstimes-1.0.0-cp315-cp315-win_arm64.whl": {
+      "sha256": "4799a04a6bfba107cc2255b16ba3f4600adc4c1f28eab1c4203b20ef3f8154a7",
+      "size": 7536156,
       "packagetype": "bdist_wheel",
-      "url": "https://files.pythonhosted.org/packages/d3/29/1079f634b820217aa23cfcb1a97617a3e16a5f686c9676da175f9fc6bd07/rstimes-0.2.0b3-cp315-cp315-win_arm64.whl"
+      "url": "https://files.pythonhosted.org/packages/68/43/7f94f4cb0913fb0ce80e2589f53e3c83231c66ca65a3f40eeef8dfb77320/rstimes-1.0.0-cp315-cp315-win_arm64.whl",
+      "native": "rstimes/_native.cp315-win_arm64.pyd",
+      "native_sha256": "93f2688b94b3c4854482c549ae70b54e6f770d8d57f21e9115cc897fb8f4eb44"
     },
-    "rstimes-0.2.0b3.tar.gz": {
-      "sha256": "94d1a08d2c65817e075906e12ca3cbefe55841397d775e7d251bbeb1f46bf3b4",
+    "rstimes-1.0.0.tar.gz": {
+      "sha256": "e3a830babbe3fd00337a180ec7164f22d4fb94e7de0593f3ed612e4b9ce5bf45",
+      "size": 960618,
       "packagetype": "sdist",
-      "url": "https://files.pythonhosted.org/packages/4b/59/55d2c5fbdcf43daa190d1ce91b885723cd1010a10e318f568a4a92974de2/rstimes-0.2.0b3.tar.gz"
+      "url": "https://files.pythonhosted.org/packages/97/f7/c40145b860c37556819e520bd431d546ce77de45af076c0c7b79a4e7f320/rstimes-1.0.0.tar.gz"
     }
+  },
+  "common_package_files": {
+    "__init__.py": "fa7c3bf5da91bbf3923f075f4bfc78f284739637b74ccf3cc52da59e82be4142",
+    "__init__.pyi": "49f4794bf8bbbe1b5627a51b81c58bf12997a1b25c12ca7424d8d7574778625c",
+    "_backend_types.pyi": "2e6089944b380143301df49dea0b56767c73138211ebce7b643e99513c025882",
+    "_class_protocol.py": "0b02272868e7a08aae332908418457a0e941986017af79191d9831b91f74cefd",
+    "_formatting.py": "73c13565a7c57e7fa61b1ed85b14c825b840d594c780487decf1474f4b484e79",
+    "_localization.py": "a0dfbcf7e6d2c0c1d4c90aa8f27c77597604d0246f159f81dd787e7a6dfe8f3f",
+    "_localization_sources.json": "ee6e3b3428910ea530f385bff27fea39d0556643e5239f0d3588ba9f0ddb1738",
+    "_native.pyi": "1f90a90cfe1049e76b91deb5f719b991a8ac931995b13dd3946ee8d5024318ec",
+    "_optional.py": "7eb15efc45da9d1cf97ee38b4313605a0686508def816518d87d5713afe3b668",
+    "_pddt_state.py": "6624eb071cd4a8de36ef6cee8400c10629730188e5e98a6f0eb02eeb58fceb43",
+    "_pldt_state.py": "4e8fc60622c15c420fad7254abd1f6359572514f60903a206c01134cf4595c62",
+    "_pldt_timezone.py": "a0ae73dbb555484c2d76a173fe199bfc98591d3d7b7544390ab5f148ea7e172a",
+    "_polars.py": "e571ce771eed77aba3a3573a0020f0bf66710c33b45dda4d2843d44878f7cc82",
+    "_range.py": "d11ee6725ec83f616ca16a71b48d34328735cee12b0920825d59a968df7a3413",
+    "_state_storage.py": "7e63376c323fe2668d3fdf0de5563d2e5074389a561e6123a4d6feae187a3a6e",
+    "delta.py": "03ad7ca86670c3eedac752e77018716dae27d96a1a66acf8891a6d4658225091",
+    "delta.pyi": "21aaad39690d04c15ee7ecf38e1a36b4e181f70bde8ac901a5e6e0d169aaf518",
+    "errors.py": "d957d54eea725a1c73367259315de4606b63293c0384bbb55d8141541c65f353",
+    "errors.pyi": "4295d8c0008f5c2d77899775eaa4fc7988dc2195547e29b846a0f42e55f14cab",
+    "parser.py": "974f69fd73c8d2bad818f43ad3a49e55f772c21ed3e52995602df338f8a20172",
+    "parser.pyi": "992977f5e1609b07cced798b34dfaac56bd68a1d6d500411b78aeba68e12ba57",
+    "pddt.py": "4ab29aaf9114cdfd14a423cf7ed4750598d07b038658ce78b248084026630da1",
+    "pddt.pyi": "2a3f57668fb166bb5c7b5ecf26b2ccf107d69f21973efccc884e58e4a300d0b7",
+    "pldt.py": "9ca3dea53c5538aa91648c2bc94d2a54ca11fc34b13f10e0706dc98e7b890b3b",
+    "pldt.pyi": "f83d53d2c4e71eb20260c73ae9dd7331810c99477a93af8423eda068b9bf51d7",
+    "py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pydt.py": "4f5c17d494fbd4809d6ee48d0ab8b5155b74b97966f7f0c1ed5c39ccaa3c6303",
+    "pydt.pyi": "7f6fc81594b564af6f0843413d6a9e605bfb76f7e130d4847ebc3ce0419b8f7d"
   }
 }

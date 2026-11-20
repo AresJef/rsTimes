@@ -18,32 +18,43 @@ args.output = args.output / 'rstimes'
 args.output.mkdir(parents=True, exist_ok=True)
 package = Path(rstimes.__file__).resolve().parent
 public_classes = {"Delta", "Configs", "Pydt", "Pddt", "Pldt", "RstimesError", "ParseError", "ConfigError"}
-public_functions = {"parse", "parse_str", "parse_to_epoch", "to_unix_ms", "from_unix_ms"}
+public_functions = {"parse", "parse_str", "parse_to_epoch", "parse_to_integer", "parse_to_float",
+                    "to_unix_ms", "from_unix_ms"}
+
+
+def for_website(node, module):
+    """Use the shipped description with links to standalone website examples."""
+    doc = ast.get_docstring(node)
+    if not doc:
+        return
+    lines = doc.splitlines()
+    starts = [i for i in range(len(lines) - 1)
+              if lines[i].strip() and re.fullmatch(r"-{3,}", lines[i + 1])]
+    for position, start in reversed(list(enumerate(starts))):
+        if lines[start] not in {"Example", "Examples"}:
+            continue
+        end = starts[position + 1] if position + 1 < len(starts) else len(lines)
+        del lines[start:end]
+    content = "\n".join(lines).strip()
+    if re.search(r"(?m)^\s*(?:>>> |\.\. (?:code|code-block|sourcecode|literalinclude)::|\x60\x60\x60(?:python|pycon))", content):
+        raise ValueError(f"Unrouted executable example in {module}.{getattr(node, 'name', 'module')}")
+    rendered = []
+    for line in content.splitlines():
+        if re.match(r"^[\w ,]+ : ", line):
+            # Napoleon parses prose unions in type fields.
+            rendered.append(line.replace("bool | numpy.bool_", "bool or numpy.bool_"))
+        else:
+            rendered.append(re.sub(r"(?<![`\w])numpy\.bool_(?![`\w])", "``numpy.bool_``", line))
+    content = "\n".join(rendered)
+    content = re.sub(r"(?m)^Boolean options accept", "Notes\n-----\nBoolean options accept", content)
+    node.body[0].value.value = content
+
+
 for name in ("__init__", "delta", "parser", "pydt", "pddt", "pldt", "errors"):
     tree = ast.parse((package / (name + ".pyi")).read_text())
-    if name == 'pldt':
-        cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'Pldt')
-        initializer = next(n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == '__init__')
-        doc = initializer.body[0].value
-        doc.value = doc.value.replace('Initialize the registered native namespace.', "Initialize this Pldt's native Datetime Series data.")
-        doc.value = doc.value.replace('The existing receiver/state/namespace is initialized; no result column is returned.', 'The receiver is initialized. Python construction returns the completed Pldt; this initializer itself returns None.')
     for node in ast.walk(tree):
-        if isinstance(node, ast.Constant) and isinstance(node.value, str):
-            # A trailing underscore is a reStructuredText link marker. Treat this
-            # actual NumPy type name as code, without changing product stubs.
-            node.value = re.sub(r"(?<![`\w])numpy\.bool_(?![`\w])", "``numpy.bool_``", node.value)
-            node.value = re.sub(r"(?m)^([ \t]*)Boolean options accept", r"\1Notes\n\1-----\n\1Boolean options accept", node.value)
-            node.value = node.value.replace(
-                "yearfirst and dayfirst are read-only after construction. Choose them when\ncreating Configs, or override them for one parse call with its arguments.",
-                "Direct assignment to yearfirst and dayfirst is unsupported. Choose the flags\nwhen creating Configs, or override them for one parse call. Calling __init__\nagain replaces the flags and resets all token tables.",
-            )
-            if name == 'pddt':
-                node.value = node.value.replace(
-                    "Return this index's date-field namespace; native value replace is inherited.",
-                    "Return this index's namespace for strict date-field replacement.",
-                )
-            if name == 'pldt':
-                node.value = node.value.replace('Supported IANA name, ZoneInfo or representable standard fixed offset.', 'IANA name, ordinary ZoneInfo or representable standard fixed offset.')
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef)):
+            for_website(node, name)
     if name == 'pldt':
         namespaces = []
         for cls in (n for n in tree.body if isinstance(n, ast.ClassDef) and n.name in ('_SeriesNamespace', '_ExprNamespace')):
@@ -61,33 +72,6 @@ for name in ("__init__", "delta", "parser", "pydt", "pddt", "pldt", "errors"):
         assert {n['path'] for n in namespaces} == {'polars.Series.pldt', 'polars.Expr.pldt'}
         snapshot = {'stub_sha256': hashlib.sha256((package / 'pldt.pyi').read_bytes()).hexdigest(), 'namespaces': namespaces}
         (args.output / 'namespaces.json').write_text(json.dumps(snapshot, indent=2) + '\n')
-        cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'Pldt')
-        cls.body[0].value.value = ast.get_docstring(cls) + '\n\n.. warning::\n\n    Known defect RV03: business ZoneInfo target overrides can be replaced by their key. See :doc:`/compatibility/known-issues` for the observed wrong instant and a verified workaround.'
-    if name in ('pddt', 'pldt'):
-        class_name = 'Pddt' if name == 'pddt' else 'Pldt'
-        cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == class_name)
-        method = next(n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == 'copy')
-        parameters = ast.get_docstring(method).split('\nReturns\n-------\n', 1)[0]
-        method.body[0].value.value = parameters + f'''\nReturns
--------
-{class_name} or object
-    The default protocol returns a fresh same-class shell. Concrete custom
-    copy hooks can choose a different result, as shown in the copy guide.
-
-Notes
------
-Default shallow copies share safe date buffers and business references.
-Default deep copies isolate date buffers and preserve aliases/cycles with
-one memo. These operations do not rerun business initialization.
-
-.. warning::
-
-    Known defect RV04: named copy has incomplete None, missing and dynamic
-    reduction fallback. The affected configurations can raise or bypass a
-    legitimate reduction. See :doc:`/compatibility/known-issues` for observed
-    behavior and standard copy-function workarounds. This is an unresolved
-    defect, not a claim of complete custom reduction conformance.
-'''
     tree.body = [n for n in tree.body if not isinstance(n, ast.ClassDef) or n.name in public_classes]
     tree.body = [n for n in tree.body if not isinstance(n, ast.FunctionDef) or n.name in public_functions]
     (args.output / (name + ".pyi")).write_text(ast.unparse(tree) + "\n")

@@ -32,7 +32,6 @@ html_theme_options = {
     "navigation_depth": 3,
     "footer_start": ["copyright"],
     "footer_end": ["sphinx-version"],
-    "announcement": "Development preview — being verified against the latest implementation." if TARGET["status"] == "candidate" else f"Documentation for rsTimes {release} (beta).",
 }
 html_context = {"default_mode": "auto"}
 html_show_sourcelink = False
@@ -53,8 +52,7 @@ napoleon_numpy_docstring = True
 napoleon_google_docstring = False
 napoleon_preprocess_types = True
 napoleon_type_aliases = {"date": "datetime.date", "datetime": "datetime.datetime", "time": "datetime.time", "timedelta": "datetime.timedelta"}
-copybutton_prompt_text = r">>> |\.\.\. "
-copybutton_prompt_is_regexp = True
+copybutton_selector = 'div[class^="highlight-"]:not(.highlight-text):not(.highlight-none) pre'
 doctest_default_flags = 0
 
 

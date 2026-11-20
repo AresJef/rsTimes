@@ -3,6 +3,64 @@
   "target_status": "published_0.2.0b3_full_validation_pending",
   "examples": [
     {
+      "id": "getting-started-calendar-change",
+      "page": "getting-started/index.md",
+      "format": "python",
+      "covers": [
+        "rstimes.Delta",
+        "rstimes.Delta.__radd__"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "public-install",
+        "windows-full"
+      ],
+      "expectation_basis": "February in the leap year 2024 ends on the 29th; date arithmetic returns date.",
+      "scenarios": [
+        "calendar-month",
+        "month-end",
+        "stdlib-date-result"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert type(next_invoice) is date",
+        "assert next_invoice == date(2024, 2, 29)"
+      ]
+    },
+    {
+      "id": "getting-started-polars-parse-null",
+      "page": "getting-started/polars-query.md",
+      "format": "python",
+      "covers": [
+        "polars.Expr.pldt",
+        "polars.Expr.pldt.parse"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Leap date at local midnight without a zone; second row remains null, unit explicit.",
+      "scenarios": [
+        "lazy-collect",
+        "eager-select",
+        "null-preservation",
+        "dtype-and-unit"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert type(parsed) is pl.Expr and type(result) is pl.DataFrame",
+        "assert result.schema == pl.Schema({'date': pl.Datetime('us')})",
+        "assert result['date'].to_physical().to_list() == [1709164800000000, None]",
+        "assert events.select(parsed).equals(result)",
+        "assert events.lazy().select(parsed).collect_schema() == result.schema"
+      ]
+    },
+    {
       "id": "delta-month-end",
       "page": "guides/delta.md",
       "covers": [
@@ -8477,26 +8535,6 @@
       "expectation_basis": "Explicit calendar dates and independent integer ticks at stated destination resolutions. Explicitallow_nat_collision accepts one documented loss; unrelatedvalidnsdata and originalsourcechecked.",
       "scenarios": [
         "Explicitallow_nat_collision accepts one documented loss; unrelatedvalidnsdata and originalsourcechecked."
-      ],
-      "reviewed": true
-    },
-    {
-      "id": "getting-started-calendar-change",
-      "page": "getting-started/index.md",
-      "covers": [
-        "rstimes.Delta",
-        "rstimes.Pydt",
-        "rstimes.Pydt.__add__"
-      ],
-      "profiles": [
-        "full",
-        "core",
-        "public-install",
-        "windows-full"
-      ],
-      "expectation_basis": "Public b3 minimal install, exact metadata version, scalar calendar month clamp/type/naivezone and unchanged source.",
-      "scenarios": [
-        "Public b3 minimal install, exact metadata version, scalar calendar month clamp/type/naivezone and unchanged source."
       ],
       "reviewed": true
     },
