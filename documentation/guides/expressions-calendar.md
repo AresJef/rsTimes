@@ -79,6 +79,7 @@ each logical row needs a different rule. An Object column or a
 dynamic Python arithmetic override cannot serve as an Expr Delta.
 
 Date transformations retain the existing storage unit.
-Use `.pldt.as_unit` for an explicit conversion.
+To convert, pass a target unit of `"ms"`, `"us"` or `"ns"` to
+`.pldt.as_unit`.
 `round_ok=False` requires exact representation at the target unit.
 Relative components combine before the final precision check.

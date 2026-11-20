@@ -94,6 +94,14 @@
 ...     column = pl.DataFrame({'event': pl.Series([-scale, scale, None], dtype=pl.Datetime(storage, 'UTC'))})
 ...     for target, target_scale in units:
 ...         check(column, pl.col('event').pldt.as_unit(target, round_ok=False), pl.Datetime(target, 'UTC'), [-target_scale, target_scale, None])
+>>> fine = pl.DataFrame({'event': pl.Series([-1500, None], dtype=pl.Datetime('ns'))})
+>>> check(fine, pl.col('event').pldt.as_unit('us'), pl.Datetime('us'), [-2, None])
+>>> check_error(fine, pl.col('event').pldt.as_unit('us', round_ok=False), 'round_ok')
+>>> try:
+...     pl.col('event').pldt.as_unit(None)
+... except TypeError:
+...     print('unit required')
+unit required
 >>> coarse = pl.DataFrame({'event': pl.Series([0, None], dtype=pl.Datetime('us'))})
 >>> check(coarse, pl.col('event').pldt.add(microseconds=1, nanoseconds=-1000), pl.Datetime('us'), [0, None])
 >>> check_error(coarse, pl.col('event').pldt.add(nanoseconds=1), 'unit')

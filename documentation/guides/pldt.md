@@ -85,7 +85,10 @@ print(coarse.to_physical().to_list())
 [1, -2, None]
 ```
 
-The default selects the earlier tick. Set `round_ok=False` to require an
-exact conversion. Ordinary date operations preserve the current unit.
+Pass a target unit of `"ms"`, `"us"` or `"ns"`. The default rounding
+selects the earlier tick. Set `round_ok=False` to require an exact
+conversion. If exact conversion raises `ValueError`, choose a finer
+target unit or allow rounding with `round_ok=True`.
+Ordinary date operations preserve the current unit.
 See [native input and ownership](pldt-interop.md) for source dtypes and
 [choose a factory](pldt-factories.md) for specific date roles.

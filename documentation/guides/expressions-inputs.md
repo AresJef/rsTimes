@@ -18,7 +18,7 @@ print(frame.lazy().select(expr).collect()["event"].to_physical().to_list())
 [0, None]
 ```
 
-Choose `unit` for String input and an explicit target `tz` for
+Set `unit` for String input and an explicit target `tz` for
 aware text. Native Datetime supplies its known unit and zone. Date
 promotes to midnight. Generic numeric parsing uses ticks of the
 chosen unit. Use `fromseconds` or `fromtimestamp` for seconds.
@@ -75,10 +75,11 @@ print(frame.select(expr)["event"].to_physical().to_list())
 
 `strptime` requires a unit when the format reads a fraction
 and a target zone when the format reads a zone. It truncates the
-fraction to the chosen output unit. Use `fromisoformat` for
-strict ISO input. Give `combine` an explicit unit when its
-clock column can supply a fractional precision unavailable at
-planning time, such as a Time or String expression.
+fraction to the chosen output unit. Without a fractional directive,
+the default is microseconds. For strict ISO input, use
+`fromisoformat` with an explicit unit even for date-only text.
+Give `combine` an explicit unit when the clock expression
+has Time, Datetime(ns), String or floating-point dtype.
 
 (expr-factory-input-roles)=
 ## Choose the date factory by input

@@ -15,6 +15,10 @@ entries, scenarios and runtime profiles. Put extra behavior checks
 in the associated `_checks` file or the case's typed assertions.
 Check value, return type, unit, timezone and missing positions.
 For Expr, actually execute eager `select` and lazy `collect`.
+Check generated reference prose for the actual receiver and its
+options. Website-specific wording corrections belong in the
+documentation generator, with the published signatures and
+wheel bytes as the release reference.
 
 The page runner compares the standalone code and output with
 execution in a fresh interpreter. A build checks the rendered code
