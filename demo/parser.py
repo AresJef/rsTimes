@@ -20,6 +20,7 @@ import pickle
 
 from cytimes.parser import parse as parse_original, parse_obj as parse_object_original
 from rstimes import Configs, parse_str, parse, parse_to_epoch, Pddt, Pydt as PydtR
+from rstimes.parser import parse_to_integer, parse_to_float
 from rstimes import _native
 from rstimes.errors import ParseError, ConfigError
 
@@ -66,6 +67,11 @@ def configs_demo():
     print('Date using those flags:', parse_str('03/04/2024', cfg=ordering))
     original = Configs()
     original.add_month('harvest', 10)
+    original.__init__(dayfirst=True)
+    assert original.dayfirst is False and original.month['harvest'] == 10
+    direct = Configs.__new__(Configs, yearfirst=False, dayfirst=True)
+    assert direct.dayfirst is True and direct.month['jan'] == 1
+    print('Complete native construction; repeated __init__ keeps existing rules.')
     copied = copy.copy(original)
     copied.add_month('harvest', 11)
     restored = pickle.loads(pickle.dumps(original))
@@ -142,9 +148,24 @@ def errors_demo():
     except ConfigError as error:
         print("  Invalid month rule:", error)
 
+def numeric_text_demo() -> None:
+    """Show the independent numeric grammars and their explicit grouping rules."""
+    print("\nStandalone numeric text parsers:")
+    print("  Signed-128 integer:", parse_to_integer("9223372036854775808"))
+    print("  Integer groups:", parse_to_integer("quantity 1.234 items", strict=False, allow_grouping=True))
+    print("  Float decimal priority:", parse_to_float("1.234", allow_grouping=True))
+    print("  European grouped float:", parse_to_float("EUR 1.234,56", strict=False, allow_grouping=True))
+    print("  Correct float rounding:", parse_to_float("0.3"))
+    try:
+        parse_to_integer("12,34", allow_grouping=True)
+    except ValueError as error:
+        print("  Invalid integer grouping:", error)
+
+
 if __name__ == '__main__':
     parser_demo()
     configs_demo()
     errors_demo()
     parse_object_demo()
     region_timezone_demo()
+    numeric_text_demo()

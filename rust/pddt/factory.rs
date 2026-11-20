@@ -1,14 +1,11 @@
 //! Named factories share native calendar fields and a single final byte buffer.
+use crate::clock::system_nanos;
 use crate::epoch::{Unit, Zone};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use std::time::SystemTime;
 #[cfg(test)]
 use std::time::UNIX_EPOCH;
-
-pub(super) fn system_nanos(time: SystemTime) -> PyResult<i128> {
-    crate::clock::system_nanos(time).map_err(crate::error_context::overflow)
-}
 
 /// Read one integer clock value after all parameters and empty-size are known.
 #[pyfunction]
@@ -27,7 +24,7 @@ fn _pddt_now<'py>(
     if count == 0 {
         return Ok(PyBytes::new(py, &[]));
     }
-    let mut ns = system_nanos(SystemTime::now())?;
+    let mut ns = system_nanos(SystemTime::now());
     if naive {
         let zone = zone.filter(|z| !z.is_none()).ok_or_else(|| {
             crate::error_context::runtime("local clock needs a prepared timezone")
@@ -60,8 +57,8 @@ mod tests {
     #[test]
     fn system_clock_integer_sign_and_subsecond_precision() {
         let delta = std::time::Duration::new(1, 123456789);
-        assert_eq!(system_nanos(UNIX_EPOCH + delta).unwrap(), 1123456789);
-        assert_eq!(system_nanos(UNIX_EPOCH - delta).unwrap(), -1123456789);
+        assert_eq!(system_nanos(UNIX_EPOCH + delta), 1123456789);
+        assert_eq!(system_nanos(UNIX_EPOCH - delta), -1123456789);
     }
 }
 
@@ -274,9 +271,10 @@ fn _pddt_number_buffer<'py>(
         } else {
             1_000_000_000
         };
-        let nanos = value.checked_mul(scale).ok_or_else(|| {
-            crate::error_context::overflow("numeric factory value exceeds native range")
-        })?;
+        // Only native i64/u64 storage reaches this point; after widening to
+        // i128, multiplying by at most 1e9 stays below 2^94. Generic Python
+        // integers retain their independent checked conversion above.
+        let nanos = value * scale;
         output.push(py, Some(nanos))?;
     }
     super::common::finish(py, output.rows, requested, target, entry, &policy)

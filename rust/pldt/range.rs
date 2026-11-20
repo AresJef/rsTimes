@@ -330,16 +330,8 @@ fn _pldt_range_endpoints<'py>(
     })
 }
 fn inclusive(value: &str) -> Result<(bool, bool), Failure> {
-    match value {
-        "both" => Ok((true, true)),
-        "left" => Ok((true, false)),
-        "right" => Ok((false, true)),
-        "neither" => Ok((false, false)),
-        _ => Err(Failure::new(
-            ErrorKind::Value,
-            "inclusive must be 'both', 'left', 'right' or 'neither'",
-        )),
-    }
+    crate::range_calendar::inclusive(value)
+        .map_err(|message| Failure::new(ErrorKind::Value, message))
 }
 #[pyfunction]
 fn _pldt_range<'py>(

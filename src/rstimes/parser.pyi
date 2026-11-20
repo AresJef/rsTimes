@@ -1,4 +1,9 @@
-"""Type information for the public Rust parser API."""
+"""Type information for the public Rust parser API.
+
+Date text inputs and string defaults accept real str subclasses and read
+their native stored content, without calling __str__ or overridden sequence
+methods. Call str(value) explicitly when conversion is intended.
+"""
 import datetime
 import numpy as np
 from typing import Any, Callable, TypeVar, overload, final, SupportsIndex
@@ -17,11 +22,9 @@ class Configs:
 Parameters
 ----------
 yearfirst : bool or numpy.bool_, default True
-    Prefer a year in the first position of an ambiguous numeric date. None uses
-    Configs when this parser option is optional.
+    Prefer a year in the first position of an ambiguous numeric date.
 dayfirst : bool or numpy.bool_, default False
-    Prefer a day before a month in an ambiguous numeric date. None uses Configs
-    when this parser option is optional.
+    Prefer a day before a month in an ambiguous numeric date.
 
 Returns
 -------
@@ -32,8 +35,11 @@ Notes
 -----
 Ordering flags accept only Python bool or NumPy boolean scalars; other types raise TypeError.
 
-yearfirst and dayfirst are read-only after construction. Choose them when
-creating Configs, or override them for one parse call with its arguments.
+__new__ validates the flags and returns a complete default configuration.
+yearfirst and dayfirst cannot be assigned directly. Calling __init__ again
+does not change flags or rules. Create another Configs for different flags,
+or override the ordering for one parse call. Rule tables remain editable;
+reset_settings restores default tables while preserving the ordering flags.
 
 Configs cannot be subclassed. Copies and restored snapshots are independently editable. Returned dictionaries and sets are independent snapshots, so edit the configuration with add_*, del_* and set_*.
 
@@ -49,31 +55,60 @@ True
 >>> parse_str("7 harvest 2024", cfg=cfg).isoformat()
 '2024-10-07T00:00:00'"""
 
-    def __init__(self, yearfirst: bool | np.bool_=True, dayfirst: bool | np.bool_=False) -> None:
-        """Initialize multilingual parsing rules and numeric date-order preferences.
+    def __new__(cls: type[Configs], yearfirst: bool | np.bool_=True, dayfirst: bool | np.bool_=False) -> Configs:
+        """Create a complete configuration with multilingual default rules.
 
 Parameters
 ----------
 yearfirst : bool or numpy.bool_, default True
-    Prefer a year in the first position of an ambiguous numeric date. None uses
-    Configs when this parser option is optional.
+    Prefer year in the first position of an ambiguous numeric date.
 dayfirst : bool or numpy.bool_, default False
-    Prefer a day before a month in an ambiguous numeric date. None uses Configs
-    when this parser option is optional.
+    Prefer day before month; with yearfirst=True, select Y/D/M.
 
 Returns
 -------
-None
-    No return value; the configuration is initialized.
+Configs
+    A fully initialized, independently editable configuration. Direct calls to
+    __new__ have the same argument validation and default rules as Configs().
 
 Raises
 ------
 TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+    A flag is not a Python bool or NumPy boolean scalar, or arguments cannot
+    be bound. None, integers, text and other truth-value objects are rejected.
+
+Examples
+--------
+>>> cfg = Configs.__new__(Configs, yearfirst=False, dayfirst=True)
+>>> (cfg.yearfirst, cfg.dayfirst, cfg.month['jan'])
+(False, True, 1)"""
+        ...
+
+    def __init__(self, yearfirst: bool | np.bool_=True, dayfirst: bool | np.bool_=False) -> None:
+        """Leave the configuration already created by __new__ unchanged.
+
+Parameters
+----------
+yearfirst : bool or numpy.bool_, default True
+    Validated and applied during construction in __new__. A direct repeated
+    __init__ call does not read or apply this value again.
+dayfirst : bool or numpy.bool_, default False
+    Validated and applied during construction in __new__; not reapplied here.
+
+Returns
+-------
+None
+    No return value or state change. Token tables, registered regions and
+    ordering flags remain unchanged. Use add/del/set/reset methods for rules.
+
+Examples
+--------
+>>> cfg = Configs(dayfirst=True)
+>>> cfg.add_month('harvest', 10)
+True
+>>> cfg.__init__(dayfirst=False)
+>>> (cfg.dayfirst, cfg.month['harvest'])
+(True, 10)"""
         ...
 
     def __copy__(self) -> Configs:
@@ -219,7 +254,7 @@ tuple[Any, ...]
         -----
         Set this preference when creating Configs, or pass yearfirst to a parse
         call to override it for that call. Direct assignment is not supported.
-        """
+"""
         ...
 
     @property
@@ -1089,7 +1124,8 @@ def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bo
     Parameters
     ----------
     dtstr : str
-        Date/time text to parse. This argument must be a string.
+        Date/time text, including real str subclasses. Native string content is
+        read directly; __str__ and overridden sequence methods are not called.
     default : date-like input | None, default None
         An independently complete date used to fill missing year, month and day
         only. Date/datetime subclasses, complete date text, numeric epoch seconds
@@ -1164,7 +1200,8 @@ def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bo
     Parameters
     ----------
     dtstr : str
-        Date/time text to parse. This argument must be a string.
+        Date/time text, including real str subclasses. Native string content is
+        read directly; __str__ and overridden sequence methods are not called.
     default : date-like input | None, default None
         An independently complete date used to fill missing year, month and day
         only. Date/datetime subclasses, complete date text, numeric epoch seconds
@@ -1232,7 +1269,8 @@ def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bo
     Parameters
     ----------
     dtstr : str
-        Date/time text to parse. This argument must be a string.
+        Date/time text, including real str subclasses. Native string content is
+        read directly; __str__ and overridden sequence methods are not called.
     default : date-like input | None, default None
         An independently complete date used to fill missing year, month and day
         only. Date/datetime subclasses, complete date text, numeric epoch seconds
@@ -1518,6 +1556,10 @@ def parse_to_epoch(dtobj: _EpochInput, unit: str='us', default: _Default | None=
         seconds, or a NumPy datetime64 scalar. With Polars installed, a one-value
         Datetime Series is also accepted. NaT, null values and longer Series are
         rejected. Polars remains an optional dependency.
+        A Series input reads its actual native column and independent validity;
+        every valid int64 tick, including the minimum, remains a value. Subclass
+        to_numpy/cast overrides are used only when you call them explicitly
+        before passing their result to this function.
     unit : str, default 'us'
         Output tick resolution: s, ms, us or ns. A finer remainder is floored,
         including for dates before 1970.
@@ -1603,4 +1645,96 @@ def parse_to_epoch(dtobj: _EpochInput, unit: str='us', default: _Default | None=
     Boolean options accept only bool or numpy.bool_. Other values raise TypeError
     without calling their truth-conversion methods. yearfirst and dayfirst also
     accept None to use the corresponding Configs preference."""
+    ...
+
+
+def parse_to_integer(token: str, *, strict: bool | np.bool_ = True, allow_grouping: bool | np.bool_ = False) -> int:
+    """Parse an integer token or extract the first contiguous integer fragment.
+
+    Parameters
+    ----------
+    token : str
+        Text or a real str subclass, read without custom string callbacks.
+        Numeric characters are ASCII digits with an optional adjacent sign.
+    strict : bool | numpy.bool_, default True
+        Require a complete match, without stripping whitespace. False skips
+        nonnumeric prefix text and stops at the first non-integer character.
+    allow_grouping : bool | numpy.bool_, default False
+        Accept consistent dot or comma groups: first group 1..3 digits and all
+        following groups exactly 3. Invalid groups and complete decimal/exponent
+        candidates raise even in loose mode. No floating-point truncation occurs.
+
+    Returns
+    -------
+    int
+        A Python integer in the inclusive range -2**127 through 2**127-1.
+
+    Raises
+    ------
+    TypeError
+        token is not str, or an option is not bool or numpy.bool_.
+    ValueError
+        No ASCII integer is found, grouping is invalid, or strict input has
+        additional characters. Empty input does not silently return zero.
+    OverflowError
+        The parsed integer exceeds signed 128-bit capacity in either mode.
+
+    Examples
+    --------
+    >>> parse_to_integer("9223372036854775808")
+    9223372036854775808
+    >>> parse_to_integer("quantity 1.234 items", strict=False, allow_grouping=True)
+    1234
+    >>> parse_to_integer("12.5", strict=False)
+    12
+    """
+    ...
+
+
+def parse_to_float(token: str, *, strict: bool | np.bool_ = True, allow_grouping: bool | np.bool_ = False) -> float:
+    """Parse a float token or extract the first complete floating-point fragment.
+
+    Parameters
+    ----------
+    token : str
+        Text or a real str subclass. ASCII digits, an adjacent sign, dot/comma
+        decimal and an optional complete e/E exponent are supported.
+    strict : bool | numpy.bool_, default True
+        Require the complete token without whitespace stripping. False skips a
+        nonnumeric prefix and extracts the first complete numeric prefix.
+    allow_grouping : bool | numpy.bool_, default False
+        Validate three-digit groups. A single dot/comma prefers a decimal;
+        repeated identical marks are integer grouping. With both marks, the last
+        is decimal and preceding groups must be valid. Invalid grouped candidates
+        raise in both modes. Without grouping, a second decimal mark ends a loose
+        fragment. This option never guesses a locale or modifies global settings.
+
+    Returns
+    -------
+    float
+        The correctly rounded binary64 result, preserving signed zero and normal
+        underflow. One ambiguous separator means decimal: 1,234 becomes 1.234.
+
+    Raises
+    ------
+    TypeError
+        token is not str, or an option is not bool or numpy.bool_.
+    ValueError
+        No ASCII number is found, syntax/grouping is invalid, or strict input
+        contains other characters. NaN/inf are not numeric token syntax.
+    OverflowError
+        Numeric text exceeds the finite float range. Loose mode does not suppress
+        capacity checks or return a shorter fitting prefix.
+
+    Examples
+    --------
+    >>> parse_to_float("0.3")
+    0.3
+    >>> parse_to_float("price 1.234,56 EUR", strict=False, allow_grouping=True)
+    1234.56
+    >>> parse_to_float("1,234", allow_grouping=True)
+    1.234
+    >>> parse_to_float("1,234,567", allow_grouping=True)
+    1234567.0
+    """
     ...

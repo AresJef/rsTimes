@@ -398,7 +398,11 @@ fn _pldt_text_needed(source: PySeries) -> PyResult<bool> {
 }
 
 #[pyfunction]
-#[pyo3(signature=(source,target,prepared,format,unit,tz,policy))]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Prepared text roles and late output metadata use one final SDK export"
+)]
+#[pyo3(signature=(source,target,prepared,format,unit,tz,policy,name=None))]
 fn _pldt_text<'py>(
     source: PySeries,
     target: &Bound<'py, PyAny>,
@@ -407,6 +411,7 @@ fn _pldt_text<'py>(
     unit: Option<&str>,
     tz: Option<PyRef<'_, Context>>,
     policy: PyRef<'_, PolicyContext>,
+    name: Option<&Bound<'py, PyString>>,
 ) -> PyResult<Bound<'py, PyAny>> {
     let py = target.py();
     let requested = super::input::selected(unit)?;
@@ -434,7 +439,7 @@ fn _pldt_text<'py>(
     } else {
         "Pldt.parse"
     };
-    let result = py
+    let mut result = py
         .detach(move || {
             execute(
                 &source.0,
@@ -451,6 +456,11 @@ fn _pldt_text<'py>(
             )
         })
         .map_err(|error| error.python(py, entry))?;
+    // Name conversion stays after parsing/unit/localization validation, as in
+    // the former post-export rename, without cloning a second Pldt wrapper.
+    if let Some(name) = name {
+        result.rename(name.to_str()?.into());
+    }
     super::export(py, &result, target)
 }
 
@@ -486,13 +496,6 @@ fn _pldt_format_objects<'py>(
                 "strptime requires text values, not dates or numeric input",
             )
         })?;
-        let converted;
-        let text = if value.is_exact_instance_of::<PyString>() {
-            text
-        } else {
-            converted = value.str().map_err(crate::error_context::external)?;
-            &converted
-        };
         if crate::date_input::missing_text(text)? {
             rows.missing();
             return Ok(());

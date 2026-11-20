@@ -11,6 +11,8 @@ import os
 from pathlib import Path
 import subprocess
 
+from packaging.version import Version
+
 from distribution_manifest import release_matrix, validate_matrix
 from github_release import api, gh
 
@@ -114,6 +116,7 @@ def verify_bundle(bundle, certificate):
     manifest = json.loads(manifest_path.read_text())
     assert manifest["source_commit"] == certificate["source_commit"]
     assert manifest["version"] == certificate["version"]
+    assert manifest.get("is_prerelease") is Version(certificate["version"]).is_prerelease
     validate_matrix(manifest["wheels"], complete=True)
     assert len(manifest["sdists"]) == 1
     rows = manifest["wheels"] + manifest["sdists"]
@@ -123,13 +126,6 @@ def verify_bundle(bundle, certificate):
     expected_sums = "".join(row["sha256"] + "  dist/" + row["filename"] + "\n" for row in rows)
     assert (bundle / "SHA256SUMS").read_text() == expected_sums
     return manifest
-
-
-def verify_existing_pypi(current, manifest):
-    """A resumed upload may fill gaps, but cannot replace any existing version file."""
-    expected = {row["filename"]: row["sha256"] for row in manifest["wheels"] + manifest["sdists"]}
-    for row in current["urls"]:
-        assert row["filename"] in expected and row["digests"]["sha256"] == expected[row["filename"]]
 
 
 def main():

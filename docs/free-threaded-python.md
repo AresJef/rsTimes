@@ -1,12 +1,10 @@
 # Free-threaded Python
 
-rsTimes 0.2.0b3 provides one-source support for ordinary CPython
+rsTimes 1.0.0 ships wheels for ordinary CPython
 3.12–3.15 and free-threaded CPython 3.14t / 3.15t. `Delta`, Parser / `Configs`,
 `Pydt`, `Pddt`, and `Pldt` keep the same date semantics and public interfaces.
-Use an actual 0.2.0b3 distribution for this support. The older 0.2.0b2
-release contains ordinary-GIL wheels and does not include Pldt or these
-free-threaded builds. Source and runtime identity remain important when
-comparing local builds: a package version alone does not identify a binary.
+See the [release notes](releases/v1.0.0.md) for the platform matrix. Use the
+matching interpreter ABI and compatible versions of the optional runtimes.
 
 ## Interpreter and dependencies
 

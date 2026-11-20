@@ -641,19 +641,20 @@ impl Delta {
     ///
     /// Notes
     /// -----
-    /// Delta subclasses that inherit equality, inequality and hashing use the same value rules.
-    /// Equal Delta values have equal hashes and can share dictionary keys.
+    /// Inherited equality uses the same fields when hashing is only disabled
+    /// or inequality alone is overridden. A real custom equality or hash keeps
+    /// normal Python negotiation. Hashable equal values have equal hashes.
     pub(crate) fn __eq__<'py>(
         slf: &Bound<'py, Self>,
         other: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let py = other.py();
-        if !crate::protocol::same_value_semantics(slf, other)? {
-            return Ok(py.NotImplemented().into_bound(py));
-        }
         let Ok(rhs) = other.cast::<Self>() else {
             return Ok(py.NotImplemented().into_bound(py));
         };
+        if !crate::protocol::same_value_semantics(slf, rhs, pyo3::ffi::Py_EQ)? {
+            return Ok(py.NotImplemented().into_bound(py));
+        }
         Ok(PyBool::new(py, slf.get().native_eq(rhs.get()))
             .to_owned()
             .into_any())
@@ -674,8 +675,8 @@ impl Delta {
         let py = other.py();
         // Ordinary inherited values need only their existing semantic check.
         // Delegate to Python equality only when that native path does not apply.
-        if crate::protocol::same_value_semantics(slf, other)?
-            && let Ok(rhs) = other.cast::<Self>()
+        if let Ok(rhs) = other.cast::<Self>()
+            && crate::protocol::same_value_semantics(slf, rhs, pyo3::ffi::Py_NE)?
         {
             return Ok(PyBool::new(py, !slf.get().native_eq(rhs.get()))
                 .to_owned()
@@ -687,12 +688,14 @@ impl Delta {
         Ok(py.NotImplemented().into_bound(py))
     }
 
-    /// Return a separate object with the same Delta value and type.
+    /// Return the shallow copy selected by this object's reconstruction protocol.
     ///
     /// Returns
     /// -------
-    /// Delta
-    ///     A shallow copy. Additional dictionary and slot attribute values remain shared.
+    /// object
+    ///     Without a custom protocol, a separate object of the same Delta type
+    ///     and value; dictionary and slot values remain shared. A real business
+    ///     reducer or copyreg registration controls its own return type and state.
     fn __copy__<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
         crate::state::copy_object(slf, None).map_err(|error| {
             crate::error_context::argument(
@@ -704,12 +707,18 @@ impl Delta {
             )
         })
     }
-    /// Return a distinct deep copy, preserving subtype and tracking cycles.
+    /// Return a deep copy using the selected protocol and one shared memo.
     ///
     /// Parameters
     /// ----------
     /// memo : dict
     ///     Python deepcopy's object-identity table, reused for recursion.
+    ///
+    /// Returns
+    /// -------
+    /// object
+    ///     The default path preserves Delta fields and subtype. A real business
+    ///     recipe may choose another result; shared references and cycles use memo.
     ///
     /// Raises
     /// ------

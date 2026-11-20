@@ -124,8 +124,8 @@ def test_callback_default_uses_original_once_only_live_path():
             return "14 Jan 2024"
 
     result = Pddt(pl.Series("text", ["12:30", "18:45"]),
-                  cfg=cfg, default=Reference("reference"))
-    assert calls == ["default"] and result.month.tolist() == [2, 2]
+                  cfg=cfg, default=Reference("14 Jan 2024"))
+    assert calls == [] and result.month.tolist() == [1, 1]
     assert result.day.tolist() == [14, 14]
 
 
@@ -179,7 +179,7 @@ def test_default_callback_may_change_plain_list_before_real_row_iteration():
             cfg.set_month({"jan": 3})
             return "14 Jan 2024"
 
-    source = ["14 Jan 2024", "14 Jan 2024"]
+    source = ["14 Jan 2024", Row("14 Jan 2024")]
 
     class Reference(str):
         def __str__(self):
@@ -188,5 +188,36 @@ def test_default_callback_may_change_plain_list_before_real_row_iteration():
             source[1] = Row("second")
             return "2024-01-01"
 
-    result = Pddt(source, cfg=cfg, default=Reference("reference"))
-    assert calls == ["default", "row"] and result.month.tolist() == [2, 3]
+    result = Pddt(source, cfg=cfg, default=Reference("2024-01-01"))
+    assert calls == [] and result.month.tolist() == [1, 1]
+
+
+@pytest.mark.parametrize("container", (tuple, list))
+@pytest.mark.parametrize("strict", (False, True))
+@pytest.mark.parametrize("suffix", ("", " é"))
+def test_real_string_tuple_and_default_share_native_rules(container, strict, suffix):
+    class Text(str):
+        def __str__(self):
+            raise AssertionError("use stored string contents")
+
+        def __len__(self):
+            raise AssertionError("use native string length")
+
+    cfg = Configs()
+    if suffix:
+        cfg.add_jump("é")
+    source = container((None, Text("2024-01-02T12:34:56.123456789" + suffix), Text("NaT")))
+    result = Pddt.parse(source, unit="ns", default=Text("2024-01-01"), strict=strict, cfg=cfg)
+    assert result.asi8.tolist() == [-(1 << 63), 1704198896123456789, -(1 << 63)]
+
+
+def test_native_utf8_reuses_host_zone_identity_and_preserves_nanoseconds():
+    zone = ZoneInfo("Asia/Shanghai")
+    cfg = Configs()
+    cfg.add_tzone("Asia/Shanghai")
+    source = pl.Series("time", ["2024-05-07T15:30:01.123456789 Asia/Shanghai", None], dtype=pl.String)
+    result = Pddt.parse(source, cfg=cfg, default="2024-01-01", unit="ns")
+    assert result.tz is zone
+    assert result.asi8.tolist() == [1715067001123456789, -(1 << 63)]
+    cfg.set_tzone(set())
+    assert result.tz is zone and result.asi8[0] == 1715067001123456789

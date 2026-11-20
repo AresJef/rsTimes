@@ -1,5 +1,5 @@
 //! One-time host input preparation and pure, fixed-resolution conversion.
-use super::finish::{Failure, Kind, Rows};
+use super::finish::{Failure, Kind, Rows, tick_error};
 use super::zones::{Context, PolicyContext, prepare_host_zone};
 use crate::epoch::{Options as ParseOptions, Unit, Zone};
 use crate::parser::Truth;
@@ -116,9 +116,28 @@ pub(super) fn column(
     }
     if let Ok(dates) = source.datetime()
         && options.target.is_none_or(|_| source_zone.is_some())
-        && chosen == original
+        && (chosen == original || source_zone.is_some())
     {
-        let values = if options.copy {
+        let values = if chosen != original {
+            // An aware native column already contains instants. Rescale
+            // directly, with no per-row source zone or localization state.
+            let mut output =
+                PrimitiveChunkedBuilder::<Int64Type>::new(source.name().clone(), source.len());
+            for (row, value) in dates.physical().iter().enumerate() {
+                let tick = value
+                    .map(|value| {
+                        scale(
+                            i128::from(value) * original.nanos(),
+                            chosen,
+                            options.round_ok,
+                        )
+                        .map_err(|error| tick_error(error, row))
+                    })
+                    .transpose()?;
+                output.append_option(tick);
+            }
+            output.finish()
+        } else if options.copy {
             Int64Chunked::from_iter_options(source.name().clone(), dates.physical().iter())
         } else {
             dates.physical().clone()
@@ -426,6 +445,12 @@ fn _pldt_objects<'py>(
         .enumerate()
     {
         let item = item.map_err(crate::error_context::external)?;
+        // None cannot change reader precision or invoke date/default protocols.
+        // Keep iteration and final validation while avoiding general dispatch.
+        if item.is_none() {
+            rows.missing();
+            continue;
+        }
         let parsed = reader.read(&item, "Pldt").map_err(|e| {
             crate::error_context::item(py, e, "Pldt", "data", row, Some(&item), false)
         })?;

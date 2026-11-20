@@ -7,6 +7,15 @@ pub(crate) enum Error {
 }
 pub(crate) fn iso_at(year: i64, ordinal: i64) -> Result<[i64; 3], Error> {
     let start = crate::calendar::checked_ordinal(year, 1, 1).map_err(Error::Capacity)?;
+    iso_from_start(year, ordinal, start)
+}
+
+/// Share ISO arithmetic when the caller has already prepared this year's start.
+/// Both ordinals must belong to the same valid Gregorian calendar context.
+/// # Errors
+/// Preserves capacity errors when resolving an adjacent ISO year.
+#[inline]
+pub(crate) fn iso_from_start(year: i64, ordinal: i64, start: i64) -> Result<[i64; 3], Error> {
     let weekday = (ordinal - 1).rem_euclid(7) + 1;
     let mut week = (ordinal - start + 1 - weekday + 10).div_euclid(7);
     let mut iso_year = year;
@@ -155,6 +164,36 @@ pub(crate) fn fact<const Q: u8>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn prepared_iso_start_matches_checked_and_gregorian_cycle() {
+        for year in [
+            i64::from(i32::MIN),
+            -400,
+            -1,
+            0,
+            1,
+            400,
+            2021,
+            i64::from(i32::MAX),
+        ] {
+            let start = crate::calendar::checked_ordinal(year, 1, 1).unwrap();
+            assert_eq!(crate::calendar::ordinal(year, 1, 1), start);
+            // Gregorian weekdays and ISO weeks repeat every400 years.
+            let canonical = year.rem_euclid(400) + 2000;
+            let canonical_start = crate::calendar::checked_ordinal(canonical, 1, 1).unwrap();
+            for day_offset in [0, 1, 2, 3, 4, 358, 359, 360, 361, 362, 363, 364] {
+                let mut expected = iso_at(canonical, canonical_start + day_offset).unwrap();
+                expected[0] += year - canonical;
+                assert_eq!(iso_at(year, start + day_offset).unwrap(), expected);
+                assert_eq!(
+                    iso_from_start(year, start + day_offset, start).unwrap(),
+                    expected
+                );
+            }
+        }
+        assert!(iso_at(i64::MIN, 0).is_err());
+        assert!(iso_at(i64::MAX, 0).is_err());
+    }
     #[test]
     fn signed_iso_and_direct_facts_run_without_python() {
         std::thread::spawn(|| {

@@ -10,10 +10,10 @@ settings. See each object's docstring for accepted inputs and errors.
 from datetime import datetime, timedelta, timezone
 from .pydt import Pydt
 from .delta import Delta
-from .parser import Configs, parse_str, parse, parse_to_epoch
+from .parser import Configs, parse_str, parse, parse_to_epoch, parse_to_integer, parse_to_float
 from .errors import _own_error, _external_error, _raise_argument_context
 
-__all__ = ["Pddt", "Pldt", "Pydt", "Delta", "Configs", "parse_str", "parse", "parse_to_epoch", "to_unix_ms", "from_unix_ms"]
+__all__ = ["Pddt", "Pldt", "Pydt", "Delta", "Configs", "parse_str", "parse", "parse_to_epoch", "parse_to_integer", "parse_to_float", "to_unix_ms", "from_unix_ms"]
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
@@ -85,10 +85,15 @@ def from_unix_ms(value: int) -> datetime:
         -1
     """
     try:
-        if issubclass(type(value), bool) or not issubclass(type(value), int):
-            raise _own_error(TypeError("value must be an int; bool is not accepted"))
+        kind = type(value)
+        if kind is not int:
+            if kind is bool or not issubclass(kind, int):
+                raise _own_error(TypeError("value must be an int; bool is not accepted"))
+            prepared = int.__index__(value)
+        else:
+            prepared = value
         try:
-            return _EPOCH + timedelta(microseconds=value * 1_000)
+            return _EPOCH + timedelta(microseconds=prepared * 1_000)
         except Exception as error:
             raise _external_error(error)
     except Exception as error:

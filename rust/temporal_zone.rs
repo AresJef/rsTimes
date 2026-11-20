@@ -68,6 +68,35 @@ pub(crate) struct Zone {
 // Only canonical keys from the finite immutable database can enter this cache.
 static NAMED: OnceLock<RwLock<HashMap<&'static str, Zone>>> = OnceLock::new();
 
+/// Classify an already validated IANA key without creating regional rules.
+pub(crate) fn fixed_name_seconds(key: &str) -> Option<i32> {
+    if matches!(
+        key,
+        "UTC"
+            | "Etc/UTC"
+            | "Etc/GMT"
+            | "GMT"
+            | "GMT0"
+            | "Etc/GMT0"
+            | "Etc/GMT+0"
+            | "Etc/GMT-0"
+            | "Zulu"
+            | "Etc/Zulu"
+            | "Universal"
+            | "Etc/Universal"
+            | "Greenwich"
+            | "Etc/Greenwich"
+    ) {
+        Some(0)
+    } else if let Some(hours) = key.strip_prefix("Etc/GMT-") {
+        hours.parse::<i32>().ok()?.checked_mul(3600)
+    } else if let Some(hours) = key.strip_prefix("Etc/GMT+") {
+        hours.parse::<i32>().ok()?.checked_mul(-3600)
+    } else {
+        None
+    }
+}
+
 fn timestamp(value: i128) -> Result<Timestamp, ZoneError> {
     let seconds = i64::try_from(value.div_euclid(NS_SECOND))
         .map_err(|_| ZoneError::Capacity("regional timestamp exceeds signed64 seconds"))?;
@@ -124,31 +153,7 @@ impl Zone {
             })?;
         let raw = tzdb_data::find_raw(canonical.as_bytes())
             .ok_or("native timezone data is unavailable")?;
-        let fixed = if matches!(
-            canonical,
-            "UTC"
-                | "Etc/UTC"
-                | "Etc/GMT"
-                | "GMT"
-                | "GMT0"
-                | "Etc/GMT0"
-                | "Etc/GMT+0"
-                | "Etc/GMT-0"
-                | "Zulu"
-                | "Etc/Zulu"
-                | "Universal"
-                | "Etc/Universal"
-                | "Greenwich"
-                | "Etc/Greenwich"
-        ) {
-            Some(0)
-        } else if let Some(value) = canonical.strip_prefix("Etc/GMT-") {
-            value.parse::<i32>().ok().map(|value| value * 3600)
-        } else if let Some(value) = canonical.strip_prefix("Etc/GMT+") {
-            value.parse::<i32>().ok().map(|value| -value * 3600)
-        } else {
-            None
-        };
+        let fixed = fixed_name_seconds(canonical);
         let rules = match fixed {
             Some(offset) => Rules::Fixed(offset),
             None => Rules::Region(
@@ -242,9 +247,14 @@ impl Zone {
     }
     /// UTC to local coordinates, retaining integer precision.
     pub(crate) fn wall(&self, instant: i128) -> Result<i128, ZoneError> {
+        self.wall_and_offset(instant).map(|(wall, _)| wall)
+    }
+    /// Read the offset once when the same instant needs both projections.
+    pub(crate) fn wall_and_offset(&self, instant: i128) -> Result<(i128, i32), ZoneError> {
         let offset = self.offset_seconds(instant)?;
         instant
             .checked_add(i128::from(offset) * NS_SECOND)
+            .map(|wall| (wall, offset))
             .ok_or(ZoneError::Capacity("timezone offset arithmetic overflow"))
     }
     pub(crate) fn offset_seconds(&self, instant: i128) -> Result<i32, ZoneError> {

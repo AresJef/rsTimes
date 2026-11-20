@@ -2,6 +2,15 @@
 
 Dynamic pl.Series/pl.Expr namespace discovery remains owned by Polars.
 Use Pldt for concrete eager types; no custom expression container exists.
+
+Date text inputs and string defaults accept real str subclasses and read
+their native stored content, without calling __str__ or overridden sequence
+methods. Call str(value) explicitly when conversion is intended.
+
+Supported string parameters use their actual stored str content before library
+cache, membership or name dispatch. Custom string display, hashing and equality
+do not reinterpret formats, frequencies, units or timezone names. Genuine
+constructor, date/timezone and explicit external protocols keep their contracts.
 """
 from __future__ import annotations
 from typing import Generic, TypeVar
@@ -9,6 +18,7 @@ from types import NotImplementedType
 import numpy as np
 import polars as pl
 import pandas as pd
+from pandas.tseries.offsets import Day, Hour, Micro, Milli, Minute, Nano, Second
 from .delta import Delta
 from .parser import Configs
 from typing import Any, Literal, SupportsIndex, SupportsFloat, Self, TypeAlias, overload
@@ -17,6 +27,7 @@ from types import NotImplementedType
 import datetime as _dt
 
 _Unit: TypeAlias = Literal["ms", "us", "ns"]
+_FixedFrequency: TypeAlias = str | _dt.timedelta | Nano | Micro | Milli | Second | Minute | Hour | Day
 _Boolean: TypeAlias = bool | np.bool_
 _Zone: TypeAlias = str | _dt.tzinfo | None
 _DateValue: TypeAlias = str | _dt.date | np.datetime64 | SupportsIndex | float | np.float16 | np.float32 | np.float64 | None
@@ -2039,7 +2050,7 @@ class Pldt(pl.Series):
         ...
 
     def is_long_year(self) -> pl.Series:
-        """Whether the calendar year has53 ISO weeks; null is False.
+        """Whether the local calendar year contains 53 ISO weeks; null is False.
         
         Returns
         -------
@@ -2398,7 +2409,7 @@ class Pldt(pl.Series):
             Separator between ISO date and time, normally T.
         timespec : str
             auto/hours/minutes/seconds/milliseconds/microseconds/nanoseconds, including the approved
-            H/M/s/ms/us/ns aliases.
+            h/m/min/s/ms/us/ns aliases; uppercase H and M are not accepted.
         
         Returns
         -------
@@ -2624,64 +2635,84 @@ class Pldt(pl.Series):
         ...
 
     def __init__(self, data: _DateCollection, *, unit: _Unit | None=None, name: str | None=None, copy: _Boolean=False, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, tz: _Zone=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> None:
-        """Initialize the registered native namespace.
-        
+        """Initialize this Pldt datetime Series from a one-dimensional collection.
+
         Parameters
         ----------
         data : _DateCollection
-            Legal one-dimensional date collection; text/date/datetime/NumPy scalars/numeric ticks and
-            supported native columns may mix. No scalar, mapping, set, table, nested row or automatic
-            flattening.
-        unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        copy : _Boolean
-            True isolates source date buffers; False permits safe sharing but does not promise zero-copy
-            or an independent snapshot.
-        default : _DateValue
-            An independently complete fallback date, read only when needed to fill text YMD/two-digit-year
-            reference. It does not supply the column clock, zone or fold.
-        yearfirst : _Boolean | None
-            Explicit non-None boolean wins over Configs. Without either, yearfirst=True/dayfirst=False;
-            False is an explicit preference.
-        dayfirst : _Boolean | None
-            Explicit non-None boolean wins over Configs. Without either, yearfirst=True/dayfirst=False;
-            False is an explicit preference.
-        isoformat : _Boolean
-            Try ISO first and then shared ordinary parsing when needed; this is not ISO-only validation.
-        strict : _Boolean
-            Validate explicit parsed date/clock fields and conflicts; it does not replace the regional DST
-            policies.
-        cfg : Configs | None
-            Shared Configs word/region rules. None uses the existing defaults; Expr freezes effective
-            rules when it is created.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+            Supported dates, datetimes, text, numeric ticks or native one-dimensional
+            columns. Legal mixtures and missing values are accepted. Scalar inputs,
+            mappings, sets, tables and nested rows are rejected, without flattening.
+        unit : _Unit or None, default None
+            Storage resolution ms/us/ns; Polars has no Datetime(s). None selects
+            the resolution using source metadata and the documented parsing rules.
+            An explicit unit must preserve the input precision and capacity.
+        name : str or None, default None
+            Column name. None retains a usable source name, or uses an empty name.
+        copy : bool or numpy.bool_, default False
+            True physically isolates date buffers. False allows safe sharing;
+            it does not promise zero-copy or a snapshot of arbitrary input objects.
+        default : _DateValue, default None
+            An independently complete fallback date, used only when text needs
+            missing YMD fields or a two-digit-year reference. It supplies no
+            clock, timezone, fractional second or fold.
+        yearfirst : bool, numpy.bool_ or None, default None
+            Non-None overrides Configs; otherwise use its preference, or True
+            when no Configs is supplied. False is an explicit preference.
+        dayfirst : bool, numpy.bool_ or None, default None
+            Non-None overrides Configs; otherwise use its preference, or False
+            when no Configs is supplied.
+        isoformat : bool or numpy.bool_, default True
+            Try ISO recognition before the general shared grammar. This is not
+            an ISO-only validation option.
+        strict : bool or numpy.bool_, default False
+            Validate explicit parsed fields and conflicts. Regional ambiguity
+            and missing-clock policies remain separate.
+        cfg : Configs or None, default None
+            Effective word/region rules; None uses built-in rules. Text with
+            a regional name must have that name registered in these rules.
+        tz : _Zone, default None
+            A supported target IANA name, ZoneInfo or representable standard
+            fixed offset. None retains a supported aware source zone; naive
+            sources remain naive. A non-None target localizes naive clocks or
+            converts known instants. Business target rules that cannot be
+            encoded by Polars raise ValueError instead of being replaced by key.
+            ZoneInfo.from_file objects are not accepted as native target rules,
+            even when their display key matches a standard name. Standard named
+            constructors, no_cache and passive named subclasses remain supported.
+        ambiguous : _Ambiguous, default 'raise'
+            Repeated-clock policy: 'raise', 'NaT', 'infer', a real boolean or
+            an aligned boolean mask. Boolean choices follow pandas-compatible
+            candidate rules, not universal earlier/later fold numbering.
+        nonexistent : _Nonexistent, default 'raise'
+            One missing-clock policy: 'raise', 'NaT', 'shift_forward',
+            'shift_backward' or a supported timedelta. Shifts select the
+            nearest valid boundary; per-row policy lists are not supported.
+
         Returns
         -------
         None
-            The existing receiver/state/namespace is initialized; no result column is returned.
-        
+            Initializes this Series instance; __init__ does not return a column.
+            The surrounding Pldt(...) expression returns the initialized Pldt.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            An input type, scalar protocol, shape or parameter role is unsupported.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            A field, precision conversion, target timezone or localization policy
+            is invalid or unsupported.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A true value cannot be represented at the chosen unit.
+
+        Examples
+        --------
+        >>> x = Pldt([1, None], unit="ns", name="time")
+        >>> x.to_physical().to_list()
+        [1, None]
+        >>> aware = datetime(2024, 1, 1, 12, tzinfo=timezone.utc)
+        >>> Pldt([aware], unit="us", tz=None).dtype.time_zone
+        'UTC'"""
         ...
 
     @classmethod
@@ -3811,8 +3842,9 @@ class Pldt(pl.Series):
         Custom shallow-copy hooks are looked up on the class and receive the source;
         custom deep-copy hooks are looked up on the instance and receive the memo,
         as in Python's copy module. Real descriptors, return choices and exceptions
-        are preserved. Static discovery reads actual class definitions; the state
-        hooks themselves retain their normal Python behavior."""
+        are preserved. Actual reducers follow copyreg and __reduce_ex__/__reduce__ fallback, including
+        absent/None descriptors and dynamic lookup. Default date copying keeps
+        its native buffer path; genuine state hooks retain their own behavior."""
         ...
 
     def __deepcopy__(self, memo: dict[int, Any] | None=None) -> Self:
@@ -3989,7 +4021,7 @@ class Pldt(pl.Series):
             The true final result exceeds the current unit/target capacity."""
         ...
 
-    def __array__(self, dtype: Any=None, copy: _Boolean | None=None) -> np.ndarray:
+    def __array__(self, dtype: Any=None, copy: bool | None=None) -> np.ndarray:
         """Retain native dtype/copy dispatch and validate explicit dtype changes.
         
         Parameters
@@ -3997,9 +4029,9 @@ class Pldt(pl.Series):
         dtype : Any
             Original Polars/NumPy export option, passed to the mature implementation. Requested
             conversions must preserve values/precision/validity unless the collision opt-in applies.
-        copy : _Boolean | None
-            True isolates source date buffers; False permits safe sharing but does not promise zero-copy
-            or an independent snapshot.
+        copy : bool | None
+            True requests an independent copy. False raises if the export needs a copy.
+            None lets the native exporter decide whether to copy.
         
         Returns
         -------
@@ -6141,7 +6173,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ...
 
     def is_long_year(self) -> pl.Series:
-        """Whether the calendar year has53 ISO weeks; null is False.
+        """Whether the local calendar year contains 53 ISO weeks; null is False.
         
         Returns
         -------
@@ -6500,7 +6532,7 @@ class _SeriesNamespace(Generic[_PldtT]):
             Separator between ISO date and time, normally T.
         timespec : str
             auto/hours/minutes/seconds/milliseconds/microseconds/nanoseconds, including the approved
-            H/M/s/ms/us/ns aliases.
+            h/m/min/s/ms/us/ns aliases; uppercase H and M are not accepted.
         
         Returns
         -------
@@ -6762,14 +6794,15 @@ class _SeriesNamespace(Generic[_PldtT]):
         [2]"""
         ...
 
-    def round(self, freq: str='s') -> _PldtT:
+    def round(self, freq: _FixedFrequency='s') -> _PldtT:
         """Date rounding on a positive fixed grid; preserves current storage unit.
         
         Parameters
         ----------
-        freq : str
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+        freq : str | datetime.timedelta | pandas fixed offset
+            Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
+            installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
+            offsets. A single value applied to the entire column.
         
         Returns
         -------
@@ -6789,14 +6822,15 @@ class _SeriesNamespace(Generic[_PldtT]):
             The true final result exceeds the current unit/target capacity."""
         ...
 
-    def ceil(self, freq: str='s') -> _PldtT:
+    def ceil(self, freq: _FixedFrequency='s') -> _PldtT:
         """Date rounding on a positive fixed grid; preserves current storage unit.
         
         Parameters
         ----------
-        freq : str
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+        freq : str | datetime.timedelta | pandas fixed offset
+            Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
+            installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
+            offsets. A single value applied to the entire column.
         
         Returns
         -------
@@ -6816,14 +6850,15 @@ class _SeriesNamespace(Generic[_PldtT]):
             The true final result exceeds the current unit/target capacity."""
         ...
 
-    def floor(self, freq: str='s') -> _PldtT:
+    def floor(self, freq: _FixedFrequency='s') -> _PldtT:
         """Date rounding on a positive fixed grid; preserves current storage unit.
         
         Parameters
         ----------
-        freq : str
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+        freq : str | datetime.timedelta | pandas fixed offset
+            Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
+            installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
+            offsets. A single value applied to the entire column.
         
         Returns
         -------
@@ -9968,7 +10003,7 @@ class _ExprNamespace:
         ...
 
     def is_long_year(self) -> pl.Expr:
-        """Whether the calendar year has53 ISO weeks; null is False.
+        """Whether the local calendar year contains 53 ISO weeks; null is False.
 
         For Expr receivers, errors depending on schema or row values are deferred
         to select/collect and use Polars exception classes (usually ComputeError).
@@ -10414,7 +10449,7 @@ class _ExprNamespace:
             Separator between ISO date and time, normally T.
         timespec : str
             auto/hours/minutes/seconds/milliseconds/microseconds/nanoseconds, including the approved
-            H/M/s/ms/us/ns aliases.
+            h/m/min/s/ms/us/ns aliases; uppercase H and M are not accepted.
         
         Returns
         -------
@@ -10618,7 +10653,7 @@ class _ExprNamespace:
         [2]"""
         ...
 
-    def round(self, freq: str='s') -> pl.Expr:
+    def round(self, freq: _FixedFrequency='s') -> pl.Expr:
         """Date rounding on a positive fixed grid; preserves current storage unit.
 
         For Expr receivers, errors depending on schema or row values are deferred
@@ -10628,9 +10663,10 @@ class _ExprNamespace:
         
         Parameters
         ----------
-        freq : str
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+        freq : str | datetime.timedelta | pandas fixed offset
+            Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
+            installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
+            offsets. A single value applied to the entire column.
         
         Returns
         -------
@@ -10648,7 +10684,7 @@ class _ExprNamespace:
             The true final result exceeds the current unit/target capacity."""
         ...
 
-    def ceil(self, freq: str='s') -> pl.Expr:
+    def ceil(self, freq: _FixedFrequency='s') -> pl.Expr:
         """Date rounding on a positive fixed grid; preserves current storage unit.
 
         For Expr receivers, errors depending on schema or row values are deferred
@@ -10658,9 +10694,10 @@ class _ExprNamespace:
         
         Parameters
         ----------
-        freq : str
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+        freq : str | datetime.timedelta | pandas fixed offset
+            Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
+            installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
+            offsets. A single value applied to the entire column.
         
         Returns
         -------
@@ -10678,7 +10715,7 @@ class _ExprNamespace:
             The true final result exceeds the current unit/target capacity."""
         ...
 
-    def floor(self, freq: str='s') -> pl.Expr:
+    def floor(self, freq: _FixedFrequency='s') -> pl.Expr:
         """Date rounding on a positive fixed grid; preserves current storage unit.
 
         For Expr receivers, errors depending on schema or row values are deferred
@@ -10688,9 +10725,10 @@ class _ExprNamespace:
         
         Parameters
         ----------
-        freq : str
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+        freq : str | datetime.timedelta | pandas fixed offset
+            Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
+            installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
+            offsets. A single value applied to the entire column.
         
         Returns
         -------

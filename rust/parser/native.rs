@@ -1,7 +1,8 @@
 //! Python-free text parsing entry used by native column and expression adapters.
-use super::config::{NativeRegion, NativeRules};
+use super::config::{NativeRegion, NativeRules, NativeView};
 use super::fields::{Fields, ParseError, ParseResult, Policy};
 use super::text::Utf8View;
+use super::zones::RegisteredZone;
 use super::{completion, core};
 use std::sync::Arc;
 
@@ -29,9 +30,9 @@ pub(crate) struct Options {
     pub(crate) isoformat: bool,
 }
 
-pub(crate) struct Parsed<P: Policy> {
+pub(crate) struct Parsed<P: Policy, R = Arc<NativeRegion>> {
     pub(crate) fields: Fields<P>,
-    pub(crate) region: Option<Arc<NativeRegion>>,
+    pub(crate) region: Option<R>,
     pub(crate) completed: [i32; 7],
 }
 
@@ -43,6 +44,26 @@ pub(crate) fn parse<P: Policy>(
     rules: &mut NativeRules,
     options: Options,
 ) -> ParseResult<Parsed<P>> {
+    parse_inner::<P, _>(input, scratch, rules, options)
+}
+
+/// Immediate collection adapters retain their existing host region owners.
+/// Detached workers continue to use parse/NativeRules, without Python owners.
+pub(crate) fn parse_view<P: Policy>(
+    input: &str,
+    scratch: &mut Scratch,
+    rules: &mut NativeView<'_>,
+    options: Options,
+) -> ParseResult<Parsed<P, Arc<RegisteredZone>>> {
+    parse_inner::<P, _>(input, scratch, rules, options)
+}
+
+fn parse_inner<P: Policy, R: core::Recognition>(
+    input: &str,
+    scratch: &mut Scratch,
+    rules: &mut R,
+    options: Options,
+) -> ParseResult<Parsed<P, R::Region>> {
     let mut view = Utf8View::new(input, &mut scratch.points);
     let parsed = core::read::<P, _, _>(
         &mut view,

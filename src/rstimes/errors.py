@@ -92,7 +92,10 @@ def _preview(value, original_length: int | None = None) -> str:
         return repr(value)
     if any(kind is builtin for builtin in (list, tuple, dict, set, frozenset, bytes, bytearray)):
         return f"<{name}, length {len(value)}>"
-    # Type names themselves may be long; no object str/repr/len is needed.
+    # A real type name may itself be a str subclass. Read only a bounded
+    # prefix through str's builtin implementation before using string methods.
+    if type(name) is not str:
+        name = str.__getitem__(name, slice(0, 117))
     return ("<" + name[:116] + ("..." if len(name) > 116 else "") + ">")[:120]
 
 
@@ -137,10 +140,11 @@ class _EntryNote(str):
     preview: str | None
     has_value: bool
     active: bool
+    position: tuple[str, int] | None = None
 
 
 def _external_note(error: _Error, entry: str, parameter: str, preview: str | None,
-                   has_value: bool) -> _Error:
+                   has_value: bool, position: tuple[str, int] | None = None) -> _Error:
     """Keep one library note while an exception unwinds to its public caller."""
     data = _EXCEPTION_DICT.__get__(error)
     notes = dict.get(data, "__notes__")
@@ -151,13 +155,16 @@ def _external_note(error: _Error, entry: str, parameter: str, preview: str | Non
         previous = None
     # Preserve the existing real-type proof and the original note object.
     reusable = type(previous) is _EntryNote and previous.active
-    if reusable and parameter in ("arguments", "operands"):
+    if reusable:
         previous = cast(_EntryNote, previous)
-        parameter, preview, has_value = previous.field, previous.preview, previous.has_value
+        if parameter in ("arguments", "operands") or (position is None and previous.position is not None):
+            parameter, preview, has_value = previous.field, previous.preview, previous.has_value
+            position = previous.position
     prefix = f"{entry}(): " if entry else ""
     text = _EntryNote(f"{prefix}{parameter}={preview} failed" if has_value
                       else f"{prefix}processing {parameter} failed")
     text.field, text.preview, text.has_value, text.active = parameter, preview, has_value, True
+    text.position = position
     if reusable:
         list.__setitem__(cast(list[object], notes), -1, text)
     else:
@@ -168,7 +175,8 @@ def _external_note(error: _Error, entry: str, parameter: str, preview: str | Non
 
 
 def _argument_error(error: _Error, entry: str, parameter: str, value: object,
-                    has_value: bool = True, prepared_preview: str | None = None) -> _Error:
+                    has_value: bool = True, prepared_preview: str | None = None,
+                    position: tuple[str, int] | None = None) -> _Error:
     """Finish a known library failure, or note an untouched external failure."""
     if _critical(error):
         return error
@@ -194,7 +202,7 @@ def _argument_error(error: _Error, entry: str, parameter: str, value: object,
     has_value = has_value and parameter != "arguments"
     return _external_note(error, entry, parameter,
                           (prepared_preview if prepared_preview is not None
-                           else _preview(value)) if has_value else None, has_value)
+                           else _preview(value)) if has_value else None, has_value, position)
 
 
 def _raise_argument_context(error: BaseException, entry: str, parameter: str,
@@ -203,9 +211,10 @@ def _raise_argument_context(error: BaseException, entry: str, parameter: str,
     raise _argument_error(error, entry, parameter, value)
 
 
-def _location_error(error: _Error, entry: str, parameter: str) -> _Error:
+def _location_error(error: _Error, entry: str, parameter: str,
+                    position: tuple[str, int] | None = None) -> _Error:
     """Report a known index without re-reading a callback-invalidated slot."""
-    return _argument_error(error, entry, parameter, None, False)
+    return _argument_error(error, entry, parameter, None, False, position=position)
 
 
 def _binary_error(error: _Error, entry: str, left: object, right: object) -> _Error:

@@ -212,7 +212,7 @@ fn fill_list<'py, const NATIVE: bool>(
 /// # Errors
 /// Preserves checked arithmetic, foreign callbacks and output allocation errors.
 #[inline(never)]
-fn fill_arithmetic_list<'py, const REPLACE: bool>(
+fn fill_arithmetic_list<'py>(
     slf: &Bound<'py, Delta>,
     values: &Bound<'py, PyList>,
     addition: &PreparedAddition,
@@ -228,8 +228,7 @@ fn fill_arithmetic_list<'py, const REPLACE: bool>(
     let first_result = (|| -> PyResult<Bound<'py, PyAny>> {
         Ok(if actual == delta_type || actual == duration_type {
             let result = if actual == delta_type {
-                addition
-                    .add_delta_prepared::<REPLACE>(unsafe { first.cast_unchecked::<Delta>() }.get())
+                addition.add_delta(unsafe { first.cast_unchecked::<Delta>() }.get())
             } else {
                 addition.add_duration(unsafe { first.cast_unchecked::<PyDelta>() })
             }?;
@@ -266,7 +265,7 @@ fn fill_arithmetic_list<'py, const REPLACE: bool>(
         let value = values.get_item(index)?;
         let actual = unsafe { ffi::Py_TYPE(value.as_ptr()) };
         let result = if actual == delta_type {
-            addition.add_delta_prepared::<REPLACE>(unsafe { value.cast_unchecked::<Delta>() }.get())
+            addition.add_delta(unsafe { value.cast_unchecked::<Delta>() }.get())
         } else if actual == duration_type {
             let duration = unsafe { value.cast_unchecked::<PyDelta>() };
             addition.add_duration(&duration)
@@ -533,27 +532,15 @@ pub(crate) fn apply<'py>(
                     Some(output) => output,
                     None => Output::new(py, values.len())?,
                 };
-                return if addition.has_absolute() {
-                    fill_arithmetic_list::<true>(
-                        slf,
-                        values,
-                        &addition,
-                        (delta_type, duration_type),
-                        numpy,
-                        output,
-                        initial,
-                    )
-                } else {
-                    fill_arithmetic_list::<false>(
-                        slf,
-                        values,
-                        &addition,
-                        (delta_type, duration_type),
-                        numpy,
-                        output,
-                        initial,
-                    )
-                };
+                return fill_arithmetic_list(
+                    slf,
+                    values,
+                    &addition,
+                    (delta_type, duration_type),
+                    numpy,
+                    output,
+                    initial,
+                );
             }
         }
     }
@@ -616,21 +603,11 @@ pub(crate) fn apply<'py>(
     // and makes cyclic GC scan only the completed prefix during callbacks.
     // An exact tuple has a stable length. Output still publishes only complete
     // objects, so callbacks may safely inspect or change its initialized prefix.
-    let reserved = if exact_delta && values.is_exact_instance_of::<PyTuple>() {
+    let reserved = if exact_delta
+        && (values.is_exact_instance_of::<PyTuple>()
+            || (native && values.is_exact_instance_of::<PyList>()))
+    {
         capacity
-    } else if exact_delta && values.is_exact_instance_of::<PyList>() && capacity > 0 {
-        let first = first
-            .as_ref()
-            .ok_or_else(|| crate::error_context::runtime("missing initial list item"))?;
-        // SAFETY: The owned first item keeps its ready actual type alive.
-        let actual = unsafe { ffi::Py_TYPE(first.as_ptr()) };
-        if [types.delta, types.datetime, types.date, types.duration].contains(&actual)
-            || numpy.as_ref().is_some_and(|types| types.matches(first))
-        {
-            capacity
-        } else {
-            0
-        }
     } else {
         0
     };

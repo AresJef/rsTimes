@@ -44,7 +44,10 @@ fn execute(source: &Series, plan: &Plan) -> Result<Series, Failure> {
         ),
         _ => (6, None),
     };
-    let needs_zone = plan.needs_wall() || plan.needs_offset() || plan.needs_name();
+    let needs_wall = plan.needs_wall();
+    let needs_offset = plan.needs_offset();
+    let needs_name = plan.needs_name();
+    let needs_zone = needs_wall || needs_offset || needs_name;
     let zone = if needs_zone {
         key.map(|key| Zone::named(key.as_str()))
             .transpose()
@@ -53,33 +56,32 @@ fn execute(source: &Series, plan: &Plan) -> Result<Series, Failure> {
         None
     };
     let mut output = StringChunkedBuilder::new(source.name().clone(), source.len());
+    let mut text = String::new();
     super::input::visit_nanos(source, |row, value| {
         let result = (|| {
             let Some(instant) = value else {
                 output.append_null();
                 return Ok(());
             };
-            let wall = if plan.needs_wall() {
-                zone.as_ref()
-                    .map_or(Ok(instant), |zone| zone.wall(instant))?
-            } else {
-                instant
+            let (wall, offset) = match &zone {
+                Some(zone) if needs_wall && needs_offset => {
+                    let (wall, offset) = zone.wall_and_offset(instant)?;
+                    (wall, Some(offset))
+                }
+                Some(zone) if needs_wall => (zone.wall(instant)?, None),
+                Some(zone) if needs_offset => (instant, Some(zone.offset_seconds(instant)?)),
+                _ => (instant, None),
             };
-            let offset = if plan.needs_offset() {
-                zone.as_ref()
-                    .map(|zone| zone.offset_seconds(instant))
-                    .transpose()?
-            } else {
-                None
-            };
-            let name = if plan.needs_name() {
+            let name = if needs_name {
                 zone.as_ref()
                     .map(|zone| zone.abbreviation(instant))
                     .transpose()?
             } else {
                 None
             };
-            output.append_value(plan.render(wall, digits, offset, name.as_deref())?);
+            plan.render_into(wall, digits, offset, name.as_deref(), &mut text)?;
+            // The builder copies the bytes before the call-local scratch is reused.
+            output.append_value(text.as_str());
             Ok(())
         })();
         result.map_err(|e: Failure| e.at(row))
@@ -206,7 +208,12 @@ fn host_values<'py>(
             } else {
                 crate::host_zone::utc_local(instant, zone)?.0
             };
-            let format = plan.system_format(instant.rem_euclid(1_000_000_000) as u32, digits);
+            let format = crate::strftime_output::system_format(
+                py,
+                plan,
+                instant.rem_euclid(1_000_000_000) as u32,
+                digits,
+            )?;
             let value = crate::strftime_output::standard(py)?
                 .bind(py)
                 .call1((&carrier, format))

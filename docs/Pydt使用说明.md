@@ -1,8 +1,10 @@
 # Pydt 使用说明
 
-## 本地PLDT／Delta纳秒候选的共享扩展
+本指南适用于 rsTimes 1.0.0。`Pydt.parse`、相关 ISO 和 `strptime` 文本入口及字符串 `default` 接受真实 `str` 及其子类，直接读取其原生存储内容。需要执行字符串子类的转换时，显式传入 `str(value)`。详见[Parser 使用说明](Parser使用说明.md)。
 
-本节描述已公开的0.2.0b3；旧0.2.0b2不包含本轮Pldt／完整纳秒／NoGIL等新增内容。Pydt仍是真正的datetime子类，保留微秒精度和1—9999年容量。Delta现在保存规范纳秒，在Pydt出口最后一次投影到微秒；并未为Pydt增加不存在的纳秒字段。
+## 纳秒增量与微秒结果
+
+Pydt 是 `datetime` 子类，支持微秒精度和 1—9999 年。Delta 用纳秒表示增量，得到 Pydt 结果时才将其转换到微秒精度。
 
 ```python
 from rstimes import Delta, Pydt
@@ -95,7 +97,7 @@ combine 的两侧可用已支持的完整来源，分别只贡献日期和时钟
 
 ## 时区、fold 和有效当地时间
 
-可传标准 tzinfo／timezone／ZoneInfo、已支持的地区名，或合法自定义tzinfo。真实pytz对象只按有效地区名转成ZoneInfo；无有效地区名报错。pytz不是必装依赖。本机地区只在实际需要时发现，成功后缓存；失败不会悄悄改成UTC。
+可传标准 tzinfo／timezone／ZoneInfo、已支持的地区名，或合法自定义tzinfo。真实pytz对象只按有效地区名转成ZoneInfo；无有效地区名报错。pytz不是必装依赖。本库使用local服务的Pydt／Pddt／Pldt入口共享首次成功的地区身份，Python时区对象和Rust规则各保留自己的表示缓存。本次需要的后端验证失败不会占位，可更正TZ后重试；身份成功后，另一后端不可用仍报该后端错误，不改选新地区或兜底UTC。后续修改TZ不改变已成功身份。Expr按各入口约定在创建时捕获；Pydt继承的timestamp仍遵循datetime系统协议，不纳入这项服务承诺。
 
 Pydt严格创建、replace及相关工厂遇地区不存在时间会报错；fold只选重复时间的前后，不让缺失时间变合法。标准UTC、固定偏移和无区值没有地区缺口检查。
 

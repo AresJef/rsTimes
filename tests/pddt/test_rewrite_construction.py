@@ -86,8 +86,8 @@ def test_default_is_prepared_once_only_when_actual_text_needs_it():
         def __str__(self):
             reads.append(1)
             return "2024-05-07"
-    result=Pddt(["12:30","18:45"],default=Text("ignored"))
-    assert reads==[1] and result.day.tolist()==[7,7]
+    result=Pddt(["12:30","18:45"],default=Text("2024-05-07"))
+    assert reads==[] and result.day.tolist()==[7,7]
     assert result.hour.tolist()==[12,18]
     Pddt([datetime(2024,5,7)],default=object())
     Pddt([],default=object())

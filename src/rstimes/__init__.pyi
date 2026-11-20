@@ -60,3 +60,4 @@ from .parser import Configs as Configs, parse_str as parse_str, parse as parse
 from .pddt import Pddt as Pddt
 from .pldt import Pldt as Pldt
 from .parser import parse_to_epoch as parse_to_epoch
+from .parser import parse_to_integer as parse_to_integer, parse_to_float as parse_to_float

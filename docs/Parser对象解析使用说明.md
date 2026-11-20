@@ -1,6 +1,6 @@
 # parse_str 与 parse 使用说明
 
-本发行版本为`0.2.0b3`，范围见[发行说明](releases/v0.2.0b3.md)。四个demo共用demo/runtime.json；按README准备独立环境和发行清单后，运行python demo/parser.py会校验版本及native身份。
+本指南适用于 rsTimes 1.0.0，支持范围见[发行说明](releases/v1.0.0.md)。按[示范说明](../demo/README.md)准备环境和发行清单后，运行 `python demo/parser.py` 会校验版本与实际加载的原生扩展。
 
 
 `parse_str()` 专门处理字符串，`parse()` 同时处理字符串、datetime、date、int/float秒数和NumPy datetime64。
@@ -24,7 +24,9 @@ parse(1.1)              # 1970-01-01 00:00:01.100000
 
 保留已采用版本的strict、非法字段限制、星期、配置词表、默认日期和两位年份规则。default只补年月日；两位年份需要strict=False和明确default。ignoretz默认True；需要保留已识别偏移时传False。
 
-parse_str只接受Python内置str的实例，不接受str子类。str子类请使用parse；该入口先调用str(value)，再解析转换后的字符串。
+从 1.0.0 起，`parse_str`、`parse`、`parse_to_epoch` 接受真实 `str` 和 `str` 子类，并直接读取原生存储的文本。Pydt、Pddt、Pldt 的通用日期文本解析及字符串 `default` 采用相同规则。相关 ISO 和 `strptime` 入口各自保留语法和缺失值规则。需要调用子类的字符串转换时，显式传入 `str(value)`。
+
+例如，一个子类存着 `"1970-01-01"`，其 `__str__` 返回 `"1970-01-02"`。直接传入时三个入口都读取 1 月 1 日。显式调用 `parse(str(value))` 会读取 1 月 2 日。
 
 ## 其他对象
 

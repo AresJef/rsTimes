@@ -5,6 +5,7 @@ use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
 use pyo3::types::{PyDateAccess, PyDateTime, PyString, PyType, PyTzInfo};
+use std::sync::OnceLock;
 #[path = "localization_data.rs"]
 mod data;
 static PYTZ_TYPES: PyOnceLock<Vec<Py<PyType>>> = PyOnceLock::new();
@@ -81,6 +82,22 @@ pub(crate) fn loaded_pytz(value: &Bound<'_, PyAny>) -> PyResult<bool> {
         })
     });
     Ok(genuine)
+}
+
+// Identity is backend-independent. Backend representations keep their own caches.
+static LOCAL_IDENTITY: OnceLock<String> = OnceLock::new();
+
+/// Read the first successful local identity without triggering discovery.
+#[pyfunction(name = "_local_timezone_identity")]
+pub(crate) fn local_timezone_identity() -> Option<&'static str> {
+    LOCAL_IDENTITY.get().map(String::as_str)
+}
+
+/// Publish only after the caller's needed backend validated the candidate.
+/// A competing successful caller may already own the immutable winning name.
+#[pyfunction(name = "_publish_local_timezone_identity")]
+pub(crate) fn publish_local_timezone_identity(name: &str) -> &'static str {
+    LOCAL_IDENTITY.get_or_init(|| name.to_owned()).as_str()
 }
 
 /// Resolve a process system IANA name only when the Python local service asks.
@@ -200,6 +217,8 @@ pub(crate) fn native_name(group: usize, position: usize) -> Option<&'static str>
 /// Register the small independent services; registration does not probe local time.
 pub(crate) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_local_timezone_name, module)?)?;
+    module.add_function(wrap_pyfunction!(local_timezone_identity, module)?)?;
+    module.add_function(wrap_pyfunction!(publish_local_timezone_identity, module)?)?;
     module.add_function(wrap_pyfunction!(_localized_name, module)?)?;
     module.add_function(wrap_pyfunction!(_resolve_optional_timezone, module)?)?;
     Ok(())

@@ -1,8 +1,14 @@
 # Pddt 与 parse_to_epoch
 
-## 本地PLDT／Delta纳秒候选同步
+本指南适用于 rsTimes 1.0.0。`parse_to_epoch`、Pddt 通用构造和 `parse`、字符串 `default` 及相关日期文本工厂直接读取真实 `str` 和 `str` 子类的原生存储。日期与时钟组合、差值目标中的文本也采用这条规则。需要执行子类的字符串转换时，先显式调用 `str(value)`。详见[Parser 使用说明](Parser使用说明.md)。
 
-当前指南描述已公开0.2.0b3中的共享修改；旧0.2.0b2保持其历史发行范围。日期字段替换统一写`x.pddt.replace(...)`；原生pandas的完整接口保留自身含义，不用双义参数兼容。Pldt对应写`x.pldt.replace(...)`，并保留Polars原生replace。
+## 日期字段与原生操作
+
+日期字段替换写作 `x.pddt.replace(...)`。对应的 Polars 写法是 `x.pldt.replace(...)`。原生 pandas 和 Polars 操作由各自安装的版本提供。
+
+原生整值`replace`是否存在取决于pandas版本：本项目已核对的2.3.3和3.0.6没有
+此入口，3.1.0提供它并保留pandas原生参数和返回类型。`.pddt.replace(day=3)`
+始终是本库日期字段替换，不能用两者互相替代；不为旧pandas补整值replace别名。
 
 Delta的相对nanoseconds和绝对nanosecond尾数已经纳入整列运算；已有Pddt保持当前unit，不能保存的非零纳秒结果会报精度错误，不自动改单位。用户可先主动`as_unit('ns')`。全部分量先合并，合法抵消不制造中间精度错误。
 
@@ -19,7 +25,7 @@ strftime的`%f`对ns输出9位，对s／ms／us输出6位；`%.1f`—`%.9f`输�
 
 Pddt 是真正的 pandas `DatetimeIndex` 子类，提供与 Pydt 对应的日历操作，并保留一列数据、缺失值和纳秒精度。使用 Pddt 需要安装 pandas；传入 Polars 列时才需要 Polars。Delta、Parser 和 Pydt 可单独使用，不要求这两个可选依赖。
 
-本轮重新设计了 Pddt，旧参数名、旧多位置构造写法和旧 Pddt pickle 格式不继续适配。构造和自有日期操作采用固定 pandas 3.0.6 所代表的默认规则，在已验证的 pandas 2.x 环境也保持这些规则。排序、切片、集合、比较、`take` 和 `repeat` 等完整继承的操作，继续使用实际安装的 pandas 行为。
+使用本指南中的参数名、构造签名和 Pddt pickle 格式。构造和自有日期操作采用 pandas 3.0.6 所代表的默认规则，在已验证的 pandas 2.x 环境也使用这些规则。排序、切片、集合、比较、`take` 和 `repeat` 等继承操作使用实际安装的 pandas 行为。
 
 ## 输入与单位
 
@@ -204,4 +210,8 @@ assert y.asi8.tolist() == wall.asi8.tolist()
 
 copy.copy／copy(deep=False) 新外壳按安全规则共享日期缓冲，业务 dict／slots 保原引用；deepcopy／copy(deep=True) 独立日期缓冲并保共享别名和自身循环。pickle 使用新版本化核心格式，保合法业务状态、时区、单位、name 和有效 freq。真实自定义复制／保存钩子及其原错误保持，不重复业务 init，不迁移旧 Pddt pickle。
 
-显式 `copy` 与标准库采用相同绑定：浅复制从类取得 `__copy__` 并传入来源对象，深复制从实例取得 `__deepcopy__` 并传入同一 memo。真实 staticmethod、classmethod、descriptor 和 property 深复制钩子按此执行；自定义返回值与原异常保留。查找协议时读取真实 MRO／类字典，不由元类的展示属性替代；实际状态钩子（包括 Python 默认状态协议）自身的行为和异常仍保留。
+默认业务状态恢复先取得内置字典／槽位条目的稳定浅快照，校验并应用同一批条目，不调用 dict 子类的虚拟导出方法。真正的 `__getstate__`、`__setstate__`、reducer、复制钩子、槽位 setter 及原异常保持各自职责；深复制继续共享同一 memo。
+
+Polars Duration 整列算术读取原生刻度及独立 null 位：有效的最小 int64 时长不会误变为 NaT，先用 checked 宽整数计算，再检查最终日期的固定单位与容量。NumPy timedelta64 的 NaT 规则不变，最终 pandas 日期仍不能把其 NaT 哨兵当有效值。
+
+显式 `copy` 与标准库采用相同的钩子绑定。浅复制从类取得 `__copy__` 并传入来源对象，深复制从实例取得 `__deepcopy__` 并传入同一 memo。真实 staticmethod、classmethod、descriptor 和 property 深复制钩子保留自定义返回值和原异常。已注册的 copyreg、实际 `__reduce_ex__`／`__reduce__` 的 None 或缺失回退、描述符和动态读取均得到处理。默认日期复制使用原生缓冲路径。

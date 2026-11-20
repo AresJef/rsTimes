@@ -163,7 +163,7 @@ def test_expr_rules_are_creation_snapshot_and_eager_reads_current_rules():
     assert ticks(source["time"].pldt.parse(cfg=cfg)) == [tick("2024-03-14")]
 
 
-@pytest.mark.parametrize("expression,expected", [(False, "2024-02-14T12:30"), (True, "2024-01-14T12:30")])
+@pytest.mark.parametrize("expression,expected", [pytest.param(False, "2024-01-14T12:30", id="False-2024-02-14T12:30"), pytest.param(True, "2024-01-14T12:30", id="True-2024-01-14T12:30")])
 def test_public_default_callback_and_configs_snapshot_order(expression, expected):
     cfg = Configs()
     calls = []
@@ -174,7 +174,7 @@ def test_public_default_callback_and_configs_snapshot_order(expression, expected
             cfg.set_month({"jan": 2})
             return "14 Jan 2024"
 
-    default = Reference("reference")
+    default = Reference("14 Jan 2024")
     source = pl.Series("time", ["12:30", "12:30"])
     if expression:
         expr = pl.col("time").pldt.parse(unit="us", default=default, cfg=cfg)
@@ -183,7 +183,7 @@ def test_public_default_callback_and_configs_snapshot_order(expression, expected
             assert ticks(pl.DataFrame(source).select(expr)["time"]) == [tick(expected)] * 2
     else:
         assert ticks(source.pldt.parse(default=default, cfg=cfg)) == [tick(expected)] * 2
-    assert calls == ["default"]
+    assert calls == []
 
 
 def test_native_eager_dates_ignore_unrelated_default():
@@ -288,10 +288,10 @@ def test_formatted_scalar_repeat_applies_full_boolean_mask_after_parsing_once():
             calls.append("text")
             return "2024-11-03 01:30"
 
-    result = Pldt.strptime(Text("ignored"), "%Y-%m-%d %H:%M", size=2,
+    result = Pldt.strptime(Text("2024-11-03 01:30"), "%Y-%m-%d %H:%M", size=2,
                           tz="America/New_York", ambiguous=[True, False])
     assert ticks(result) == [tick("2024-11-03T05:30"), tick("2024-11-03T06:30")]
-    assert calls == ["text"]
+    assert calls == []
 
 
 def test_formatted_explicit_missing_values_propagate_without_numeric_coercion():

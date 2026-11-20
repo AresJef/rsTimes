@@ -30,6 +30,7 @@ pub(crate) fn arity(start: bool, end: bool, periods: bool, frequency: bool) -> R
     }
 }
 /// Emit in declared order before localization/mask validation and inclusive trim.
+/// The caller checks the presence of start, end, periods and frequency with arity.
 pub(crate) fn generate<E: From<Error>>(
     input: Input<'_>,
     mut emit: impl FnMut(i128, bool) -> Result<(), E>,
@@ -44,12 +45,6 @@ pub(crate) fn generate<E: From<Error>>(
         known_start,
         known_end,
     } = input;
-    arity(
-        start.is_some(),
-        end.is_some(),
-        periods.is_some(),
-        frequency.is_some(),
-    )?;
     if let Some(plan) = frequency {
         let fraction = match plan.kind {
             Kind::Fixed(value) => value,
@@ -92,8 +87,7 @@ pub(crate) fn generate<E: From<Error>>(
         if let Some(length) = periods {
             let offset = i64::try_from(length)
                 .map_err(|_| Error::Capacity("period count exceeds native range"))?
-                .checked_sub(1)
-                .ok_or(Error::Capacity("period count underflow"))?;
+                - 1;
             if first.is_none() {
                 first = Some(
                     frequency
@@ -112,7 +106,12 @@ pub(crate) fn generate<E: From<Error>>(
         let (Some(mut current), Some(last)) = (first, last) else {
             return Err(Error::Value("range requires enough endpoint information").into());
         };
-        if periods != Some(0) {
+        if periods != Some(0)
+            || matches!(
+                frequency.kind,
+                Kind::Business { .. } | Kind::CustomBusinessMonth { .. }
+            )
+        {
             while if direction > 0 {
                 current <= last
             } else {

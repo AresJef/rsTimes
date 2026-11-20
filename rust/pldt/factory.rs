@@ -65,7 +65,7 @@ fn output_unit(value: Option<&str>) -> Result<Option<Unit>, Failure> {
         .transpose()
 }
 
-fn current<F: FnOnce() -> Result<i128, &'static str>>(
+fn current<F: FnOnce() -> i128>(
     count: usize,
     unit: Unit,
     name: PlSmallStr,
@@ -88,7 +88,7 @@ fn current<F: FnOnce() -> Result<i128, &'static str>>(
         .try_reserve_exact(count)
         .map_err(|_| Failure::new(Kind::Memory, "cannot allocate the requested date column"))?;
     if count != 0 {
-        let mut ns = clock().map_err(|message| Failure::new(Kind::Capacity, message))?;
+        let mut ns = clock();
         if naive {
             ns = zone
                 .ok_or_else(|| Failure::new(Kind::Runtime, "local clock requires a prepared zone"))?
@@ -515,7 +515,7 @@ mod tests {
             false,
             || {
                 calls.set(calls.get() + 1);
-                Ok(1_123_456_789)
+                1_123_456_789
             },
         )
         .unwrap_or_else(|_| panic!("valid clock"));
@@ -536,7 +536,7 @@ mod tests {
             "stamp".into(),
             Some(&local),
             true,
-            || Ok(1_123_456_789),
+            || 1_123_456_789,
         )
         .unwrap_or_else(|_| panic!("local clock"));
         assert_eq!(

@@ -1,12 +1,14 @@
 //! One-pass collection preparation, with no Python datetime text intermediate.
-use super::common::{Rows, finish};
+use super::common::{Rows, Source, finish};
 use crate::epoch::{self, Options, Unit, Zone};
 use crate::parser::config::{Configs, FormatRules};
 use crate::parser::fields::{Lenient, Nano, Policy, Precision, Strict};
-use crate::parser::prepared::TextContext;
 use polars::prelude::Series;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDate, PyDateTime, PyFloat, PyInt, PyList, PyString, PyTuple};
+use pyo3::types::{
+    PyBytes, PyDate, PyDateTime, PyFloat, PyInt, PyList, PyString, PyTuple, PyTzInfo,
+    PyTzInfoAccess,
+};
 use pyo3_polars::PySeries;
 
 #[pyfunction]
@@ -21,12 +23,12 @@ pub(super) use crate::date_input::{missing, missing_text, nat, scalar_unit};
 
 type Prepared<'py> = (Bound<'py, PyBytes>, &'static str, Py<PyAny>);
 
-/// Callback-bearing defaults keep the adopted live Reader path. These exact
-/// builtin values expose no custom field or conversion callback.
+/// Callback-bearing defaults keep the adopted live Reader path. Real strings
+/// use immutable storage; the other admitted builtin values have no callbacks.
 fn stable_default(value: Option<&Bound<'_, PyAny>>) -> bool {
     value.is_none_or(|value| {
         value.is_none()
-            || value.is_exact_instance_of::<PyString>()
+            || value.is_instance_of::<PyString>()
             || value.is_exact_instance_of::<PyInt>()
             || value.is_exact_instance_of::<PyFloat>()
             || value.is_exact_instance_of::<PyDateTime>()
@@ -48,7 +50,7 @@ fn native_strings<'py, P: Policy>(
     })?;
     let mut rows = Rows::new(Unit::Second);
     rows.reserve(source.len())?;
-    let mut prepared: Option<(TextContext, FormatRules)> = None;
+    let mut prepared: Option<(crate::parser::native::Options, FormatRules)> = None;
     let mut scratch = crate::parser::native::Scratch::default();
     for (index, value) in values.iter().enumerate() {
         let Some(value) = value.filter(|value| !crate::date_input::missing_utf8(value)) else {
@@ -56,13 +58,13 @@ fn native_strings<'py, P: Policy>(
             continue;
         };
         if prepared.is_none() {
-            let context = TextContext::eager(
+            let default = crate::parser::prepare_default(
                 py,
-                opts.cfg,
                 opts.default,
                 opts.yearfirst,
                 opts.dayfirst,
                 opts.isoformat,
+                opts.cfg,
                 opts.strict,
             )
             .map_err(|error| match opts.default {
@@ -71,39 +73,36 @@ fn native_strings<'py, P: Policy>(
                 }
                 None => error,
             })?;
-            // Keep original ZoneInfo identities in this GIL adapter only. The
-            // shared native worker context continues to contain no Python data.
+            // Snapshot once after default preparation. The existing host view
+            // also implements native recognition and retains exact ZoneInfo
+            // identities here; detached workers still use NativeRules alone.
             let zones = FormatRules::prepare(opts.cfg)?;
-            prepared = Some((context, zones));
+            prepared = Some((
+                crate::parser::native::Options {
+                    default,
+                    yearfirst: opts.yearfirst,
+                    dayfirst: opts.dayfirst,
+                    isoformat: opts.isoformat,
+                },
+                zones,
+            ));
         }
-        let (context, zones) = prepared.as_mut().ok_or_else(|| {
+        let (options, zones) = prepared.as_ref().ok_or_else(|| {
             crate::error_context::runtime("native date-text preparation is unavailable")
         })?;
         let mut read = || -> PyResult<epoch::Parsed> {
-            let parsed = crate::parser::native::parse::<P>(
+            let parsed = crate::parser::native::parse_view::<P>(
                 value,
                 &mut scratch,
-                &mut context.rules,
-                context.options,
+                &mut zones.native_view(),
+                *options,
             )
             .map_err(crate::parser::native_error)?;
             let zone = if let Some(region) = parsed.region {
-                let registered = zones
-                    .region_key(&region.key, scratch.codepoints())
-                    .ok_or_else(|| {
-                        crate::error_context::value_error(
-                            "the registered region is unavailable in this environment",
-                        )
-                    })?;
-                Zone::Object(
-                    crate::parser::zones::object(py, &registered)?
-                        .clone()
-                        .unbind(),
-                )
+                Zone::Object(crate::parser::zones::object(py, &region)?.clone().unbind())
             } else if parsed.fields.is_tzoffset_set() {
                 let offset = parsed.fields.timezone_microseconds();
-                if !(-86_400_000_000..86_400_000_000).contains(&offset) || offset == -86_400_000_000
-                {
+                if !crate::precision::valid_offset_us(offset) {
                     return Err(crate::parser::invalid_offset(py, offset));
                 }
                 Zone::Offset(offset)
@@ -131,8 +130,8 @@ fn native_strings<'py, P: Policy>(
     finish(py, rows, requested, target, entry, policy)
 }
 
-/// Exact builtin sequences have no iterator callback. The caller verifies every
-/// element before preparing rules; callback-bearing defaults stay on Reader.
+/// Exact builtin sequences have no iterator callback. Tuple-held real strings
+/// are immutable; mutable lists retain the narrower exact-element proof.
 #[expect(
     clippy::too_many_arguments,
     reason = "Callback-free collection adapter keeps parser and output roles explicit"
@@ -348,7 +347,10 @@ fn _pddt_prepare<'py>(
             }
         } else if data.is_exact_instance_of::<PyTuple>() {
             let values = data.cast::<PyTuple>()?;
-            if values.iter().all(simple) {
+            if values
+                .iter()
+                .all(|item| item.is_none() || item.is_instance_of::<PyString>())
+            {
                 rows.reserve(values.len())?;
                 return if strict {
                     plain_strings::<Nano<Strict>>(
@@ -373,6 +375,35 @@ fn _pddt_prepare<'py>(
                         &policy,
                     )
                 };
+            }
+            // This tuple and all its exact builtin values are immutable. No
+            // later row can need a previous source zone or run a source hook.
+            if target.is_some_and(|zone| !zone.is_none())
+                && values
+                    .get_item(0)
+                    .is_ok_and(|item| item.is_exact_instance_of::<PyDateTime>())
+            {
+                let fixed_type = PyTzInfo::utc(py)?.get_type();
+                if values.iter().all(|item| {
+                    item.cast_exact::<PyDateTime>().is_ok_and(|date| {
+                        date.get_tzinfo()
+                            .is_some_and(|zone| zone.get_type().is(&fixed_type))
+                    })
+                }) {
+                    rows.reserve(values.len())?;
+                    for (i, item) in values.iter().enumerate() {
+                        let parsed = epoch::read(&item, &opts).map_err(|e| {
+                            crate::error_context::item(py, e, entry, "data", i, Some(&item), false)
+                        })?;
+                        rows.unit = rows.unit.max(parsed.unit);
+                        rows.values.push(Some(parsed.nanos));
+                        rows.sources.push(Source {
+                            zone: 0,
+                            instant: true,
+                        });
+                    }
+                    return finish(py, rows, requested, target, entry, &policy);
+                }
             }
         }
     }

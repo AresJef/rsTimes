@@ -25,6 +25,10 @@ ROOT = Path(__file__).resolve().parents[1]
 PYRIGHT_VERSION = "1.1.414"
 NODE_VERSION = "v26.7.0"
 FIXTURES = (
+    ("configs_lifecycle_valid.py", set()),
+    ("configs_lifecycle_invalid.py", {3, 4, 5}),
+    ("numeric_text_valid.py", set()),
+    ("numeric_text_invalid.py", set(range(3, 9))),
     ("public_valid.py", set()),
     ("astra_configs_valid.py", set()),
     ("pldt_valid.py", set()),
@@ -37,6 +41,8 @@ FIXTURES = (
     ("calendar_units_invalid.py", set(range(7, 16))),
     ("range_carrier_valid.py", set()),
     ("range_carrier_invalid.py", {14}),
+    ("review_contracts_valid.py", set()),
+    ("review_contracts_invalid.py", set(range(10, 18))),
 )
 
 
@@ -109,7 +115,7 @@ def _installed(command: list[str], output: Path, env: dict[str, str], language: 
     config = output / "installed.pyright.json"
     config.write_text(json.dumps({
         "typeCheckingMode": "standard", "pythonVersion": language,
-        "autoSearchPaths": False, "extraPaths": [], "include": [],
+        "extraPaths": [], "include": [],
         "enableTypeIgnoreComments": False,
         "reportUnnecessaryTypeIgnoreComment": "error",
     }, indent=2) + "\n")
@@ -141,6 +147,7 @@ def _installed(command: list[str], output: Path, env: dict[str, str], language: 
     return {"fixtures": rows, "original_negative_locations": 48,
             "new_negative_locations": 4, "package": str(package),
             "repair_negative_locations": 10,
+            "configs_construction_negative_locations": 3,
             "public_types": completeness["exportedSymbolCounts"],
             "installed_payload": {p.name: _digest(p) for p in package.iterdir()
                                   if p.suffix in (".py", ".pyi", ".so", ".pyd") or p.name == "py.typed"}}

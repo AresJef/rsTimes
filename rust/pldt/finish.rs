@@ -34,6 +34,14 @@ impl Failure {
         self
     }
     pub(super) fn python(self, py: Python<'_>, entry: &str) -> PyErr {
+        self.python_parameter(py, entry, None)
+    }
+    pub(super) fn python_parameter(
+        self,
+        py: Python<'_>,
+        entry: &str,
+        parameter: Option<&str>,
+    ) -> PyErr {
         let error = match self.kind {
             Kind::Type => crate::error_context::type_error(self.message),
             Kind::Value => crate::error_context::value_error(self.message),
@@ -42,20 +50,25 @@ impl Failure {
             Kind::Parse => crate::error_context::domain(py, "ParseError", self.message),
             Kind::Memory => pyo3::exceptions::PyMemoryError::new_err(self.message),
         };
-        crate::error_context::location(
-            py,
-            error,
-            entry,
-            &self
-                .row
-                .map_or_else(|| "arguments".into(), |row| format!("data[{row}]")),
-        )
+        if let Some(row) = self.row {
+            let location = format!("{}[{row}]", parameter.unwrap_or("data"));
+            crate::error_context::location(py, error, entry, &location)
+        } else {
+            crate::error_context::location(py, error, entry, parameter.unwrap_or("arguments"))
+        }
     }
     pub(super) fn polars(self, entry: &str) -> PolarsError {
+        self.polars_parameter(entry, None)
+    }
+    pub(super) fn polars_parameter(self, entry: &str, parameter: Option<&str>) -> PolarsError {
         let location = self
             .row
             .map_or_else(String::new, |row| format!("batch item {row}: "));
-        polars_err!(ComputeError:"{}: {}{}",entry,location,self.message)
+        if let Some(parameter) = parameter {
+            polars_err!(ComputeError:"{}: {}{}: {}",entry,location,parameter,self.message)
+        } else {
+            polars_err!(ComputeError:"{}: {}{}",entry,location,self.message)
+        }
     }
 }
 impl From<ZoneError> for Failure {
@@ -67,6 +80,21 @@ impl From<ZoneError> for Failure {
         };
         Self::new(kind, value.to_string())
     }
+}
+
+/// Construct the original selected-unit failure after earlier phases succeed.
+pub(super) fn tick_error(error: crate::precision::TickError, row: usize) -> Failure {
+    match error {
+        crate::precision::TickError::Precision => Failure::new(
+            Kind::Value,
+            "source precision cannot fit the selected unit without loss; choose a finer unit or explicitly use as_unit",
+        ),
+        crate::precision::TickError::Capacity => Failure::new(
+            Kind::Capacity,
+            "date exceeds the selected unit capacity; explicitly select a coarser supported unit",
+        ),
+    }
+    .at(row)
 }
 
 enum SourceZone {
@@ -171,7 +199,7 @@ impl Rows {
         Ok(())
     }
     pub(super) fn offset(&mut self, offset_us: i64) -> Result<usize, Failure> {
-        if !(-86_400_000_000..86_400_000_000).contains(&offset_us) || offset_us == -86_400_000_000 {
+        if !crate::precision::valid_offset_us(offset_us) {
             return Err(Failure::new(
                 Kind::Value,
                 "source timezone offset must be strictly between -24 and +24 hours",
@@ -272,16 +300,21 @@ impl Rows {
             }
         };
         let needs_infer = policy.infer()
-            && self.sources.iter().any(|source| {
-                !source.instant
-                    && match &self.zones[source.zone] {
-                        SourceZone::Region(_) => true,
-                        SourceZone::Naive => {
-                            target.is_some_and(|zone| zone.fixed_seconds().is_none())
+            && self
+                .values
+                .iter()
+                .zip(&self.sources)
+                .any(|(value, source)| {
+                    value.is_some()
+                        && !source.instant
+                        && match &self.zones[source.zone] {
+                            SourceZone::Region(_) => true,
+                            SourceZone::Naive => {
+                                target.is_some_and(|zone| zone.fixed_seconds().is_none())
+                            }
+                            SourceZone::Offset(_) => false,
                         }
-                        SourceZone::Offset(_) => false,
-                    }
-            });
+                });
         let mut pending = if needs_infer {
             vec![None; self.values.len()]
         } else {
@@ -308,10 +341,12 @@ impl Rows {
         policy.complete(&mut self.values, &pending)?;
         let mut output = PrimitiveChunkedBuilder::<Int64Type>::new(name, self.values.len());
         for (row, value) in self.values.into_iter().enumerate() {
-            let tick=value.map(|value|crate::precision::epoch_tick(value,unit.nanos(),truncated).map_err(|error|match error{
-                crate::precision::TickError::Precision=>Failure::new(Kind::Value,"source precision cannot fit the selected unit without loss; choose a finer unit or explicitly use as_unit").at(row),
-                crate::precision::TickError::Capacity=>Failure::new(Kind::Capacity,"date exceeds the selected unit capacity; explicitly select a coarser supported unit").at(row),
-            })).transpose()?;
+            let tick = value
+                .map(|value| {
+                    crate::precision::epoch_tick(value, unit.nanos(), truncated)
+                        .map_err(|error| tick_error(error, row))
+                })
+                .transpose()?;
             output.append_option(tick);
         }
         Ok(output

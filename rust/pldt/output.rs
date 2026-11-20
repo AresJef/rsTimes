@@ -214,9 +214,14 @@ fn execute<const K: u8>(source: &Series, options: &Options) -> Result<Series, Fa
                 }
                 return Ok(());
             }
-            let wall = zone
-                .as_ref()
-                .map_or(Ok(instant), |zone| zone.wall(instant))?;
+            let (wall, iso_offset) = match &zone {
+                Some(zone) if K == 10 => {
+                    let (wall, offset) = zone.wall_and_offset(instant)?;
+                    (wall, Some(i64::from(offset) * 1_000_000))
+                }
+                Some(zone) => (zone.wall(instant)?, None),
+                None => (instant, None),
+            };
             let value = if let Some(local) = &local {
                 match local.candidates(wall)? {
                     Candidates::One(value) => value,
@@ -249,7 +254,7 @@ fn execute<const K: u8>(source: &Series, options: &Options) -> Result<Series, Fa
                 },
                 10|11=>{
                     let f=crate::date_transform::fields(wall).map_err(|e|Failure::from(crate::period::Error::from(e)))?;
-                    if K==10{let offset=zone.as_ref().map(|zone|zone.offset_seconds(instant).map(|v|i64::from(v)*1_000_000)).transpose()?;strings.append_value(crate::temporal_output::iso_text(f,&options.sep,options.precision,offset));}
+                    if K==10{strings.append_value(crate::temporal_output::iso_text(f,&options.sep,options.precision,iso_offset));}
                     else{let day=crate::calendar_query::fact::<28>(wall,None,&mut cached)? as usize;const DAYS:[&str;7]=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];const MONTHS:[&str;12]=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];strings.append_value(format!("{} {} {:2} {:02}:{:02}:{:02} {:04}",DAYS[day],MONTHS[(f[1]-1)as usize],f[2],f[3],f[4],f[5],f[0]));}
                 },
                 _=>return Err(Failure::new(Kind::Runtime,"unknown output code")),

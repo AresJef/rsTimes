@@ -57,105 +57,111 @@ fn loop_query<'py, const Q: u8>(
         {
             let raw: [u8; 8] = *bytes;
             let ticks = i64::from_ne_bytes(raw);
-            let selected = target
-                .map(|t| {
-                    t.0.get(i).ok_or_else(|| {
-                        crate::error_context::type_error("query targets cannot be missing")
+            (|| -> PyResult<()> {
+                let selected = target
+                    .map(|t| {
+                        t.0.get(i).ok_or_else(|| {
+                            crate::error_context::type_error("query targets cannot be missing")
+                        })
                     })
-                })
-                .transpose()?;
-            if ticks == i64::MIN {
-                if boolean {
-                    cell[0] = 0;
-                } else {
-                    cell.copy_from_slice(&0_i64.to_ne_bytes());
-                    super::common::missing_mask(&mut mask, count, i)?;
-                }
-                continue;
-            }
-            let source = i128::from(ticks) * unit.nanos();
-            if Q == 107 || Q == 108 {
-                let current = if let Some(current) = now {
-                    current
-                } else {
-                    let utc = super::factory::system_nanos(std::time::SystemTime::now())?;
-                    let current = if zone.is_some() {
-                        utc
+                    .transpose()?;
+                if ticks == i64::MIN {
+                    if boolean {
+                        cell[0] = 0;
                     } else {
-                        let local = super::common::local_zone(py)?;
-                        let fixed =
-                            super::common::fixed_offset(py, &Zone::Object(local.clone().unbind()))?;
-                        super::zones::utc_wall(utc, &local, fixed)?
-                    };
-                    now = Some(current);
-                    current
-                };
-                cell[0] = u8::from(if Q == 107 {
-                    source < current
-                } else {
-                    source > current
-                });
-                continue;
-            }
-            if Q == 12 || Q == 106 {
-                let value = if let Some(zone) = zone {
-                    if let Some(offset) = fixed {
-                        if Q == 12 {
-                            Some(offset)
-                        } else {
-                            if fixed_dst.is_none() {
-                                fixed_dst = Some(crate::epoch::offset_us(
-                                    &zone
-                                        .call_method1("dst", (py.None(),))
-                                        .map_err(crate::error_context::external)?,
-                                )?);
-                            }
-                            fixed_dst.flatten()
-                        }
-                    } else {
-                        let (local, offset, _) = super::zones::utc_local(source, zone)?;
-                        if Q == 12 {
-                            Some(offset)
-                        } else {
-                            crate::epoch::offset_us(
-                                &zone
-                                    .call_method1("dst", (&local,))
-                                    .map_err(crate::error_context::external)?,
-                            )?
-                        }
-                    }
-                } else {
-                    None
-                };
-                if Q == 106 {
-                    cell[0] = u8::from(value.is_some_and(|v| v != 0));
-                } else {
-                    cell.copy_from_slice(
-                        &value.map_or(0, |v| v.div_euclid(1_000_000)).to_ne_bytes(),
-                    );
-                    if value.is_none() {
+                        cell.copy_from_slice(&0_i64.to_ne_bytes());
                         super::common::missing_mask(&mut mask, count, i)?;
                     }
+                    return Ok(());
                 }
-                continue;
-            }
-            let wall = if let Some(offset) = fixed {
-                source + i128::from(offset) * 1000
-            } else {
-                super::zones::utc_wall(
-                    source,
-                    zone.ok_or_else(|| crate::error_context::runtime("missing query region"))?,
-                    None,
-                )?
-            };
-            let value = fact::<Q>(wall, selected, &mut cached).map_err(|e| {
-                crate::error_context::location(py, PyErr::from(e), entry, &format!("result[{i}]"))
+                let source = i128::from(ticks) * unit.nanos();
+                if Q == 107 || Q == 108 {
+                    let current = if let Some(current) = now {
+                        current
+                    } else {
+                        let utc = crate::clock::system_nanos(std::time::SystemTime::now());
+                        let current = if zone.is_some() {
+                            utc
+                        } else {
+                            let local = super::common::local_zone(py)?;
+                            let fixed = super::common::fixed_offset(
+                                py,
+                                &Zone::Object(local.clone().unbind()),
+                            )?;
+                            super::zones::utc_wall(utc, &local, fixed)?
+                        };
+                        now = Some(current);
+                        current
+                    };
+                    cell[0] = u8::from(if Q == 107 {
+                        source < current
+                    } else {
+                        source > current
+                    });
+                    return Ok(());
+                }
+                if Q == 12 || Q == 106 {
+                    let value = if let Some(zone) = zone {
+                        if let Some(offset) = fixed {
+                            if Q == 12 {
+                                Some(offset)
+                            } else {
+                                if fixed_dst.is_none() {
+                                    fixed_dst = Some(crate::host_zone::daylight_marker(
+                                        &zone
+                                            .call_method1("dst", (py.None(),))
+                                            .map_err(crate::error_context::external)?,
+                                    )?);
+                                }
+                                fixed_dst
+                            }
+                        } else {
+                            let (local, offset, _) = super::zones::utc_local(source, zone)?;
+                            if Q == 12 {
+                                Some(offset)
+                            } else {
+                                Some(crate::host_zone::daylight_marker(
+                                    &zone
+                                        .call_method1("dst", (&local,))
+                                        .map_err(crate::error_context::external)?,
+                                )?)
+                            }
+                        }
+                    } else {
+                        None
+                    };
+                    if Q == 106 {
+                        cell[0] = u8::from(value.is_some_and(|v| v > 0));
+                    } else {
+                        cell.copy_from_slice(
+                            &value.map_or(0, |v| v.div_euclid(1_000_000)).to_ne_bytes(),
+                        );
+                        if value.is_none() {
+                            super::common::missing_mask(&mut mask, count, i)?;
+                        }
+                    }
+                    return Ok(());
+                }
+                let wall = if let Some(offset) = fixed {
+                    source + i128::from(offset) * 1000
+                } else {
+                    super::zones::utc_wall(
+                        source,
+                        zone.ok_or_else(|| crate::error_context::runtime("missing query region"))?,
+                        None,
+                    )?
+                };
+                let value = fact::<Q>(wall, selected, &mut cached)?;
+                if boolean {
+                    cell[0] = u8::from(value != 0);
+                } else {
+                    cell.copy_from_slice(&value.to_ne_bytes());
+                }
+                Ok(())
+            })()
+            .map_err(|error| {
+                crate::error_context::item(py, error, entry, "result", i, None, false)
             })?;
-            if boolean {
-                cell[0] = u8::from(value != 0);
-            } else {
-                cell.copy_from_slice(&value.to_ne_bytes());
-            }
         }
         Ok(())
     })?;
@@ -192,6 +198,7 @@ fn iso_table<'py>(
                 super::common::missing_mask(&mut mask, count, i)?;
                 continue;
             }
+            let result = (|| {
             let value = i128::from(tick) * unit.nanos();
             let wall = if let Some(offset) = fixed {
                 value + i128::from(offset) * 1000
@@ -202,7 +209,6 @@ fn iso_table<'py>(
                     None,
                 )?
             };
-            let result = (|| {
             let day = i64::try_from(wall.div_euclid(NS_DAY) + 719_163)
                 .map_err(|_| crate::error_context::overflow("calendar day overflow"))?;
             if let Some((previous, fields)) = cached
@@ -221,7 +227,7 @@ fn iso_table<'py>(
             cached = Some((day, result));
             Ok(result)
         })()
-        .map_err(|e| crate::error_context::location(py, e, entry, &format!("result[{i}]")))?;
+        .map_err(|error| crate::error_context::item(py, error, entry, "result", i, None, false))?;
             for (cell, value) in row.as_chunks_mut::<8>().0.iter_mut().zip(result) {
                 cell.copy_from_slice(&value.to_ne_bytes());
             }

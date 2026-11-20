@@ -111,19 +111,6 @@ pub(super) fn configure(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(_pddt_integers, module)?)
 }
 
-/// Existing-column parameters accept only None as an optional unchanged field.
-/// Date missing markers remain a separate factory/data role.
-fn component_value(value: &Bound<'_, PyAny>, optional: bool, names: u8) -> PyResult<Option<i64>> {
-    if value.is_none() && optional {
-        return Ok(None);
-    }
-    if names != 0 && value.is_instance_of::<PyString>() {
-        let text = value.cast::<PyString>()?.to_str()?;
-        return crate::pydt::lookup_selector(value.py(), text, names == 2)
-            .map(|v| Some(i64::from(v)));
-    }
-    crate::numeric::index_i64(value).map(Some)
-}
 fn component_range(
     value: Option<i64>,
     low: Option<i64>,
@@ -131,14 +118,9 @@ fn component_range(
 ) -> PyResult<Option<i64>> {
     if value.is_some_and(|n| low.is_some_and(|l| n < l) || high.is_some_and(|h| n > h)) {
         return Err(crate::error_context::value_error(format!(
-            "must be in the inclusive range {} through {}{}",
+            "must be in the inclusive range {} through {}; use None only when the field may be retained",
             low.unwrap_or(i64::MIN),
-            high.unwrap_or(i64::MAX),
-            if value.is_none() {
-                ""
-            } else {
-                "; use None only when the field may be retained"
-            }
+            high.unwrap_or(i64::MAX)
         )));
     }
     Ok(value)
@@ -165,8 +147,34 @@ fn _pddt_component(
     mask: Option<&[u8]>,
 ) -> PyResult<Integers> {
     let py = data.py();
-    let convert =
-        |v: &Bound<'_, PyAny>| component_range(component_value(v, optional, names)?, low, high);
+    let convert = |value: &Bound<'_, PyAny>, row: Option<usize>| {
+        let value_error = |error| match row {
+            Some(i) => {
+                crate::error_context::item(py, error, entry, parameter, i, Some(value), false)
+            }
+            None => crate::error_context::argument(py, error, entry, parameter, value),
+        };
+        // Only None retains an optional field. A name lookup owns its own
+        // text preview; the outer argument contributes its actual position.
+        let number = if optional && value.is_none() {
+            None
+        } else if names != 0
+            && let Ok(text) = value.cast::<PyString>()
+        {
+            let text = text.to_str().map_err(value_error)?;
+            let selected =
+                crate::pydt::lookup_selector(py, text, names == 2).map_err(|error| match row {
+                    Some(i) => {
+                        crate::error_context::item(py, error, entry, parameter, i, None, false)
+                    }
+                    None => crate::error_context::location(py, error, entry, parameter),
+                })?;
+            Some(i64::from(selected))
+        } else {
+            Some(crate::numeric::index_i64(value).map_err(value_error)?)
+        };
+        component_range(number, low, high).map_err(value_error)
+    };
     if let Some(bytes) = buffer {
         if bytes.len() % 8 != 0 || mask.is_some_and(|m| m.len() != bytes.len() / 8) {
             return Err(crate::error_context::runtime(
@@ -236,9 +244,7 @@ fn _pddt_component(
             || data.is_instance_of::<pyo3::types::PyByteArray>()
             || super::prepare::missing(data));
     if scalar {
-        return convert(data)
-            .map(|n| Integers(Column::Scalar(n)))
-            .map_err(|e| crate::error_context::argument(py, e, entry, parameter, data));
+        return convert(data, None).map(|n| Integers(Column::Scalar(n)));
     }
     let iterator = data.try_iter().map_err(crate::error_context::external)?;
     let mut values = Vec::with_capacity(length);
@@ -256,9 +262,7 @@ fn _pddt_component(
                 parameter,
             ));
         }
-        values.push(convert(&value).map_err(|e| {
-            crate::error_context::item(py, e, entry, parameter, i, Some(&value), false)
-        })?);
+        values.push(convert(&value, Some(i))?);
     }
     if values.len() != length {
         return Err(crate::error_context::location(

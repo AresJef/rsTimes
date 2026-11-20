@@ -1,5 +1,12 @@
 //! Small integer output rules shared by scalar and column container adapters.
 
+/// Python timezone offsets are strictly inside one day, in microseconds.
+/// Comparisons alone also handle the full signed64 domain without abs/negation.
+#[inline]
+pub(crate) fn valid_offset_us(value: i64) -> bool {
+    -86_400_000_000 < value && value < 86_400_000_000
+}
+
 /// Failure after a real value has reached its final target resolution.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum TickError {
@@ -63,6 +70,16 @@ pub(crate) fn quantum_unit(nanos: i128) -> crate::epoch::Unit {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn timezone_offset_bounds_are_strict_and_do_not_overflow() {
+        for value in [i64::MIN, -86_400_000_000, 86_400_000_000, i64::MAX] {
+            assert!(!valid_offset_us(value));
+        }
+        for value in [-86_399_999_999, 0, 86_399_999_999] {
+            assert!(valid_offset_us(value));
+        }
+    }
 
     #[test]
     fn epoch_float_rules_preserve_fraction_until_nanoseconds() {

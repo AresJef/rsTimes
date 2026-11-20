@@ -1,32 +1,32 @@
 {
   "schema": "rstimes-release-performance-contract-v1",
-  "version": "0.2.0b3",
-  "baseline": "R18 final01",
-  "policy": "Protect the adopted implementation using fresh pairs on the actual release wheels; historical preparation hashes are provenance, not release measurements.",
+  "version": "1.0.0",
+  "baseline": "seven-final-roll01",
+  "policy": "Protect the adopted implementation using fresh pairs on the actual release wheels. Preparation digests identify the frozen workloads.",
   "baseline_artifacts": {
     "cp312": {
-      "wheel_sha256": "4ccbf252b41a75cb778f291205d08f2f1be2e75a8d8a9b6c7bdbbd9c7440ad4e",
-      "native_sha256": "dddd7aace8b1601e8d7cbbb5e737e901c10778a9bdf975a28215249baa34b3fe"
+      "wheel_sha256": "5b4147dae28e7cf3e3118bbad9c0f01c6f0161d24f4478e4ba825338bf74b7c7",
+      "native_sha256": "3addb668428c9f7c9b45bd8b4a07dc4c890f49eb21273ffedb298670f0eadb30"
     },
     "cp313": {
-      "wheel_sha256": "cdc64cc3d3b7cc9353ebbc2bbc3981d633c6ba629125fd9fa816b94e3c9653a9",
-      "native_sha256": "7c963fe3881300f0f2352bad51842afbf97d1ddf1bc3ccee7bcfe8a6708cc601"
+      "wheel_sha256": "1cf71b1402c568e89e145da61706f53ea38a3ceb9b23a6f8073be37ccb5d7fe4",
+      "native_sha256": "773bc14d2b9ac553daf97886419460bff000006013ef4839c2387a8218735b41"
     },
     "cp314": {
-      "wheel_sha256": "d6338e3b3bc2ea94a87ca2fdb28266f059cac6d9cfcecc164eb7472af09f3ef5",
-      "native_sha256": "ed8bcc2d3b89618e8e15534ea02b6c8f9cd19695b9e042e2229110f11c0466b6"
+      "wheel_sha256": "34a45307f46c7e609db0062bcba9a6affd9e71446b38daf2ee2745e1ed088b7c",
+      "native_sha256": "f96812da23b1fddf7b7fbb3604c358649f016474edd97c1908c430122377065e"
     },
     "cp315": {
-      "wheel_sha256": "20f9a96c8afb388e43b67004f25f252105b96c442b4504f502401448353e69e6",
-      "native_sha256": "f930242c08f36adf15f1933caff6cd22cae4920025bc8c7fec09813f396dbe8c"
+      "wheel_sha256": "8df4f3b64ebebf02b29568c36471a83637c59955535bccc85b9943124aedcd76",
+      "native_sha256": "be6f12cb82ac8aae24678026a23cef453aee78f48acfd6389250c5f6f7fe5baa"
     },
     "cp314t": {
-      "wheel_sha256": "42da54144095af161528e7ba71ba1ce79799c700ca0526e93b829d24bcb8f49f",
-      "native_sha256": "44c89a77716219aa667ed54f76fe472176b2fc150f4c5caba565ac41667e0355"
+      "wheel_sha256": "9fade42a6141e7020408d5ad5e6d84fe48d9c6a2a8553e0b3e3d399a4831e807",
+      "native_sha256": "9b82d948b771c7ae1c3e967b44159f2cbd67909ce283940a248b86a4e801c330"
     },
     "cp315t": {
-      "wheel_sha256": "dfa2f58aafaa58a045a2f7aa4c77b5a8f3b1b70c9eb4cfb55d1f1b23cc066c5b",
-      "native_sha256": "3563dbaa4152d229232b3430221382e88b5b68c6493c383ec713a7251365b609"
+      "wheel_sha256": "2ffbde76858c0ef5ba58e84643ce094b94cdd92d636c008b43b8f19da261eefd",
+      "native_sha256": "d6d677d465f0de507acabbde40091a515d5f9fd4de29002da0e59f6ca39e951c"
     }
   },
   "required_cases": [
@@ -593,6 +593,72 @@
       "id": "B06",
       "abi": "cp313",
       "preparation_provenance_sha256": "d54feec358f60123e452d9a348936fc45f283a85155dea51ff5dc100a6fd45ab"
+    },
+    {
+      "group": "workday-forward-313",
+      "id": "RF01",
+      "abi": "cp313",
+      "preparation_provenance_sha256": "01e4f50b4fddc425f5c0149508e7c82fa0ce8c97b676ba7be2d6c76ec3ce7f42"
+    },
+    {
+      "group": "workday-forward-313",
+      "id": "RF02",
+      "abi": "cp313",
+      "preparation_provenance_sha256": "01e4f50b4fddc425f5c0149508e7c82fa0ce8c97b676ba7be2d6c76ec3ce7f42"
+    },
+    {
+      "group": "workday-forward-313",
+      "id": "RF03",
+      "abi": "cp313",
+      "preparation_provenance_sha256": "01e4f50b4fddc425f5c0149508e7c82fa0ce8c97b676ba7be2d6c76ec3ce7f42"
+    },
+    {
+      "group": "workday-forward-313",
+      "id": "RF04",
+      "abi": "cp313",
+      "preparation_provenance_sha256": "01e4f50b4fddc425f5c0149508e7c82fa0ce8c97b676ba7be2d6c76ec3ce7f42"
+    },
+    {
+      "group": "workday-forward-313",
+      "id": "BF03",
+      "abi": "cp313",
+      "preparation_provenance_sha256": "01e4f50b4fddc425f5c0149508e7c82fa0ce8c97b676ba7be2d6c76ec3ce7f42"
+    },
+    {
+      "group": "workday-forward-313",
+      "id": "BF04",
+      "abi": "cp313",
+      "preparation_provenance_sha256": "01e4f50b4fddc425f5c0149508e7c82fa0ce8c97b676ba7be2d6c76ec3ce7f42"
+    },
+    {
+      "group": "workday-forward-312",
+      "id": "RF04",
+      "abi": "cp312",
+      "preparation_provenance_sha256": "26148912288cff58fd807d6aa45a581d89a1f1d7dfb357527113927060482315"
+    },
+    {
+      "group": "workday-forward-314",
+      "id": "RF04",
+      "abi": "cp314",
+      "preparation_provenance_sha256": "26148912288cff58fd807d6aa45a581d89a1f1d7dfb357527113927060482315"
+    },
+    {
+      "group": "workday-forward-315",
+      "id": "RF04",
+      "abi": "cp315",
+      "preparation_provenance_sha256": "26148912288cff58fd807d6aa45a581d89a1f1d7dfb357527113927060482315"
+    },
+    {
+      "group": "workday-forward-314t",
+      "id": "RF04",
+      "abi": "cp314t",
+      "preparation_provenance_sha256": "26148912288cff58fd807d6aa45a581d89a1f1d7dfb357527113927060482315"
+    },
+    {
+      "group": "workday-forward-315t",
+      "id": "RF04",
+      "abi": "cp315t",
+      "preparation_provenance_sha256": "26148912288cff58fd807d6aa45a581d89a1f1d7dfb357527113927060482315"
     }
   ],
   "pairs_per_case": 216,
@@ -603,5 +669,5 @@
     "stability_pct": 5,
     "max_increase_pct": 5
   },
-  "source_report_sha256": "4431a19251c62c16c65c31587df90bab7ba160c30925b4f2e32dc7f658233805"
+  "source_report_sha256": "1c58d0d7dac5f14e9bedb6933bfc68e00a8abe26be1e89292d9aff2693795b6b"
 }

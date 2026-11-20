@@ -141,6 +141,6 @@ def test_text_subclass_conversion_is_once_and_precedes_missing_marker_classifica
         reads=0
         def __str__(self):self.reads+=1;return "2024-01-02T12:30"
     value=Text("NaT")
-    assert Pddt.fromisoformat(value,size=3).hour.tolist()==[12]*3 and value.reads==1
+    assert Pddt.fromisoformat(value,size=3).isna().tolist()==[True]*3 and value.reads==0
     value=Text("NaT")
-    assert Pddt.combine([date(2024,5,7)]*3,value).hour.tolist()==[12]*3 and value.reads==1
+    assert Pddt.combine([date(2024,5,7)]*3,value).isna().tolist()==[True]*3 and value.reads==0

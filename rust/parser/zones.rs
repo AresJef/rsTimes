@@ -71,7 +71,6 @@ pub(crate) fn resolve<'py>(
     zone: &RegisteredZone,
     values: [i32; 7],
     default: Option<&Bound<'py, PyAny>>,
-    _strict: bool,
 ) -> PyResult<Bound<'py, PyAny>> {
     datetime(py, values, object(py, zone)?, default_fold(default))
 }
@@ -87,7 +86,7 @@ pub(super) type ZoneMap = HashMap<Vec<u32>, Arc<RegisteredZone>>;
 /// Validate serialized keys even when the receiving machine lacks zoneinfo.
 fn key_text(value: &Bound<'_, PyAny>) -> PyResult<String> {
     let key = value
-        .cast_exact::<PyString>()?
+        .cast::<PyString>()?
         .extract::<String>()
         .map_err(|error| {
             if error.is_instance_of::<pyo3::exceptions::PyUnicodeEncodeError>(value.py()) {
@@ -195,8 +194,8 @@ pub(super) fn names<'py>(py: Python<'py>, zones: &ZoneMap) -> PyResult<Bound<'py
 
 pub(super) fn token(value: &Bound<'_, PyAny>) -> PyResult<Vec<u32>> {
     let key = value
-        .cast_exact::<PyString>()
+        .cast::<PyString>()
         .map_err(|_| crate::error_context::type_error("A time zone name must be a string."))?;
-    let view = TextView::new(key)?;
+    let view = TextView::new(key);
     Ok(view.range(0, view.len()))
 }

@@ -879,6 +879,10 @@ Delta
     def __eq__(self, o: object, /) -> bool:
         """Compare the values of two Delta objects.
 
+A subclass that inherits the value equality implementation retains it when
+__hash__ is None or only __ne__ is overridden. A real __eq__ override and its
+NotImplemented result or exception keep Python's actual comparison protocol.
+
 Parameters
 ----------
 o : object
@@ -1021,17 +1025,19 @@ tuple[object, ...]
     state."""
         ...
 
-    def __copy__(self: _DeltaT) -> _DeltaT:
-        """Return a separate object with the same Delta value and type.
+    def __copy__(self) -> object:
+        """Return the shallow copy selected by this object's reconstruction protocol.
 
 Returns
 -------
-Delta subclass
-    A separate Delta object of the same subclass, retaining the saved metadata."""
+object
+    Without a custom protocol, a separate object of the same Delta type and
+    value, sharing dictionary and slot attribute values. A real reducer or
+    copyreg registration controls its own return type and selected state."""
         ...
 
-    def __deepcopy__(self: _DeltaT, memo: dict[int, object]) -> _DeltaT:
-        """Return a distinct deep copy, preserving subtype and tracking cycles.
+    def __deepcopy__(self, memo: dict[int, object]) -> object:
+        """Return a deep copy using the selected protocol and one shared memo.
 
 Slot values are retained before setters run. A setter may change its own
 metadata or raise an exception without invalidating the remaining slot entries.
@@ -1044,6 +1050,7 @@ memo : dict[int, object]
 
 Returns
 -------
-Delta subclass
-    A separate Delta object of the same subclass, retaining the saved metadata."""
+object
+    The default path preserves Delta fields and subtype. A real business recipe
+    may choose another result; shared references and cycles use the same memo."""
         ...

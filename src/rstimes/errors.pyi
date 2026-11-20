@@ -78,7 +78,8 @@ def _external_error(error: _Error) -> _Error:
     """
 
 def _argument_error(error: _Error, entry: str, parameter: str, value: object,
-                    has_value: bool = True, prepared_preview: str | None = None) -> _Error:
+                    has_value: bool = True, prepared_preview: str | None = None,
+                    position: tuple[str, int] | None = None) -> _Error:
     """Finish owned context or add a note to an external exception.
 
     :param error: The existing failure; it is never reconstructed.
@@ -87,6 +88,7 @@ def _argument_error(error: _Error, entry: str, parameter: str, value: object,
     :param value: The input when has_value is True.
     :param has_value: Whether this boundary has a reliable input value.
     :param prepared_preview: An optional preview captured before callbacks.
+    :param position: Known current group and index, supplied by the actual reader only.
     :returns: The same exception instance.
     """
 
@@ -101,12 +103,14 @@ def _raise_argument_context(error: BaseException, entry: str, parameter: str,
     :returns: Never returns; raises the original exception.
     """
 
-def _location_error(error: _Error, entry: str, parameter: str) -> _Error:
+def _location_error(error: _Error, entry: str, parameter: str,
+                    position: tuple[str, int] | None = None) -> _Error:
     """Add a known location without rereading callback-invalidated data.
 
     :param error: The original exception.
     :param entry: Its public call name.
     :param parameter: The previously established input location.
+    :param position: Its trusted current group and index; text alone is not proof.
     :returns: The same exception instance.
     """
 

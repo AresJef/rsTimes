@@ -78,27 +78,13 @@ fn scalar_types(py: Python<'_>) -> PyResult<&(Py<PyType>, Py<PyType>)> {
     }
     // Import and attribute access may reenter rstimes. Never perform them while
     // owning an initialization lock: a nested call may publish the same cache.
-    let module = match py.import("numpy._core._multiarray_umath") {
-        Ok(module) => module,
-        Err(error) if error.is_instance_of::<pyo3::exceptions::PyModuleNotFoundError>(py) => {
-            let missing = error
-                .value(py)
-                .getattr("name")
-                .map_err(crate::error_context::external)?;
-            let name = missing.extract::<String>()?;
-            if name != "numpy._core" && name != "numpy._core._multiarray_umath" {
-                return Err(error);
-            }
-            py.import("numpy.core._multiarray_umath")?
-        }
-        Err(error) => return Err(error),
-    };
+    let module = py.import("numpy._core._multiarray_umath")?;
     let capsule = module
         .getattr("_ARRAY_API")
         .map_err(crate::error_context::external)?;
     // SAFETY: NumPy's public multiarray API is a nameless exact capsule. Its
     // documented entries 215/216 are the actual scalar PyTypeObjects, including
-    // in the supported NumPy 1.x/2.x tables. Mutable Python aliases are not used.
+    // in the supported NumPy 2.x table. Mutable Python aliases are not used.
     let candidate = unsafe {
         if pyo3::ffi::PyCapsule_CheckExact(capsule.as_ptr()) == 0 {
             return Err(crate::error_context::type_error(
@@ -464,14 +450,15 @@ fn apply_delta_date_impl<'py, const BATCH: bool>(
 }
 
 /// Read a real datetime64 scalar without reducing its precision.
-/// The public scalar prefix is unchanged across the supported NumPy 1/2 ABIs.
+/// Use NumPy's public scalar prefix for the target CPython and NumPy 2.x ABI.
 pub(crate) fn datetime_ticks(value: &Bound<'_, PyAny>) -> PyResult<Option<(i64, i32, i32)>> {
     let (date, _) = scalar_types(value.py())?;
     if !value.get_type().is_subclass(date.bind(value.py()))? {
         return Ok(None);
     }
-    // SAFETY: actual datetime64 ancestry authorizes the public scalar prefix;
-    // the bound value keeps its storage alive and the GIL remains held.
+    // SAFETY: actual datetime64 ancestry authorizes the public scalar prefix.
+    // The bound input keeps the initialized immutable fields alive while this
+    // thread is attached, including on a free-threaded interpreter.
     let scalar = unsafe { &*value.as_ptr().cast::<Scalar>() };
     if scalar.metadata.multiplier <= 0 {
         return Err(crate::error_context::value_error(
@@ -491,8 +478,8 @@ pub(crate) fn duration_ticks(value: &Bound<'_, PyAny>) -> PyResult<Option<(i64, 
     if !value.get_type().is_subclass(duration.bind(value.py()))? {
         return Ok(None);
     }
-    // SAFETY: actual initialized NumPy duration ancestry proves its scalar prefix;
-    // the attached GIL and retained input keep the immutable storage alive.
+    // SAFETY: actual duration ancestry proves the initialized scalar prefix.
+    // Retain the bound input and only read its immutable fields while attached.
     let scalar = unsafe { &*value.as_ptr().cast::<Scalar>() };
     if scalar.metadata.multiplier < 1 {
         return Err(crate::error_context::value_error(
@@ -637,8 +624,8 @@ fn convert_scalar(value: &Bound<'_, PyAny>, datetime: bool) -> PyResult<(i64, bo
     // NumPy arrayscalars.h defines the same PyObject + i64 + metadata prefix
     // for both scalar types. Actual PyType inheritance is checked above, so a
     // forged __class__ cannot reach this cast. `value` keeps the object alive.
-    // Only read, and only while CPython is attached. ABI offsets were checked
-    // against the installed public C headers (numpy-layout-c.json).
+    // Only read while attached to CPython. The layout test reports offsets
+    // for these same types to compare against the target NumPy C headers.
     let scalar = unsafe { &*value.as_ptr().cast::<Scalar>() };
     if scalar.value == i64::MIN {
         return Err(crate::error_context::value_error(
@@ -699,25 +686,8 @@ fn convert_narrow(ticks: i64, unit: i32, datetime: bool) -> PyResult<(i64, bool)
                 ticks.rem_euclid(12) + 1
             };
             let year = years.checked_add(1970).ok_or_else(overflow)?;
-            // A failure here necessarily exceeds the final microsecond range.
-            mul(years, 365)?;
-            let previous = year.checked_sub(1).ok_or_else(overflow)?;
-            let before_year = mul(previous, 365)?
-                .checked_add(previous.div_euclid(4))
-                .ok_or_else(overflow)?
-                .checked_sub(previous.div_euclid(100))
-                .ok_or_else(overflow)?
-                .checked_add(previous.div_euclid(400))
-                .ok_or_else(overflow)?;
-            let month_days =
-                [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334][(month - 1) as usize];
-            let ordinal = before_year
-                .checked_add(month_days)
-                .and_then(|value| {
-                    value.checked_add(i64::from(month > 2 && crate::calendar::leap(year)))
-                })
-                .and_then(|value| value.checked_add(1))
-                .ok_or_else(overflow)?;
+            let ordinal =
+                crate::calendar::checked_ordinal(year, month, 1).map_err(|_| overflow())?;
             let days = ordinal.checked_sub(719_163).ok_or_else(overflow)?;
             mul(days, 86_400_000_000)?
         }
@@ -832,9 +802,41 @@ mod tests {
 
     #[test]
     fn scalar_layout_matches_public_numpy_headers() {
-        assert_eq!(std::mem::size_of::<Scalar>(), 32);
-        assert_eq!(std::mem::offset_of!(Scalar, value), 16);
-        assert_eq!(std::mem::offset_of!(Scalar, metadata), 24);
-        assert_eq!(std::mem::size_of::<Metadata>(), 8);
+        use std::mem::{align_of, align_of_val, offset_of, size_of, size_of_val};
+
+        let object_size = size_of::<pyo3::ffi::PyObject>();
+        // Infer the actual member type without constructing a PyObject.
+        fn field_size<F>(_: fn(&Scalar) -> &F) -> usize {
+            size_of::<F>()
+        }
+        let value_width = field_size(|scalar| &scalar.value);
+        let metadata = Metadata {
+            unit: 0,
+            multiplier: 1,
+        };
+        assert_eq!(offset_of!(Scalar, object), 0);
+        assert_eq!(offset_of!(Scalar, value), object_size);
+        assert_eq!(offset_of!(Scalar, metadata), object_size + value_width);
+        let record = serde_json::json!({
+            "free_threaded": cfg!(Py_GIL_DISABLED),
+            "pointer_width": size_of::<*const u8>(),
+            "object_size": object_size,
+            "object_align": align_of::<pyo3::ffi::PyObject>(),
+            "object_offset": offset_of!(Scalar, object),
+            "scalar_size": size_of::<Scalar>(),
+            "scalar_align": align_of::<Scalar>(),
+            "value_offset": offset_of!(Scalar, value),
+            "value_width": value_width,
+            "metadata_offset": offset_of!(Scalar, metadata),
+            "metadata_size": size_of::<Metadata>(),
+            "metadata_align": align_of::<Metadata>(),
+            "unit_offset": offset_of!(Metadata, unit),
+            "unit_width": size_of_val(&metadata.unit),
+            "unit_align": align_of_val(&metadata.unit),
+            "multiplier_offset": offset_of!(Metadata, multiplier),
+            "multiplier_width": size_of_val(&metadata.multiplier),
+            "multiplier_align": align_of_val(&metadata.multiplier),
+        });
+        println!("RSTIMES_NUMPY_LAYOUT={record}");
     }
 }

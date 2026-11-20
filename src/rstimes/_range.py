@@ -45,7 +45,7 @@ if pd is not None:
         _o.Milli: ("fixed", 1_000_000), _o.Second: ("fixed", 1_000_000_000),
         _o.Minute: ("fixed", 60_000_000_000), _o.Hour: ("fixed", 3600_000_000_000),
         _o.Day: ("days", None), _o.Week: ("week", None),
-        _o.BusinessDay: ("business", None), _o.CustomBusinessDay: ("business", None),
+        _o.BusinessDay: ("business", None), _o.CustomBusinessDay: ("custom_business", None),
         _o.MonthBegin: ("boundary", (1, True, False)),
         _o.MonthEnd: ("boundary", (1, False, False)),
         _o.QuarterBegin: ("boundary", (3, True, False)),
@@ -58,8 +58,8 @@ if pd is not None:
         _o.BQuarterEnd: ("boundary", (3, False, True)),
         _o.BYearBegin: ("boundary", (12, True, True)),
         _o.BYearEnd: ("boundary", (12, False, True)),
-        _o.CustomBusinessMonthBegin: ("boundary", (1, True, True)),
-        _o.CustomBusinessMonthEnd: ("boundary", (1, False, True)),
+        _o.CustomBusinessMonthBegin: ("custom_business_month", True),
+        _o.CustomBusinessMonthEnd: ("custom_business_month", False),
         _o.SemiMonthBegin: ("semi", True), _o.SemiMonthEnd: ("semi", False),
         _o.WeekOfMonth: ("wom", False), _o.LastWeekOfMonth: ("wom", True),
     }
@@ -170,12 +170,10 @@ def frequency(value):
     """Return a native plan, optional original metadata and a delegate flag."""
     if value is None:
         return None, None, False
-    if isinstance(value, str):
-        if type(value) is not str:
-            try:
-                value = str(value)
-            except Exception as error:
-                raise _external_error(error)
+    source_type = type(value)
+    if issubclass(source_type, str):
+        if source_type is not str:
+            value = str.__str__(value)
         offset, step = _from_string(value)
         if step is not None:
             precision = "s"
@@ -186,10 +184,10 @@ def frequency(value):
             elif type(offset) is _o.Milli:
                 precision = "ms"
             return _pddt_frequency("fixed", 1 if step > 0 else -1, {"tick": step, "precision": precision}), offset, False
-    elif isinstance(value, timedelta):
+    elif issubclass(source_type, timedelta):
         plan = _pddt_frequency("duration", 1, {"duration": value})
         return plan, _metadata_fixed(plan.tick), False
-    elif isinstance(value, _o.DateOffset):
+    elif issubclass(source_type, _o.DateOffset):
         offset = value
     else:
         raise _own_error(TypeError("must be a frequency string, timedelta or pandas DateOffset"), "freq", value)
@@ -212,6 +210,8 @@ def frequency(value):
         stride, start, business = detail
         props.update(stride=stride, start=start, business=business,
             anchor=kwargs["startingMonth"] if stride == 3 else kwargs["month"] if stride == 12 else 1)
+    elif kind == "custom_business_month":
+        props["start"] = detail
     elif kind == "semi":
         props.update(start=detail, day=kwargs["day_of_month"])
     elif kind == "wom":

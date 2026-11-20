@@ -3,21 +3,27 @@
 Only explicit copy/save operations enter here. Ordinary date kernels do not
 inspect business dictionaries, slots, reduction hooks or namespace caches.
 """
+from copy import copy, deepcopy
 from copy import _reconstruct  # pyright: ignore[reportAttributeAccessIssue] -- TY051; see tests/typing/pyright_exceptions.json.
+from collections.abc import Iterable
+from typing import cast
 
 from ._optional import POLARS as pl
 from ._native import _pldt_core, _pldt_restore_core, _pldt_copy_core
-from ._class_protocol import definition, copy_hook as _copy_hook
+from ._class_protocol import definition, copy_reduction, NATIVE_COPY
+from ._state_storage import snapshot as _snapshot_state
 from ._polars import plain_series
 from .errors import _own_error, _external_error
 
 _BASE = None
+_DEFAULT_REDUCERS = None
 _NAMESPACE_DESCRIPTOR = pl.api.NameSpace
 
 
 def register(base):
-    global _BASE
+    global _BASE, _DEFAULT_REDUCERS
     _BASE = base
+    _DEFAULT_REDUCERS = (base.__reduce_ex__, base.__reduce__)
 
 
 def _is_namespace_cache(cls, key, value):
@@ -45,18 +51,22 @@ def apply(value, state):
     """Apply ordinary state after core restoration, leaving its buffer intact."""
     if state is None:
         return
-    if isinstance(state, tuple):
+    if issubclass(type(state), tuple):
         if len(state) != 2:
             raise _own_error(ValueError('business state must be a dictionary or dictionary/slots pair'), 'state', state)
         dictionary, slots = state
     else:
         dictionary, slots = state, None
+    prepared = []
     for label, part in (('dictionary', dictionary), ('slots', slots)):
-        if part is not None and not isinstance(part, dict):
+        if part is not None and not issubclass(type(part), dict):
             raise _own_error(TypeError('must be a dictionary or None'), 'state.' + label, part)
+        part = _snapshot_state(part)
         if part is not None and '_s' in part:
             raise _own_error(ValueError('business state cannot replace the validated native date core'), 'state.' + label, part)
-    if slots is not None and any(not isinstance(key, str) for key in dict.keys(slots)):
+        prepared.append(part)
+    dictionary, slots = prepared
+    if slots is not None and any(not issubclass(type(key), str) for key in dict.keys(slots)):
         raise _own_error(TypeError('slot names must be strings'), 'state.slots', slots)
     try:
         if dictionary is not None:
@@ -118,7 +128,8 @@ def _restore_copy(cls, source, deep, sorted):
 
 def recipe(value):
     """Keep the independent-validity core separate from real user state."""
-    core = _pldt_core(plain_series(value), _sorted(value))
+    column = plain_series(value)
+    core = _pldt_core(column, _sorted(column))
     try:
         state = value.__getstate__()
     except Exception as error:
@@ -128,49 +139,41 @@ def recipe(value):
 
 def copy_value(value, deep, memo=None, *, name=None, honor_copy=False):
     """Reuse standard reconstruction/memo and the actual reduction hooks."""
-    cls = type(value)
     if deep and memo is None:
         memo = {}
     if honor_copy:
         try:
-            copier = _copy_hook(value, _BASE, deep)
+            result = deepcopy(value, memo) if deep else copy(value)
         except Exception as error:
             raise _external_error(error)
-        if copier is not None:
-            try:
-                result = copier(memo) if deep else copier(value)
-            except Exception as error:
-                raise _external_error(error)
-            return _named_result(value, result, name)
-    custom = (definition(cls, '__reduce_ex__') is not _BASE.__reduce_ex__
-              or definition(cls, '__reduce__') is not _BASE.__reduce__)
-    if custom:
-        try:
-            reduction = value.__reduce_ex__(4)
-        except Exception as error:
-            raise _external_error(error)
-    else:
-        sorted = _sorted(value)
+        return result if name is None else _named_result(value, result, name)
+    cls = type(value)
+    try:
+        reduction = copy_reduction(value, _DEFAULT_REDUCERS, deep)
+    except Exception as error:
+        raise _external_error(error)
+    if reduction is NATIVE_COPY:
         core = plain_series(value)
+        sorted = _sorted(core)
         try:
             state = value.__getstate__()
         except Exception as error:
             raise _external_error(error)
         reduction = _restore_copy, (cls, core, deep, sorted), state
-    result = value if isinstance(reduction, str) else _reconstruct(value, memo if deep else None, *reduction)
-    return _named_result(value, result, name)
+    # Standard argument unpacking keeps the real error for an invalid recipe.
+    result = value if isinstance(reduction, str) else _reconstruct(value, memo if deep else None, *cast("Iterable[object]", reduction))
+    return result if name is None else _named_result(value, result, name)
 
 
 def _named_result(source, result, name):
-    if name is not None:
-        if result is source and pl.Series.name.fget(source) != name:  # pyright: ignore[reportOptionalCall] -- TY002; see tests/typing/pyright_exceptions.json.
-            raise _own_error(ValueError('the copy hook returned the original object; it cannot be renamed without changing the source'), 'name', name)
-        try:
-            if isinstance(result, pl.Series):
-                carrier = plain_series(result).rename(name)
-                object.__setattr__(result, '_s', carrier._s)
-            else:
-                result.name = name
-        except Exception as error:
-            raise _external_error(error)
+    if result is source and pl.Series.name.fget(source) != name:  # pyright: ignore[reportOptionalCall] -- TY002; see tests/typing/pyright_exceptions.json.
+        raise _own_error(ValueError('the copy hook returned the original object; it cannot be renamed without changing the source'), 'name', name)
+    try:
+        if isinstance(result, pl.Series):
+            carrier = plain_series(result).rename(name)
+            object.__setattr__(result, '_s', carrier._s)
+        else:
+            result.name = name
+    except Exception as error:
+        raise _external_error(error)
     return result

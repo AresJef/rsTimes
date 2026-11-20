@@ -213,12 +213,17 @@ pub(crate) fn parse(text: &str) -> Result<Option<Plan>, Error> {
         }
         "D" if anchor.is_none() => Kind::Days,
         "W" => Kind::Week(Some(weekday(anchor.unwrap_or("SUN"))?)),
-        "B" | "C" if anchor.is_none() => Kind::Business,
-        "MS" | "ME" | "BMS" | "BME" | "CBMS" | "CBME" if anchor.is_none() => Kind::Boundary {
+        "B" | "C" if anchor.is_none() => Kind::Business {
+            custom: code == "C",
+        },
+        "MS" | "ME" | "BMS" | "BME" if anchor.is_none() => Kind::Boundary {
             stride: 1,
             anchor: 1,
             start: code.ends_with('S'),
-            business: code.starts_with('B') || code.starts_with("CB"),
+            business: code.starts_with('B'),
+        },
+        "CBMS" | "CBME" if anchor.is_none() => Kind::CustomBusinessMonth {
+            start: code.ends_with('S'),
         },
         "QS" | "QE" | "BQS" | "BQE" | "YS" | "YE" | "BYS" | "BYE" => {
             let start = code.ends_with('S');
@@ -281,13 +286,6 @@ pub(crate) fn parse(text: &str) -> Result<Option<Plan>, Error> {
 #[pyfunction]
 fn _pldt_frequency(value: &Bound<'_, PyAny>) -> PyResult<Option<Plan>> {
     if let Ok(text) = value.cast::<PyString>() {
-        let converted;
-        let text = if value.is_exact_instance_of::<PyString>() {
-            text
-        } else {
-            converted = value.str().map_err(crate::error_context::external)?;
-            &converted
-        };
         return parse(text.to_str()?).map_err(PyErr::from);
     }
     if let Some(value) = crate::interop::duration_nanoseconds(value)? {

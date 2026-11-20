@@ -21,10 +21,7 @@ def prepare_format(fmt):
     if not isinstance(fmt, str):
         raise _own_error(TypeError("must be a strptime format string"), "fmt", fmt)
     if type(fmt) is not str:
-        try:
-            fmt = str(fmt)
-        except Exception as error:
-            raise _external_error(error)
+        fmt = str.__str__(fmt)
     compiled = _compile(fmt)
     if not compiled.needs_locale:
         return compiled

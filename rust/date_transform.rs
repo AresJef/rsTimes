@@ -5,11 +5,21 @@ pub(crate) enum Error {
     Capacity(&'static str),
 }
 const NS_DAY: i128 = 86_400_000_000_000;
-pub(crate) fn fields(ns: i128) -> Result<[i64; 8], Error> {
+fn split_wall(ns: i128) -> Result<([i64; 3], i128), Error> {
     let ordinal = i64::try_from(ns.div_euclid(NS_DAY) + 719_163)
         .map_err(|_| Error::Capacity("calendar day exceeds native range"))?;
     let date = crate::calendar::from_ordinal(ordinal).map_err(Error::Capacity)?;
-    let clock = ns.rem_euclid(NS_DAY);
+    Ok((date, ns.rem_euclid(NS_DAY)))
+}
+
+fn compose_wall(date: [i64; 3], clock: i128) -> Result<i128, Error> {
+    let [year, month, day] = date;
+    let ordinal = crate::calendar::checked_ordinal(year, month, day).map_err(Error::Capacity)?;
+    Ok((i128::from(ordinal) - 719_163) * NS_DAY + clock)
+}
+
+pub(crate) fn fields(ns: i128) -> Result<[i64; 8], Error> {
+    let (date, clock) = split_wall(ns)?;
     Ok([
         date[0],
         date[1],
@@ -22,11 +32,11 @@ pub(crate) fn fields(ns: i128) -> Result<[i64; 8], Error> {
     ])
 }
 pub(crate) fn nanos(f: [i64; 8]) -> Result<i128, Error> {
-    let day = crate::calendar::checked_ordinal(f[0], f[1], f[2]).map_err(Error::Capacity)?;
-    Ok((i128::from(day) - 719_163) * NS_DAY
-        + ((i128::from(f[3]) * 60 + i128::from(f[4])) * 60 + i128::from(f[5])) * 1_000_000_000
+    let clock = ((i128::from(f[3]) * 60 + i128::from(f[4])) * 60 + i128::from(f[5]))
+        * 1_000_000_000
         + i128::from(f[6]) * 1000
-        + i128::from(f[7]))
+        + i128::from(f[7]);
+    compose_wall([f[0], f[1], f[2]], clock)
 }
 
 pub(crate) fn transform(
@@ -34,8 +44,8 @@ pub(crate) fn transform(
     kind: &str,
     get: impl Fn(usize) -> Option<i64>,
 ) -> Result<i128, Error> {
-    let mut f = fields(wall)?;
     if matches!(kind, "replace" | "adjust") {
+        let mut f = fields(wall)?;
         for (i, field) in f.iter_mut().enumerate() {
             if let Some(value) = get(i) {
                 *field = value;
@@ -56,8 +66,9 @@ pub(crate) fn transform(
         }
         return nanos(f);
     }
+    let (date, source_clock) = split_wall(wall)?;
     let required = |i| get(i).ok_or(Error::Capacity("required component was not prepared"));
-    let (months, days, clock, month, day) = if matches!(kind, "add" | "sub") {
+    let (months, days, clock_delta, month, day) = if matches!(kind, "add" | "sub") {
         let sign = if kind == "sub" { -1 } else { 1 };
         let months = (i128::from(required(0)?) * 12
             + i128::from(required(1)?) * 3
@@ -81,13 +92,13 @@ pub(crate) fn transform(
                 offset * 3,
                 0,
                 0,
-                get(1).map(|v| (f[1] - 1) / 3 * 3 + v),
+                get(1).map(|v| (date[1] - 1) / 3 * 3 + v),
                 get(2),
             ),
             "month" => (offset, 0, 0, None, get(1)),
             "weekday" => {
-                let ordinal =
-                    crate::calendar::checked_ordinal(f[0], f[1], f[2]).map_err(Error::Capacity)?;
+                let ordinal = crate::calendar::checked_ordinal(date[0], date[1], date[2])
+                    .map_err(Error::Capacity)?;
                 (
                     0,
                     offset * 7 + get(1).map_or(0, |v| i128::from(v - (ordinal - 1).rem_euclid(7))),
@@ -100,11 +111,10 @@ pub(crate) fn transform(
             _ => return Err(Error::Capacity("unknown calendar transform")),
         }
     };
-    let date = crate::calendar::move_date([f[0], f[1], f[2]], months, days, month, day)
-        .map_err(Error::Capacity)?;
-    f[..3].copy_from_slice(&date);
-    nanos(f)?
-        .checked_add(clock)
+    let moved =
+        crate::calendar::move_date(date, months, days, month, day).map_err(Error::Capacity)?;
+    compose_wall(moved, source_clock)?
+        .checked_add(clock_delta)
         .ok_or(Error::Capacity("calendar clock increment overflow"))
 }
 

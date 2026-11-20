@@ -141,23 +141,33 @@ pub(crate) fn year_day_ordinal(year: i64, day: i64) -> Result<i64, &'static str>
         .ok_or(OVERFLOW)
 }
 
-/// Resolve an ISO week/day using the actual last week and convenient high limits.
-/// The public caller validates positive week/day; wide years remain supported.
-pub(crate) fn iso_ordinal(year: i64, week: i64, weekday: i64) -> Result<i64, &'static str> {
+/// Prepare the checked January 1 ordinal and number of ISO weeks for the year.
+pub(crate) fn iso_year_start(year: i64) -> Result<(i64, i64), &'static str> {
     let jan1 = checked_ordinal(year, 1, 1)?;
     let wd = jan1.checked_sub(1).ok_or(OVERFLOW)?.rem_euclid(7);
-    let last = if wd == 3 || (wd == 2 && leap(year)) {
-        53
-    } else {
-        52
-    };
+    Ok((jan1, 52 + i64::from(wd == 3 || (wd == 2 && leap(year)))))
+}
+
+/// Convert an already validated ISO week and weekday using their year's ordinal.
+pub(crate) fn iso_ordinal_from_year_start(
+    jan1: i64,
+    week: i64,
+    weekday: i64,
+) -> Result<i64, &'static str> {
     let jan4 = jan1.checked_add(3).ok_or(OVERFLOW)?;
     let monday = jan4
         .checked_sub(jan4.checked_sub(1).ok_or(OVERFLOW)?.rem_euclid(7))
         .ok_or(OVERFLOW)?;
     monday
-        .checked_add((week.min(last) - 1) * 7 + weekday.min(7) - 1)
+        .checked_add((week - 1) * 7 + weekday - 1)
         .ok_or(OVERFLOW)
+}
+
+/// Resolve an ISO week/day using the actual last week and convenient high limits.
+/// The public caller validates positive week/day; wide years remain supported.
+pub(crate) fn iso_ordinal(year: i64, week: i64, weekday: i64) -> Result<i64, &'static str> {
+    let (jan1, last) = iso_year_start(year)?;
+    iso_ordinal_from_year_start(jan1, week.min(last), weekday.min(7))
 }
 
 /// Add calendar values with checked i64 arithmetic.
@@ -245,7 +255,9 @@ pub(crate) fn move_date(
     if (-27..=27).contains(&days) {
         return shift_small_days(year, month, day, days as i64);
     }
-    let ordinal = i128::from(checked_ordinal(year, month, day)?) + days;
+    let ordinal = crate::civil::ordinal(i128::from(year), month as u8, day as u8)?
+        .checked_add(days)
+        .ok_or(OVERFLOW)?;
     from_ordinal(i64::try_from(ordinal).map_err(|_| OVERFLOW)?)
 }
 
@@ -472,6 +484,18 @@ pub(crate) fn apply_hours(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn complete_gregorian_cycles_cancel_before_ordinal_narrowing() {
+        for date in [[0, 2, 29], [2024, 1, 31], [2024, 2, 29]] {
+            for cycles in [-100_000_000_000_000i128, -1, 1, 100_000_000_000_000] {
+                assert_eq!(
+                    move_date(date, 4800 * cycles, -146_097 * cycles, None, None).unwrap(),
+                    date,
+                );
+            }
+        }
+    }
     #[test]
     fn whole_hour_change_flag_matches_all_result_fields() {
         use crate::delta::value::{AbsoluteField as F, AbsoluteFields, DeltaValue};

@@ -38,10 +38,9 @@ def test_keyword_migration_and_string_subclass_behavior():
         def __str__(self):
             events.append("str")
             return "2024-05-07"
-    value=Child("ignored")
-    assert obj(value)==datetime(2024,5,7)
-    assert events==["str"]
-    with pytest.raises(TypeError):text(value)
+    value=Child("2024-05-06")
+    assert obj(value)==text(value)==datetime(2024,5,6)
+    assert events==[]
 
 
 def test_native_input_ignores_default_but_validates_actual_boolean_options():
@@ -61,6 +60,7 @@ def test_native_input_ignores_default_but_validates_actual_boolean_options():
 
 
 def test_string_conversion_result_still_requires_builtin_string():
+    """Historical case ID; the approved native-text contract never converts."""
     _, obj, _ = functions()
     events = []
     class Returned(str):
@@ -69,9 +69,8 @@ def test_string_conversion_result_still_requires_builtin_string():
         def __str__(self):
             events.append("str")
             return Returned("2024-05-07")
-    with pytest.raises(TypeError, match="dtstr"):
-        obj(Child("ignored"))
-    assert events == ["str"]
+    assert obj(Child("2024-05-06")) == datetime(2024, 5, 6)
+    assert events == []
 
 
 def test_string_checks_and_object_cfg_check_have_separate_priority():
@@ -80,5 +79,5 @@ def test_string_checks_and_object_cfg_check_have_separate_priority():
     with pytest.raises(TypeError,match="cfg"):obj(None,cfg=object())
     class Broken(str):
         def __str__(self):raise RuntimeError("str callback")
-    with pytest.raises(RuntimeError,match="str callback"):obj(Broken("x"))
+    assert obj(Broken("2024-05-07")) == datetime(2024, 5, 7)
     with pytest.raises(TypeError,match="cfg"):obj(Broken("x"),cfg=object())

@@ -1,22 +1,28 @@
-"""Datetime with calendar adjustments backed by Rust."""
-from datetime import datetime, date as _date, time as _time, timedelta, timezone, tzinfo as _tzinfo
+"""Datetime with calendar adjustments backed by Rust.
+
+Date text inputs and string defaults accept real str subclasses and read
+their native stored content, without calling __str__ or overridden sequence
+methods. Call str(value) explicitly when conversion is intended.
+"""
+from datetime import datetime, date as _date, time as _time, timezone
 from zoneinfo import ZoneInfo, available_timezones
 from operator import index as _index
 from typing import cast
 from numpy import bool_ as _numpy_bool
 from ._native import (_pydt_register, _pydt_shift, _pydt_from_us, _pydt_compare_now,
-                      _pydt_to_us, _pydt_to_seconds, _pydt_lookup, _pydt_calendar, _pydt_move,
+                      _pydt_to_us, _pydt_to_seconds, _pydt_calendar, _pydt_move,
                       _pydt_adjust, _pydt_boundary, _pydt_is_boundary, _pydt_round, _pydt_snap, _pydt_fsp,
                       _pydt_from_ordinal, _pydt_from_doy, _pydt_from_iso, _pydt_leaps,
-                      _pydt_copy_datetime, _pydt_copy_date, _pydt_from_instant, _pydt_from_calendar, _pydt_combine, _pydt_calendar_date, _pydt_repr_fields, _pydt_carrier, _pydt_replace, _pydt_replace_general, _pydt_stored_timezone, _pydt_millisecond,
+                      _pydt_copy_datetime, _pydt_copy_date, _pydt_from_instant, _pydt_combine, _pydt_calendar_date, _pydt_repr_fields, _pydt_replace, _pydt_replace_general, _pydt_stored_timezone, _pydt_millisecond,
                       _pydt_normalize, _pydt_add, _pydt_diff, _pydt_matches, _pydt_offset_seconds, _pydt_convert, _pydt_flag, _pydt_is_local, _pydt_is_utc, _pydt_name_matches, _pydt_iso, _pydt_from_numpy, _pydt_timedict, _pydt_from_seconds, _pydt_strptime, _pydt_from_numpy_zoned, _pydt_dst, _pydt_is_dst, _pydt_timetuple)
 from ._native import parse as _parse, _pydt_strftime
 from ._native import _PydtBase, _pydt_binary, _pydt_clock, _pydt_copy_fold, _pydt_reduce
-from ._native import _bool_option, _pydt_create
+from ._native import _bool_option, _pydt_create, _pydt_diff_input
 from ._native import _pydt_day_of_year, _pydt_days_in_month, _pydt_is_leap_year
 from .errors import _raise_argument_context, _own_error, _external_error, _location_error, _preview, _critical
 
 from ._formatting import prepare_format as _prepare_format
+from ._state_storage import _snapshot_exact as _snapshot_state
 from ._localization import (local_timezone as _local_timezone,
                             resolve_timezone as _timezone, _localized_name)
 
@@ -51,23 +57,12 @@ def _restore_pydt(cls, version, fields, tz, fold):
         _raise_argument_context(error, "Pydt restore", "state", None)
 
 
-_DATE_DESCRIPTORS = tuple(getattr(datetime, name) for name in
-                          ("year", "month", "day", "hour", "minute", "second", "microsecond"))
 _UNSET = object()
 
 
 def _boolean(value, entry, parameter):
     """Prepare a real boolean scalar without generic truth conversion."""
     return _bool_option(value, entry, parameter)
-
-
-def _datetime_value(value):
-    """Make a builtin carrier without public subclass field or constructor hooks."""
-    return _pydt_carrier(value)
-
-
-_TM_KEYS = ("tm_year", "tm_mon", "tm_mday", "tm_hour", "tm_min", "tm_sec",
-            "tm_wday", "tm_yday", "tm_isdst")
 
 
 class Pydt(_PydtBase):
@@ -509,7 +504,7 @@ class Pydt(_PydtBase):
             if kind is int or kind is float:
                 numeric = seconds
             else:
-                if isinstance(seconds, _BOOL_TYPES) or issubclass(kind, (str, bytes, bytearray)):
+                if issubclass(kind, _BOOL_TYPES) or issubclass(kind, (str, bytes, bytearray)):
                     raise _own_error(TypeError("must be numeric"), "seconds", seconds)
                 try:
                     numeric = seconds if issubclass(kind, (int, float)) else float(seconds)
@@ -590,7 +585,7 @@ class Pydt(_PydtBase):
             An integer conversion or result exceeds the supported range.
         """
         try:
-            if isinstance(ts, _BOOL_TYPES):
+            if issubclass(type(ts), _BOOL_TYPES):
                 raise _own_error(TypeError("must be numeric; boolean values are not accepted"), "ts", ts)
             if cls is Pydt:
                 factory = datetime.fromtimestamp
@@ -633,7 +628,7 @@ class Pydt(_PydtBase):
             An integer conversion or result exceeds the supported range.
         """
         try:
-            if isinstance(ts, _BOOL_TYPES):
+            if issubclass(type(ts), _BOOL_TYPES):
                 raise _own_error(TypeError("must be numeric; boolean values are not accepted"), "ts", ts)
             if cls is Pydt:
                 return _pydt_from_instant(datetime.fromtimestamp(ts, timezone.utc))
@@ -651,7 +646,8 @@ class Pydt(_PydtBase):
         Parameters
         ----------
         dtstr : str
-            Date/time text to parse. This argument must be a string.
+            Date/time text, including real str subclasses. Native stored content is
+            read directly, without calling __str__.
 
         Returns
         -------
@@ -960,7 +956,8 @@ class Pydt(_PydtBase):
         Parameters
         ----------
         dtstr : str
-            Date/time text to parse. This argument must be a string.
+            Date/time text, including real str subclasses. Native stored content is
+            read directly, without calling __str__.
         fmt : str
             A shared strptime format, for example "%Y-%m-%d". Fractional seconds
             are read completely and truncated once to microseconds at output.
@@ -1435,13 +1432,22 @@ class Pydt(_PydtBase):
     )
 
     def is_long_year(self):
-        """Return whether the ISO year has 53 weeks.
+        """Return whether the local calendar year contains 53 ISO weeks.
+
+        Use the datetime's local Gregorian year even when the date's ISO week
+        belongs to the preceding or following year.
 
         Returns
         -------
         bool
-            Whether the stated condition holds. A legitimate nonmatch returns False;
-            invalid inputs raise the documented error.
+            True if the local calendar year contains 53 ISO weeks.
+
+        Examples
+        --------
+        >>> Pydt(2021, 1, 1).is_long_year()
+        False
+        >>> Pydt(2020, 1, 1).is_long_year()
+        True
         """
         try:
             return _pydt_flag(self, 3)
@@ -3216,7 +3222,7 @@ class Pydt(_PydtBase):
         """
         try:
             try:
-                value = dtobj if type(dtobj) is datetime else _parse(dtobj, ignoretz=False)
+                value = dtobj if type(dtobj) is datetime else _pydt_diff_input(dtobj)
             except Exception as error:
                 _raise_argument_context(error, "Pydt.diff", "dtobj", dtobj)
             return _pydt_diff(self, value, unit, absolute if type(absolute) is bool else _boolean(absolute, "Pydt.diff", "absolute"), inclusive)
@@ -3406,10 +3412,14 @@ class Pydt(_PydtBase):
             The specification is not a real string or string subclass.
         """
         try:
-            if not issubclass(type(fmt), str):
+            if type(fmt) is str:
+                empty = not fmt
+            elif issubclass(type(fmt), str):
+                empty = str.__len__(fmt) == 0
+            else:
                 raise _own_error(TypeError("must be str"), "fmt", fmt)
             try:
-                return self.isoformat(" ") if fmt == "" else self.strftime(fmt)
+                return self.isoformat(" ") if empty else self.strftime(fmt)
             except Exception as error:
                 raise _external_error(error)
         except Exception as error:
@@ -3451,12 +3461,21 @@ class Pydt(_PydtBase):
                 dictionary, slots = state
             else:
                 dictionary, slots = state, None
+            prepared: list[dict[str, object] | None] = []
             for value in (dictionary, slots):
-                if value is not None and (type(value) is not dict or any(type(k) is not str for k in value)):
+                if value is not None and type(value) is not dict:
                     raise _own_error(TypeError("must contain dictionaries with string keys"), "state", state)
-            # A user setter (or __dict__ lookup) may mutate the supplied state.
-            # Fix the entries before invoking either hook, as with Delta restore.
-            slot_items = tuple(slots.items()) if slots is not None else ()
+                if value is not None:
+                    value = _snapshot_state(value)
+                    for key in value:
+                        if type(key) is not str:
+                            raise _own_error(TypeError("must contain dictionaries with string keys"), "state", state)
+                prepared.append(value)
+            dictionary, slots = prepared
+            # Both snapshots own their dictionary storage. Receiver callbacks can
+            # mutate the supplied state, but cannot alias these private copies.
+            # Keep dictionary update's tuple argument; slots can use a private view.
+            slot_items = slots.items() if slots is not None else ()
             dictionary_items = tuple(cast(dict[str, object], dictionary).items()) if dictionary is not None else ()
             if dictionary is not None:
                 try:

@@ -77,30 +77,37 @@ fn build(
     sorted: u8,
 ) -> Series {
     let mut output = PrimitiveChunkedBuilder::<Int64Type>::new(name, len);
-    let (mut previous, mut asc, mut desc, mut leading, mut trailing, mut internal) =
-        (None, true, true, false, false, false);
+    let ascending = sorted == 1;
+    let mut ordered = matches!(sorted, 1 | 2);
+    let (mut previous, mut leading, mut trailing) = (None, false, false);
     for value in values {
         output.append_option(value);
+        // Only verify the claimed direction. Once disproved, the remaining
+        // values still need packing, but cannot make the flag valid again.
+        if !ordered {
+            continue;
+        }
         if let Some(value) = value {
-            if let Some(previous) = previous {
-                asc &= value >= previous;
-                desc &= value <= previous;
-            }
-            if trailing {
-                internal = true;
-            }
+            ordered = !trailing
+                && previous.is_none_or(|last| {
+                    if ascending {
+                        value >= last
+                    } else {
+                        value <= last
+                    }
+                });
             previous = Some(value);
         } else if previous.is_some() {
             trailing = true;
+            ordered = !leading;
         } else {
             leading = true;
         }
     }
     let mut result = output.finish().into_datetime(unit, zone).into_series();
-    let legal_nulls = !(internal || leading && trailing);
-    result.set_sorted_flag(match sorted {
-        1 if asc && legal_nulls => IsSorted::Ascending,
-        2 if desc && legal_nulls => IsSorted::Descending,
+    result.set_sorted_flag(match (ordered, ascending) {
+        (true, true) => IsSorted::Ascending,
+        (true, false) => IsSorted::Descending,
         _ => IsSorted::Not,
     });
     result
@@ -122,7 +129,7 @@ fn _pldt_restore_core<'py>(
         ));
     }
     let count = data.len() / 8;
-    if !validity.is_empty() && (validity.len() != count.div_ceil(8) || count == 0) {
+    if !validity.is_empty() && validity.len() != count.div_ceil(8) {
         return Err(crate::error_context::value_error(
             "state.validity length must match the date row count",
         ));
@@ -155,9 +162,7 @@ fn _pldt_restore_core<'py>(
             if !validity.is_empty() && validity[row / 8] & (1 << (row % 8)) == 0 {
                 None
             } else {
-                let mut bytes = [0; 8];
-                bytes.copy_from_slice(raw);
-                Some(i64::from_le_bytes(bytes))
+                Some(i64::from_le_bytes(*raw))
             }
         });
     let result = build(

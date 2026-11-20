@@ -1,43 +1,17 @@
-"""Configurable date/time parsing implemented by the Rust extension.
+"""Date/time parsing and standalone numeric text utilities implemented in Rust.
 
 Use parse_str for text and parse for supported date/time objects or text.
 Configs provides vocabulary and date ordering for string parsing.
+parse_to_integer and parse_to_float use independent numeric grammars, with
+whole-token validation or first-fragment extraction and optional grouping.
+
+Date text inputs and string defaults accept real str subclasses and read
+their native stored content, without calling __str__ or overridden sequence
+methods. Call str(value) explicitly when conversion is intended.
 """
-from ._optional import POLARS as pl, POLARS_SERIES
-from ._native import Configs, parse_str, parse, parse_to_epoch, _restore_configs
-from .errors import _own_error, _external_error
+# Prepare shared optional type identities once, including scalar Timestamp and
+# Polars inputs. Native reads need this registration, not an export adapter.
+from . import _optional as _optional
+from ._native import Configs, parse_str, parse, parse_to_epoch, parse_to_integer, parse_to_float, _restore_configs
 
-__all__ = ["Configs", "parse_str", "parse", "parse_to_epoch"]
-
-
-def _polars_epoch_value(value, ignoretz):
-    """Export one Polars datetime through its integer-backed NumPy adapter."""
-    if POLARS_SERIES is None:
-        raise _own_error(ImportError("Polars support requires polars; install rstimes[polars]."))
-    if not issubclass(type(value), POLARS_SERIES):
-        raise _own_error(TypeError("must be a Polars Datetime Series"), "dtobj", value)
-    try:
-        dtype = value.dtype
-        temporal = dtype.base_type() == pl.Datetime
-    except Exception as error:
-        raise _external_error(error)
-    if not temporal:
-        raise _own_error(TypeError("must be a Polars Datetime Series"), "dtobj", value)
-    try:
-        size = len(value)
-    except Exception as error:
-        raise _external_error(error)
-    if size != 1:
-        raise _own_error(ValueError("requires one value; pass a longer Series to Pddt"), "dtobj", value)
-    try:
-        nulls = value.null_count()
-    except Exception as error:
-        raise _external_error(error)
-    if nulls:
-        raise _own_error(ValueError("a null value has no epoch value"), "dtobj", value)
-    try:
-        if ignoretz and dtype.time_zone is not None:
-            value = value.dt.replace_time_zone(None)
-        return value.to_numpy()[0]
-    except Exception as error:
-        raise _external_error(error)
+__all__ = ["Configs", "parse_str", "parse", "parse_to_epoch", "parse_to_integer", "parse_to_float"]

@@ -184,6 +184,22 @@ def test_iso_exact_aliases_truncate_only_display(timespec, expected):
     assert x.isoformat(sep='日', timespec='s').to_list() == ['1970-01-01日00:00:00', None]
 
 
+@pytest.mark.parametrize('timespec', ['H', 'M'])
+@pytest.mark.parametrize('values', [[], [None], [123456789, None]])
+@pytest.mark.parametrize('mode', ['direct', 'namespace', 'expr'])
+def test_iso_uppercase_aliases_are_rejected_even_without_valid_rows(timespec, values, mode):
+    x = Pldt(values, unit='ns', name='x')
+    if mode == 'expr':
+        # Options are prepared while building the expression, even on empty data.
+        with pytest.raises(ValueError, match='timespec'):
+            expr = pl.col('x').pldt.isoformat(timespec=timespec)
+            pl.DataFrame({'x': pl.Series(x)}).lazy().select(expr).collect()
+    else:
+        owner = x if mode == 'direct' else pl.Series(x).pldt
+        with pytest.raises(ValueError, match='timespec'):
+            owner.isoformat(timespec=timespec)
+
+
 def test_local_timestamp_preparation_is_conditional_and_failed_zone_is_retryable():
     import os
     import subprocess

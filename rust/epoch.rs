@@ -2,12 +2,16 @@
 use crate::parser::Truth;
 use crate::parser::fields::{Fields, Iso, Lenient, Nano, Policy, Precision, Strict};
 
+use polars::prelude::TimeUnit;
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
 use pyo3::types::{PyDateTime, PyTzInfoAccess};
 use pyo3::{Borrowed, ffi};
+use pyo3_polars::PySeries;
+use pyo3_polars::export::polars_arrow::temporal_conversions::{
+    timestamp_ms_to_datetime_opt, timestamp_us_to_datetime_opt,
+};
 
-static POLARS_ADAPTER: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 static POLARS_SERIES: PyOnceLock<Option<Py<PyType>>> = PyOnceLock::new();
 
 /// Retain the actual Series class from the single shared dependency attempt.
@@ -239,9 +243,7 @@ fn from_fields<P: Policy>(
         })?;
         Zone::Object(object.clone_ref(py))
     } else if !ignoretz && f.is_tzoffset_set() {
-        if !(-86_400_000_000..86_400_000_000).contains(&f.timezone_microseconds())
-            || f.timezone_microseconds() == -86_400_000_000
-        {
+        if !crate::precision::valid_offset_us(f.timezone_microseconds()) {
             return Err(crate::parser::invalid_offset(py, f.timezone_microseconds()));
         }
         ns -= i128::from(f.timezone_microseconds()) * 1000;
@@ -271,7 +273,7 @@ fn from_region_fields<P: Policy>(
     default_date: Option<[i32; 3]>,
 ) -> PyResult<Parsed> {
     let values = crate::parser::complete(f, default_date)?;
-    let date = crate::parser::zones::resolve(py, region, values, default, f.strict())?;
+    let date = crate::parser::zones::resolve(py, region, values, default)?;
     // resolve creates an exact builtin datetime with these checked fields.
     // Keep that necessary callback receiver and its single real offset read,
     // without reclassifying the freshly constructed date through read().
@@ -318,135 +320,126 @@ pub(crate) struct Options<'a, 'py> {
 }
 
 /// Parse one supported input while retaining its precision and timezone identity.
+#[inline]
 pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult<Parsed> {
-    let py = value.py();
+    if let Ok(text) = value.cast::<PyString>() {
+        return if opts.iso_only {
+            read_text::<Iso<Nano<Strict>>>(text, opts)
+        } else if opts.strict {
+            read_text::<Nano<Strict>>(text, opts)
+        } else {
+            read_text::<Nano<Lenient>>(text, opts)
+        };
+    }
+    read_nontext(value, opts)
+}
+
+/// Keep mutually exclusive parser-policy frames out of the shared dispatch.
+/// The same grammar, completion and zone result remain the only text rules.
+#[inline(never)]
+fn read_text<P: Policy>(input: &Bound<'_, PyString>, opts: &Options<'_, '_>) -> PyResult<Parsed> {
+    let py = input.py();
+    let fields = crate::parser::read_fields::<P>(
+        py,
+        input,
+        opts.default,
+        opts.yearfirst,
+        opts.dayfirst,
+        opts.ignoretz,
+        P::ISO_ONLY || opts.isoformat,
+        opts.cfg,
+    )?;
+    from_fields(py, &fields, opts.default, opts.ignoretz)
+}
+
+/// Preserve nontext validation and callbacks without the text policy frame.
+#[inline(never)]
+fn read_nontext(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult<Parsed> {
     if value.is_none() {
         return Err(crate::error_context::type_error(
             "dtobj must be a date/time value, not None",
         ));
     }
-    if let Ok(text) = value.cast::<PyString>() {
-        let converted;
-        let text = if value.is_exact_instance_of::<PyString>() {
-            text
-        } else {
-            converted = value.str().map_err(crate::error_context::external)?;
-            &converted
-        };
-        return if opts.iso_only {
-            let f = crate::parser::read_fields::<Iso<Nano<Strict>>>(
-                py,
-                text,
-                opts.default,
-                opts.yearfirst,
-                opts.dayfirst,
-                opts.ignoretz,
-                true,
-                opts.cfg,
-            )?;
-            from_fields(py, &f, opts.default, opts.ignoretz)
-        } else if opts.strict {
-            let f = crate::parser::read_fields::<Nano<Strict>>(
-                py,
-                text,
-                opts.default,
-                opts.yearfirst,
-                opts.dayfirst,
-                opts.ignoretz,
-                opts.isoformat,
-                opts.cfg,
-            )?;
-            from_fields(py, &f, opts.default, opts.ignoretz)
-        } else {
-            let f = crate::parser::read_fields::<Nano<Lenient>>(
-                py,
-                text,
-                opts.default,
-                opts.yearfirst,
-                opts.dayfirst,
-                opts.ignoretz,
-                opts.isoformat,
-                opts.cfg,
-            )?;
-            from_fields(py, &f, opts.default, opts.ignoretz)
-        };
-    }
-    // Missing date identity must not depend on a mutable Python class name.
-    if unsafe {
-        ffi::PyDate_Check(value.as_ptr()) != 0 && ffi::PyDateTime_GET_YEAR(value.as_ptr()) == 1
-    } {
-        crate::interop::reject_nat(value, "parse_to_epoch", "dtobj")?;
-    }
-    if unsafe { ffi::PyDateTime_Check(value.as_ptr()) != 0 } && crate::interop::is_timestamp(value)?
-    {
-        let mut result = crate::interop::timestamp_ticks(value)?;
-        let [year, month, day, hour, minute, second, microsecond] =
-            crate::interop::timestamp_local_fields(value)?;
-        let days = crate::calendar::ordinal(year, month, day) - 719_163;
-        result.nanos = i128::from(days) * 86_400_000_000_000
-            + ((i128::from(hour) * 60 + i128::from(minute)) * 60 + i128::from(second))
-                * 1_000_000_000
-            + i128::from(microsecond) * 1000
-            + result.nanos.rem_euclid(1000);
-        result.zone = Zone::Naive;
-        if !opts.ignoretz
-            && let Some(tz) = value.cast::<PyDateTime>()?.get_tzinfo()
-            && let Some(offset) = offset_us(
-                &value
-                    .call_method0("utcoffset")
-                    .map_err(crate::error_context::external)?,
-            )?
-        {
-            result.nanos -= i128::from(offset) * 1000;
-            result.zone = Zone::Object(tz.into_any().unbind());
+    // A native datetime is also a native date. Nondate inputs reach no
+    // Python callback before this dispatch, so its negative proof also skips
+    // the later datetime/date tests. Keep positive-path callback checks below.
+    if unsafe { ffi::PyDate_Check(value.as_ptr()) != 0 } {
+        // Missing date identity must not depend on a mutable Python class name.
+        if unsafe { ffi::PyDateTime_GET_YEAR(value.as_ptr()) == 1 } {
+            crate::interop::reject_nat(value, "parse_to_epoch", "dtobj")?;
         }
-        return Ok(result);
-    }
-    // SAFETY: the imported datetime API proves the native date payload before
-    // reading it. Existing datetime subclasses retain their actual UTC callback.
-    unsafe {
-        let ptr = value.as_ptr();
-        if ffi::PyDate_Check(ptr) != 0 {
-            let days = crate::calendar::ordinal(
-                i64::from(ffi::PyDateTime_GET_YEAR(ptr)),
-                i64::from(ffi::PyDateTime_GET_MONTH(ptr)),
-                i64::from(ffi::PyDateTime_GET_DAY(ptr)),
-            ) - 719_163;
-            let mut ns = i128::from(days) * 86_400_000_000_000;
-            let mut zone = Zone::Naive;
-            if ffi::PyDateTime_Check(ptr) != 0 {
-                ns += ((i128::from(ffi::PyDateTime_DATE_GET_HOUR(ptr)) * 60
-                    + i128::from(ffi::PyDateTime_DATE_GET_MINUTE(ptr)))
-                    * 60
-                    + i128::from(ffi::PyDateTime_DATE_GET_SECOND(ptr)))
+        if unsafe { ffi::PyDateTime_Check(value.as_ptr()) != 0 }
+            && crate::interop::is_timestamp(value)?
+        {
+            let mut result = crate::interop::timestamp_ticks(value)?;
+            let [year, month, day, hour, minute, second, microsecond] =
+                crate::interop::timestamp_local_fields(value)?;
+            let days = crate::calendar::ordinal(year, month, day) - 719_163;
+            result.nanos = i128::from(days) * 86_400_000_000_000
+                + ((i128::from(hour) * 60 + i128::from(minute)) * 60 + i128::from(second))
                     * 1_000_000_000
-                    + i128::from(ffi::PyDateTime_DATE_GET_MICROSECOND(ptr)) * 1000;
-                if !opts.ignoretz
-                    && ffi::PyDateTime_DATE_GET_TZINFO(ptr) != ffi::Py_None()
-                    && let Some(offset) = offset_us(
-                        &value
-                            .call_method0("utcoffset")
-                            .map_err(crate::error_context::external)?,
-                    )?
-                {
-                    ns -= i128::from(offset) * 1000;
-                    zone = Zone::Object(
-                        value
-                            .getattr("tzinfo")
-                            .map_err(crate::error_context::external)?
-                            .unbind(),
-                    );
-                }
+                + i128::from(microsecond) * 1000
+                + result.nanos.rem_euclid(1000);
+            result.zone = Zone::Naive;
+            if !opts.ignoretz
+                && let Some(tz) = value.cast::<PyDateTime>()?.get_tzinfo()
+                && let Some(offset) = offset_us(
+                    &value
+                        .call_method0("utcoffset")
+                        .map_err(crate::error_context::external)?,
+                )?
+            {
+                result.nanos -= i128::from(offset) * 1000;
+                result.zone = Zone::Object(tz.into_any().unbind());
             }
-            return Ok(Parsed {
-                nanos: ns,
-                unit: if ffi::PyDateTime_Check(ptr) != 0 {
-                    Unit::Microsecond
-                } else {
-                    Unit::Second
-                },
-                zone,
-            });
+            return Ok(result);
+        }
+        // SAFETY: the imported datetime API proves the native date payload before
+        // reading it. Existing datetime subclasses retain their actual UTC callback.
+        unsafe {
+            let ptr = value.as_ptr();
+            if ffi::PyDate_Check(ptr) != 0 {
+                let days = crate::calendar::ordinal(
+                    i64::from(ffi::PyDateTime_GET_YEAR(ptr)),
+                    i64::from(ffi::PyDateTime_GET_MONTH(ptr)),
+                    i64::from(ffi::PyDateTime_GET_DAY(ptr)),
+                ) - 719_163;
+                let mut ns = i128::from(days) * 86_400_000_000_000;
+                let mut zone = Zone::Naive;
+                if ffi::PyDateTime_Check(ptr) != 0 {
+                    ns += ((i128::from(ffi::PyDateTime_DATE_GET_HOUR(ptr)) * 60
+                        + i128::from(ffi::PyDateTime_DATE_GET_MINUTE(ptr)))
+                        * 60
+                        + i128::from(ffi::PyDateTime_DATE_GET_SECOND(ptr)))
+                        * 1_000_000_000
+                        + i128::from(ffi::PyDateTime_DATE_GET_MICROSECOND(ptr)) * 1000;
+                    if !opts.ignoretz
+                        && ffi::PyDateTime_DATE_GET_TZINFO(ptr) != ffi::Py_None()
+                        && let Some(offset) = offset_us(
+                            &value
+                                .call_method0("utcoffset")
+                                .map_err(crate::error_context::external)?,
+                        )?
+                    {
+                        ns -= i128::from(offset) * 1000;
+                        zone = Zone::Object(
+                            value
+                                .getattr("tzinfo")
+                                .map_err(crate::error_context::external)?
+                                .unbind(),
+                        );
+                    }
+                }
+                return Ok(Parsed {
+                    nanos: ns,
+                    unit: if ffi::PyDateTime_Check(ptr) != 0 {
+                        Unit::Microsecond
+                    } else {
+                        Unit::Second
+                    },
+                    zone,
+                });
+            }
         }
     }
     if value.is_instance_of::<PyInt>() {
@@ -484,25 +477,113 @@ pub(crate) fn read(value: &Bound<'_, PyAny>, opts: &Options<'_, '_>) -> PyResult
         return Ok(result);
     }
     if is_polars_series(value) {
-        // The adapter module depends on this extension, so initialize its
-        // callable once on first use after module construction has finished.
-        let adapter =
-            crate::python_cache::get_or_prepare(&POLARS_ADAPTER, py, || -> PyResult<_> {
-                Ok(py
-                    .import("rstimes.parser")?
-                    .getattr("_polars_epoch_value")
-                    .map_err(crate::error_context::external)?
-                    .unbind())
-            })?;
-        // This retained package helper marks its own failures and externalizes
-        // each actual Series callback. Do not reclassify that known origin.
-        let scalar = adapter.bind(py).call1((value, opts.ignoretz))?;
-        return read_numpy(&scalar)?
-            .ok_or_else(|| crate::error_context::type_error("invalid Polars datetime export"));
+        return read_polars(value, opts.ignoretz);
     }
     Err(crate::error_context::type_error(
         "expected date/time text, datetime, date, numeric seconds, numpy.datetime64 or a one-element Polars Datetime Series",
     ))
+}
+
+/// Read native column storage with independent validity, never a NumPy sentinel.
+/// This epoch-coordinate bridge keeps its former naive carrier role; native
+/// aware ticks already denote UTC. Discarding the source timezone adds its
+/// offset in the wide core before projecting to the requested output unit.
+fn read_polars(value: &Bound<'_, PyAny>, ignoretz: bool) -> PyResult<Parsed> {
+    let source = value
+        .extract::<PySeries>()
+        .map_err(crate::error_context::external)?;
+    // The SDK's checked datetime view supplies the dtype proof and its
+    // metadata together, without checking the same Series dtype twice.
+    let dates = source
+        .0
+        .datetime()
+        .map_err(|_| crate::error_context::type_error("must be a Polars Datetime Series"))?;
+    if dates.len() != 1 {
+        return Err(crate::error_context::value_error(
+            "requires one value; pass a longer Series to Pddt",
+        ));
+    }
+    let tick = dates
+        .physical()
+        .get(0)
+        .ok_or_else(|| crate::error_context::value_error("a null value has no epoch value"))?;
+    let source_unit = dates.time_unit();
+    let zone = dates.time_zone().as_ref();
+    let (scale, unit) = match source_unit {
+        TimeUnit::Milliseconds => (1_000_000, Unit::Millisecond),
+        TimeUnit::Microseconds => (1000, Unit::Microsecond),
+        TimeUnit::Nanoseconds => (1, Unit::Nanosecond),
+    };
+    // An int64 tick times at most 1e6 is representable in int128, including
+    // valid MIN. Polars has no NumPy dtype multiplier or calendar-unit codes.
+    let mut parsed = Parsed {
+        nanos: i128::from(tick) * scale,
+        unit,
+        zone: Zone::Naive,
+    };
+    if ignoretz && let Some(zone) = zone {
+        let offset_ns = if let Some(seconds) = crate::temporal_zone::fixed_name_seconds(zone) {
+            i128::from(seconds) * 1_000_000_000
+        } else {
+            // Retain the source engine's regional capacity (including years
+            // beyond9999), without first fitting the wall coordinate to i64.
+            // Its public offset kernels expect a representable Chrono value.
+            let supported = match source_unit {
+                TimeUnit::Milliseconds => timestamp_ms_to_datetime_opt(tick).is_some(),
+                TimeUnit::Microseconds => timestamp_us_to_datetime_opt(tick).is_some(),
+                TimeUnit::Nanoseconds => true,
+            };
+            if !supported {
+                return Err(crate::error_context::overflow(
+                    "regional timestamp exceeds the Polars timezone backend range",
+                ));
+            }
+            // The locked SDK deliberately omits its optional timezone
+            // kernels. Use the source engine's public offset operations on
+            // a plain shell over this same captured native owner instead.
+            // This neither calls a source subclass exporter nor fits the
+            // shifted date into a narrow intermediate date column.
+            let py = value.py();
+            let Some(Some(series_type)) = POLARS_SERIES.get(py) else {
+                return Err(crate::error_context::runtime(
+                    "native Series type is unavailable",
+                ));
+            };
+            let host = crate::pldt::export(py, &source.0, series_type.bind(py).as_any())?;
+            let clock = host.getattr("dt").map_err(crate::error_context::external)?;
+            let base = clock
+                .call_method0("base_utc_offset")
+                .map_err(crate::error_context::external)?
+                .extract::<PySeries>()?;
+            let dst = clock
+                .call_method0("dst_offset")
+                .map_err(crate::error_context::external)?
+                .extract::<PySeries>()?;
+            let base = base
+                .0
+                .duration()
+                .map_err(crate::pldt::eager_error)?
+                .physical()
+                .get(0);
+            let dst = dst
+                .0
+                .duration()
+                .map_err(crate::pldt::eager_error)?
+                .physical()
+                .get(0);
+            let (Some(base), Some(dst)) = (base, dst) else {
+                return Err(crate::error_context::runtime(
+                    "native timezone offset is missing",
+                ));
+            };
+            (i128::from(base) + i128::from(dst)) * 1_000_000
+        };
+        parsed.nanos = parsed
+            .nanos
+            .checked_add(offset_ns)
+            .ok_or_else(|| crate::error_context::overflow("timezone offset arithmetic overflow"))?;
+    }
+    Ok(parsed)
 }
 
 /// Decode all supported NumPy datetime units without a microsecond round trip.
@@ -534,14 +615,18 @@ pub(crate) fn native_datetime_ticks(ticks: i64, code: i32, multiplier: i32) -> P
             } else {
                 ticks
             };
-            let year = i64::try_from(months.div_euclid(12) + 1970)
-                .map_err(|_| crate::error_context::overflow("NumPy year overflow"))?;
-            let month = (months.rem_euclid(12) + 1) as i64;
-            let days = i128::from(
-                crate::calendar::checked_ordinal(year, month, 1)
-                    .map_err(crate::error_context::overflow)?,
-            ) - 719_163;
-            (days * 86_400_000_000_000, Unit::Second)
+            let year = months
+                .div_euclid(12)
+                .checked_add(1970)
+                .ok_or_else(|| crate::error_context::overflow("NumPy year overflow"))?;
+            let month = (months.rem_euclid(12) + 1) as u8;
+            let ordinal =
+                crate::civil::ordinal(year, month, 1).map_err(crate::error_context::overflow)?;
+            let nanos = ordinal
+                .checked_sub(719_163)
+                .and_then(|days| days.checked_mul(86_400_000_000_000))
+                .ok_or_else(|| crate::error_context::overflow("NumPy datetime epoch overflow"))?;
+            (nanos, Unit::Second)
         }
         2 | 4..=10 => {
             let (scale, unit) = match code {
@@ -587,7 +672,7 @@ fn native_offset_us(td: &Bound<'_, PyDelta>) -> PyResult<Option<i64>> {
     }
     let value = (days * 86_400 + i64::from(td.get_seconds())) * 1_000_000
         + i64::from(td.get_microseconds());
-    if !(-86_400_000_000 < value && value < 86_400_000_000) {
+    if !crate::precision::valid_offset_us(value) {
         return Err(crate::error_context::value_error(
             "utcoffset() must be strictly between -24 and +24 hours",
         ));
@@ -625,7 +710,7 @@ fn foreign_offset_us(value: &Bound<'_, PyAny>) -> PyResult<Option<i64>> {
         // Validate both the original span and the floor-to-microsecond result:
         // a legal -24h+1ns would otherwise become the forbidden -24h boundary.
         let micros = nanos.div_euclid(1000) as i64;
-        if !(-86_400_000_000 < micros && micros < 86_400_000_000) {
+        if !crate::precision::valid_offset_us(micros) {
             return Err(crate::error_context::value_error(
                 "utcoffset() must be strictly between -24 and +24 hours",
             ));
@@ -670,6 +755,12 @@ impl<'py> IntoPyObject<'py> for EpochInteger {
 ///     seconds, or a NumPy datetime64 scalar. With Polars installed, a one-value
 ///     Datetime Series is also accepted. NaT, null values and longer Series are
 ///     rejected. Polars remains an optional dependency.
+///     Series inputs read their actual native column, including its independent
+///     validity and complete int64 tick range. A subclass's to_numpy/cast
+///     override is not an input conversion; call it explicitly when intended.
+///     Real str subclasses use their native stored text, as in parse_str and
+///     parse; __str__ is not called. Use str(value) explicitly to request
+///     conversion before parsing.
 /// unit : str, default 'us'
 ///     Output tick resolution: s, ms, us or ns. A finer remainder is floored,
 ///     including for dates before 1970.

@@ -1,6 +1,5 @@
 {
   "pandas": "3.0.6",
-  "pandas_path": "/Users/jef/ResilioSync/code/rsTimes/.local/final-decisions-fix-20261022/final03-env/lib/python3.13/site-packages/pandas/__init__.py",
   "cases": {
     "[[],{\"freq\":\"500ns\",\"periods\":5,\"start\":\"2024-01-10 09:15:12\"}]": {
       "unit": "ns",

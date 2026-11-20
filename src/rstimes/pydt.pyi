@@ -1,4 +1,14 @@
-"""Type hints for Pydt's calendar conveniences and standard datetime inheritance."""
+"""Type hints for Pydt's calendar conveniences and standard datetime inheritance.
+
+Date text inputs and string defaults accept real str subclasses and read
+their native stored content, without calling __str__ or overridden sequence
+methods. Call str(value) explicitly when conversion is intended.
+
+Supported string parameters use their actual stored str content before library
+cache, membership or name dispatch. Custom string display, hashing and equality
+do not reinterpret formats, frequencies, units or timezone names. Genuine
+constructor, date/timezone and explicit external protocols keep their contracts.
+"""
 from dateutil.relativedelta import relativedelta
 from typing import Literal, SupportsIndex, SupportsInt, SupportsFloat
 from typing_extensions import Self, TypeVar, overload, TypedDict, Unpack
@@ -437,7 +447,8 @@ OverflowError
 Parameters
 ----------
 dtstr : str
-    Date/time text to parse. This argument must be a string.
+    Date/time text, including real str subclasses. Native stored content is
+            read directly, without calling __str__.
 
 Returns
 -------
@@ -618,7 +629,8 @@ OverflowError
         Parameters
         ----------
         dtstr : str
-            Date/time text to parse. This argument must be a string.
+            Date/time text, including real str subclasses. Native stored content is
+            read directly, without calling __str__.
         fmt : str
             A shared strptime format, for example "%Y-%m-%d". Fractional seconds
             are read completely and truncated once to microseconds at output.
@@ -1902,13 +1914,22 @@ bool
         ...
 
     def is_long_year(self) -> bool:
-        """Return whether the ISO year has 53 weeks.
+        """Return whether the local calendar year contains 53 ISO weeks.
+
+Use the datetime's local Gregorian year even when the date's ISO week belongs
+to the preceding or following year.
 
 Returns
 -------
 bool
-    Whether the stated condition holds. A legitimate nonmatch returns False;
-    invalid inputs raise the documented error."""
+    True if the local calendar year contains 53 ISO weeks.
+
+Examples
+--------
+>>> Pydt(2021, 1, 1).is_long_year()
+False
+>>> Pydt(2020, 1, 1).is_long_year()
+True"""
         ...
 
     def leap_bt_year(self, year: SupportsIndex) -> int:
@@ -2708,7 +2729,7 @@ str | tuple
     state."""
         ...
 
-    def __reduce_ex__(self, protocol: SupportsIndex, /) -> str | tuple[object, ...]:
+    def __reduce_ex__(self, protocol: SupportsIndex) -> str | tuple[object, ...]:
         """Save date fields separately from independent instance metadata.
 
 Parameters
