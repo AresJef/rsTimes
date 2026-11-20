@@ -17,6 +17,11 @@ source. Expr evidence comes from executed queries.
 Wrong identities, missing cases and stale page results prevent
 a complete gate from passing.
 
+Each evidence row records the checksum of the linked public
+report in `report_sha256`. The public copy uses a generic package
+path and omits the full transcript. The original Actions report
+has the checksum recorded in `ci_report_sha256`.
+
 The public records cover documentation and example execution.
 Product distribution qualifications and performance comparisons
 are recorded with the [1.0.0 release](https://github.com/AresJef/rsTimes/releases/tag/v1.0.0).

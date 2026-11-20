@@ -31,8 +31,9 @@ def copy_public_reports(source, destination):
         report["identity"]["package_path"] = "verified-interpreter/site-packages/rstimes"
         report.pop("transcript", None)
         public = Path("verification/reports") / relative
-        write_json(destination / public, report)
-        reports[relative.as_posix()] = (public.as_posix(), digest(path.read_bytes()))
+        published = destination / public
+        write_json(published, report)
+        reports[relative.as_posix()] = (public.as_posix(), digest(path.read_bytes()), digest(published.read_bytes()))
     return reports
 
 
@@ -44,10 +45,10 @@ def publish_coverage(exact, gate, reports):
         row = dict(record)
         proofs = []
         for item in record["evidence"]:
-            public, original = reports[item["report"]]
+            public, original, published = reports[item["report"]]
             if original != item["report_sha256"]:
                 raise ValueError("Page report differs from the checked evidence")
-            proofs.append(dict(item, report=public))
+            proofs.append(dict(item, report=public, report_sha256=published, ci_report_sha256=original))
         row["evidence"] = proofs
         row["examples"] = mapped[row["path"]]["examples"]
         row["profiles"] = mapped[row["path"]]["profiles"]

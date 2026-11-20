@@ -4203,7 +4203,8 @@
       "covers": [
         "rstimes.Pldt",
         "rstimes.Pldt.__init__",
-        "rstimes.Pldt.as_unit"
+        "rstimes.Pldt.as_unit",
+        "polars.Series.pldt.as_unit"
       ],
       "profiles": [
         "full",
@@ -4215,6 +4216,7 @@
       "scenarios": [
         "negative-floor",
         "explicit-unit",
+        "None-rejected",
         "strict-round_ok",
         "precision-error",
         "copy-isolation",
@@ -6162,7 +6164,9 @@
       "expectation_basis": "123456789ns;explicitus123456;dateJan2+Time1ns;frozen12clock",
       "scenarios": [
         "ISO-only",
+        "explicit-ISO-unit",
         "explicit-format",
+        "whole-format-default-us",
         "final-format-truncation",
         "Time-role",
         "scalar-clock",
@@ -6295,6 +6299,8 @@
         "signed-subtraction",
         "all3units",
         "explicit-unit",
+        "None-rejected",
+        "negative-floor",
         "precision-error",
         "capacity-error"
       ],

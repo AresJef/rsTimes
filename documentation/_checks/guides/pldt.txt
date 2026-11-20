@@ -105,6 +105,12 @@ OverflowError
 (True, True, [-2, 1, None])
 >>> (type(coarse) is Pldt, coarse.dtype, coarse.name, coarse.to_physical().to_list())
 (True, Datetime(time_unit='us', time_zone=None), 'event', [-2, 1, None])
+>>> for convert in (fine.as_unit, pl.Series(fine).pldt.as_unit):
+...     try:
+...         convert(None)
+...     except TypeError:
+...         continue
+...     raise AssertionError('as_unit accepted a missing target unit')
 >>> try:
 ...     fine.as_unit('us', round_ok=False)
 ... except ValueError as error:
