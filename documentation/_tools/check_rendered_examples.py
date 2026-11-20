@@ -85,6 +85,8 @@ def main():
     entries = json.loads((DOC / "_data/examples.json").read_text(encoding="utf-8"))["examples"]
     registry = {}
     for entry in entries:
+        if entry.get("format") == "contract":
+            continue
         registry.setdefault(entry["page"], set()).add(entry["id"])
     sources = args.page or [
         path.relative_to(DOC) for path in DOC.rglob("*")

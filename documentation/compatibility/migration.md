@@ -1,48 +1,121 @@
-# Moving to beta 0.2.0b3
+# Upgrade from 0.2.0b3 to 1.0.0
 
-The public b3 release brings Pldt, exact Delta ns state and distinct
-free-threaded wheels into the published package. Earlier local builds could
-share a version string while containing different code. Use the actual public
-wheel/source identity when comparing a result with these docs.
+Upgrade with the extras your application uses. For a project that uses both
+pandas and Polars, run this command.
 
-## Choose explicit date namespaces
+```bash
+python -m pip install --upgrade "rsTimes[pandas,polars]==1.0.0"
+```
 
-Pddt uses `.pddt.replace` for strict date-field replacement. Pldt and Polars
-Series/Expr use `.pldt.replace`. Where the host supplies a native `replace`,
-that remains a separate whole-value replacement operation. See
-[Pddt calendar operations](../guides/pddt-calendar.md),
-[Pldt calendar operations](../guides/pldt-calendar.md), and
-[native date transformations](../api/inherited-pldt-transformations.md).
+Update the rsTimes version pin in your project's requirements as well.
+The [1.0.0 release notes](https://github.com/AresJef/rsTimes/releases/tag/v1.0.0)
+list the release files and supported interpreters.
 
-Import Pldt to register `.pldt` on Polars Series/Expr. An expression is not a
-materialized Pldt: execute it with select or LazyFrame collect. The
-[event-feed recipe](../recipes/ingest-and-query.md) shows the complete flow.
+## Create a configuration when date order changes
 
-## Preserve serialized data before changing beta state formats
+The flags you pass to `Configs` set the order for that instance. Use a new
+`Configs` if your next source uses another order.
 
-Delta's versioned ns state does not automatically migrate the older
-microsecond-only state format. Preserve the original serialized data and
-explicitly recreate values when moving between these beta formats. The
-[Delta state/protocol guide](../guides/delta-protocols.md) executes current
-state behavior and rejected states. Do not assume a successful new pickle
-round-trip proves an older format is accepted.
+(upgrade-configs-date-order)=
+```python
+from rstimes import Configs
 
-## Keep units and validity explicit
+first = Configs(yearfirst=False, dayfirst=True)
+second = Configs(yearfirst=True, dayfirst=False)
+print(first.order_hint())
+print(second.order_hint())
+```
 
-Explicit fixed-unit construction and checked output do not silently choose a
-coarser unit or drop precision to make values fit. Use a documented intentional
-conversion when needed. Pldt null validity and a valid signed-int64 minimum
-are distinct; NumPy/pandas NaT conventions do not apply to every native Polars
-value. See [units and missingness](../concepts/units-and-missing.md).
+**Output**
 
-## Match the free-threaded ABI and dependencies
+```text
+D/M/Y
+Y/M/D
+```
 
-Install the actual 3.14t/3.15t rsTimes wheel and compatible native dependencies.
-Restart Python after installing an optional integration. Verify GIL state
-after imports and actual work, as shown in the
-[free-threaded guide](free-threaded.md). No separate rsTimes mode or forced
-GIL-off flag is required.
+Calling `__init__` again keeps the instance's flags and vocabulary.
+`reset_settings()` restores the vocabulary and keeps the flags. See
+[how date parsing uses Configs](../guides/configs.md).
 
-The [public release notes](https://github.com/AresJef/rsTimes/releases/tag/v0.2.0b3)
-describe the release scope. The [known rsTimes cases](known-issues.md) remain
-disclosed and are not reported as repaired by migration.
+Date parsing reads the stored content of a `str` subclass. Apply
+`str(value)` yourself when you want its custom conversion before parsing.
+
+## Read a grouped integer
+
+The new `parse_to_integer` and `parse_to_float` functions read numeric text.
+Choose integer parsing for a quantity such as `1,250`.
+
+(upgrade-numeric-token)=
+```python
+from rstimes import parse_to_integer
+
+quantity = parse_to_integer("1,250", allow_grouping=True)
+print(quantity)
+```
+
+**Output**
+
+```text
+1250
+```
+
+[Date and epoch parsing](../guides/parsing.md) uses its own input rules.
+
+## Check workday ranges with offsets
+
+Both date column types preserve subsecond workday and work-month offsets.
+When you use a normalized workday with an offset, rsTimes applies the
+calendar rule and the offset before producing the normalized date.
+
+(upgrade-normalized-workday)=
+```python
+from datetime import timedelta
+
+from pandas.tseries.offsets import BusinessDay
+from rstimes import Pddt
+
+rule = BusinessDay(
+    offset=timedelta(hours=2), normalize=True
+)
+schedule = Pddt.date_range(
+    "2024-01-13 23:00", periods=1, freq=rule, unit="us"
+)
+print(schedule[0].date())
+```
+
+**Output**
+
+```text
+2024-01-16
+```
+
+The Saturday start rolls to a working day. The two-hour offset moves the
+clock past midnight before normalization. A custom business-day rule can also
+account for holidays. If you depend on a custom calendar with `periods=0`,
+check the actual endpoints. A rolled endpoint can appear in the result.
+See [pandas ranges](../guides/pddt-ranges.md) and
+[Polars ranges](../guides/pldt-ranges.md).
+
+## Preserve the units and time zones your application needs
+
+ISO factories accept supported compact clocks and ISO week dates, including
+inputs with negative UTC offsets. An explicit unit must be fine enough for the
+result. A typed NumPy `NaT` retains its supported unit when broadcast by
+`Pddt.fromdatetime64`. Polars stores null validity separately, including for
+columns with a valid minimum integer tick. See
+[units and missing dates](../concepts/units-and-missing.md).
+
+With Polars, choose a supported IANA name, named zone object, or standard
+fixed offset for the target. A custom or file-backed zone that cannot be
+represented as a target raises `ValueError`. A genuine aware input to the
+ordinary constructor can use its own offset to determine the instant.
+See [Polars timezone conversions](../guides/pldt-timezones.md).
+
+## Check custom copy and state hooks
+
+Test shallow copy, deep copy, and state restoration if your application
+subclasses the date or Delta types. 1.0.0 uses the documented custom copy
+and reduction choices. Preserve the original records when moving from a
+pre-nanosecond Delta state format. See
+[Delta protocol and state](../guides/delta-protocols.md) and
+[Polars date state](../guides/pldt-state.md).

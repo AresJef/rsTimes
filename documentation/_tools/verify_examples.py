@@ -144,8 +144,8 @@ def standalone_groups(programs, registrations, profile, expected_gil):
     return groups
 
 
-def legacy_groups(page, text, registrations, profile):
-    """Keep old regression coverage while the beta pages are rewritten."""
+def regression_groups(page, text, format):
+    """Run the named behavioral checks attached to the page."""
     namespace = {"__name__": "__rstimes_documentation_example__"}
     output = io.StringIO()
     runner = doctest.DocTestRunner(verbose=True, optionflags=0)
@@ -153,15 +153,14 @@ def legacy_groups(page, text, registrations, profile):
     for index, match in enumerate(BLOCK.finditer(text), 1):
         name = (match[1] or f"example-{index}").strip()
         source = match[2]
-        if profile not in registrations[name]["profiles"]:
-            continue
         # No skips, global ellipsis, or regenerated expectations.
         if re.search(r"doctest:.*\b(?:SKIP|ELLIPSIS)\b", source):
             raise ValueError(f"{page}: skipped or loose examples are not accepted")
         test = doctest.DocTestParser().get_doctest(source, namespace, name, page.relative_to(ROOT).as_posix(), text[:match.start()].count("\n"))
-        runner.run(test, out=output.write, clear_globs=False)
+        failures, attempted = runner.run(test, out=output.write, clear_globs=False)
         namespace.update(test.globs)
-        groups.append({"id": name, "sha256": sha(source.encode()), "assertions": len(test.examples)})
+        groups.append({"id": name, "format": format, "sha256": sha(source.encode()),
+                       "assertions": attempted, "status": "fail" if failures else "pass"})
     return groups, runner.tries, runner.failures, output.getvalue()
 
 
@@ -175,15 +174,23 @@ def run_page(page: Path, profile: str) -> dict:
     registrations = {item["id"]: item for item in entries}
     programs = SCAN_EXAMPLES(text, page.suffix)
     legacy = [block[1].strip() for block in BLOCK.finditer(text)]
-    declared = [example.name for example in programs] + legacy
+    check_file = ROOT / "_checks" / Path(relative).with_suffix(".txt")
+    regression_text = check_file.read_text(encoding="utf-8") if check_file.is_file() else ""
+    contract_names = [block[1].strip() for block in BLOCK.finditer(regression_text)]
+    declared = [example.name for example in programs] + legacy + contract_names
     if (len(declared) != len(set(declared)) or len(registrations) != len(entries)
             or set(declared) != set(registrations)):
         raise ValueError(f"{relative}: registered and authored examples differ")
     for example in programs:
         if registrations[example.name].get("format") != "python":
             raise ValueError(f"{relative}: {example.name} must be registered as a Python example")
+    for name in contract_names:
+        if registrations[name].get("format") != "contract":
+            raise ValueError(f"{relative}: {name} must be registered as a behavior check")
     groups = standalone_groups(programs, registrations, profile, expected["gil_enabled"])
-    old, old_tries, old_failures, transcript = legacy_groups(page, text, registrations, profile)
+    old, old_tries, old_failures, transcript = regression_groups(page, text, "legacy")
+    regressions, regression_tries, regression_failures, regression_output = regression_groups(page, regression_text, "contract")
+    transcript += regression_output
     failures = [group for group in groups if group["status"] != "pass"]
     if failures:
         transcript += json.dumps(failures, ensure_ascii=False, indent=2)
@@ -192,9 +199,9 @@ def run_page(page: Path, profile: str) -> dict:
         "page_sha256": sha(content), "profile": profile,
         "tested_at_utc": datetime.now(timezone.utc).isoformat(),
         "verifier_sha256": sha(Path(__file__).read_bytes()),
-        "groups": groups + old, "attempted": len(groups) + old_tries,
-        "failures": len(failures) + old_failures,
-        "status": "fail" if failures or old_failures else "pass",
+        "groups": groups + old + regressions, "attempted": len(groups) + old_tries + regression_tries,
+        "failures": len(failures) + old_failures + regression_failures,
+        "status": "fail" if failures or old_failures or regression_failures else "pass",
         "identity": actual_identity, "transcript": transcript,
     }
 

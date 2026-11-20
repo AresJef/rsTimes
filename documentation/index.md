@@ -1,21 +1,18 @@
 # rsTimes documentation
 
-Calendar operations for Python scalars, pandas indexes and Polars columns.
-Choose the representation that fits your data, then follow a guide or use the
-reference for an individual call.
+Use rsTimes 1.0.0 to parse dates, adjust calendars, and work with date columns.
+Start with the data you have, or [install rsTimes and move your first date](getting-started/index.md).
 
-These docs follow **rsTimes 0.2.0b3**, a beta release. Examples run against the
-published package with declared dependency profiles.
+| Your data or task | Start here |
+| --- | --- |
+| A Python date or datetime | [Move a date with Delta](guides/delta.md) or [work with one timestamp](guides/pydt.md) |
+| A pandas date index | [Create a Pddt index](guides/pddt.md) |
+| A Polars date column | [Work with a Pldt column](guides/pldt.md) |
+| A Polars expression or LazyFrame | [Parse a column in a query](getting-started/polars-query.md) |
+| Date strings or epoch values | [Parse a date or timestamp](guides/parsing.md) |
+| An existing beta installation | [Upgrade to 1.0.0](compatibility/migration.md) |
 
-| Your task | Start here |
-|---|---|
-| Install the package and run a first example | [Getting started](getting-started/index.md) |
-| Move a date by calendar months or exact ns | [Delta calendar changes](guides/delta.md) |
-| Parse text with configurable date vocabularies | [Parsing](guides/parsing.md) |
-| Work with one scalar date and timezone | [Pydt](guides/pydt.md) |
-| Keep units and missing dates in a pandas index | [Pddt](guides/pddt.md) |
-| Transform native Polars dates eagerly | [Pldt](guides/pldt.md) |
-| Execute date work in a lazy query | [Polars expressions](guides/expressions.md) |
+[Look up an API](api/index.md) for its signature, return type, and examples.
 
 ```{toctree}
 :maxdepth: 1
@@ -29,7 +26,3 @@ Compatibility <compatibility/index>
 Troubleshooting <troubleshooting>
 Development <development/index>
 ```
-
-The [compatibility guide](compatibility/index.md) records actual dependency,
-platform and free-threaded conditions. The [known issues](compatibility/known-issues.md)
-page keeps deferred rsTimes protocol defects distinct from supported behavior.

@@ -1,12 +1,15 @@
-# Compatibility and upgrade guidance
+# Check your rsTimes environment
 
-Match the public release, interpreter ABI and the optional integrations your
-work uses. The platform matrix and documentation example profiles serve
-different purposes: distribution qualification does not replace a specific
-example's executed result.
+These pages describe the supported paths for rsTimes 1.0.0.
+
+- [Check Python and platform support](platforms.md) before installing.
+- [Install the optional features you use](optional-dependencies.md) for pandas, Polars, or dateutil.
+- [Run with a free-threaded interpreter](free-threaded.md) using matching dependency builds.
+- [Upgrade from 0.2.0b3 to 1.0.0](migration.md) if you used the beta.
+- [Work with external protocol limits](known-issues.md) for unusual conversion and state scenarios.
 
 ```{toctree}
-:maxdepth: 1
+:hidden:
 
 platforms
 optional-dependencies
@@ -14,7 +17,3 @@ free-threaded
 migration
 known-issues
 ```
-
-Start with [installation](../getting-started/index.md) for the normal wheel
-workflow. Use [troubleshooting](../troubleshooting.md) when a conversion,
-namespace or timezone result differs from what you intended.

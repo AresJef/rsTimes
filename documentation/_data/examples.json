@@ -3,6 +3,27 @@
   "target_status": "published_0.2.0b3_full_validation_pending",
   "examples": [
     {
+      "id": "install-check-distribution-version",
+      "page": "getting-started/install.md",
+      "format": "python",
+      "covers": [],
+      "profiles": [
+        "core",
+        "full",
+        "public-install",
+        "windows-full"
+      ],
+      "expectation_basis": "Installed distribution metadata of the bound 1.0.0 wheel.",
+      "scenarios": [
+        "public-install",
+        "version"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert type(installed) is str and installed == '1.0.0'"
+      ]
+    },
+    {
       "id": "getting-started-calendar-change",
       "page": "getting-started/index.md",
       "format": "python",
@@ -1264,7 +1285,8 @@
         "core",
         "optional-absent"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "optional-date-class-contracts",
@@ -1284,7 +1306,8 @@
         "optional-absent",
         "return-type"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "optional-dateutil-contracts",
@@ -1303,7 +1326,8 @@
         "optional-present",
         "optional-absent"
       ],
-      "reviewed": true
+      "reviewed": true,
+      "format": "contract"
     },
     {
       "id": "unix-ms-round-trip",
@@ -8677,6 +8701,102 @@
         "instance-created-notes"
       ],
       "reviewed": true
+    },
+    {
+      "id": "optional-missing-pandas",
+      "page": "compatibility/optional-dependencies.md",
+      "format": "python",
+      "covers": [
+        "rstimes.Pddt"
+      ],
+      "profiles": [
+        "core"
+      ],
+      "expectation_basis": "The Pddt import requires pandas and supplies the corresponding extra in the message.",
+      "scenarios": [
+        "missing-pandas",
+        "installation-error"
+      ],
+      "reviewed": true,
+      "raises": "ImportError",
+      "checks": [
+        "assert 'rstimes[pandas]' in str(example_error)"
+      ]
+    },
+    {
+      "id": "upgrade-configs-date-order",
+      "page": "compatibility/migration.md",
+      "format": "python",
+      "covers": [
+        "rstimes.Configs",
+        "rstimes.Configs.order_hint"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Day-first and year-first flags take effect when each Configs is constructed.",
+      "scenarios": [
+        "configs-order",
+        "1.0-migration"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert first.dayfirst is True and first.yearfirst is False",
+        "assert second.dayfirst is False and second.yearfirst is True",
+        "assert first.__init__(yearfirst=True) is None",
+        "assert first.dayfirst is True"
+      ]
+    },
+    {
+      "id": "upgrade-numeric-token",
+      "page": "compatibility/migration.md",
+      "format": "python",
+      "covers": [
+        "rstimes.parse_to_integer"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Comma grouping token 1,250 represents twelve hundred and fifty.",
+      "scenarios": [
+        "grouped-integer",
+        "new-entry"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert type(quantity) is int and quantity == 1250"
+      ]
+    },
+    {
+      "id": "upgrade-normalized-workday",
+      "page": "compatibility/migration.md",
+      "format": "python",
+      "covers": [
+        "rstimes.Pddt.date_range"
+      ],
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full"
+      ],
+      "expectation_basis": "January 13, 2024 is Saturday. A +2h offset moves Monday 23:00 across midnight before normalization.",
+      "scenarios": [
+        "weekend-roll",
+        "normalized-offset",
+        "1.0-migration"
+      ],
+      "reviewed": true,
+      "checks": [
+        "from pandas import Timestamp",
+        "assert type(schedule) is Pddt and schedule.unit == 'us'",
+        "assert type(schedule[0]) is Timestamp and schedule.tz is None",
+        "assert schedule.asi8.tolist() == [1705363200000000]"
+      ]
     }
   ]
 }
