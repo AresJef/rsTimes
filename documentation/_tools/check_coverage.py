@@ -287,6 +287,8 @@ def main():
         "verification_scope": "Public documentation, rendered anchors and current installed-wheel executions.",
         "product_functional_conformance_certified": False,
         "publication_authorized_by_this_result": authorize, "entries": len(records),
+        "html_build_sha256": sha((args.html_dir / "_build-info.json").read_bytes())
+        if (args.html_dir / "_build-info.json").is_file() else None,
         "passed": counts["pass"], "pending_entries": counts["pending"], "passed_case_profiles": len(checks),
         "pending_case_profiles": [{"example": name, "profile": profile} for name, profile in sorted(pending)],
         "problems": problems, "records": records,

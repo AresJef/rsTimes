@@ -138,6 +138,7 @@ jobs:
           --reports .local/docs-evidence/reports --identity .local/docs-evidence/identity.json
           --output .local/pages --commit "$GITHUB_SHA"
           --run-url "https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          --run-attempt "$GITHUB_RUN_ATTEMPT"
       - name: Check actual packaged links, anchors and the public artifact allowlist
         run: python -I documentation/_tools/check_site.py --site .local/pages --output .local/docs-site-check.json
       - id: pages_name

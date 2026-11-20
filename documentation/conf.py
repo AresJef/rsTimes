@@ -14,11 +14,12 @@ language = "en"
 version = release = TARGET["version"]
 extensions = ["myst_parser", "autoapi.extension", "sphinx.ext.napoleon", "sphinx.ext.doctest", "sphinx_copybutton"]
 source_suffix = {".md": "markdown", ".rst": "restructuredtext"}
-exclude_patterns = ["_build", "_checks", "_stubs", "_tools", "_data", "**/.DS_Store"]
+exclude_patterns = ["_build", "_checks", "_migration", "_stubs", "_tools", "_data", "**/.DS_Store"]
 myst_enable_extensions = ["colon_fence", "deflist", "fieldlist"]
 myst_heading_anchors = 5
 html_theme = "pydata_sphinx_theme"
 html_title = f"rsTimes {release} documentation"
+html_baseurl = f"https://aresjef.github.io/rsTimes/{release}/"
 html_static_path = ["_static"]
 html_css_files = ["rstimes.css"]
 html_js_files = ["rstimes-docs.js"]

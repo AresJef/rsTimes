@@ -3,9 +3,10 @@
   "expected_release": "1.0.0",
   "status": "released",
   "description": "Published rsTimes 1.0.0. The public package and each documentation profile are checked against the release record.",
-  "publication_allowed": false,
+  "publication_allowed": true,
   "source_commit": "d900219a0360e780cb10b108fd15d402879db572",
   "source_tag": "v1.0.0",
   "github_release_url": "https://github.com/AresJef/rsTimes/releases/tag/v1.0.0",
-  "pypi_url": "https://pypi.org/project/rsTimes/1.0.0/"
+  "pypi_url": "https://pypi.org/project/rsTimes/1.0.0/",
+  "publication_stage": "preserve"
 }
