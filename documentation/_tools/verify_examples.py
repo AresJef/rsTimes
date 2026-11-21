@@ -53,7 +53,7 @@ def identity() -> dict:
 
 def installed_dependencies() -> dict:
     versions = {}
-    for name in ('numpy', 'pandas', 'polars', 'polars-runtime-32', 'pyarrow', 'python-dateutil', 'pytz', 'tzdata', 'jax', 'jaxlib', 'torch', 'altair'):
+    for name in ('numpy', 'packaging', 'pandas', 'polars', 'polars-runtime-32', 'pyarrow', 'python-dateutil', 'pytz', 'tzdata', 'jax', 'jaxlib', 'torch', 'altair'):
         try:
             versions[name] = importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:

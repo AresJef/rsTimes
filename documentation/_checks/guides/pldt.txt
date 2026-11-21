@@ -97,25 +97,8 @@ OverflowError
 ...     raise AssertionError('bad text was coerced to null')
 ```
 
-```{doctest} pldt-unit-and-source-ownership
->>> fine = Pldt([-1500, 1500, None], unit='ns', name='event')
->>> coarse = fine.as_unit('us')
->>> native_coarse = pl.Series(fine).pldt.as_unit('us')
->>> (type(native_coarse) is Pldt, native_coarse.dtype == pl.Datetime('us'), native_coarse.to_physical().to_list())
-(True, True, [-2, 1, None])
->>> (type(coarse) is Pldt, coarse.dtype, coarse.name, coarse.to_physical().to_list())
-(True, Datetime(time_unit='us', time_zone=None), 'event', [-2, 1, None])
->>> for convert in (fine.as_unit, pl.Series(fine).pldt.as_unit):
-...     try:
-...         convert(None)
-...     except TypeError:
-...         continue
-...     raise AssertionError('as_unit accepted a missing target unit')
->>> try:
-...     fine.as_unit('us', round_ok=False)
-... except ValueError as error:
-...     print(type(error).__name__)
-ValueError
+```{doctest} pldt-constructor-source-ownership
+>>> # coverage: {"covers":["rstimes.Pldt","rstimes.Pldt.__init__"],"scenarios":["copy-isolation","captured-owner","strict-copy-boolean","name-validation"]}
 >>> original = np.array([1, 2], dtype='datetime64[ns]')
 >>> isolated = Pldt(original, copy=True)
 >>> original[0] = np.datetime64(999, 'ns')
@@ -126,12 +109,45 @@ ValueError
 >>> appended = native.append(pl.Series('event', [3], dtype=pl.Datetime('ns')))
 >>> (appended is native, captured.to_physical().to_list(), native.to_physical().to_list())
 (True, [1, 2], [1, 2, 3])
->>> for call, exception in ((lambda: Pldt([], copy=1), TypeError), (lambda: fine.as_unit('us', round_ok=1), TypeError), (lambda: Pldt([0], name=1), TypeError)):
+>>> for call in (lambda: Pldt([], copy=1), lambda: Pldt([0], name=1)):
 ...     try:
 ...         call()
-...     except exception:
+...     except TypeError:
 ...         continue
-...     raise AssertionError('invalid option accepted')
+...     raise AssertionError('invalid construction option accepted')
+```
+
+```{doctest} pldt-direct-as-unit-options
+>>> # coverage: {"covers":["rstimes.Pldt.as_unit"],"scenarios":["explicit-unit","negative-floor","None-rejected","strict-round_ok","precision-error","null"]}
+>>> fine = Pldt([-1500, 1500, None], unit='ns', name='event')
+>>> coarse = fine.as_unit('us')
+>>> (type(coarse) is Pldt, coarse.dtype, coarse.name, coarse.to_physical().to_list())
+(True, Datetime(time_unit='us', time_zone=None), 'event', [-2, 1, None])
+>>> for convert in (lambda: fine.as_unit(None), lambda: fine.as_unit('us', round_ok=1)):
+...     try:
+...         convert()
+...     except TypeError:
+...         continue
+...     raise AssertionError('invalid direct conversion option accepted')
+>>> try:
+...     fine.as_unit('us', round_ok=False)
+... except ValueError as error:
+...     print(type(error).__name__)
+ValueError
+```
+
+```{doctest} pldt-series-as-unit-options
+>>> # coverage: {"covers":["polars.Series.pldt.as_unit"],"scenarios":["explicit-unit","negative-floor","None-rejected","null"]}
+>>> plain = pl.Series(fine)
+>>> assert type(plain) is pl.Series
+>>> native_coarse = plain.pldt.as_unit('us')
+>>> (type(native_coarse) is Pldt, native_coarse.dtype == pl.Datetime('us'), native_coarse.name, native_coarse.to_physical().to_list())
+(True, True, 'event', [-2, 1, None])
+>>> try:
+...     plain.pldt.as_unit(None)
+... except TypeError:
+...     print('unit required')
+unit required
 ```
 
 ```{doctest} pldt-parser-options

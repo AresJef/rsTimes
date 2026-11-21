@@ -109,3 +109,41 @@ external standard-library protocol. During the repeated New York
 hour, it can choose the later instant for a Pydt.
 [Use a standard datetime carrier](../guides/pydt-timezones.md)
 with the same clock, zone and fold when passing it to external code.
+
+## Recover from an eager unit conversion error
+
+With `round_ok=False`, `Pldt.as_unit` and `Series.pldt.as_unit` report the
+first value that cannot be represented in the requested unit. In this example,
+row 1 contains −1,500 nanoseconds, which lies between two microsecond ticks.
+
+(pldt-recover-inexact-eager-unit)=
+```python
+import polars as pl
+import rstimes.pldt
+
+event = pl.Series("event", [1000, -1500, None], dtype=pl.Datetime("ns"))
+try:
+    event.pldt.as_unit("us", round_ok=False)
+except ValueError as error:
+    message = str(error)
+    print(message.split(":", 1)[0])
+    print("data[1]" in message, "round_ok=True" in message)
+
+rounded = event.pldt.as_unit("us", round_ok=True)
+print(rounded.to_physical().to_list())
+```
+
+**Output**
+
+```text
+Series.pldt.as_unit()
+True True
+[1, -2, None]
+```
+
+Keep the source unit to preserve precision. Choose `round_ok=True` when
+earlier-tick rounding is appropriate. An `OverflowError` means the result
+does not fit the target unit even with rounding. Choose a coarser unit
+with sufficient range or keep the source unit.
+
+For an expression, see {ref}`convert a column in a query <pldt-expr-as-unit>`.

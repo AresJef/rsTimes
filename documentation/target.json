@@ -1,12 +1,14 @@
 {
-  "version": "1.0.0",
-  "expected_release": "1.0.0",
+  "version": "1.1.0",
+  "expected_release": "1.1.0",
   "status": "released",
-  "description": "Published rsTimes 1.0.0. The public package and each documentation profile are checked against the release record.",
+  "description": "Published rsTimes distribution.",
   "publication_allowed": true,
-  "source_commit": "d900219a0360e780cb10b108fd15d402879db572",
-  "source_tag": "v1.0.0",
-  "github_release_url": "https://github.com/AresJef/rsTimes/releases/tag/v1.0.0",
-  "pypi_url": "https://pypi.org/project/rsTimes/1.0.0/",
-  "publication_stage": "redirect"
+  "source_commit": "f356fa83f1afcb1ea518cd4d655b7c3e67f3ce1c",
+  "source_tag": "v1.1.0",
+  "github_release_url": "https://github.com/AresJef/rsTimes/releases/tag/v1.1.0",
+  "pypi_url": "https://pypi.org/project/rsTimes/1.1.0/",
+  "publication_stage": "redirect",
+  "previous_version": "1.0.0",
+  "default_version": "1.0.0"
 }

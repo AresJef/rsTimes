@@ -59,15 +59,38 @@ def verify_migration(site, documents, hashes, preview, problems):
     mode = build['publication_stage']
     version = plan['version']
     legacy = plan['old_version']
-    if build['product_version'] != version or mode not in ('preserve', 'redirect'):
+    target = json.loads((DOC / 'target.json').read_text())
+    active = target['version']
+    previous_version = target.get('previous_version')
+    default = target.get('default_version', active)
+    if build['product_version'] != active or mode not in ('preserve', 'redirect'):
         problems.append('Unexpected released identity or archive stage')
     if build['acceptance'] != ('preview' if preview else 'ci'):
         problems.append('A preview cannot serve as a verified production artifact')
     if not preview and build['pending_case_profiles']:
         problems.append('Incomplete example coverage')
-    versions = [row['version'] for row in json.loads((site / 'versions.json').read_text())]
-    if versions != ([version, legacy] if mode == 'preserve' else [version]):
+    expected_versions = [active, previous_version] if previous_version else [active]
+    expected_versions.sort(key=lambda item: item != default)
+    if mode == 'preserve':
+        expected_versions.append(legacy)
+    version_rows = json.loads((site / 'versions.json').read_text())
+    versions = [row['version'] for row in version_rows]
+    if (versions != expected_versions
+            or any(row['url'] != PREFIX + row['version'] + '/' for row in version_rows)):
         problems.append('Version selector differs from the current stage')
+    choices = documents.get('versions.html')
+    if not choices or set(choices.links) != {PREFIX + item + '/' for item in expected_versions}:
+        problems.append('Version choices do not link to the exact versions')
+    if previous_version:
+        previous = json.loads((DOC / '_data/previous-site.json').read_text())
+        retained = {name: digest for name, digest in hashes.items() if name.startswith(previous_version + '/')}
+        if previous['old_version'] != previous_version or retained != previous['old_files']:
+            problems.append('The previous exact-version site differs from the verified archive')
+        if (build.get('default_documentation_version') != default
+                or build.get('exact_versions') != {
+                    item: PREFIX + item + '/_meta/build.json' for item in (active, previous_version)
+                }):
+            problems.append('Versioned build evidence pointers do not match the site default')
     receipts = {name: plan['old_files'][name] for name in plan['retained_evidence']}
     archive_info = json.loads((site / '_meta/legacy-evidence.json').read_text())
     if (archive_info['version'] != legacy or archive_info['files'] != receipts
@@ -81,13 +104,14 @@ def verify_migration(site, documents, hashes, preview, problems):
     if old_paths != expected_old.keys() or any(hashes.get(name) != value for name, value in expected_old.items()):
         problems.append('Preserved historical files differ from the verified old snapshot')
     for name in ('index.html', 'latest/index.html'):
-        if documents[name].destination != PREFIX + version + '/':
+        if documents[name].destination != PREFIX + default + '/':
             problems.append('Incorrect current entry point: ' + name)
     if documents['404.html'].destination or 'Page not found' not in (site / '404.html').read_text():
         problems.append('Missing dedicated 404 page')
     for name, doc in documents.items():
-        if name.startswith(version + '/') and any(not url.startswith(BASE + version + '/') for url in doc.canonical):
-            problems.append('Canonical URL leaves the active version: ' + name)
+        exact = next((item for item in (active, previous_version) if item and name.startswith(item + '/')), None)
+        if exact and any(not url.startswith(BASE + exact + '/') for url in doc.canonical):
+            problems.append('Canonical URL leaves its exact version: ' + name)
     if mode != 'redirect':
         return dict(stage=mode, old_body_pages=len(plan['pages']), historical_receipts=len(receipts))
 

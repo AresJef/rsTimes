@@ -92,3 +92,24 @@ target unit or allow rounding with `round_ok=True`.
 Ordinary date operations preserve the current unit.
 See [native input and ownership](pldt-interop.md) for source dtypes and
 [choose a factory](pldt-factories.md) for specific date roles.
+
+## Convert a native Polars Series
+
+Load the namespace before calling it on a native Series. The conversion
+keeps the column name, timezone and null positions.
+
+(pldt-series-as-unit)=
+```python
+import polars as pl
+import rstimes.pldt
+
+source = pl.Series("event", [-1500, None], dtype=pl.Datetime("ns", "UTC"))
+coarse = source.pldt.as_unit("us")
+print(coarse.to_physical().to_list())
+```
+
+**Output**
+
+```text
+[-2, None]
+```

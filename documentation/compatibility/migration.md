@@ -1,4 +1,24 @@
-# Upgrade from 0.2.0b3 to 1.0.0
+# Upgrade to rsTimes 1.1.0
+
+Upgrade the package within your environment. Keep the extras you use.
+
+```bash
+python -m pip install --upgrade "rsTimes[pandas,polars]==1.1.0"
+```
+
+The core package now installs packaging. An installed pandas or Polars below
+its supported minimum emits {ref}`DependencyWarning <dependency-warning-filter>`
+when you first load the corresponding adapter. If a strict warning filter aborts
+that import, upgrade the dependency or adjust the filter before trying again.
+
+Polars eager unit-conversion errors identify the first unrepresentable row
+and the target unit. Follow the
+{ref}`inexact conversion example <pldt-recover-inexact-eager-unit>` to choose
+between keeping the source resolution and flooring to the earlier output tick.
+See the [1.1.0 release notes](https://github.com/AresJef/rsTimes/releases/tag/v1.1.0)
+and the [exact 1.0.0 documentation](https://aresjef.github.io/rsTimes/1.0.0/) as needed.
+
+## Changes included since the beta
 
 Upgrade with the extras your application uses. For a project that uses both
 pandas and Polars, run this command.

@@ -71,7 +71,8 @@
 >>> check_error(rows, pl.col('event').pldt.to_day(pl.col('offset').head(1)), 'length')
 ```
 
-```{doctest} expr-calendar-relative-and-unit
+```{doctest} expr-calendar-add-components
+>>> # coverage: {"covers":["polars.Expr.pldt.add"],"scenarios":["all-relative-components","exact-cancellation","precision-error"]}
 >>> components = [
 ...     ('years', '2025-01-31T12:34:56.123456789'),
 ...     ('quarters', '2024-04-30T12:34:56.123456789'),
@@ -86,9 +87,21 @@
 ...     ('nanoseconds', '2024-01-31T12:34:56.123456790'),
 ... ]
 >>> for field, answer in components:
-...     for method, value in [('add', 1), ('sub', -1)]:
-...         expression = getattr(pl.col('event').pldt, method)(**{field: value})
-...         check(frame, expression, pl.Datetime('ns', 'UTC'), [tick(answer), None])
+...     check(frame, pl.col('event').pldt.add(**{field: 1}), pl.Datetime('ns', 'UTC'), [tick(answer), None])
+>>> coarse = pl.DataFrame({'event': pl.Series([0, None], dtype=pl.Datetime('us'))})
+>>> check(coarse, pl.col('event').pldt.add(microseconds=1, nanoseconds=-1000), pl.Datetime('us'), [0, None])
+>>> check_error(coarse, pl.col('event').pldt.add(nanoseconds=1), 'unit')
+```
+
+```{doctest} expr-calendar-sub-components
+>>> # coverage: {"covers":["polars.Expr.pldt.sub"],"scenarios":["all-relative-components","signed-subtraction","precision-error"]}
+>>> for field, answer in components:
+...     check(frame, pl.col('event').pldt.sub(**{field: -1}), pl.Datetime('ns', 'UTC'), [tick(answer), None])
+>>> check_error(coarse, pl.col('event').pldt.sub(nanoseconds=1), 'unit')
+```
+
+```{doctest} expr-calendar-as-unit
+>>> # coverage: {"covers":["polars.Expr.pldt.as_unit"],"scenarios":["all3units","explicit-unit","None-rejected","negative-floor","precision-error","capacity-error"]}
 >>> units = [('ms', 1000), ('us', 1000000), ('ns', 1000000000)]
 >>> for storage, scale in units:
 ...     column = pl.DataFrame({'event': pl.Series([-scale, scale, None], dtype=pl.Datetime(storage, 'UTC'))})
@@ -102,10 +115,12 @@
 ... except TypeError:
 ...     print('unit required')
 unit required
->>> coarse = pl.DataFrame({'event': pl.Series([0, None], dtype=pl.Datetime('us'))})
->>> check(coarse, pl.col('event').pldt.add(microseconds=1, nanoseconds=-1000), pl.Datetime('us'), [0, None])
->>> check_error(coarse, pl.col('event').pldt.add(nanoseconds=1), 'unit')
->>> check_error(coarse, pl.col('event').pldt.sub(nanoseconds=1), 'unit')
+>>> wide = pl.DataFrame({'event': pl.Series([1, None, 9223372036854776], dtype=pl.Datetime('us'))})
+>>> check_error(wide, pl.col('event').pldt.as_unit('ns'), 'capacity')
+```
+
+```{doctest} expr-calendar-to-date-capacity
+>>> # coverage: {"covers":["polars.Expr.pldt.to_date"],"scenarios":["capacity-error"]}
 >>> check_error(frame, pl.col('event').pldt.to_date(year=2500), 'unit')
 ```
 

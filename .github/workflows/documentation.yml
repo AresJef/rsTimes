@@ -9,14 +9,65 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: documentation-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
+  source:
+    name: Select the documentation package source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      candidate: ${{ steps.source.outputs.candidate }}
+      ref: ${{ steps.source.outputs.ref }}
+      commit: ${{ steps.source.outputs.commit }}
+      run_id: ${{ steps.source.outputs.run_id }}
+      artifact: ${{ steps.source.outputs.artifact }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.13.17"
+      - name: Require a pinned release or a PR-only verified CI bundle
+        id: source
+        run: |
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          target = json.loads(Path("documentation/target.json").read_text())
+          version = target["version"]
+          source = target["source_commit"]
+          tag = "v" + version
+          assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version)
+          assert target["status"] in ("candidate", "released")
+          assert re.fullmatch("[0-9a-f]{40}", source)
+          assert target["expected_release"] == version and target["source_tag"] == tag
+          candidate = target["status"] == "candidate"
+          output = {"candidate": str(candidate).lower(), "commit": source}
+          if candidate:
+              assert os.environ["GITHUB_EVENT_NAME"] == "pull_request"
+              assert target["publication_allowed"] is False
+              ci = target["verified_ci"]
+              assert type(ci["run_id"]) is int and ci["run_id"] > 0
+              assert type(ci["attempt"]) is int and ci["attempt"] > 0
+              output.update(ref=source, run_id=ci["run_id"],
+                            artifact=f"release-distributions-{ci['run_id']}-{ci['attempt']}")
+          else:
+              assert target["publication_allowed"] is True
+              output["ref"] = "refs/tags/" + tag
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as receipt:
+              for name, value in output.items():
+                  receipt.write(f"{name}={value}\n")
+          PY
+
   examples:
     name: Examples / ${{ matrix.profile }}
+    needs: source
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     strategy:
@@ -44,11 +95,11 @@ jobs:
       POLARS_MAX_THREADS: "2"
       XLA_FLAGS: --xla_cpu_multi_thread_eigen=false
     steps:
-      - name: Read the published source and qualification helper
+      - name: Read the exact product source and qualification helper
         if: matrix.freethreaded || matrix.profile == 'full'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: refs/tags/v1.0.0
+          ref: ${{ needs.source.outputs.ref }}
           persist-credentials: false
           fetch-tags: true
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -58,7 +109,18 @@ jobs:
       - name: Verify the checkout before using release-source helpers
         if: matrix.freethreaded || matrix.profile == 'full'
         shell: bash
-        run: test "$(git rev-parse HEAD)" = d900219a0360e780cb10b108fd15d402879db572
+        env:
+          PRODUCT_SOURCE: ${{ needs.source.outputs.commit }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_SOURCE"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        if: needs.source.outputs.candidate == 'true'
+        with:
+          name: ${{ needs.source.outputs.artifact }}
+          run-id: ${{ needs.source.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: docs-worktree/.local/verified-ci
+          digest-mismatch: error
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: ${{ matrix.python }}
@@ -77,12 +139,18 @@ jobs:
           target: aarch64-apple-darwin
           container: "off"
           manylinux: "off"
-      - name: Verify the actual public wheel and run all pages for this profile
+      - name: Verify the selected wheel and run all pages for this profile
         shell: bash
-        run: >-
-          python -I docs-worktree/documentation/_tools/ci_profile.py
-          --profile "$DOC_PROFILE" --work docs-worktree/.local/docs-profile
-          --output docs-worktree/.local/docs-export --release-source "$GITHUB_WORKSPACE"
+        env:
+          DOC_CANDIDATE: ${{ needs.source.outputs.candidate }}
+        run: |
+          source_args=()
+          if [[ "$DOC_CANDIDATE" == "true" ]]; then
+              source_args+=(--candidate-distributions docs-worktree/.local/verified-ci/dist)
+          fi
+          python -I docs-worktree/documentation/_tools/ci_profile.py \
+            --profile "$DOC_PROFILE" --work docs-worktree/.local/docs-profile \
+            --output docs-worktree/.local/docs-export --release-source "$GITHUB_WORKSPACE" "${source_args[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: docs-evidence-${{ matrix.profile }}
@@ -93,7 +161,7 @@ jobs:
 
   build:
     name: Complete documentation gate and checked Pages artifact
-    needs: examples
+    needs: [source, examples]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
@@ -126,21 +194,41 @@ jobs:
           python -I documentation/_tools/check_rendered_examples.py
           --html .local/docs-html --output .local/rendered-examples.json
       - name: Require complete entries, scenarios, actual page examples, identities and HTML anchors
-        run: >-
-          python -I documentation/_tools/check_coverage.py
-          --reports .local/docs-evidence/reports --identity .local/docs-evidence/identity.json
-          --html-dir .local/docs-html --rendered-examples .local/rendered-examples.json
-          --output .local/docs-coverage.json
+        env:
+          DOC_CANDIDATE: ${{ needs.source.outputs.candidate }}
+        run: |
+          mode_args=()
+          if [[ "$DOC_CANDIDATE" == "true" ]]; then
+              mode_args+=(--allow-candidate)
+          fi
+          python -I documentation/_tools/check_coverage.py \
+            --reports .local/docs-evidence/reports --identity .local/docs-evidence/identity.json \
+            --html-dir .local/docs-html --rendered-examples .local/rendered-examples.json \
+            --output .local/docs-coverage.json "${mode_args[@]}"
+          python -c 'import json; assert not json.load(open(".local/docs-coverage.json"))["pending_case_profiles"]'
       - name: Prepare exact-version, root/latest, 404 and public verification receipts
-        run: >-
-          python -I documentation/_tools/prepare_pages.py
-          --html .local/docs-html --coverage .local/docs-coverage.json
-          --reports .local/docs-evidence/reports --identity .local/docs-evidence/identity.json
-          --output .local/pages --commit "$GITHUB_SHA"
-          --run-url "https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          --run-attempt "$GITHUB_RUN_ATTEMPT"
+        env:
+          DOC_CANDIDATE: ${{ needs.source.outputs.candidate }}
+        run: |
+          mode_args=()
+          if [[ "$DOC_CANDIDATE" == "true" ]]; then
+              mode_args+=(--preview-mode redirect)
+          fi
+          python -I documentation/_tools/prepare_pages.py \
+            --html .local/docs-html --coverage .local/docs-coverage.json \
+            --reports .local/docs-evidence/reports --identity .local/docs-evidence/identity.json \
+            --output .local/pages --commit "$GITHUB_SHA" \
+            --run-url "https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT" "${mode_args[@]}"
       - name: Check actual packaged links, anchors and the public artifact allowlist
-        run: python -I documentation/_tools/check_site.py --site .local/pages --output .local/docs-site-check.json
+        env:
+          DOC_CANDIDATE: ${{ needs.source.outputs.candidate }}
+        run: |
+          mode_args=()
+          if [[ "$DOC_CANDIDATE" == "true" ]]; then
+              mode_args+=(--preview)
+          fi
+          python -I documentation/_tools/check_site.py --site .local/pages --output .local/docs-site-check.json "${mode_args[@]}"
       - id: pages_name
         run: echo "name=github-pages-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
@@ -181,8 +269,8 @@ jobs:
 
   deploy:
     name: Publish the checked artifact to GitHub Pages
-    needs: [build, acceptance]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/docs-pages'
+    needs: [source, build, acceptance]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/docs-pages' && needs.source.outputs.candidate == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

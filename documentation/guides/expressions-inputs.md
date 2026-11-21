@@ -73,10 +73,11 @@ print(frame.select(expr)["event"].to_physical().to_list())
 [123456, None]
 ```
 
-`strptime` requires a unit when the format reads a fraction
-and a target zone when the format reads a zone. It truncates the
-fraction to the chosen output unit. Without a fractional directive,
-the default is microseconds. For strict ISO input, use
+`strptime` requires an explicit unit at expression creation when
+the format has a fractional directive such as `%f`. A literal
+`%%f` leaves the microsecond default in place. Supply an explicit
+target zone when the format reads a zone. Fractions are truncated
+to the chosen output unit. For strict ISO input, use
 `fromisoformat` with an explicit unit even for date-only text.
 Give `combine` an explicit unit when the clock expression
 has Time, Datetime(ns), String or floating-point dtype.

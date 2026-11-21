@@ -56,7 +56,7 @@ stored zones, gaps, and real offsets.
 | <span id="rstimes.Pydt.toordinal"></span>`toordinal()` | No arguments; int Gregorian day, 1=0001-01-01. | Ignores the clock and timezone. |
 | <span id="rstimes.Pydt.isocalendar"></span>`isocalendar()` | No arguments; ISO year/week/weekday named tuple. | Weekday is Monday=1 through Sunday=7. |
 | <span id="rstimes.Pydt.isoformat"></span>`isoformat(sep='T', timespec='auto')` | Text with requested clock precision and effective offset. | Omitted digits are truncated; invalid timespec raises ValueError. |
-| <span id="rstimes.Pydt.ctime"></span>`ctime()` | No arguments; system-style weekday/month text. | Contains no offset or fractional seconds. |
+| <span id="rstimes.Pydt.ctime"></span>`ctime()` | No arguments. Returns English weekday and month text. | Omits the offset and fractional seconds. {ref}`Run the ctime example <pydt-english-ctime>`. |
 | <span id="rstimes.Pydt.timestamp"></span>`timestamp()` | No arguments; float POSIX seconds. | Naive values use the system local timezone; see explicit-zone examples. |
 | <span id="rstimes.Pydt.utctimetuple"></span>`utctimetuple()` | No arguments; time.struct_time in UTC for aware dates. | Naive clock stays unchanged; tm_isdst=0. |
 | <span id="rstimes.Pydt.utcoffset"></span>`utcoffset()` | No arguments; actual timezone timedelta or None. | Invalid timezone callback results raise their standard errors. |

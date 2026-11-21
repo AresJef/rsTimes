@@ -9,3 +9,4 @@ pytz==2026.6
 six==1.17.0
 typing-extensions==4.16.0
 tzdata==2026.6
+packaging==26.3
