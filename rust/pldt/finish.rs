@@ -1,9 +1,11 @@
 //! Shared final column assembly: local fields and known instants stay distinct.
 use super::zones::Policies;
 use crate::epoch::Unit;
+use crate::precision::TickError;
 use crate::temporal_zone::{Zone, ZoneError};
 use polars::prelude::*;
 use pyo3::prelude::*;
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 #[derive(Clone, Copy)]
@@ -18,15 +20,17 @@ pub(super) enum Kind {
 
 pub(super) struct Failure {
     pub(super) kind: Kind,
-    pub(super) message: String,
+    pub(super) message: Cow<'static, str>,
     pub(super) row: Option<usize>,
+    tick: Option<TickError>,
 }
 impl Failure {
     pub(super) fn new(kind: Kind, message: impl Into<String>) -> Self {
         Self {
             kind,
-            message: message.into(),
+            message: Cow::Owned(message.into()),
             row: None,
+            tick: None,
         }
     }
     pub(super) fn at(mut self, row: usize) -> Self {
@@ -36,19 +40,36 @@ impl Failure {
     pub(super) fn python(self, py: Python<'_>, entry: &str) -> PyErr {
         self.python_parameter(py, entry, None)
     }
+    #[cold]
+    pub(super) fn python_as_unit(mut self, py: Python<'_>, entry: &str, unit: Unit) -> PyErr {
+        let Some(tick) = self.tick else {
+            return self.python(py, "Pldt");
+        };
+        let unit = unit.name();
+        self.message = Cow::Owned(match tick {
+            TickError::Precision => format!(
+                "precision cannot be preserved in '{unit}'; keep the source unit or pass round_ok=True to round toward the earlier tick"
+            ),
+            TickError::Capacity => format!(
+                "date exceeds the capacity of '{unit}'; keep the source unit or choose a coarser supported unit"
+            ),
+        });
+        self.python(py, entry)
+    }
     pub(super) fn python_parameter(
         self,
         py: Python<'_>,
         entry: &str,
         parameter: Option<&str>,
     ) -> PyErr {
+        let message = self.message.into_owned();
         let error = match self.kind {
-            Kind::Type => crate::error_context::type_error(self.message),
-            Kind::Value => crate::error_context::value_error(self.message),
-            Kind::Capacity => crate::error_context::overflow(self.message),
-            Kind::Runtime => crate::error_context::runtime(self.message),
-            Kind::Parse => crate::error_context::domain(py, "ParseError", self.message),
-            Kind::Memory => pyo3::exceptions::PyMemoryError::new_err(self.message),
+            Kind::Type => crate::error_context::type_error(message),
+            Kind::Value => crate::error_context::value_error(message),
+            Kind::Capacity => crate::error_context::overflow(message),
+            Kind::Runtime => crate::error_context::runtime(message),
+            Kind::Parse => crate::error_context::domain(py, "ParseError", message),
+            Kind::Memory => pyo3::exceptions::PyMemoryError::new_err(message),
         };
         if let Some(row) = self.row {
             let location = format!("{}[{row}]", parameter.unwrap_or("data"));
@@ -83,18 +104,23 @@ impl From<ZoneError> for Failure {
 }
 
 /// Construct the original selected-unit failure after earlier phases succeed.
-pub(super) fn tick_error(error: crate::precision::TickError, row: usize) -> Failure {
-    match error {
-        crate::precision::TickError::Precision => Failure::new(
+pub(super) fn tick_error(error: TickError, row: usize) -> Failure {
+    let (kind, message) = match error {
+        TickError::Precision => (
             Kind::Value,
             "source precision cannot fit the selected unit without loss; choose a finer unit or explicitly use as_unit",
         ),
-        crate::precision::TickError::Capacity => Failure::new(
+        TickError::Capacity => (
             Kind::Capacity,
             "date exceeds the selected unit capacity; explicitly select a coarser supported unit",
         ),
+    };
+    Failure {
+        kind,
+        message: Cow::Borrowed(message),
+        row: Some(row),
+        tick: Some(error),
     }
-    .at(row)
 }
 
 enum SourceZone {

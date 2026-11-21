@@ -221,7 +221,7 @@ fn parse_rows<P: Policy>(source: &Series, mut run: Run<'_>) -> Result<Series, Fa
         };
         let (nanos, zone, unit) = read().map_err(|mut failure| {
             let preview: String = value.chars().take(120).collect();
-            failure.message = format!("row {row}, input {preview:?}: {}", failure.message);
+            failure.message = format!("row {row}, input {preview:?}: {}", failure.message).into();
             failure.at(row)
         })?;
         if run.expression && run.target.is_none() && zone != 0 {

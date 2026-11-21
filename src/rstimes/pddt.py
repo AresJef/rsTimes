@@ -9,7 +9,14 @@ from zoneinfo import available_timezones
 from typing import Literal, TypeVar, TypedDict, TYPE_CHECKING, cast, overload
 
 import numpy as np
-from ._optional import PANDAS as pd, POLARS as pl
+from ._optional import PANDAS as pd, POLARS as pl, _warn_dependency_version
+from .errors import _own_error, _external_error, _raise_argument_context
+
+if pd is None:
+    raise _own_error(ImportError("Pddt requires pandas; install rstimes[pandas]."))
+
+_warn_dependency_version("pandas", pd.__version__)
+
 from ._polars import plain_series as _plain_series
 from ._native import (_bool_option, _pddt_result_type, _pddt_rescale, _pddt_data, _pddt_prepare, _pddt_strings, _pddt_dates,
                       _pddt_check_native_dates, _pddt_register, _pddt_policies, _pddt_check_policies, _pddt_wall, _pddt_now, _integer_arg, _pddt_numbers, _pddt_number_buffer,
@@ -24,10 +31,6 @@ from .delta import Delta
 from .pydt import Pydt
 from ._pddt_state import capture as _capture_state, apply as _apply_state, recipe as _pickle_recipe, copy_value as _copy_value, _definition as _state_definition, register as _register_state
 from ._localization import resolve_timezone as _timezone, local_timezone as _local_timezone
-from .errors import _own_error, _external_error, _raise_argument_context
-
-if pd is None:
-    raise _own_error(ImportError("Pddt requires pandas; install rstimes[pandas]."))
 
 _UNITS = ("s", "ms", "us", "ns")
 _Unit = Literal["s", "ms", "us", "ns"]

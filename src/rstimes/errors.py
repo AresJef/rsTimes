@@ -1,4 +1,4 @@
-"""Clear failures for date parsing and configuration.
+"""Parsing and configuration failures and optional dependency warnings.
 
 Import these classes from ``rstimes.errors``. Other failures use standard
 Python exceptions. A user callback keeps its original exception object; an
@@ -57,7 +57,11 @@ class ConfigError(RstimesError, ValueError):
     """
 
 
-__all__ = ["RstimesError", "ParseError", "ConfigError"]
+class DependencyWarning(UserWarning):
+    """An adapter is using an optional dependency below its supported version."""
+
+
+__all__ = ["RstimesError", "ParseError", "ConfigError", "DependencyWarning"]
 
 # Error-only ownership, recorded at a library failure's creation site. Never
 # infer ownership from the exception type: callbacks may raise these classes.

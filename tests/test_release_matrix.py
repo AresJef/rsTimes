@@ -86,27 +86,85 @@ def test_free_threaded_interpreters_keep_actual_abi_and_dependency_floor():
 
 
 def test_dependency_policy_matches_approved_platform_boundaries():
+    from rstimes._optional import _minimum_dependency_version
+
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
     assert project["dependencies"] == [
-        "numpy>=2.5.3", "tzdata>=2026.5; sys_platform == 'win32'",
+        "numpy>=2.5.3", "packaging>=22.0", "tzdata>=2026.5; sys_platform == 'win32'",
     ]
     assert project["optional-dependencies"]["dateutil"] == ["python-dateutil>=2.9"]
     assert project["optional-dependencies"]["polars"] == ["polars>=2.0.0"]
-    rules = [Requirement(value) for value in project["optional-dependencies"]["pandas"]]
+    assert len(dependency_warning_matrix(
+        manifest.declared_requirements(project), _minimum_dependency_version,
+    )) == 48
+
+
+def test_dependency_policy_rejects_a_unix_intel_only_conflict():
+    from rstimes._optional import _minimum_dependency_version
+
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    requirements = manifest.declared_requirements(project)
+    conflict = Requirement('pandas>=9.9; extra == "pandas" and platform_machine == "x86_64"')
+    unix_intel = {"macos-x86_64", "linux-x86_64", "linux-musl-x86_64"}
+
+    with pytest.raises(AssertionError, match=r">=9\.9"):
+        dependency_warning_matrix([*requirements, conflict], _minimum_dependency_version)
+
+    rows = dependency_warning_matrix(requirements, _minimum_dependency_version)
+    matches = {(row["platform"], row["abi"]) for row in rows
+               if conflict.marker.evaluate(dict(row["environment"], extra="pandas"))}
+    abis = ("cp312", "cp313", "cp314", "cp314t", "cp315", "cp315t")
+    assert matches == {(platform, abi) for platform in unix_intel for abi in abis}
+    assert len(matches) == 18 and len(rows) - len(matches) == 30
+
+
+def dependency_warning_matrix(requirements, minimum):
+    """Compare installer and adapter floors in every approved release position."""
+    rows = []
     for row in manifest.release_matrix()["include"]:
         platform = row["platform"]
         system = platform["id"].split("-", 1)[0]
+        architecture = platform["arch"]
+        if system == "windows":
+            architecture = "ARM64" if architecture == "arm64" else "AMD64"
+        elif architecture == "x64":
+            architecture = "x86_64"
+        elif system == "linux" and architecture == "arm64":
+            architecture = "aarch64"
         environment = default_environment()
         environment.update(
             python_version=row["python"]["minor"],
             python_full_version=row["python"]["version"],
             sys_platform={"windows": "win32", "macos": "darwin", "linux": "linux"}[system],
-            platform_machine="ARM64" if system == "windows" and platform["arch"] == "arm64"
-                             else "arm64" if platform["arch"] == "arm64" else "x86_64",
+            platform_machine=architecture,
+            platform_system={"windows": "Windows", "macos": "Darwin", "linux": "Linux"}[system],
+            extra="",
         )
-        chosen = [str(rule.specifier) for rule in rules if rule.marker.evaluate(environment)]
-        pandas3 = row["python"]["minor"] == "3.15" or platform["id"] == "windows-arm64"
-        assert chosen == [">=3.0.6" if pandas3 else ">=2.3.3"], row
+        default_dependencies = {
+            rule.name: str(rule.specifier) for rule in requirements
+            if rule.marker is None or rule.marker.evaluate(environment)
+        }
+        assert "pandas" not in default_dependencies and "polars" not in default_dependencies
+        assert default_dependencies["packaging"] == ">=22.0"
+
+        position = {"abi": row["python"]["abi_tag"], "platform": platform["id"]}
+        floors = {}
+        pandas3 = environment["python_version"] == "3.15" or platform["id"] == "windows-arm64"
+        python_version = tuple(map(int, environment["python_version"].split(".")))
+        for package, expected in (("pandas", "3.0.6" if pandas3 else "2.3.3"), ("polars", "2.0.0")):
+            environment["extra"] = package
+            chosen = [
+                str(rule.specifier) for rule in requirements if rule.name == package
+                and (rule.marker is None or rule.marker.evaluate(environment))
+            ]
+            actual = minimum(package, python_version, environment["sys_platform"], environment["platform_machine"])
+            assert chosen == [f">={expected}"] and actual == expected, {
+                **position, "dependency": package, "metadata": chosen,
+                "runtime": actual, "expected": expected,
+            }
+            floors[package] = {"metadata": chosen[0], "runtime": actual}
+        rows.append({**position, "environment": dict(environment, extra=""), "floors": floors})
+    return rows
 
 
 def test_normalized_markers_are_compared_by_meaning_and_not_text():

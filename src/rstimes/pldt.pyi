@@ -3158,12 +3158,11 @@ class Pldt(pl.Series):
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Use the source's local
+            date. With None the result is naive at midnight. An explicit zone attaches at that midnight.
         unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Storage resolution ms/us/ns. Date inputs default to milliseconds. Datetime columns keep
+            their declared unit. A Python datetime defaults to microseconds.
         name : str | None
             Optional string column name. None preserves a usable source/current name; a custom copy
             returning the original cannot rename it to a different name.
@@ -3206,12 +3205,12 @@ class Pldt(pl.Series):
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Omit tz or pass None to
+            keep the source timezone and instant. An explicit zone reinterprets the source's local clock
+            fields in that zone.
         unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Storage resolution ms/us/ns. Datetime columns keep their declared unit. A Python datetime
+            defaults to microseconds.
         name : str | None
             Optional string column name. None preserves a usable source/current name; a custom copy
             returning the original cannot rename it to a different name.
@@ -3634,8 +3633,7 @@ class Pldt(pl.Series):
         Parameters
         ----------
         unit : _Unit
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Required target storage unit. Choose ms, us or ns.
         round_ok : _Boolean
             True allows this explicit rescale to floor discarded precision toward earlier ticks; False
             requires an exact conversion.
@@ -3643,19 +3641,16 @@ class Pldt(pl.Series):
         Returns
         -------
         Self
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
+            Date column with the target unit. The column name, timezone and nulls are retained.
         
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            The unit or round_ok argument has an unsupported type.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The unit is unsupported, or an exact conversion would lose precision.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A value exceeds the target unit's capacity, even when rounding is allowed.
         
         Examples
         --------
@@ -3669,9 +3664,8 @@ class Pldt(pl.Series):
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Attach the zone to
+            naive local clocks. Pass None to remove the zone while keeping the local clock.
         ambiguous : _Ambiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.
@@ -3703,9 +3697,9 @@ class Pldt(pl.Series):
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. The source must be
+            timezone-aware. Pass None to convert to UTC and then remove the zone. A target zone
+            preserves the instant.
         
         Returns
         -------
@@ -3731,9 +3725,8 @@ class Pldt(pl.Series):
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Omit tz or pass None to
+            use the system local timezone. A naive source is interpreted in the local timezone.
         ambiguous : _Ambiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.
@@ -3765,13 +3758,12 @@ class Pldt(pl.Series):
         Parameters
         ----------
         targ_tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Required target timezone. Use an IANA name, ZoneInfo or a representable standard fixed
+            offset. Pass None to remove the timezone and keep local clocks. A non-None target converts
+            the instant. naive=True removes a target timezone after conversion.
         base_tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Source timezone for a naive date when converting to a non-None target. It is required for
+            that conversion. An aware source uses its own timezone.
         naive : _Boolean
             Remove target timezone metadata after the requested conversion when True.
         ambiguous : _Ambiguous
@@ -7541,12 +7533,11 @@ class _SeriesNamespace(Generic[_PldtT]):
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Use the source's local
+            date. With None the result is naive at midnight. An explicit zone attaches at that midnight.
         unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Storage resolution ms/us/ns. Date inputs default to milliseconds. Datetime columns keep
+            their declared unit.
         name : str | None
             Optional string column name. None preserves a usable source/current name; a custom copy
             returning the original cannot rename it to a different name.
@@ -7581,12 +7572,11 @@ class _SeriesNamespace(Generic[_PldtT]):
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Omit tz or pass None to
+            keep the source timezone and instant. An explicit zone reinterprets the source's local clock
+            fields in that zone.
         unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Storage resolution ms/us/ns. Datetime columns keep their declared unit.
         name : str | None
             Optional string column name. None preserves a usable source/current name; a custom copy
             returning the original cannot rename it to a different name.
@@ -7621,8 +7611,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         Parameters
         ----------
         unit : _Unit
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Required target storage unit. Choose ms, us or ns.
         round_ok : _Boolean
             True allows this explicit rescale to floor discarded precision toward earlier ticks; False
             requires an exact conversion.
@@ -7630,24 +7619,24 @@ class _SeriesNamespace(Generic[_PldtT]):
         Returns
         -------
         _PldtT
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
+            Date column with the target unit. The column name, timezone and nulls are retained.
         
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            The unit or round_ok argument has an unsupported type.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The unit is unsupported, or an exact conversion would lose precision.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A value exceeds the target unit's capacity, even when rounding is allowed.
         
         Examples
         --------
-        >>> Pldt([-1500], unit="ns").as_unit("us").to_physical().to_list()
-        [-2]"""
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> values = pl.Series("event", [-1500, None], dtype=pl.Datetime("ns", "UTC"))
+        >>> values.pldt.as_unit("us").to_physical().to_list()
+        [-2, None]"""
         ...
 
     def tz_localize(self, tz: _Zone, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT:
@@ -7656,9 +7645,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Attach the zone to
+            naive local clocks. Pass None to remove the zone while keeping the local clock.
         ambiguous : _Ambiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.
@@ -7690,9 +7678,9 @@ class _SeriesNamespace(Generic[_PldtT]):
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. The source must be
+            timezone-aware. Pass None to convert to UTC and then remove the zone. A target zone
+            preserves the instant.
         
         Returns
         -------
@@ -7718,9 +7706,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Omit tz or pass None to
+            use the system local timezone. A naive source is interpreted in the local timezone.
         ambiguous : _Ambiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.
@@ -7752,13 +7739,12 @@ class _SeriesNamespace(Generic[_PldtT]):
         Parameters
         ----------
         targ_tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Required target timezone. Use an IANA name, ZoneInfo or a representable standard fixed
+            offset. Pass None to remove the timezone and keep local clocks. A non-None target converts
+            the instant. naive=True removes a target timezone after conversion.
         base_tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Source timezone for a naive date when converting to a non-None target. It is required for
+            that conversion. An aware source uses its own timezone.
         naive : _Boolean
             Remove target timezone metadata after the requested conversion when True.
         ambiguous : _Ambiguous
@@ -10919,12 +10905,12 @@ class _ExprNamespace:
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Give an explicit output
+            timezone if ISO text contains a timezone. This is checked when reading the values.
         unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Use ms/us/ns for String input, including whole-second text and String columns containing
+            only nulls. This is checked when the schema is resolved. A Null input uses milliseconds if
+            no unit is given.
         ambiguous : _ExprAmbiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.
@@ -10959,15 +10945,15 @@ class _ExprNamespace:
         Parameters
         ----------
         time : _CombineTime | pl.Expr
-            Source/target in this factory's stated role. Actual dtype/unit/zone and independent validity
-            are preserved; a scalar broadcasts only where the named factory permits it.
+            Clock value or expression. None uses midnight. The precision of a Python datetime.time value
+            is known when the expression is created.
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. An explicit timezone
+            attaches to the combined local clock. A typed Datetime clock can supply its timezone. If a
+            String clock contains a timezone, give an explicit target.
         unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Use ms/us/ns. Time, Datetime(ns), String and floating-point clock expressions require a
+            unit. A Python datetime.time value can supply its precision.
         ambiguous : _ExprAmbiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.
@@ -11133,12 +11119,12 @@ class _ExprNamespace:
         Parameters
         ----------
         unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Use ms/us/ns for String input, even for a String column containing only nulls. Without a
+            unit, Datetime keeps its declared unit, Date and Null use milliseconds, and numeric ticks
+            use nanoseconds. A missing unit for String is rejected when the schema is resolved.
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Give an explicit output
+            timezone if text contains a timezone. This is checked when reading the values.
         default : _DateValue
             An independently complete fallback date, read only when needed to fill text YMD/two-digit-year
             reference. It does not supply the column clock, zone or fold.
@@ -11185,7 +11171,7 @@ class _ExprNamespace:
         ...
 
     def strptime(self, fmt: str, *, tz: _Zone=None, unit: _Unit | None=None, cfg: Configs | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
-        """Freeze an explicit format; %f needs unit and timezone steps need tz.
+        """Parse text with a format and a known output unit.
 
         For Expr receivers, errors depending on schema or row values are deferred
         to select/collect and use Polars exception classes (usually ComputeError).
@@ -11195,16 +11181,15 @@ class _ExprNamespace:
         Parameters
         ----------
         fmt : str
-            Explicit parsing format. %f reads fractional seconds through ns; excess digits and a
-            deliberately requested coarser unit truncate at this format-parse exit. %Z uses explicit
-            Configs rules. Expr formats with %f require unit; timezone directives require tz.
+            Parsing format. An active %f reads fractional seconds through nanoseconds. A literal %%f
+            matches text. %Z uses the explicit Configs rules.
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Formats with an active
+            timezone directive require an explicit output timezone when creating the expression.
         unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Use ms/us/ns. An active %f fractional-second directive requires a unit when creating the
+            expression. Formats without that directive default to microseconds, including a literal %%f.
+            Choosing a coarser unit truncates fractional digits at output.
         cfg : Configs | None
             Shared Configs word/region rules. None uses the existing defaults; Expr freezes effective
             rules when it is created.
@@ -11409,12 +11394,11 @@ class _ExprNamespace:
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Use the source's local
+            date. With None the result is naive at midnight. An explicit zone attaches at that midnight.
         unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Storage resolution ms/us/ns. Date inputs default to milliseconds. Datetime columns keep
+            their declared unit.
         ambiguous : _ExprAmbiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.
@@ -11449,12 +11433,11 @@ class _ExprNamespace:
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Omit tz or pass None to
+            keep the source timezone and instant. An explicit zone reinterprets the source's local clock
+            fields in that zone.
         unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Storage resolution ms/us/ns. Datetime columns keep their declared unit.
         ambiguous : _ExprAmbiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.
@@ -11489,8 +11472,7 @@ class _ExprNamespace:
         Parameters
         ----------
         unit : _Unit
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
+            Required target storage unit. Choose ms, us or ns.
         round_ok : _Boolean
             True allows this explicit rescale to floor discarded precision toward earlier ticks; False
             requires an exact conversion.
@@ -11498,22 +11480,29 @@ class _ExprNamespace:
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
+            Native Polars expression. Evaluate it to obtain a Polars Series with the target unit. The
+            column name, timezone and nulls are retained.
         
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            The unit or round_ok argument has an unsupported type.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The unit is unsupported, or an exact conversion would lose precision.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A value exceeds the target unit's capacity, even when rounding is allowed.
         
         Examples
         --------
-        >>> Pldt([-1500], unit="ns").as_unit("us").to_physical().to_list()
-        [-2]"""
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> values = pl.Series("event", [-1500, None], dtype=pl.Datetime("ns", "UTC"))
+        >>> frame = pl.DataFrame([values])
+        >>> converted = pl.col("event").pldt.as_unit("us")
+        >>> frame.select(converted)["event"].to_physical().to_list()
+        [-2, None]
+        >>> frame.lazy().select(converted).collect()["event"].to_physical().to_list()
+        [-2, None]"""
         ...
 
     def tz_localize(self, tz: _Zone, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
@@ -11527,9 +11516,8 @@ class _ExprNamespace:
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Attach the zone to
+            naive local clocks. Pass None to remove the zone while keeping the local clock.
         ambiguous : _ExprAmbiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.
@@ -11564,9 +11552,9 @@ class _ExprNamespace:
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. The source must be
+            timezone-aware. Pass None to convert to UTC and then remove the zone. A target zone
+            preserves the instant.
         
         Returns
         -------
@@ -11595,9 +11583,8 @@ class _ExprNamespace:
         Parameters
         ----------
         tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Omit tz or pass None to
+            use the system local timezone. A naive source is interpreted in the local timezone.
         ambiguous : _ExprAmbiguous
             Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
             mask. True/False select the actual ordered candidates; infer preserves logical row order.
@@ -11632,13 +11619,13 @@ class _ExprNamespace:
         Parameters
         ----------
         targ_tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Required target timezone. Use an IANA name, ZoneInfo or a representable standard fixed
+            offset. Pass None to remove the timezone and keep local clocks. A non-None target converts
+            the instant. naive=True removes a target timezone after conversion.
         base_tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+            Source timezone for a naive date when converting to a non-None target. It is required for
+            that conversion. An aware source uses its own timezone. A supplied base_tz is validated
+            before the input schema is known.
         naive : _Boolean
             Remove target timezone metadata after the requested conversion when True.
         ambiguous : _ExprAmbiguous

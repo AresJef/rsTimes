@@ -1048,7 +1048,7 @@ def _pldt_nat_collision(source: pl.Series) -> int | None:
     :returns: int | None; errors preserve the native or external exception contract.
     """
 
-def _pldt_native(source: pl.Series, target: type[_SeriesT], unit: str | None = None, copy: bool | np.bool_ = ..., round_ok: bool | np.bool_ = ..., numpy_date: tuple[int, int] | None = None, numpy_zone: str | None = None, tz: _PldtZoneContext | None = None, policy: _PldtPolicyContext | None = None) -> _SeriesT:
+def _pldt_native(source: pl.Series, target: type[_SeriesT], unit: str | None = None, copy: bool | np.bool_ = ..., round_ok: bool | np.bool_ = ..., numpy_date: tuple[int, int] | None = None, numpy_zone: str | None = None, tz: _PldtZoneContext | None = None, policy: _PldtPolicyContext | None = None, *, as_unit_entry: str | None = None) -> _SeriesT:
     """Read known native dtype and metadata once, without Python scalar dates.
 
     :param source: Prepared source input; native validation and ownership rules apply.
