@@ -28,7 +28,8 @@ genuinely aware source. Named copies use available application reduction
 hooks. External datetime conversions of a Pydt at a repeated clock may
 require a standard datetime carrier. See
 [timezone, copy, and error protocols](compatibility/known-issues.md)
-for actual 1.0.0 behavior and the old beta changes.
+for current behavior and earlier changes. Filter the rsTimes
+{ref}`optional dependency warning <dependency-warning-filter>` by its category.
 
 ## Report an rsTimes problem with enough context
 

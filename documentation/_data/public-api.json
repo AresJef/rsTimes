@@ -1,19 +1,19 @@
 {
   "schema": 3,
-  "version": "1.0.0",
-  "source_commit": "d900219a0360e780cb10b108fd15d402879db572",
+  "version": "1.1.0",
+  "source_commit": "f356fa83f1afcb1ea518cd4d655b7c3e67f3ce1c",
   "stubs": {
-    "__init__.pyi": "49f4794bf8bbbe1b5627a51b81c58bf12997a1b25c12ca7424d8d7574778625c",
-    "_backend_types.pyi": "2e6089944b380143301df49dea0b56767c73138211ebce7b643e99513c025882",
-    "_native.pyi": "1f90a90cfe1049e76b91deb5f719b991a8ac931995b13dd3946ee8d5024318ec",
+    "pldt.pyi": "5b68f97038e737804ebf0c3e911a8e7df965885f6e15642b0b8423a0aaa9b11b",
     "delta.pyi": "21aaad39690d04c15ee7ecf38e1a36b4e181f70bde8ac901a5e6e0d169aaf518",
-    "errors.pyi": "4295d8c0008f5c2d77899775eaa4fc7988dc2195547e29b846a0f42e55f14cab",
+    "__init__.pyi": "49f4794bf8bbbe1b5627a51b81c58bf12997a1b25c12ca7424d8d7574778625c",
     "parser.pyi": "992977f5e1609b07cced798b34dfaac56bd68a1d6d500411b78aeba68e12ba57",
+    "_backend_types.pyi": "2e6089944b380143301df49dea0b56767c73138211ebce7b643e99513c025882",
+    "errors.pyi": "6356a1602e18d9756016ac2d5601fe87e2fcd39c65c23c03407af1b3fb01bc52",
     "pddt.pyi": "2a3f57668fb166bb5c7b5ecf26b2ccf107d69f21973efccc884e58e4a300d0b7",
-    "pldt.pyi": "f83d53d2c4e71eb20260c73ae9dd7331810c99477a93af8423eda068b9bf51d7",
-    "pydt.pyi": "7f6fc81594b564af6f0843413d6a9e605bfb76f7e130d4847ebc3ce0419b8f7d"
+    "pydt.pyi": "7f6fc81594b564af6f0843413d6a9e605bfb76f7e130d4847ebc3ce0419b8f7d",
+    "_native.pyi": "2a6a37cd9324700c23505930d6064fad0e74f24d25f72b7d13c91cf8f5295e49"
   },
-  "origin": "Released rsTimes wheels, actual runtime descriptors and declarations.",
+  "origin": "Installed rsTimes 1.1.0 declarations and runtime descriptors, checked per documentation profile.",
   "scope_note": "Inherited datetime/pandas/Polars public members and usable Datetime and Extension/Plot namespaces included, together with meaningful value, array-dispatch and exception-chain protocols. Dtype-specific non-Datetime namespaces are recorded at their accessors; their unrelated dtype API is not an rsTimes datetime API. Private helpers and generic Python object/class-authoring infrastructure (attribute lookup, dictionaries, annotations, layout, weak references, subclass hooks and size introspection) are excluded. Overloads are signatures of one entry, not extra entries.",
   "root_exports": [
     "Pddt",
@@ -32,7 +32,8 @@
   "error_exports": [
     "RstimesError",
     "ParseError",
-    "ConfigError"
+    "ConfigError",
+    "DependencyWarning"
   ],
   "aliases": {
     "rstimes.delta.Delta": "rstimes.Delta",
@@ -48,14 +49,13 @@
   },
   "projections": {
     "full": {
-      "entries": 1351,
+      "entries": 1376,
       "dependencies": {
         "numpy": "2.5.3",
         "pandas": "3.0.6",
         "polars": "2.0.0",
         "python-dateutil": "2.9.0.post0"
       },
-      "python": "3.13.3 (main, Sep 18 2025, 18:58:22) [Clang 17.0.0 (clang-1700.3.19.1)]",
       "gil_before": true,
       "gil_after": true,
       "verified_aliases": [
@@ -70,21 +70,16 @@
         "rstimes.pldt.Pldt",
         "rstimes.pydt.Pydt"
       ],
-      "unavailable": {},
-      "native": {
-        "_native.cpython-313-darwin.so": "c045c00eb090f80f367b3b65b06684e953cbc758ec0d9966df29cd850ae3c927"
-      },
-      "wheel_filename": "rstimes-1.0.0-cp313-cp313-macosx_11_0_arm64.whl"
+      "unavailable": {}
     },
     "pandas2": {
-      "entries": 1361,
+      "entries": 1386,
       "dependencies": {
         "numpy": "2.5.3",
         "pandas": "2.3.3",
         "polars": "2.0.0",
         "python-dateutil": "2.9.0.post0"
       },
-      "python": "3.13.3 (main, Sep 18 2025, 18:58:22) [Clang 17.0.0 (clang-1700.3.19.1)]",
       "gil_before": true,
       "gil_after": true,
       "verified_aliases": [
@@ -99,21 +94,16 @@
         "rstimes.pldt.Pldt",
         "rstimes.pydt.Pydt"
       ],
-      "unavailable": {},
-      "native": {
-        "_native.cpython-313-darwin.so": "c045c00eb090f80f367b3b65b06684e953cbc758ec0d9966df29cd850ae3c927"
-      },
-      "wheel_filename": "rstimes-1.0.0-cp313-cp313-macosx_11_0_arm64.whl"
+      "unavailable": {}
     },
     "current": {
-      "entries": 1352,
+      "entries": 1377,
       "dependencies": {
         "numpy": "2.5.3",
         "pandas": "3.1.0",
         "polars": "2.1.0",
         "python-dateutil": "2.9.0.post0"
       },
-      "python": "3.13.3 (main, Sep 18 2025, 18:58:22) [Clang 17.0.0 (clang-1700.3.19.1)]",
       "gil_before": true,
       "gil_after": true,
       "verified_aliases": [
@@ -128,21 +118,16 @@
         "rstimes.pldt.Pldt",
         "rstimes.pydt.Pydt"
       ],
-      "unavailable": {},
-      "native": {
-        "_native.cpython-313-darwin.so": "c045c00eb090f80f367b3b65b06684e953cbc758ec0d9966df29cd850ae3c927"
-      },
-      "wheel_filename": "rstimes-1.0.0-cp313-cp313-macosx_11_0_arm64.whl"
+      "unavailable": {}
     },
     "312": {
-      "entries": 1351,
+      "entries": 1376,
       "dependencies": {
         "numpy": "2.5.3",
         "pandas": "3.0.6",
         "polars": "2.0.0",
         "python-dateutil": "2.9.0.post0"
       },
-      "python": "3.12.11 (main, Aug 17 2025, 18:13:20) [Clang 17.0.0 (clang-1700.3.16.4)]",
       "gil_before": true,
       "gil_after": true,
       "verified_aliases": [
@@ -157,21 +142,16 @@
         "rstimes.pldt.Pldt",
         "rstimes.pydt.Pydt"
       ],
-      "unavailable": {},
-      "native": {
-        "_native.cpython-312-darwin.so": "a673c3baa8a6c9b474d6953c757c89616625153ca3e2e15fef881edccaa776d4"
-      },
-      "wheel_filename": "rstimes-1.0.0-cp312-cp312-macosx_11_0_arm64.whl"
+      "unavailable": {}
     },
     "314": {
-      "entries": 1351,
+      "entries": 1376,
       "dependencies": {
         "numpy": "2.5.3",
         "pandas": "3.0.6",
         "polars": "2.0.0",
         "python-dateutil": "2.9.0.post0"
       },
-      "python": "3.14.10 (v3.14.10:b703b2c5e70, Oct 25 2026, 14:17:53) [Clang 21.0.0 (clang-2100.1.1.101)]",
       "gil_before": true,
       "gil_after": true,
       "verified_aliases": [
@@ -186,21 +166,16 @@
         "rstimes.pldt.Pldt",
         "rstimes.pydt.Pydt"
       ],
-      "unavailable": {},
-      "native": {
-        "_native.cpython-314-darwin.so": "7b3799fc5959993d4afd7e96640477116a016d0f5a206be64b5918eba637d399"
-      },
-      "wheel_filename": "rstimes-1.0.0-cp314-cp314-macosx_11_0_arm64.whl"
+      "unavailable": {}
     },
     "315": {
-      "entries": 1351,
+      "entries": 1376,
       "dependencies": {
         "numpy": "2.5.3",
         "pandas": "3.0.6",
         "polars": "2.0.0",
         "python-dateutil": "2.9.0.post0"
       },
-      "python": "3.15.2 (v3.15.2:5e58eaad7c5, Oct 25 2026, 14:19:34) [Clang 21.0.0 (clang-2100.1.1.101)]",
       "gil_before": true,
       "gil_after": true,
       "verified_aliases": [
@@ -215,21 +190,16 @@
         "rstimes.pldt.Pldt",
         "rstimes.pydt.Pydt"
       ],
-      "unavailable": {},
-      "native": {
-        "_native.cpython-315-darwin.so": "4a0611c328827cb1948560953f5d0b816e2331cc44bfc3c57cdb02fc9ba3bdd7"
-      },
-      "wheel_filename": "rstimes-1.0.0-cp315-cp315-macosx_11_0_arm64.whl"
+      "unavailable": {}
     },
     "nogil314": {
-      "entries": 1351,
+      "entries": 1376,
       "dependencies": {
         "numpy": "2.5.3",
         "pandas": "3.0.6",
         "polars": "2.1.0",
         "python-dateutil": "2.9.0.post0"
       },
-      "python": "3.14.10 free-threading build (v3.14.10:b703b2c5e70, Oct 25 2026, 14:28:54) [Clang 21.0.0 (clang-2100.1.1.101)]",
       "gil_before": false,
       "gil_after": false,
       "verified_aliases": [
@@ -244,21 +214,16 @@
         "rstimes.pldt.Pldt",
         "rstimes.pydt.Pydt"
       ],
-      "unavailable": {},
-      "native": {
-        "_native.cpython-314t-darwin.so": "920319c127c8d9987594f3743bbe174bad19c984b440317fd57415c27e2bb709"
-      },
-      "wheel_filename": "rstimes-1.0.0-cp314-cp314t-macosx_11_0_arm64.whl"
+      "unavailable": {}
     },
     "nogil315": {
-      "entries": 1351,
+      "entries": 1376,
       "dependencies": {
         "numpy": "2.5.3",
         "pandas": "3.0.6",
         "polars": "2.1.0",
         "python-dateutil": "2.9.0.post0"
       },
-      "python": "3.15.2 free-threading build (v3.15.2:5e58eaad7c5, Oct 25 2026, 14:31:02) [Clang 21.0.0 (clang-2100.1.1.101)]",
       "gil_before": false,
       "gil_after": false,
       "verified_aliases": [
@@ -273,21 +238,16 @@
         "rstimes.pldt.Pldt",
         "rstimes.pydt.Pydt"
       ],
-      "unavailable": {},
-      "native": {
-        "_native.cpython-315t-darwin.so": "909bcebaa756c7bd8d3fb4c6aefdb293b45e43e01385537dfce0db8d09c376b0"
-      },
-      "wheel_filename": "rstimes-1.0.0-cp315-cp315t-macosx_11_0_arm64.whl"
+      "unavailable": {}
     },
     "core": {
-      "entries": 343,
+      "entries": 368,
       "dependencies": {
         "numpy": "2.5.3",
         "pandas": null,
         "polars": null,
         "python-dateutil": null
       },
-      "python": "3.13.3 (main, Sep 18 2025, 18:58:22) [Clang 17.0.0 (clang-1700.3.19.1)]",
       "gil_before": true,
       "gil_after": true,
       "verified_aliases": [
@@ -311,21 +271,16 @@
           "exception": "ImportError",
           "message": "Pldt requires Polars; install \"rstimes[polars]\"."
         }
-      },
-      "native": {
-        "_native.cpython-313-darwin.so": "c045c00eb090f80f367b3b65b06684e953cbc758ec0d9966df29cd850ae3c927"
-      },
-      "wheel_filename": "rstimes-1.0.0-cp313-cp313-macosx_11_0_arm64.whl"
+      }
     },
     "polars-only": {
-      "entries": 1051,
+      "entries": 1076,
       "dependencies": {
         "numpy": "2.5.3",
         "pandas": null,
         "polars": "2.0.0",
         "python-dateutil": null
       },
-      "python": "3.13.3 (main, Sep 18 2025, 18:58:22) [Clang 17.0.0 (clang-1700.3.19.1)]",
       "gil_before": true,
       "gil_after": true,
       "verified_aliases": [
@@ -345,11 +300,7 @@
           "exception": "ImportError",
           "message": "Pddt requires pandas; install rstimes[pandas]."
         }
-      },
-      "native": {
-        "_native.cpython-313-darwin.so": "c045c00eb090f80f367b3b65b06684e953cbc758ec0d9966df29cd850ae3c927"
-      },
-      "wheel_filename": "rstimes-1.0.0-cp313-cp313-macosx_11_0_arm64.whl"
+      }
     }
   },
   "entries": [
@@ -360,7 +311,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7789
+        7775
       ],
       "signatures": [],
       "dependency_profiles_available": [
@@ -382,7 +333,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8796
+        8782
       ],
       "signatures": [
         "add(self, years: _ExprIntegerInput=0, quarters: _ExprIntegerInput=0, months: _ExprIntegerInput=0, weeks: _ExprIntegerInput=0, days: _ExprIntegerInput=0, hours: _ExprIntegerInput=0, minutes: _ExprIntegerInput=0, seconds: _ExprIntegerInput=0, milliseconds: _ExprIntegerInput=0, microseconds: _ExprIntegerInput=0, nanoseconds: _ExprIntegerInput=0) -> pl.Expr"
@@ -406,7 +357,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10749
+        10735
       ],
       "signatures": [
         "add_delta(self, delta: _DeltaInput) -> pl.Expr"
@@ -430,7 +381,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11481
+        11464
       ],
       "signatures": [
         "as_unit(self, unit: _Unit, round_ok: _Boolean=True) -> pl.Expr"
@@ -454,7 +405,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11587
+        11575
       ],
       "signatures": [
         "astimezone(self, tz: _Zone=None, *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -478,7 +429,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10687
+        10673
       ],
       "signatures": [
         "ceil(self, freq: _FixedFrequency='s') -> pl.Expr"
@@ -502,7 +453,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10951
+        10937
       ],
       "signatures": [
         "combine(self, time: _CombineTime | pl.Expr=None, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -526,7 +477,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10506
+        10492
       ],
       "signatures": [
         "ctime(self) -> pl.Expr"
@@ -550,7 +501,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10389
+        10375
       ],
       "signatures": [
         "date(self) -> pl.Expr"
@@ -574,7 +525,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9301
+        9287
       ],
       "signatures": [
         "day(self) -> pl.Expr"
@@ -598,7 +549,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9816
+        9802
       ],
       "signatures": [
         "day_of_month(self) -> pl.Expr"
@@ -622,7 +573,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9768
+        9754
       ],
       "signatures": [
         "day_of_quarter(self) -> pl.Expr"
@@ -646,7 +597,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9476
+        9462
       ],
       "signatures": [
         "day_of_year(self) -> pl.Expr"
@@ -670,7 +621,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9792
+        9778
       ],
       "signatures": [
         "days_bf_month(self) -> pl.Expr"
@@ -694,7 +645,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9744
+        9730
       ],
       "signatures": [
         "days_bf_quarter(self) -> pl.Expr"
@@ -718,7 +669,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9696
+        9682
       ],
       "signatures": [
         "days_bf_year(self) -> pl.Expr"
@@ -742,7 +693,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9501
+        9487
       ],
       "signatures": [
         "days_in_month(self) -> pl.Expr"
@@ -766,7 +717,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9720
+        9706
       ],
       "signatures": [
         "days_in_quarter(self) -> pl.Expr"
@@ -790,7 +741,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9672
+        9658
       ],
       "signatures": [
         "days_in_year(self) -> pl.Expr"
@@ -814,7 +765,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10614
+        10600
       ],
       "signatures": [
         "diff(self, dtobj: _DiffInput | pl.Expr, unit: str, absolute: _Boolean=False, inclusive: str='one') -> pl.Expr"
@@ -838,7 +789,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10718
+        10704
       ],
       "signatures": [
         "floor(self, freq: _FixedFrequency='s') -> pl.Expr"
@@ -862,7 +813,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11401
+        11386
       ],
       "signatures": [
         "fromdate(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -886,7 +837,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11441
+        11425
       ],
       "signatures": [
         "fromdatetime(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -910,7 +861,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11081
+        11067
       ],
       "signatures": [
         "fromdayofyear(self, doy: _ExprCalendarInput, *, tz: _Zone=None, unit: _Unit='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -934,7 +885,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11034
+        11020
       ],
       "signatures": [
         "fromisocalendar(self, week: _ExprCalendarInput, weekday: _ExprCalendarInput, *, tz: _Zone=None, unit: _Unit='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -958,7 +909,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10911
+        10897
       ],
       "signatures": [
         "fromisoformat(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -982,7 +933,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11285
+        11270
       ],
       "signatures": [
         "frommicroseconds(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -1006,7 +957,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10994
+        10980
       ],
       "signatures": [
         "fromordinal(self, *, tz: _Zone=None, unit: _Unit='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -1030,7 +981,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11239
+        11224
       ],
       "signatures": [
         "fromseconds(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -1054,7 +1005,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11330
+        11315
       ],
       "signatures": [
         "fromtimestamp(self, *, tz: _Zone=None, unit: _Unit | None=None) -> pl.Expr"
@@ -1078,7 +1029,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9220
+        9206
       ],
       "signatures": [
         "fsp(self, precision: SupportsIndex) -> pl.Expr"
@@ -1102,7 +1053,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9326
+        9312
       ],
       "signatures": [
         "hour(self) -> pl.Expr"
@@ -1126,7 +1077,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9970
+        9956
       ],
       "signatures": [
         "is_day(self, day: _ExprIntegerInput) -> pl.Expr"
@@ -1150,7 +1101,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10064
+        10050
       ],
       "signatures": [
         "is_dst(self) -> pl.Expr"
@@ -1174,7 +1125,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9132
+        9118
       ],
       "signatures": [
         "is_end_of(self, unit: str) -> pl.Expr"
@@ -1198,7 +1149,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8958
+        8944
       ],
       "signatures": [
         "is_first_of(self, unit: str) -> pl.Expr"
@@ -1222,7 +1173,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10136
+        10122
       ],
       "signatures": [
         "is_future(self) -> pl.Expr"
@@ -1246,7 +1197,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9016
+        9002
       ],
       "signatures": [
         "is_last_of(self, unit: str) -> pl.Expr"
@@ -1270,7 +1221,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9576
+        9562
       ],
       "signatures": [
         "is_leap_year(self) -> pl.Expr"
@@ -1294,7 +1245,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10005
+        9991
       ],
       "signatures": [
         "is_long_year(self) -> pl.Expr"
@@ -1318,7 +1269,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9905
+        9891
       ],
       "signatures": [
         "is_month(self, month: _ExprQuerySelection) -> pl.Expr"
@@ -1342,7 +1293,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10112
+        10098
       ],
       "signatures": [
         "is_past(self) -> pl.Expr"
@@ -1366,7 +1317,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9875
+        9861
       ],
       "signatures": [
         "is_quarter(self, quarter: _ExprIntegerInput) -> pl.Expr"
@@ -1390,7 +1341,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9074
+        9060
       ],
       "signatures": [
         "is_start_of(self, unit: str) -> pl.Expr"
@@ -1414,7 +1365,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9940
+        9926
       ],
       "signatures": [
         "is_weekday(self, weekday: _ExprQuerySelection) -> pl.Expr"
@@ -1438,7 +1389,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9840
+        9826
       ],
       "signatures": [
         "is_year(self, year: _ExprIntegerInput) -> pl.Expr"
@@ -1462,7 +1413,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10160
+        10146
       ],
       "signatures": [
         "isocalendar(self) -> pl.Expr"
@@ -1486,7 +1437,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10438
+        10424
       ],
       "signatures": [
         "isoformat(self, sep: str='T', timespec: str='auto') -> pl.Expr"
@@ -1510,7 +1461,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9624
+        9610
       ],
       "signatures": [
         "isoweek(self) -> pl.Expr"
@@ -1534,7 +1485,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9648
+        9634
       ],
       "signatures": [
         "isoweekday(self) -> pl.Expr"
@@ -1558,7 +1509,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9600
+        9586
       ],
       "signatures": [
         "isoyear(self) -> pl.Expr"
@@ -1582,7 +1533,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10029
+        10015
       ],
       "signatures": [
         "leap_bt_year(self, year: _ExprIntegerInput) -> pl.Expr"
@@ -1606,7 +1557,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9401
+        9387
       ],
       "signatures": [
         "microsecond(self) -> pl.Expr"
@@ -1630,7 +1581,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9551
+        9537
       ],
       "signatures": [
         "millisecond(self) -> pl.Expr"
@@ -1654,7 +1605,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9351
+        9337
       ],
       "signatures": [
         "minute(self) -> pl.Expr"
@@ -1678,7 +1629,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9276
+        9262
       ],
       "signatures": [
         "month(self) -> pl.Expr"
@@ -1702,7 +1653,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10530
+        10516
       ],
       "signatures": [
         "month_name(self, locale: str | None=None) -> pl.Expr"
@@ -1726,7 +1677,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9426
+        9412
       ],
       "signatures": [
         "nanosecond(self) -> pl.Expr"
@@ -1750,7 +1701,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9161
+        9147
       ],
       "signatures": [
         "normalize(self) -> pl.Expr"
@@ -1774,7 +1725,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11125
+        11111
       ],
       "signatures": [
         "parse(self, *, unit: _Unit | None=None, tz: _Zone=None, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -1798,7 +1749,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9526
+        9512
       ],
       "signatures": [
         "quarter(self) -> pl.Expr"
@@ -1822,7 +1773,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10809
+        10795
       ],
       "signatures": [
         "replace(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None, tzinfo: _Zone=..., *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -1846,7 +1797,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10656
+        10642
       ],
       "signatures": [
         "round(self, freq: _FixedFrequency='s') -> pl.Expr"
@@ -1870,7 +1821,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9376
+        9362
       ],
       "signatures": [
         "second(self) -> pl.Expr"
@@ -1894,7 +1845,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9185
+        9171
       ],
       "signatures": [
         "snap(self, unit: str='s') -> pl.Expr"
@@ -1918,7 +1869,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10470
+        10456
       ],
       "signatures": [
         "strftime(self, format: str) -> pl.Expr"
@@ -1942,7 +1893,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11187
+        11173
       ],
       "signatures": [
         "strptime(self, fmt: str, *, tz: _Zone=None, unit: _Unit | None=None, cfg: Configs | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -1966,7 +1917,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8865
+        8851
       ],
       "signatures": [
         "sub(self, years: _ExprIntegerInput=0, quarters: _ExprIntegerInput=0, months: _ExprIntegerInput=0, weeks: _ExprIntegerInput=0, days: _ExprIntegerInput=0, hours: _ExprIntegerInput=0, minutes: _ExprIntegerInput=0, seconds: _ExprIntegerInput=0, milliseconds: _ExprIntegerInput=0, microseconds: _ExprIntegerInput=0, nanoseconds: _ExprIntegerInput=0) -> pl.Expr"
@@ -1990,7 +1941,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10779
+        10765
       ],
       "signatures": [
         "sub_delta(self, delta: _DeltaInput) -> pl.Expr"
@@ -2014,7 +1965,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10414
+        10400
       ],
       "signatures": [
         "time(self) -> pl.Expr"
@@ -2038,7 +1989,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10189
+        10175
       ],
       "signatures": [
         "timedf(self) -> pl.Expr"
@@ -2062,7 +2013,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10334
+        10320
       ],
       "signatures": [
         "timestamp(self) -> pl.Expr"
@@ -2086,7 +2037,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8385
+        8371
       ],
       "signatures": [
         "to_curr_month(self, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2110,7 +2061,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8268
+        8254
       ],
       "signatures": [
         "to_curr_quarter(self, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2134,7 +2085,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8490
+        8476
       ],
       "signatures": [
         "to_curr_weekday(self, weekday: _ExprSelection=None) -> pl.Expr"
@@ -2158,7 +2109,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8151
+        8137
       ],
       "signatures": [
         "to_curr_year(self, month: _ExprSelection=None, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2182,7 +2133,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7864
+        7850
       ],
       "signatures": [
         "to_date(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2206,7 +2157,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7801
+        7787
       ],
       "signatures": [
         "to_datetime(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None) -> pl.Expr"
@@ -2230,7 +2181,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8117
+        8103
       ],
       "signatures": [
         "to_day(self, offset: _ExprIntegerInput) -> pl.Expr"
@@ -2254,7 +2205,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9103
+        9089
       ],
       "signatures": [
         "to_end_of(self, unit: str) -> pl.Expr"
@@ -2278,7 +2229,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8929
+        8915
       ],
       "signatures": [
         "to_first_of(self, unit: str) -> pl.Expr"
@@ -2302,7 +2253,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8676
+        8662
       ],
       "signatures": [
         "to_friday(self) -> pl.Expr"
@@ -2326,7 +2277,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8987
+        8973
       ],
       "signatures": [
         "to_last_of(self, unit: str) -> pl.Expr"
@@ -2350,7 +2301,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8580
+        8566
       ],
       "signatures": [
         "to_monday(self) -> pl.Expr"
@@ -2374,7 +2325,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8042
+        8028
       ],
       "signatures": [
         "to_month(self, offset: _ExprIntegerInput, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2398,7 +2349,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8455
+        8441
       ],
       "signatures": [
         "to_next_month(self, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2422,7 +2373,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8346
+        8332
       ],
       "signatures": [
         "to_next_quarter(self, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2446,7 +2397,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8550
+        8536
       ],
       "signatures": [
         "to_next_weekday(self, weekday: _ExprSelection=None) -> pl.Expr"
@@ -2470,7 +2421,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8229
+        8215
       ],
       "signatures": [
         "to_next_year(self, month: _ExprSelection=None, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2494,7 +2445,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8420
+        8406
       ],
       "signatures": [
         "to_prev_month(self, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2518,7 +2469,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8307
+        8293
       ],
       "signatures": [
         "to_prev_quarter(self, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2542,7 +2493,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8520
+        8506
       ],
       "signatures": [
         "to_prev_weekday(self, weekday: _ExprSelection=None) -> pl.Expr"
@@ -2566,7 +2517,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8190
+        8176
       ],
       "signatures": [
         "to_prev_year(self, month: _ExprSelection=None, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2590,7 +2541,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8000
+        7986
       ],
       "signatures": [
         "to_quarter(self, offset: _ExprIntegerInput, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2614,7 +2565,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8700
+        8686
       ],
       "signatures": [
         "to_saturday(self) -> pl.Expr"
@@ -2638,7 +2589,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9045
+        9031
       ],
       "signatures": [
         "to_start_of(self, unit: str) -> pl.Expr"
@@ -2662,7 +2613,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8724
+        8710
       ],
       "signatures": [
         "to_sunday(self) -> pl.Expr"
@@ -2686,7 +2637,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8652
+        8638
       ],
       "signatures": [
         "to_thursday(self) -> pl.Expr"
@@ -2710,7 +2661,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7907
+        7893
       ],
       "signatures": [
         "to_time(self, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None) -> pl.Expr"
@@ -2734,7 +2685,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8772
+        8758
       ],
       "signatures": [
         "to_tomorrow(self) -> pl.Expr"
@@ -2758,7 +2709,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8604
+        8590
       ],
       "signatures": [
         "to_tuesday(self) -> pl.Expr"
@@ -2782,7 +2733,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8628
+        8614
       ],
       "signatures": [
         "to_wednesday(self) -> pl.Expr"
@@ -2806,7 +2757,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8080
+        8066
       ],
       "signatures": [
         "to_weekday(self, offset: _ExprIntegerInput, weekday: _ExprSelection=None) -> pl.Expr"
@@ -2830,7 +2781,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7958
+        7944
       ],
       "signatures": [
         "to_year(self, offset: _ExprIntegerInput, month: _ExprSelection=None, day: _ExprOptionalField=None) -> pl.Expr"
@@ -2854,7 +2805,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        8748
+        8734
       ],
       "signatures": [
         "to_yesterday(self) -> pl.Expr"
@@ -2878,7 +2829,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10275
+        10261
       ],
       "signatures": [
         "tomicroseconds(self, utc: _Boolean=False) -> pl.Expr"
@@ -2902,7 +2853,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10310
+        10296
       ],
       "signatures": [
         "toordinal(self) -> pl.Expr"
@@ -2926,7 +2877,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10237
+        10223
       ],
       "signatures": [
         "toseconds(self, utc: _Boolean=False) -> pl.Expr"
@@ -2950,7 +2901,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11556
+        11544
       ],
       "signatures": [
         "tz_convert(self, tz: _Zone) -> pl.Expr"
@@ -2974,7 +2925,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11519
+        11508
       ],
       "signatures": [
         "tz_localize(self, tz: _Zone, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -2998,7 +2949,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11624
+        11611
       ],
       "signatures": [
         "tz_switch(self, targ_tz: _Zone, base_tz: _Zone=None, naive: _Boolean=False, *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr"
@@ -3022,7 +2973,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10590
+        10576
       ],
       "signatures": [
         "tzname(self) -> pl.Expr"
@@ -3046,7 +2997,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        11370
+        11355
       ],
       "signatures": [
         "utcfromtimestamp(self, *, unit: _Unit | None=None) -> pl.Expr"
@@ -3070,7 +3021,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10088
+        10074
       ],
       "signatures": [
         "utcoffset_seconds(self) -> pl.Expr"
@@ -3094,7 +3045,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10213
+        10199
       ],
       "signatures": [
         "utctimedf(self) -> pl.Expr"
@@ -3118,7 +3069,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10364
+        10350
       ],
       "signatures": [
         "values_naive(self) -> pl.Expr"
@@ -3142,7 +3093,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9451
+        9437
       ],
       "signatures": [
         "weekday(self) -> pl.Expr"
@@ -3166,7 +3117,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        10560
+        10546
       ],
       "signatures": [
         "weekday_name(self, locale: str | None=None) -> pl.Expr"
@@ -3190,7 +3141,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        9251
+        9237
       ],
       "signatures": [
         "year(self) -> pl.Expr"
@@ -3214,7 +3165,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4238
+        4230
       ],
       "signatures": [],
       "dependency_profiles_available": [
@@ -3236,7 +3187,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5158
+        5150
       ],
       "signatures": [
         "add(self, years: _IntegerInput=0, quarters: _IntegerInput=0, months: _IntegerInput=0, weeks: _IntegerInput=0, days: _IntegerInput=0, hours: _IntegerInput=0, minutes: _IntegerInput=0, seconds: _IntegerInput=0, milliseconds: _IntegerInput=0, microseconds: _IntegerInput=0, nanoseconds: _IntegerInput=0) -> _PldtT"
@@ -3260,7 +3211,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6881
+        6873
       ],
       "signatures": [
         "add_delta(self, delta: _DeltaInput) -> _PldtT"
@@ -3284,7 +3235,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7618
+        7608
       ],
       "signatures": [
         "as_unit(self, unit: _Unit, round_ok: _Boolean=True) -> _PldtT"
@@ -3308,7 +3259,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7715
+        7703
       ],
       "signatures": [
         "astimezone(self, tz: _Zone=None, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -3332,7 +3283,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6825
+        6817
       ],
       "signatures": [
         "ceil(self, freq: _FixedFrequency='s') -> _PldtT"
@@ -3356,7 +3307,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7085
+        7077
       ],
       "signatures": [
         "combine(self, time: _CombineTime=None, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -3380,7 +3331,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6584
+        6576
       ],
       "signatures": [
         "ctime(self) -> pl.Series"
@@ -3404,7 +3355,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6487
+        6479
       ],
       "signatures": [
         "date(self) -> pl.Series"
@@ -3428,7 +3379,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6672
+        6664
       ],
       "signatures": [
         "datetime(self) -> np.ndarray"
@@ -3452,7 +3403,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5606
+        5598
       ],
       "signatures": [
         "day(self) -> pl.Series"
@@ -3476,7 +3427,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6016
+        6008
       ],
       "signatures": [
         "day_of_month(self) -> pl.Series"
@@ -3500,7 +3451,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5978
+        5970
       ],
       "signatures": [
         "day_of_quarter(self) -> pl.Series"
@@ -3524,7 +3475,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5746
+        5738
       ],
       "signatures": [
         "day_of_year(self) -> pl.Series"
@@ -3548,7 +3499,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5997
+        5989
       ],
       "signatures": [
         "days_bf_month(self) -> pl.Series"
@@ -3572,7 +3523,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5959
+        5951
       ],
       "signatures": [
         "days_bf_quarter(self) -> pl.Series"
@@ -3596,7 +3547,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5921
+        5913
       ],
       "signatures": [
         "days_bf_year(self) -> pl.Series"
@@ -3620,7 +3571,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5766
+        5758
       ],
       "signatures": [
         "days_in_month(self) -> pl.Series"
@@ -3644,7 +3595,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5940
+        5932
       ],
       "signatures": [
         "days_in_quarter(self) -> pl.Series"
@@ -3668,7 +3619,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5902
+        5894
       ],
       "signatures": [
         "days_in_year(self) -> pl.Series"
@@ -3692,7 +3643,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6760
+        6752
       ],
       "signatures": [
         "diff(self, dtobj: _DiffInput, unit: str, absolute: _Boolean=False, inclusive: str='one') -> pl.Series"
@@ -3716,7 +3667,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6853
+        6845
       ],
       "signatures": [
         "floor(self, freq: _FixedFrequency='s') -> _PldtT"
@@ -3740,7 +3691,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7538
+        7530
       ],
       "signatures": [
         "fromdate(self, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -3764,7 +3715,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7578
+        7569
       ],
       "signatures": [
         "fromdatetime(self, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -3788,7 +3739,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7215
+        7207
       ],
       "signatures": [
         "fromdayofyear(self, doy: _CalendarInput, *, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -3812,7 +3763,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7168
+        7160
       ],
       "signatures": [
         "fromisocalendar(self, week: _CalendarInput, weekday: _CalendarInput, *, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -3836,7 +3787,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7045
+        7037
       ],
       "signatures": [
         "fromisoformat(self, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -3860,7 +3811,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7422
+        7414
       ],
       "signatures": [
         "frommicroseconds(self, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -3884,7 +3835,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7128
+        7120
       ],
       "signatures": [
         "fromordinal(self, *, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -3908,7 +3859,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7376
+        7368
       ],
       "signatures": [
         "fromseconds(self, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -3932,7 +3883,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7467
+        7459
       ],
       "signatures": [
         "fromtimestamp(self, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None) -> _PldtT"
@@ -3956,7 +3907,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5538
+        5530
       ],
       "signatures": [
         "fsp(self, precision: SupportsIndex) -> _PldtT"
@@ -3980,7 +3931,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5626
+        5618
       ],
       "signatures": [
         "hour(self) -> pl.Series"
@@ -4004,7 +3955,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6145
+        6137
       ],
       "signatures": [
         "is_day(self, day: _IntegerInput) -> pl.Series"
@@ -4028,7 +3979,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6224
+        6216
       ],
       "signatures": [
         "is_dst(self) -> pl.Series"
@@ -4052,7 +4003,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5461
+        5453
       ],
       "signatures": [
         "is_end_of(self, unit: str) -> pl.Series"
@@ -4076,7 +4027,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5311
+        5303
       ],
       "signatures": [
         "is_first_of(self, unit: str) -> pl.Series"
@@ -4100,7 +4051,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6281
+        6273
       ],
       "signatures": [
         "is_future(self) -> pl.Series"
@@ -4124,7 +4075,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5361
+        5353
       ],
       "signatures": [
         "is_last_of(self, unit: str) -> pl.Series"
@@ -4148,7 +4099,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5826
+        5818
       ],
       "signatures": [
         "is_leap_year(self) -> pl.Series"
@@ -4172,7 +4123,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6749
+        6741
       ],
       "signatures": [
         "is_local(self) -> bool"
@@ -4196,7 +4147,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6175
+        6167
       ],
       "signatures": [
         "is_long_year(self) -> pl.Series"
@@ -4220,7 +4171,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6090
+        6082
       ],
       "signatures": [
         "is_month(self, month: _QuerySelection) -> pl.Series"
@@ -4244,7 +4195,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6262
+        6254
       ],
       "signatures": [
         "is_past(self) -> pl.Series"
@@ -4268,7 +4219,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6065
+        6057
       ],
       "signatures": [
         "is_quarter(self, quarter: _IntegerInput) -> pl.Series"
@@ -4292,7 +4243,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5411
+        5403
       ],
       "signatures": [
         "is_start_of(self, unit: str) -> pl.Series"
@@ -4316,7 +4267,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6739
+        6731
       ],
       "signatures": [
         "is_utc(self) -> bool"
@@ -4340,7 +4291,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6120
+        6112
       ],
       "signatures": [
         "is_weekday(self, weekday: _QuerySelection) -> pl.Series"
@@ -4364,7 +4315,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6035
+        6027
       ],
       "signatures": [
         "is_year(self, year: _IntegerInput) -> pl.Series"
@@ -4388,7 +4339,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6300
+        6292
       ],
       "signatures": [
         "isocalendar(self) -> pl.Series"
@@ -4412,7 +4363,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6526
+        6518
       ],
       "signatures": [
         "isoformat(self, sep: str='T', timespec: str='auto') -> pl.Series"
@@ -4436,7 +4387,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5864
+        5856
       ],
       "signatures": [
         "isoweek(self) -> pl.Series"
@@ -4460,7 +4411,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5883
+        5875
       ],
       "signatures": [
         "isoweekday(self) -> pl.Series"
@@ -4484,7 +4435,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5845
+        5837
       ],
       "signatures": [
         "isoyear(self) -> pl.Series"
@@ -4508,7 +4459,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6194
+        6186
       ],
       "signatures": [
         "leap_bt_year(self, year: _IntegerInput) -> pl.Series"
@@ -4532,7 +4483,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5686
+        5678
       ],
       "signatures": [
         "microsecond(self) -> pl.Series"
@@ -4556,7 +4507,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5806
+        5798
       ],
       "signatures": [
         "millisecond(self) -> pl.Series"
@@ -4580,7 +4531,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5646
+        5638
       ],
       "signatures": [
         "minute(self) -> pl.Series"
@@ -4604,7 +4555,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5586
+        5578
       ],
       "signatures": [
         "month(self) -> pl.Series"
@@ -4628,7 +4579,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6603
+        6595
       ],
       "signatures": [
         "month_name(self, locale: str | None=None) -> pl.Series"
@@ -4652,7 +4603,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5706
+        5698
       ],
       "signatures": [
         "nanosecond(self) -> pl.Series"
@@ -4676,7 +4627,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5485
+        5477
       ],
       "signatures": [
         "normalize(self) -> _PldtT"
@@ -4700,7 +4651,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7259
+        7251
       ],
       "signatures": [
         "parse(self, *, unit: _Unit | None=None, name: str | None=None, copy: _Boolean=False, tz: _Zone=None, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -4724,7 +4675,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5786
+        5778
       ],
       "signatures": [
         "quarter(self) -> pl.Series"
@@ -4748,7 +4699,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6946
+        6938
       ],
       "signatures": [
         "replace(self, year: _OptionalField=None, month: _OptionalField=None, day: _OptionalField=None, hour: _OptionalField=None, minute: _OptionalField=None, second: _OptionalField=None, microsecond: _OptionalField=None, nanosecond: _OptionalField=None, tzinfo: _Zone=..., *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -4772,7 +4723,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6797
+        6789
       ],
       "signatures": [
         "round(self, freq: _FixedFrequency='s') -> _PldtT"
@@ -4796,7 +4747,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5666
+        5658
       ],
       "signatures": [
         "second(self) -> pl.Series"
@@ -4820,7 +4771,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5506
+        5498
       ],
       "signatures": [
         "snap(self, unit: str='s') -> _PldtT"
@@ -4844,7 +4795,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6553
+        6545
       ],
       "signatures": [
         "strftime(self, format: str) -> pl.Series"
@@ -4868,7 +4819,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7324
+        7316
       ],
       "signatures": [
         "strptime(self, fmt: str, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, cfg: Configs | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -4892,7 +4843,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5224
+        5216
       ],
       "signatures": [
         "sub(self, years: _IntegerInput=0, quarters: _IntegerInput=0, months: _IntegerInput=0, weeks: _IntegerInput=0, days: _IntegerInput=0, hours: _IntegerInput=0, minutes: _IntegerInput=0, seconds: _IntegerInput=0, milliseconds: _IntegerInput=0, microseconds: _IntegerInput=0, nanoseconds: _IntegerInput=0) -> _PldtT"
@@ -4916,7 +4867,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6918
+        6910
       ],
       "signatures": [
         "sub_delta(self, delta: _DeltaInput) -> _PldtT"
@@ -4940,7 +4891,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6507
+        6499
       ],
       "signatures": [
         "time(self) -> pl.Series"
@@ -4964,7 +4915,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6324
+        6316
       ],
       "signatures": [
         "timedf(self) -> pl.DataFrame"
@@ -4988,7 +4939,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6442
+        6434
       ],
       "signatures": [
         "timestamp(self) -> pl.Series"
@@ -5012,7 +4963,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6697
+        6689
       ],
       "signatures": [
         "timetz(self) -> np.ndarray"
@@ -5036,7 +4987,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4792
+        4784
       ],
       "signatures": [
         "to_curr_month(self, day: _OptionalField=None) -> _PldtT"
@@ -5060,7 +5011,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4684
+        4676
       ],
       "signatures": [
         "to_curr_quarter(self, month: _OptionalField=None, day: _OptionalField=None) -> _PldtT"
@@ -5084,7 +5035,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4888
+        4880
       ],
       "signatures": [
         "to_curr_weekday(self, weekday: _Selection=None) -> _PldtT"
@@ -5108,7 +5059,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4576
+        4568
       ],
       "signatures": [
         "to_curr_year(self, month: _Selection=None, day: _OptionalField=None) -> _PldtT"
@@ -5132,7 +5083,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4310
+        4302
       ],
       "signatures": [
         "to_date(self, year: _OptionalField=None, month: _OptionalField=None, day: _OptionalField=None) -> _PldtT"
@@ -5156,7 +5107,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4250
+        4242
       ],
       "signatures": [
         "to_datetime(self, year: _OptionalField=None, month: _OptionalField=None, day: _OptionalField=None, hour: _OptionalField=None, minute: _OptionalField=None, second: _OptionalField=None, microsecond: _OptionalField=None, nanosecond: _OptionalField=None) -> _PldtT"
@@ -5180,7 +5131,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4545
+        4537
       ],
       "signatures": [
         "to_day(self, offset: _IntegerInput) -> _PldtT"
@@ -5204,7 +5155,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5435
+        5427
       ],
       "signatures": [
         "to_end_of(self, unit: str) -> _PldtT"
@@ -5228,7 +5179,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5285
+        5277
       ],
       "signatures": [
         "to_first_of(self, unit: str) -> _PldtT"
@@ -5252,7 +5203,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5053
+        5045
       ],
       "signatures": [
         "to_friday(self) -> _PldtT"
@@ -5276,7 +5227,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5335
+        5327
       ],
       "signatures": [
         "to_last_of(self, unit: str) -> _PldtT"
@@ -5300,7 +5251,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4969
+        4961
       ],
       "signatures": [
         "to_monday(self) -> _PldtT"
@@ -5324,7 +5275,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4476
+        4468
       ],
       "signatures": [
         "to_month(self, offset: _IntegerInput, day: _OptionalField=None) -> _PldtT"
@@ -5348,7 +5299,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4856
+        4848
       ],
       "signatures": [
         "to_next_month(self, day: _OptionalField=None) -> _PldtT"
@@ -5372,7 +5323,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4756
+        4748
       ],
       "signatures": [
         "to_next_quarter(self, month: _OptionalField=None, day: _OptionalField=None) -> _PldtT"
@@ -5396,7 +5347,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4942
+        4934
       ],
       "signatures": [
         "to_next_weekday(self, weekday: _Selection=None) -> _PldtT"
@@ -5420,7 +5371,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4648
+        4640
       ],
       "signatures": [
         "to_next_year(self, month: _Selection=None, day: _OptionalField=None) -> _PldtT"
@@ -5444,7 +5395,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4824
+        4816
       ],
       "signatures": [
         "to_prev_month(self, day: _OptionalField=None) -> _PldtT"
@@ -5468,7 +5419,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4720
+        4712
       ],
       "signatures": [
         "to_prev_quarter(self, month: _OptionalField=None, day: _OptionalField=None) -> _PldtT"
@@ -5492,7 +5443,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4915
+        4907
       ],
       "signatures": [
         "to_prev_weekday(self, weekday: _Selection=None) -> _PldtT"
@@ -5516,7 +5467,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4612
+        4604
       ],
       "signatures": [
         "to_prev_year(self, month: _Selection=None, day: _OptionalField=None) -> _PldtT"
@@ -5540,7 +5491,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4437
+        4429
       ],
       "signatures": [
         "to_quarter(self, offset: _IntegerInput, month: _OptionalField=None, day: _OptionalField=None) -> _PldtT"
@@ -5564,7 +5515,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5074
+        5066
       ],
       "signatures": [
         "to_saturday(self) -> _PldtT"
@@ -5588,7 +5539,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5385
+        5377
       ],
       "signatures": [
         "to_start_of(self, unit: str) -> _PldtT"
@@ -5612,7 +5563,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5095
+        5087
       ],
       "signatures": [
         "to_sunday(self) -> _PldtT"
@@ -5636,7 +5587,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5032
+        5024
       ],
       "signatures": [
         "to_thursday(self) -> _PldtT"
@@ -5660,7 +5611,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4350
+        4342
       ],
       "signatures": [
         "to_time(self, hour: _OptionalField=None, minute: _OptionalField=None, second: _OptionalField=None, microsecond: _OptionalField=None, nanosecond: _OptionalField=None) -> _PldtT"
@@ -5684,7 +5635,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5137
+        5129
       ],
       "signatures": [
         "to_tomorrow(self) -> _PldtT"
@@ -5708,7 +5659,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4990
+        4982
       ],
       "signatures": [
         "to_tuesday(self) -> _PldtT"
@@ -5732,7 +5683,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5011
+        5003
       ],
       "signatures": [
         "to_wednesday(self) -> _PldtT"
@@ -5756,7 +5707,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4511
+        4503
       ],
       "signatures": [
         "to_weekday(self, offset: _IntegerInput, weekday: _Selection=None) -> _PldtT"
@@ -5780,7 +5731,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4398
+        4390
       ],
       "signatures": [
         "to_year(self, offset: _IntegerInput, month: _Selection=None, day: _OptionalField=None) -> _PldtT"
@@ -5804,7 +5755,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5116
+        5108
       ],
       "signatures": [
         "to_yesterday(self) -> _PldtT"
@@ -5828,7 +5779,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6393
+        6385
       ],
       "signatures": [
         "tomicroseconds(self, utc: _Boolean=False) -> pl.Series"
@@ -5852,7 +5803,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6423
+        6415
       ],
       "signatures": [
         "toordinal(self) -> pl.Series"
@@ -5876,7 +5827,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6360
+        6352
       ],
       "signatures": [
         "toseconds(self, utc: _Boolean=False) -> pl.Series"
@@ -5900,7 +5851,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6729
+        6721
       ],
       "signatures": [
         "tz_available(self) -> set[str]"
@@ -5924,7 +5875,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7687
+        7675
       ],
       "signatures": [
         "tz_convert(self, tz: _Zone) -> _PldtT"
@@ -5948,7 +5899,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7653
+        7642
       ],
       "signatures": [
         "tz_localize(self, tz: _Zone, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -5972,7 +5923,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7749
+        7736
       ],
       "signatures": [
         "tz_switch(self, targ_tz: _Zone, base_tz: _Zone=None, naive: _Boolean=False, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> _PldtT"
@@ -5996,7 +5947,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6717
+        6709
       ],
       "signatures": [
         "tzinfo(self) -> _dt.tzinfo | None"
@@ -6020,7 +5971,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6653
+        6645
       ],
       "signatures": [
         "tzname(self) -> pl.Series"
@@ -6044,7 +5995,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        7507
+        7499
       ],
       "signatures": [
         "utcfromtimestamp(self, *, unit: _Unit | None=None, name: str | None=None) -> _PldtT"
@@ -6068,7 +6019,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6243
+        6235
       ],
       "signatures": [
         "utcoffset_seconds(self) -> pl.Series"
@@ -6092,7 +6043,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6342
+        6334
       ],
       "signatures": [
         "utctimedf(self) -> pl.DataFrame"
@@ -6116,7 +6067,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6467
+        6459
       ],
       "signatures": [
         "values_naive(self) -> pl.Series"
@@ -6140,7 +6091,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5726
+        5718
       ],
       "signatures": [
         "weekday(self) -> pl.Series"
@@ -6164,7 +6115,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        6628
+        6620
       ],
       "signatures": [
         "weekday_name(self, locale: str | None=None) -> pl.Series"
@@ -6188,7 +6139,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        5566
+        5558
       ],
       "signatures": [
         "year(self) -> pl.Series"
@@ -15248,8 +15199,8 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4084,
-        4100
+        4076,
+        4092
       ],
       "signatures": [
         "__add__(self, other: Delta | _dt.timedelta | np.timedelta64) -> Self",
@@ -15294,7 +15245,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4024
+        4016
       ],
       "signatures": [
         "__array__(self, dtype: Any=None, copy: bool | None=None) -> np.ndarray"
@@ -15318,7 +15269,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4052
+        4044
       ],
       "signatures": [
         "__array_ufunc__(self, ufunc: Any, method: Any, *inputs: Any, **kwargs: Any) -> Any"
@@ -15402,7 +15353,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3802
+        3794
       ],
       "signatures": [
         "__copy__(self) -> Self"
@@ -15426,7 +15377,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3850
+        3842
       ],
       "signatures": [
         "__deepcopy__(self, memo: dict[int, Any] | None=None) -> Self"
@@ -15550,7 +15501,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3877
+        3869
       ],
       "signatures": [
         "__getstate__(self) -> object"
@@ -15918,8 +15869,8 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4127,
-        4143
+        4119,
+        4135
       ],
       "signatures": [
         "__radd__(self, other: Delta | _dt.timedelta | np.timedelta64) -> Self",
@@ -15964,7 +15915,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3920
+        3912
       ],
       "signatures": [
         "__reduce__(self) -> str | tuple[object, ...]"
@@ -15988,7 +15939,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3939
+        3931
       ],
       "signatures": [
         "__reduce_ex__(self, protocol: SupportsIndex) -> str | tuple[object, ...]"
@@ -16232,7 +16183,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3896
+        3888
       ],
       "signatures": [
         "__setstate__(self, state: object) -> None"
@@ -16276,9 +16227,9 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4170,
-        4186,
-        4202
+        4162,
+        4178,
+        4194
       ],
       "signatures": [
         "__sub__(self, other: Delta | _dt.timedelta | np.timedelta64) -> Self",
@@ -16748,7 +16699,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3631
+        3630
       ],
       "signatures": [
         "as_unit(self, unit: _Unit, round_ok: _Boolean=True) -> Self"
@@ -16772,7 +16723,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3728
+        3722
       ],
       "signatures": [
         "astimezone(self, tz: _Zone=None, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self"
@@ -17276,7 +17227,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3454
+        3453
       ],
       "signatures": [
         "combine(cls, date: _DateInput=None, time: _CombineTime=None, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self"
@@ -17300,7 +17251,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3823
+        3815
       ],
       "signatures": [
         "copy(self, name: str | None=None, deep: _Boolean=False) -> Self"
@@ -17592,7 +17543,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3551
+        3550
       ],
       "signatures": [
         "date_range(cls, start: _DateInput=None, *, end: _DateInput=None, periods: SupportsIndex | None=None, freq: object=None, tz: _Zone=None, normalize: _Boolean=False, inclusive: str='both', unit: _Unit | None=None, name: str | None=None, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self"
@@ -19564,7 +19515,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3196
+        3195
       ],
       "signatures": [
         "fromdatetime(cls, dt: _DatetimeInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self"
@@ -19588,7 +19539,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3244
+        3243
       ],
       "signatures": [
         "fromdatetime64(cls, dt64: _NumpyDateInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self"
@@ -19612,7 +19563,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3398
+        3397
       ],
       "signatures": [
         "fromdayofyear(cls, year: _CalendarInput, doy: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self"
@@ -19636,7 +19587,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3339
+        3338
       ],
       "signatures": [
         "fromisocalendar(cls, year: _CalendarInput, week: _CalendarInput, weekday: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self"
@@ -19660,7 +19611,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3504
+        3503
       ],
       "signatures": [
         "fromisoformat(cls, dtstr: _IsoInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self"
@@ -19708,7 +19659,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3292
+        3291
       ],
       "signatures": [
         "fromordinal(cls, ordinal: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self"
@@ -21812,7 +21763,7 @@
       "origin": "inherited",
       "stub": "pldt.pyi",
       "stub_lines": [
-        4228
+        4220
       ],
       "signatures": [
         "pldt(self) -> _SeriesNamespace[Self]"
@@ -23964,7 +23915,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3963
+        3955
       ],
       "signatures": [
         "to_numpy(self, *, writable: _Boolean=False, allow_copy: _Boolean=True, allow_nat_collision: _Boolean=False) -> np.ndarray"
@@ -23988,7 +23939,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3994
+        3986
       ],
       "signatures": [
         "to_pandas(self, *, use_pyarrow_extension_array: _Boolean=False, allow_nat_collision: _Boolean=False, **kwargs: Any) -> pd.Series"
@@ -24616,7 +24567,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3700
+        3694
       ],
       "signatures": [
         "tz_convert(self, tz: _Zone) -> Self"
@@ -24640,7 +24591,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3666
+        3661
       ],
       "signatures": [
         "tz_localize(self, tz: _Zone, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self"
@@ -24664,7 +24615,7 @@
       "origin": "library",
       "stub": "pldt.pyi",
       "stub_lines": [
-        3762
+        3755
       ],
       "signatures": [
         "tz_switch(self, targ_tz: _Zone, base_tz: _Zone=None, naive: _Boolean=False, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self"
@@ -29239,6 +29190,533 @@
     {
       "path": "rstimes.errors.ConfigError.with_traceback",
       "owner": "rstimes.errors.ConfigError",
+      "kind": "method",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "class",
+      "origin": "library",
+      "stub": "errors.pyi",
+      "stub_lines": [
+        47
+      ],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__cause__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "attribute",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__context__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "attribute",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__eq__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__format__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__ge__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__getstate__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__gt__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__hash__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__init__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__le__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__lt__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__ne__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__new__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__notes__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "attribute",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__reduce__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__reduce_ex__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__repr__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__setstate__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__str__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "protocol",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__suppress_context__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "attribute",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__traceback__",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "attribute",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.add_note",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "method",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.args",
+      "owner": "rstimes.errors.DependencyWarning",
+      "kind": "property",
+      "origin": "inherited",
+      "stub": "errors.pyi",
+      "stub_lines": [],
+      "signatures": [],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.with_traceback",
+      "owner": "rstimes.errors.DependencyWarning",
       "kind": "method",
       "origin": "inherited",
       "stub": "errors.pyi",

@@ -73,11 +73,16 @@ True
 True ['offset']
 ```
 
-```{doctest} pldt-native-diff-versus-elapsed
+```{doctest} pldt-native-adjacent-diff
+>>> # coverage: {"covers":["rstimes.Pldt.diff"],"scenarios":["inherited-adjacent-difference","Duration-us","null"]}
 >>> source = Pldt([1001, 2002, None], unit='us', name='event')
 >>> adjacent = source.diff()
->>> (type(adjacent) is pl.Series, adjacent.dtype == pl.Duration('us'), adjacent.to_physical().to_list())
-(True, True, [None, 1001, None])
+>>> (type(adjacent) is pl.Series, adjacent.dtype == pl.Duration('us'), adjacent.name, adjacent.to_physical().to_list())
+(True, True, 'event', [None, 1001, None])
+```
+
+```{doctest} pldt-native-paired-subtraction
+>>> # coverage: {"covers":["rstimes.Pldt.__sub__"],"scenarios":["paired-subtraction","mixed-precision-subtraction","Duration-ns","null"]}
 >>> target = pl.Series('other', [1, 2, None], dtype=pl.Datetime('ns'))
 >>> elapsed = source - target
 >>> (type(elapsed) is pl.Series, elapsed.dtype == pl.Duration('ns'), elapsed.name, elapsed.to_physical().to_list())

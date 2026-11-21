@@ -12,8 +12,8 @@ Use the pinned toolchain and development requirements for the
 source commit. Build in a fresh artifact directory and install
 that wheel in the intended verification environment before
 running its installed-package checks. Use the repository's
-[release procedure](https://github.com/AresJef/rsTimes/blob/v1.0.0/docs/RELEASING.md)
-and the [developer environment guide](https://github.com/AresJef/rsTimes/blob/v1.0.0/docs/development.md)
+[release procedure](https://github.com/AresJef/rsTimes/blob/v1.1.0/docs/RELEASING.md)
+and the [developer environment guide](https://github.com/AresJef/rsTimes/blob/v1.1.0/docs/development.md)
 for reproducible commands. For a docs change, follow the
 [separate documentation workflow](documentation.md).
 
@@ -22,11 +22,11 @@ for reproducible commands. For a docs change, follow the
 Use the [type-checking guide](../compatibility/type-checking.md)
 for the pinned Pyright version, consumer applications and
 optional static types. The repository's
-[installed-package type gate](https://github.com/AresJef/rsTimes/blob/v1.0.0/docs/type-checking.md)
+[installed-package type gate](https://github.com/AresJef/rsTimes/blob/v1.1.0/docs/type-checking.md)
 covers typed interfaces and retained negative tests.
 
 Official comparison demos use a separate oracle environment.
-See the [demo guide](https://github.com/AresJef/rsTimes/blob/v1.0.0/demo/README.md)
+See the [demo guide](https://github.com/AresJef/rsTimes/blob/v1.1.0/demo/README.md)
 for launcher and interpreter selection.
 
 ## Make a behavior change reviewable

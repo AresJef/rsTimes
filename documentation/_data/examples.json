@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "target_status": "published_1.0.0",
+  "target_status": "bound_rsTimes_1.1.0",
   "examples": [
     {
       "id": "install-check-distribution-version",
@@ -13,14 +13,14 @@
         "public-install",
         "windows-full"
       ],
-      "expectation_basis": "Installed distribution metadata of the bound 1.0.0 wheel.",
+      "expectation_basis": "Installed distribution metadata of the bound 1.1.0 wheel.",
       "scenarios": [
         "public-install",
         "version"
       ],
       "reviewed": true,
       "checks": [
-        "assert type(installed) is str and installed == '1.0.0'"
+        "assert type(installed) is str and installed == '1.1.0'"
       ]
     },
     {
@@ -1480,6 +1480,26 @@
         "rstimes.errors.ConfigError.add_note",
         "rstimes.errors.ConfigError.args",
         "rstimes.errors.ConfigError.with_traceback",
+        "rstimes.errors.DependencyWarning",
+        "rstimes.errors.DependencyWarning.__eq__",
+        "rstimes.errors.DependencyWarning.__format__",
+        "rstimes.errors.DependencyWarning.__ge__",
+        "rstimes.errors.DependencyWarning.__getstate__",
+        "rstimes.errors.DependencyWarning.__gt__",
+        "rstimes.errors.DependencyWarning.__hash__",
+        "rstimes.errors.DependencyWarning.__init__",
+        "rstimes.errors.DependencyWarning.__le__",
+        "rstimes.errors.DependencyWarning.__lt__",
+        "rstimes.errors.DependencyWarning.__ne__",
+        "rstimes.errors.DependencyWarning.__new__",
+        "rstimes.errors.DependencyWarning.__reduce__",
+        "rstimes.errors.DependencyWarning.__reduce_ex__",
+        "rstimes.errors.DependencyWarning.__repr__",
+        "rstimes.errors.DependencyWarning.__setstate__",
+        "rstimes.errors.DependencyWarning.__str__",
+        "rstimes.errors.DependencyWarning.add_note",
+        "rstimes.errors.DependencyWarning.args",
+        "rstimes.errors.DependencyWarning.with_traceback",
         "rstimes.errors.ParseError",
         "rstimes.errors.ParseError.__eq__",
         "rstimes.errors.ParseError.__format__",
@@ -3228,7 +3248,7 @@
         "pandas2",
         "windows-full"
       ],
-      "expectation_basis": "NYsource01:30\u2192UTC06:30.123456789",
+      "expectation_basis": "NYsource01:30→UTC06:30.123456789",
       "scenarios": [
         "Configs-region",
         "source-before-target",
@@ -3619,7 +3639,7 @@
         "pandas2",
         "windows-full"
       ],
-      "expectation_basis": "all12bucketunits;MINlegitimateintegerdifference;liveclock\u00b11day",
+      "expectation_basis": "all12bucketunits;MINlegitimateintegerdifference;liveclock±1day",
       "scenarios": [
         "all-diff-units",
         "all-inclusive",
@@ -4198,12 +4218,56 @@
       "format": "contract"
     },
     {
-      "id": "pldt-unit-and-source-ownership",
+      "id": "pldt-constructor-source-ownership",
       "page": "guides/pldt.md",
       "covers": [
         "rstimes.Pldt",
-        "rstimes.Pldt.__init__",
-        "rstimes.Pldt.as_unit",
+        "rstimes.Pldt.__init__"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "A NumPy mutation or later append leaves the captured date ticks unchanged.",
+      "scenarios": [
+        "copy-isolation",
+        "captured-owner",
+        "strict-copy-boolean",
+        "name-validation"
+      ],
+      "reviewed": true,
+      "format": "contract"
+    },
+    {
+      "id": "pldt-direct-as-unit-options",
+      "page": "guides/pldt.md",
+      "covers": [
+        "rstimes.Pldt.as_unit"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Signed floor division gives -2 and 1. Inexact conversion with round_ok=False raises.",
+      "scenarios": [
+        "explicit-unit",
+        "negative-floor",
+        "None-rejected",
+        "strict-round_ok",
+        "precision-error",
+        "null"
+      ],
+      "reviewed": true,
+      "format": "contract"
+    },
+    {
+      "id": "pldt-series-as-unit-options",
+      "page": "guides/pldt.md",
+      "covers": [
         "polars.Series.pldt.as_unit"
       ],
       "profiles": [
@@ -4212,16 +4276,12 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "-1500nsfloors-2us;copyisolation;capturedshellbeforeappend",
+      "expectation_basis": "A plain native Series yields Pldt with signed floor division and the original name.",
       "scenarios": [
-        "negative-floor",
         "explicit-unit",
+        "negative-floor",
         "None-rejected",
-        "strict-round_ok",
-        "precision-error",
-        "copy-isolation",
-        "captured-owner",
-        "strict-boolean"
+        "null"
       ],
       "reviewed": true,
       "format": "contract"
@@ -5059,7 +5119,7 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "dayfirstFebruary;all9exactunitconversions\u00b11s",
+      "expectation_basis": "dayfirstFebruary;all9exactunitconversions±1s",
       "scenarios": [
         "native-Series-parse",
         "Configs",
@@ -5203,7 +5263,7 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "Jan31\u2192Feb29andMar31\u2192Apr30byposition",
+      "expectation_basis": "Jan31→Feb29andMar31→Apr30byposition",
       "scenarios": [
         "native-null-optional",
         "scalar-broadcast",
@@ -5306,7 +5366,7 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "signedties-even\u00b11500/2500ns;all0..9+12fractions;snaplater",
+      "expectation_basis": "signedties-even±1500/2500ns;all0..9+12fractions;snaplater",
       "scenarios": [
         "fixed-grid",
         "timedelta",
@@ -5522,7 +5582,7 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "UTCnormalized;NYwinter-18000summer-14400;clock\u00b11day",
+      "expectation_basis": "UTCnormalized;NYwinter-18000summer-14400;clock±1day",
       "scenarios": [
         "scalar-metadata",
         "native-row-query",
@@ -5549,7 +5609,7 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "12unitbucketcounts;7fixedbuckets\u00d73storageintegeranswers",
+      "expectation_basis": "12unitbucketcounts;7fixedbuckets×3storageintegeranswers",
       "scenarios": [
         "all-boundary-units",
         "numeric-seconds",
@@ -5752,7 +5812,7 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "all3units\u00d73zones\u00d76copyroutes;fullint64/validity;actualdatapointers",
+      "expectation_basis": "all3units×3zones×6copyroutes;fullint64/validity;actualdatapointers",
       "scenarios": [
         "all3units",
         "all-zones",
@@ -6091,7 +6151,7 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "all4factories\u00d73units1secondscale;Shanghaiwallvsinstant;\u00b11nsfloat",
+      "expectation_basis": "all4factories×3units1secondscale;Shanghaiwallvsinstant;±1nsfloat",
       "scenarios": [
         "all-numeric-factories",
         "all3units",
@@ -6148,11 +6208,70 @@
       "format": "contract"
     },
     {
-      "id": "expr-iso-format-and-combine",
+      "id": "expr-input-isoformat",
       "page": "guides/expressions-inputs.md",
       "covers": [
-        "polars.Expr.pldt.fromisoformat",
-        "polars.Expr.pldt.strptime",
+        "polars.Expr.pldt.fromisoformat"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The ISO fraction is 123456789 ns. 05:30 at +05:30 is the Unix epoch in UTC.",
+      "scenarios": [
+        "ISO-only",
+        "explicit-ISO-unit",
+        "explicit-ISO-timezone",
+        "execution-error",
+        "null"
+      ],
+      "reviewed": true,
+      "execution_modes": [
+        "select",
+        "collect",
+        "streaming"
+      ],
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
+    },
+    {
+      "id": "expr-input-strptime",
+      "page": "guides/expressions-inputs.md",
+      "covers": [
+        "polars.Expr.pldt.strptime"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The next day is 86400000000 us, also with literal %f. The same fraction is 123456 us or 123456789 ns.",
+      "scenarios": [
+        "explicit-format",
+        "whole-format-default-us",
+        "final-format-truncation",
+        "literal-percent-f",
+        "static-unit",
+        "static-timezone",
+        "preparation-error",
+        "null"
+      ],
+      "reviewed": true,
+      "execution_modes": [
+        "select",
+        "collect",
+        "streaming"
+      ],
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
+    },
+    {
+      "id": "expr-input-combine-time",
+      "page": "guides/expressions-inputs.md",
+      "covers": [
         "polars.Expr.pldt.combine"
       ],
       "profiles": [
@@ -6161,21 +6280,15 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "123456789ns;explicitus123456;dateJan2+Time1ns;frozen12clock",
+      "expectation_basis": "The first Time column tick is one ns after midnight. The captured Python time is noon in us.",
       "scenarios": [
-        "ISO-only",
-        "explicit-ISO-unit",
-        "explicit-format",
-        "whole-format-default-us",
-        "final-format-truncation",
         "Time-role",
-        "scalar-clock",
         "vector-clock",
         "snapshot",
+        "Python-time",
         "static-unit",
-        "static-timezone",
-        "preparation-error",
-        "execution-error"
+        "execution-error",
+        "null"
       ],
       "reviewed": true,
       "execution_modes": [
@@ -6280,11 +6393,63 @@
       "format": "contract"
     },
     {
-      "id": "expr-calendar-relative-and-unit",
+      "id": "expr-calendar-add-components",
       "page": "guides/expressions-calendar.md",
       "covers": [
-        "polars.Expr.pldt.add",
-        "polars.Expr.pldt.sub",
+        "polars.Expr.pldt.add"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Each of the 11 independent dates is literal. A microsecond plus minus 1000 nanoseconds is zero.",
+      "scenarios": [
+        "all-relative-components",
+        "exact-cancellation",
+        "precision-error"
+      ],
+      "reviewed": true,
+      "execution_modes": [
+        "select",
+        "collect",
+        "streaming"
+      ],
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
+    },
+    {
+      "id": "expr-calendar-sub-components",
+      "page": "guides/expressions-calendar.md",
+      "covers": [
+        "polars.Expr.pldt.sub"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Subtracting each negative component yields the corresponding independently expected later date.",
+      "scenarios": [
+        "all-relative-components",
+        "signed-subtraction",
+        "precision-error"
+      ],
+      "reviewed": true,
+      "execution_modes": [
+        "select",
+        "collect",
+        "streaming"
+      ],
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
+    },
+    {
+      "id": "expr-calendar-as-unit",
+      "page": "guides/expressions-calendar.md",
+      "covers": [
         "polars.Expr.pldt.as_unit"
       ],
       "profiles": [
@@ -6293,15 +6458,38 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "all11literalcomponentanswers;9exactunitconversions;finalcancellation",
+      "expectation_basis": "Exact seconds on a 3×3 unit matrix; floor(-1500/1000) is -2; the last us value exceeds i64 after multiplying by 1000.",
       "scenarios": [
-        "all-relative-components",
-        "signed-subtraction",
         "all3units",
         "explicit-unit",
         "None-rejected",
         "negative-floor",
         "precision-error",
+        "capacity-error"
+      ],
+      "reviewed": true,
+      "execution_modes": [
+        "select",
+        "collect",
+        "streaming"
+      ],
+      "receiver_review": "Actual pl.Expr.pldt method/property is constructed and its native result is executed; no Pldt result stands in for Expr execution.",
+      "format": "contract"
+    },
+    {
+      "id": "expr-calendar-to-date-capacity",
+      "page": "guides/expressions-calendar.md",
+      "covers": [
+        "polars.Expr.pldt.to_date"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Keeping nanosecond storage cannot represent the 2500 result after moving the date fields.",
+      "scenarios": [
         "capacity-error"
       ],
       "reviewed": true,
@@ -6398,7 +6586,7 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "\u00b11500/2500nsties-even;10snapperiodliteralanswers;all0..9+12fsp",
+      "expectation_basis": "±1500/2500nsties-even;10snapperiodliteralanswers;all0..9+12fsp",
       "scenarios": [
         "positive-fixed-grid",
         "timedelta",
@@ -8585,13 +8773,93 @@
       "format": "contract"
     },
     {
-      "id": "inherited-pldt-native-runs-and-callbacks",
+      "id": "inherited-pldt-rle",
       "page": "api/inherited-pldt-analysis.md",
       "covers": [
-        "rstimes.Pldt.rle",
-        "rstimes.Pldt.rle_id",
-        "rstimes.Pldt.diff",
-        "rstimes.Pldt.map_elements",
+        "rstimes.Pldt.rle"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Two ticks, two nulls and a final exact tick form three runs.",
+      "scenarios": [
+        "exact-nested-runs",
+        "null"
+      ],
+      "reviewed": true,
+      "format": "contract"
+    },
+    {
+      "id": "inherited-pldt-rle-id",
+      "page": "api/inherited-pldt-analysis.md",
+      "covers": [
+        "rstimes.Pldt.rle_id"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Each row is labelled by the zero-based run containing it.",
+      "scenarios": [
+        "run-identifiers",
+        "null"
+      ],
+      "reviewed": true,
+      "format": "contract"
+    },
+    {
+      "id": "inherited-pldt-ns-adjacent-diff",
+      "page": "api/inherited-pldt-analysis.md",
+      "covers": [
+        "rstimes.Pldt.diff"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The one adjacent valid pair produces last minus first, and drop omits the leading offset row.",
+      "scenarios": [
+        "inherited-adjacent-difference",
+        "Duration-ns",
+        "drop-null-behavior",
+        "shortened-shape",
+        "null"
+      ],
+      "reviewed": true,
+      "format": "contract"
+    },
+    {
+      "id": "inherited-pldt-date-callback",
+      "page": "api/inherited-pldt-analysis.md",
+      "covers": [
+        "rstimes.Pldt.map_elements"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Each non-null date is translated using the explicit business code table.",
+      "scenarios": [
+        "business-callback",
+        "Int64",
+        "null"
+      ],
+      "reviewed": true,
+      "format": "contract"
+    },
+    {
+      "id": "inherited-pldt-date-summary",
+      "page": "api/inherited-pldt-analysis.md",
+      "covers": [
         "rstimes.Pldt.describe"
       ],
       "profiles": [
@@ -8600,9 +8868,11 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.",
+      "expectation_basis": "Four input rows have one null, independently determined min, mean and max.",
       "scenarios": [
-        "Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table."
+        "summary",
+        "String",
+        "null"
       ],
       "reviewed": true,
       "format": "contract"
@@ -8987,6 +9257,11 @@
         "rstimes.errors.ConfigError.__notes__",
         "rstimes.errors.ConfigError.__suppress_context__",
         "rstimes.errors.ConfigError.__traceback__",
+        "rstimes.errors.DependencyWarning.__cause__",
+        "rstimes.errors.DependencyWarning.__context__",
+        "rstimes.errors.DependencyWarning.__notes__",
+        "rstimes.errors.DependencyWarning.__suppress_context__",
+        "rstimes.errors.DependencyWarning.__traceback__",
         "rstimes.errors.ParseError.__cause__",
         "rstimes.errors.ParseError.__context__",
         "rstimes.errors.ParseError.__notes__",
@@ -10322,7 +10597,7 @@
         "pandas-current",
         "windows-full"
       ],
-      "expectation_basis": "The exact \u22121500ns difference rounds to the even \u22122us.",
+      "expectation_basis": "The exact −1500ns difference rounds to the even −2us.",
       "checks": [
         "from datetime import timedelta",
         "assert type(difference) is timedelta",
@@ -11487,11 +11762,31 @@
       "page": "guides/pldt-arithmetic.md"
     },
     {
-      "id": "pldt-native-diff-versus-elapsed",
+      "id": "pldt-native-adjacent-diff",
       "page": "guides/pldt-differences.md",
       "format": "contract",
       "covers": [
-        "rstimes.Pldt.diff",
+        "rstimes.Pldt.diff"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "reviewed": true,
+      "expectation_basis": "Each valid tick subtracts the preceding tick in us. A leading value has no predecessor.",
+      "scenarios": [
+        "inherited-adjacent-difference",
+        "Duration-us",
+        "null"
+      ]
+    },
+    {
+      "id": "pldt-native-paired-subtraction",
+      "page": "guides/pldt-differences.md",
+      "format": "contract",
+      "covers": [
         "rstimes.Pldt.__sub__"
       ],
       "profiles": [
@@ -11501,11 +11796,11 @@
         "windows-full"
       ],
       "reviewed": true,
-      "expectation_basis": "Adjacent differences are 1001 us; subtracting each exact ns target gives 1000999 and 2001998 ns.",
+      "expectation_basis": "The two pairs produce 1001*1000-1 and 2002*1000-2 nanoseconds. A valid first pair produces a first result.",
       "scenarios": [
-        "inherited-adjacent-difference",
-        "ordinary-Duration",
+        "paired-subtraction",
         "mixed-precision-subtraction",
+        "Duration-ns",
         "null"
       ]
     },
@@ -11979,7 +12274,8 @@
       "id": "pldt-pickle-min-tick",
       "covers": [
         "rstimes.Pldt.__reduce_ex__",
-        "rstimes.Pldt.__setstate__"
+        "rstimes.Pldt.__setstate__",
+        "rstimes.Pldt.name"
       ],
       "format": "python",
       "profiles": [
@@ -11992,13 +12288,15 @@
       "checks": [
         "import polars as pl",
         "assert type(restored) is Pldt and restored.dtype == pl.Datetime('ns','UTC')",
-        "assert restored.is_null().to_list() == [False,True]"
+        "assert restored.is_null().to_list() == [False,True]",
+        "assert restored.name == 'event'"
       ],
       "scenarios": [
         "pickle",
         "state-roundtrip",
         "independent-validity",
-        "timezone"
+        "timezone",
+        "restored-column-name"
       ],
       "reviewed": true,
       "page": "guides/pldt-state.md"
@@ -13736,6 +14034,195 @@
       ],
       "reviewed": true,
       "page": "concepts/returns-and-protocols.md"
+    },
+    {
+      "id": "pldt-scatter-clone",
+      "covers": [
+        "rstimes.Pldt.scatter"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "Only the first tick of the independently cloned wrapper changes to 9.",
+      "checks": [
+        "assert type(original) is type(edited) is Pldt and original is not edited",
+        "assert result is edited and edited.dtype == original.dtype == pl.Datetime('us', 'UTC')",
+        "assert edited.name == original.name == 'event'",
+        "assert edited.is_null().to_list() == original.is_null().to_list() == [False, True, False]"
+      ],
+      "scenarios": [
+        "in-place-clone-mutation",
+        "original-unchanged",
+        "timezone",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "api/inherited-pldt-transformations.md"
+    },
+    {
+      "id": "pydt-english-ctime",
+      "covers": [
+        "rstimes.Pydt.ctime"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "Built-in datetime ctime uses English weekday/month and space-pads the day.",
+      "checks": [
+        "from datetime import datetime",
+        "assert type(value) is Pydt and type(text) is str",
+        "assert text == datetime(2024, 2, 9, 9, 30, 0, 123456, tzinfo=timezone.utc).ctime()"
+      ],
+      "scenarios": [
+        "English-clock-text",
+        "space-padded-day",
+        "no-fraction-or-offset"
+      ],
+      "reviewed": true,
+      "page": "guides/pydt-output.md"
+    },
+    {
+      "id": "pldt-series-as-unit",
+      "covers": [
+        "polars.Series.pldt.as_unit"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt.md",
+      "expectation_basis": "-1500 ns is between -2 and -1 us and the earlier tick is -2.",
+      "scenarios": [
+        "target-us",
+        "negative-floor",
+        "native-Series-accessor",
+        "name-timezone-null"
+      ],
+      "checks": [
+        "from rstimes import Pldt",
+        "assert type(source) is pl.Series and type(coarse) is Pldt",
+        "assert coarse.name == 'event' and coarse.dtype == pl.Datetime('us', 'UTC') and coarse.null_count() == 1",
+        "assert source.to_physical().to_list() == [-1500, None]"
+      ]
+    },
+    {
+      "id": "pldt-expr-as-unit",
+      "covers": [
+        "polars.Expr.pldt.as_unit"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "reviewed": true,
+      "page": "guides/expressions-calendar.md",
+      "expectation_basis": "-1500 ns is between -2 and -1 us and the earlier tick is -2.",
+      "scenarios": [
+        "target-us",
+        "negative-floor",
+        "Expr-accessor",
+        "schema",
+        "select",
+        "collect",
+        "name-timezone-null"
+      ],
+      "checks": [
+        "assert type(converted) is pl.Expr",
+        "query = frame.lazy().select(converted); assert query.collect_schema()['event'] == pl.Datetime('us', 'UTC')",
+        "for col in (frame.select(converted)['event'], query.collect()['event']):\n    assert type(col) is pl.Series and col.name == 'event' and col.dtype == pl.Datetime('us', 'UTC') and col.is_null().to_list() == [False, True]"
+      ],
+      "execution_modes": [
+        "select",
+        "collect"
+      ],
+      "receiver_review": "Native polars.Expr accessor, evaluated against a Datetime(ns, UTC) input."
+    },
+    {
+      "id": "pldt-adjacent-duration",
+      "covers": [
+        "rstimes.Pldt.diff"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-differences.md",
+      "expectation_basis": "2002 us minus 1001 us is 1001 us. The first and missing rows have no adjacent difference.",
+      "scenarios": [
+        "inherited-adjacent-difference",
+        "Duration-us",
+        "null"
+      ],
+      "checks": [
+        "import polars as pl",
+        "assert type(event) is Pldt and type(elapsed) is pl.Series and elapsed.dtype == pl.Duration('us')",
+        "assert elapsed.name == 'event' and elapsed.is_null().to_list() == [True, False, True]"
+      ]
+    },
+    {
+      "id": "dependency-warning-filter",
+      "page": "api/errors.md",
+      "format": "python",
+      "covers": [
+        "rstimes.errors.DependencyWarning"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The installed public warning type is a UserWarning. Python filters can raise it as an exception.",
+      "scenarios": [
+        "constructor",
+        "optional-dependency-version",
+        "warning-filter"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert type(notice) is DependencyWarning and notice.args == ('Example dependency warning',)"
+      ]
+    },
+    {
+      "id": "pldt-recover-inexact-eager-unit",
+      "page": "compatibility/known-issues.md",
+      "format": "python",
+      "covers": [
+        "polars.Series.pldt.as_unit"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "windows-full"
+      ],
+      "expectation_basis": "The second tick, -1500 ns, is not exactly representable in microseconds. Flooring gives -2 us.",
+      "scenarios": [
+        "precise-error-location",
+        "earlier-tick-flooring",
+        "eager-native-series"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert rounded.name == \"event\" and rounded.dtype == pl.Datetime(\"us\")",
+        "assert rounded.is_null().to_list() == [False, False, True]"
+      ]
     }
   ]
 }

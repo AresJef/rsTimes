@@ -38,7 +38,7 @@ python -m venv .local/doc-examples
 python -m venv .local/doc-build
 .local/doc-examples/bin/python -m pip install -r documentation/requirements/full.txt
 .local/doc-build/bin/python -m pip install -r requirements-docs.txt
-.local/doc-examples/bin/python -m pip download --only-binary=:all: --no-deps --dest .local/doc-wheels rsTimes==1.0.0
+.local/doc-examples/bin/python -m pip download --only-binary=:all: --no-deps --dest .local/doc-wheels rsTimes==1.1.0
 .local/doc-examples/bin/python -I documentation/_tools/bind_release.py --wheel-dir .local/doc-wheels --check-wheel-only
 .local/doc-examples/bin/python -m pip install --no-deps .local/doc-wheels/*.whl
 .local/doc-examples/bin/python -I documentation/_tools/bind_release.py --wheel-dir .local/doc-wheels --output .local/doc-proof/identity.json

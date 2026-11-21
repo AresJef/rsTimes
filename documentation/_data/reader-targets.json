@@ -1,0 +1,9 @@
+{
+  "polars.Expr.pldt.as_unit": "pldt-expr-as-unit",
+  "polars.Series.pldt.as_unit": "pldt-series-as-unit",
+  "rstimes.Pldt.__sub__": "pldt-measure-actual-duration",
+  "rstimes.Pldt.diff": "pldt-adjacent-duration",
+  "rstimes.Pldt.name": "pldt-pickle-min-tick",
+  "rstimes.Pldt.scatter": "pldt-scatter-clone",
+  "rstimes.Pydt.ctime": "pydt-english-ctime"
+}

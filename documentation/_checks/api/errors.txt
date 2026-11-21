@@ -1,6 +1,6 @@
 ```{doctest} error-responsibilities
 >>> from rstimes import Configs, parse_str
->>> from rstimes.errors import RstimesError, ParseError, ConfigError
+>>> from rstimes.errors import RstimesError, ParseError, ConfigError, DependencyWarning
 >>> all(issubclass(kind, RstimesError) and issubclass(kind, ValueError) for kind in (ParseError, ConfigError))
 True
 >>> try:
@@ -33,7 +33,7 @@ True ('business record failed',)
 
 ```{doctest} error-public-protocols
 >>> import pickle
->>> kinds = (RstimesError, ParseError, ConfigError)
+>>> kinds = (RstimesError, ParseError, ConfigError, DependencyWarning)
 >>> for kind in kinds:
 ...     value = kind.__new__(kind, 'created')
 ...     assert value.__init__('detail', 3) is None
@@ -75,7 +75,7 @@ True ('business record failed',)
 
 ```{doctest} error-chain-attributes
 >>> from types import TracebackType
->>> for kind in (RstimesError, ParseError, ConfigError):
+>>> for kind in (RstimesError, ParseError, ConfigError, DependencyWarning):
 ...     error = kind('record')
 ...     assert error.__cause__ is None and error.__context__ is None
 ...     assert error.__traceback__ is None and error.__suppress_context__ is False

@@ -59,11 +59,30 @@ Date-field replacement remains a separate rsTimes namespace operation.
 
 ## In-place wrapper edits and returned replacements
 
-`extend`, `scatter` and item assignment mutate the chosen Pldt wrapper. They
-operate on separate clones below, and the original is checked afterwards.
+`extend`, `scatter` and item assignment mutate the chosen Pldt wrapper.
 `set` and `extend_constant` instead return ordinary Series for these calls.
-Use a matching date Series with `scatter` to assign new dates with explicit
-unit and timezone metadata. Item assignment below clears a value with None.
+Clone a date column before calling `scatter` if the original must stay intact.
+Use a matching datetime unit and timezone for the values you assign.
+
+(pldt-scatter-clone)=
+```python
+import polars as pl
+from rstimes import Pldt
+
+original = Pldt([1, None, 3], unit="us", tz="UTC", name="event")
+edited = original.clone()
+replacement = pl.Series([9], dtype=pl.Datetime("us", "UTC"))
+result = edited.scatter([0], replacement)
+print(edited.to_physical().to_list())
+print(original.to_physical().to_list())
+```
+
+**Output**
+
+```text
+[9, None, 3]
+[1, None, 3]
+```
 
 ## Native nested outputs, reshaping and sampling
 

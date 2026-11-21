@@ -11,18 +11,20 @@ def load_links(app):
     root = Path(app.srcdir)
     entries = json.loads((root / "_data/coverage.json").read_text())["entries"]
     examples = json.loads((root / "_data/examples.json").read_text())["examples"]
+    reader_targets = json.loads((root / "_data/reader-targets.json").read_text())
     cases = {case["id"]: case for case in examples}
     titles = {}
     by_page = defaultdict(dict)
     for entry in entries:
         linked = [cases[name] for name in entry["examples"]]
         choices = [case for case in linked if case.get("format") == "python"]
-        case = (choices or linked)[0]
+        preferred = reader_targets.get(entry["path"])
+        case = cases[preferred] if preferred else (choices or linked)[0]
         page = case["page"]
         if page not in titles:
             title = (root / page).read_text(encoding="utf-8").splitlines()[0]
             titles[page] = title.lstrip("# ").strip()
-        if choices:
+        if case["format"] == "python":
             target = ("ref", case["id"], titles[page])
         else:
             target = ("doc", "/" + Path(page).with_suffix("").as_posix(), titles[page])
