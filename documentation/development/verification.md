@@ -5,8 +5,21 @@ actual build and execution context.
 
 - <a href="../verification/coverage.csv">Full entry, scenario, page, example, environment and evidence table in CSV</a>
 - <a href="../verification/coverage.json">The same coverage table in JSON</a>
+- <a href="../verification/receivers.json">Observed receivers, actions and receipts by example ID</a>
+- <a href="../verification/execution-counts.json">Successful worker records and registered successful combinations</a>
 - <a href="../_meta/build.json">Documented product, documentation commit, wheel identities and build context</a>
 - <a href="../../_meta/files.json">Checksums of site files</a>
+
+The reader status distinguishes a link with a verified receiver from a case
+seen only in a backend check or a case whose receiver still needs checking.
+Use the example ID to find an observed receiver and action, the dependency
+profile, and the report path and SHA-256. Paths are relative to this exact
+version's documentation root. For expressions, constructing an expression and
+executing it with `select` or `collect` are separate actions.
+
+The execution counts distinguish all successful groups emitted by workers from
+successful case/profile pairs registered for that profile. The three
+inventory-only profiles check the public API without running examples.
 
 The canonical public entries include rsTimes-owned APIs,
 registered namespaces and supported documentation for inherited

@@ -5,5 +5,6 @@
   "rstimes.Pldt.diff": "pldt-adjacent-duration",
   "rstimes.Pldt.name": "pldt-pickle-min-tick",
   "rstimes.Pldt.scatter": "pldt-scatter-clone",
-  "rstimes.Pydt.ctime": "pydt-english-ctime"
+  "rstimes.Pydt.ctime": "pydt-english-ctime",
+  "rstimes.errors.DependencyWarning": "dependency-warning-filter"
 }

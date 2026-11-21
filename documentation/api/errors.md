@@ -29,7 +29,7 @@ For input handling and practical recovery, see the
 | <span id="rstimes.errors.RstimesError"></span>`RstimesError` | Base of the library's domain errors. | Exception |
 | <span id="rstimes.errors.ParseError"></span>`ParseError` | Text cannot be interpreted, a strict field is invalid, or necessary date information is missing. | RstimesError and ValueError |
 | <span id="rstimes.errors.ConfigError"></span>`ConfigError` | A token, mapped value, or combination of rules is unusable. | RstimesError and ValueError |
-| <span id="rstimes.errors.DependencyWarning"></span>`DependencyWarning` | An installed pandas or Polars version is below the supported minimum. | UserWarning |
+| <span id="rstimes.errors.DependencyWarning"></span>`DependencyWarning` | An installed pandas or Polars version is below the supported minimum. {ref}`Filter this warning <dependency-warning-filter>`. | UserWarning |
 
 Unsupported argument types use `TypeError`. Invalid values can use `ValueError`
 or the appropriate domain subclass. Real arithmetic or destination capacity
