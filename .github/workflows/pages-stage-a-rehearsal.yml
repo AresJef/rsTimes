@@ -1,0 +1,50 @@
+name: Stage A archive upload rehearsal
+
+on:
+  push:
+    branches: [codex/pages-1.1.0-recovery-rehearsal-20261122]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  reupload:
+    name: Read, upload and read back the frozen Pages archive
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Download the original Pages artifact by immutable ID
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p .local/rehearsal
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/14716258539" > .local/rehearsal/input-artifact.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/14716258539/zip" > .local/rehearsal/stage-a.zip
+          python3 -I -B documentation/_tools/rehearse_stage_a.py .local/rehearsal/stage-a.zip .local/rehearsal/input --output .local/rehearsal/input.json
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
+        with:
+          name: stage-a-reupload-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .local/rehearsal/input
+          include-hidden-files: true
+          retention-days: 30
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: stage-a-reupload-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .local/rehearsal/readback
+          digest-mismatch: error
+      - name: Compare every site file and check historical routing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" > .local/rehearsal/output-artifacts.json
+          python3 -I -B documentation/_tools/rehearse_stage_a.py .local/rehearsal/stage-a.zip .local/rehearsal/input --reuploaded-tar .local/rehearsal/readback/artifact.tar --output .local/rehearsal/compare.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: stage-a-rehearsal-receipt
+          path: .local/rehearsal/*.json
+          if-no-files-found: error
+          retention-days: 90
