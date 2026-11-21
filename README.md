@@ -32,4 +32,4 @@ print(renewal.date())
 
 Wheels are available for 64-bit CPython 3.12–3.15 on macOS, Windows, and Linux. Free-threaded 3.14 and 3.15 wheels require compatible dependencies. rsTimes is MIT-licensed.
 
-[Release notes and platform support](https://github.com/AresJef/rsTimes/blob/v1.0.0/docs/releases/v1.0.0.md) · [Free-threaded setup](https://github.com/AresJef/rsTimes/blob/v1.0.0/docs/free-threaded-python.md) · [Type checking](https://github.com/AresJef/rsTimes/blob/v1.0.0/docs/type-checking.md) · [Report an issue](https://github.com/AresJef/rsTimes/issues)
+[Developer documentation](https://aresjef.github.io/rsTimes/) · [Release notes and platform support](https://github.com/AresJef/rsTimes/blob/v1.1.0/docs/releases/v1.1.0.md) · [Free-threaded setup](https://github.com/AresJef/rsTimes/blob/v1.1.0/docs/free-threaded-python.md) · [Type checking](https://github.com/AresJef/rsTimes/blob/v1.1.0/docs/type-checking.md) · [Report an issue](https://github.com/AresJef/rsTimes/issues)

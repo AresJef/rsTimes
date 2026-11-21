@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "rsTimes"
-version = "1.0.0"
+version = "1.1.0"
 description = "Calendar arithmetic, date parsing, and datetime tools for Python, pandas, and Polars"
 readme = "README.md"
 license = "MIT"
@@ -29,7 +29,7 @@ classifiers = [
 [project.urls]
 Repository = "https://github.com/AresJef/rsTimes"
 Issues = "https://github.com/AresJef/rsTimes/issues"
-Documentation = "https://github.com/AresJef/rsTimes#readme"
+Documentation = "https://aresjef.github.io/rsTimes/"
 Changelog = "https://github.com/AresJef/rsTimes/releases"
 
 [project.optional-dependencies]
