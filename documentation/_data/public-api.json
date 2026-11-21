@@ -1,7 +1,7 @@
 {
   "schema": 3,
   "version": "1.1.0",
-  "source_commit": "fafd8aa834cd5c3a6500ebc3af4e6854d20d2c6d",
+  "source_commit": "f356fa83f1afcb1ea518cd4d655b7c3e67f3ce1c",
   "stubs": {
     "pldt.pyi": "5b68f97038e737804ebf0c3e911a8e7df965885f6e15642b0b8423a0aaa9b11b",
     "delta.pyi": "21aaad39690d04c15ee7ecf38e1a36b4e181f70bde8ac901a5e6e0d169aaf518",

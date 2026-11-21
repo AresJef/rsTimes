@@ -4,11 +4,15 @@
   "status": "candidate",
   "description": "Preview using the bound rsTimes distribution for this source revision.",
   "publication_allowed": false,
-  "source_commit": "fafd8aa834cd5c3a6500ebc3af4e6854d20d2c6d",
+  "source_commit": "f356fa83f1afcb1ea518cd4d655b7c3e67f3ce1c",
   "source_tag": "v1.1.0",
   "github_release_url": "https://github.com/AresJef/rsTimes/releases/tag/v1.1.0",
   "pypi_url": "https://pypi.org/project/rsTimes/1.1.0/",
   "publication_stage": "redirect",
   "previous_version": "1.0.0",
-  "default_version": "1.0.0"
+  "default_version": "1.0.0",
+  "verified_ci": {
+    "run_id": 44906617934,
+    "attempt": 1
+  }
 }

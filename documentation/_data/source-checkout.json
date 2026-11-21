@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "source_tag": "v1.1.0",
-  "source_commit": "fafd8aa834cd5c3a6500ebc3af4e6854d20d2c6d",
+  "source_commit": "f356fa83f1afcb1ea518cd4d655b7c3e67f3ce1c",
   "docs_base_commit": "0942c1159c4c9966c998b71bb488e7ff6ead3ed4",
   "source_archive": "rstimes-1.1.0.tar.gz",
   "source_archive_sha256": "3ba0e20f5b4c023f4c5b3391deb0ef8a819745fc2ae7afeb7fba3736a8f66092",
