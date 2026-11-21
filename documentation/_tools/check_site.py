@@ -63,8 +63,14 @@ def verify_receiver_exports(site, version, documents, hashes, problems):
         return
     detailed = json.loads((exact / receiver_path).read_bytes())['cases']
     json_rows = json.loads((exact / 'verification/coverage.json').read_bytes())['records']
-    with (exact / 'verification/coverage.csv').open(newline='', encoding='utf-8') as file:
-        csv_rows = list(csv.DictReader(file))
+    csv_path = exact / 'verification/coverage.csv'
+    # A verified entry can reference many receipts in its existing evidence cell.
+    field_limit = csv.field_size_limit(csv_path.stat().st_size)
+    try:
+        with csv_path.open(newline='', encoding='utf-8') as file:
+            csv_rows = list(csv.DictReader(file))
+    finally:
+        csv.field_size_limit(field_limit)
     if [row['entry'] for row in csv_rows] != [row['path'] for row in json_rows]:
         problems.append('The public CSV and JSON have different entry rows')
         return
