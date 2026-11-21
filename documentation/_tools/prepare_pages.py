@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 from datetime import datetime, timezone
+from html import escape
 import importlib.metadata
 import json
 from pathlib import Path
@@ -80,6 +81,24 @@ def publish_coverage(exact, gate, reports, *, preview=False):
                 evidence=json.dumps(row["evidence"]), pending=json.dumps(row["pending"]), status=row["status"],
             ))
     return rows
+
+
+def write_versions(site, versions, default):
+    write_json(site / "versions.json", versions)
+    links = "\n".join(
+        f'<li><a href="{escape(item["url"], quote=True)}">rsTimes {escape(item["name"])}</a>'
+        + (" (default)" if item["version"] == default else "") + "</li>"
+        for item in versions
+    )
+    (site / "versions.html").write_text(f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documentation versions — rsTimes</title>
+<style>body{{font:1rem/1.65 system-ui;margin:4rem auto;padding:0 1.25rem;max-width:44rem}}a:focus-visible{{outline:3px solid #176b94;outline-offset:3px}}</style>
+</head><body><main>
+<h1>Documentation versions</h1>
+<nav aria-label="rsTimes documentation versions"><ul>{links}</ul></nav>
+</main></body></html>
+""", encoding="utf-8")
 
 
 def write_entry_pages(site, version):
@@ -159,7 +178,7 @@ def main():
     if mode == "preserve":
         old = plan["old_version"]
         versions.append(dict(version=old, name=old, url=SITE_PREFIX + old + "/"))
-    write_json(args.output / "versions.json", versions)
+    write_versions(args.output, versions, version)
 
     build = dict(
         schema=2, product_version=version, source_commit=target["source_commit"],
