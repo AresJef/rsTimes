@@ -40,10 +40,12 @@ def main():
     if audit['missing'] or audit['example_failures'] or not audit['examples']:
         parser.error('Installed public-stub examples did not pass')
     binding = json.loads((DOC / '_data/source-checkout.json').read_text())
+    target = json.loads((DOC / 'target.json').read_text())
     for kind in ('tag', 'sdist'):
         receipt = found['full'] / ('source-' + kind + '.json')
         proof = json.loads(receipt.read_text())
-        if (proof['status'] != 'pass' or proof['checked_from'] != kind
+        source_kind = 'commit' if kind == 'tag' and target['status'] == 'candidate' else kind
+        if (proof['status'] != 'pass' or proof['checked_from'] != source_kind
                 or proof['source_commit'] != binding['source_commit']
                 or proof['source_tag'] != binding['source_tag']
                 or proof['checked_files'] != len(binding['source_files'])

@@ -21,6 +21,7 @@ CLASS_MODULES = {
     "Pldt": "rstimes.pldt", "Pddt": "rstimes.pddt", "Pydt": "rstimes.pydt",
     "Delta": "rstimes.delta", "Configs": "rstimes.parser",
     "RstimesError": "rstimes.errors", "ParseError": "rstimes.errors", "ConfigError": "rstimes.errors",
+    "DependencyWarning": "rstimes.errors",
 }
 OPERATORS = {
     "Add": ("__add__", operator.add), "Sub": ("__sub__", operator.sub),
@@ -84,7 +85,7 @@ class Observer:
             name = base.__name__
             module = sys.modules.get(CLASS_MODULES.get(name, ""))
             if module is not None and vars(module).get(name) is base:
-                path = "rstimes.errors." + name if name.endswith("Error") else "rstimes." + name
+                path = module.__name__ + "." + name if module.__name__ == "rstimes.errors" else "rstimes." + name
                 yield path
         if type_label(value) in {"polars.series.series.Series", EXPR}:
             yield "polars." + cls.__name__

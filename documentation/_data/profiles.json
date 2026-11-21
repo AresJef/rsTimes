@@ -17,7 +17,8 @@
         "altair": null,
         "pytz": null,
         "tzdata": null,
-        "polars-runtime-32": "2.0.0"
+        "polars-runtime-32": "2.0.0",
+        "packaging": "26.3"
       }
     },
     "core": {
@@ -35,7 +36,8 @@
         "altair": null,
         "pytz": null,
         "tzdata": null,
-        "polars-runtime-32": null
+        "polars-runtime-32": null,
+        "packaging": "26.3"
       }
     },
     "pandas2": {
@@ -53,7 +55,8 @@
         "altair": null,
         "pytz": "2026.6",
         "tzdata": "2026.6",
-        "polars-runtime-32": "2.0.0"
+        "polars-runtime-32": "2.0.0",
+        "packaging": "26.3"
       }
     },
     "pandas-current": {
@@ -71,7 +74,8 @@
         "altair": null,
         "pytz": null,
         "tzdata": null,
-        "polars-runtime-32": "2.1.0"
+        "polars-runtime-32": "2.1.0",
+        "packaging": "26.3"
       }
     },
     "polars-current": {
@@ -89,7 +93,8 @@
         "altair": null,
         "pytz": null,
         "tzdata": null,
-        "polars-runtime-32": "2.1.0"
+        "polars-runtime-32": "2.1.0",
+        "packaging": "26.3"
       }
     },
     "polars-only": {
@@ -107,7 +112,8 @@
         "altair": null,
         "pytz": null,
         "tzdata": null,
-        "polars-runtime-32": "2.0.0"
+        "polars-runtime-32": "2.0.0",
+        "packaging": "26.3"
       }
     },
     "optional-exports": {
@@ -125,7 +131,8 @@
         "altair": "6.3.0",
         "pytz": null,
         "tzdata": null,
-        "polars-runtime-32": "2.0.0"
+        "polars-runtime-32": "2.0.0",
+        "packaging": "26.3"
       }
     },
     "optional-exports-current": {
@@ -143,7 +150,8 @@
         "altair": "6.3.0",
         "pytz": null,
         "tzdata": null,
-        "polars-runtime-32": "2.1.0"
+        "polars-runtime-32": "2.1.0",
+        "packaging": "26.3"
       }
     },
     "nogil314": {
@@ -161,7 +169,8 @@
         "altair": null,
         "pytz": "2026.5",
         "tzdata": "2026.5",
-        "polars-runtime-32": "2.1.0"
+        "polars-runtime-32": "2.1.0",
+        "packaging": "26.3"
       }
     },
     "nogil315": {
@@ -179,7 +188,8 @@
         "altair": null,
         "pytz": "2026.5",
         "tzdata": "2026.5",
-        "polars-runtime-32": "2.1.0"
+        "polars-runtime-32": "2.1.0",
+        "packaging": "26.3"
       }
     },
     "public-install": {
@@ -197,7 +207,8 @@
         "altair": null,
         "pytz": null,
         "tzdata": "2026.6",
-        "polars-runtime-32": "2.1.0"
+        "polars-runtime-32": "2.1.0",
+        "packaging": "26.3"
       },
       "scope": "Bounded2026-11-05publicpip installation/adapters smoke, separate from frozen release and full documentation profiles."
     },
@@ -216,7 +227,8 @@
         "altair": null,
         "pytz": null,
         "tzdata": "2026.5",
-        "polars-runtime-32": "2.0.0"
+        "polars-runtime-32": "2.0.0",
+        "packaging": "26.3"
       },
       "scope": "Actual Windowsx86_64 full documentation examples with the declared Windows timezone dependency."
     }

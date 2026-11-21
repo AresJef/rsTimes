@@ -1,7 +1,7 @@
 # Type-check rsTimes in your application
 
 Check against the installed release in your application environment.
-The rsTimes 1.0.0 development check uses Pyright 1.1.414. Select
+The rsTimes 1.1.0 development check uses Pyright 1.1.414. Select
 the same interpreter for runtime and checker resolution.
 
 ## Describe an expression accessor to the checker
@@ -61,5 +61,5 @@ signature without adding pandas to the runtime, install
 and set Pyright's `extraPaths` to that directory. Keep it out
 of your application's runtime import path.
 
-See the [type-checking guide from the release source](https://github.com/AresJef/rsTimes/blob/v1.0.0/docs/type-checking.md)
+See the [type-checking guide from the release source](https://github.com/AresJef/rsTimes/blob/v1.1.0/docs/type-checking.md)
 for the pinned analyzer installation and full project gate.

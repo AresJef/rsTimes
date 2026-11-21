@@ -41,7 +41,7 @@ def copy_public_reports(source, destination):
     return reports
 
 
-def publish_coverage(exact, gate, reports, *, preview=False):
+def publish_coverage(exact, gate, reports, *, preview=False, actions_run=False):
     manifest = json.loads((DOC / "_data/coverage.json").read_text())
     mapped = {row["path"]: row for row in manifest["entries"]}
     rows = []
@@ -54,7 +54,9 @@ def publish_coverage(exact, gate, reports, *, preview=False):
                 raise ValueError("Page report differs from the checked evidence")
             proof = dict(item, report=public, report_sha256=published)
             if worker_hash:
-                origin = "historical-actions-producer" if preview else "actions-producer"
+                origin = "actions-producer"
+                if preview:
+                    origin = "preview-actions-producer" if actions_run else "historical-actions-producer"
                 proof.update(report_origin=origin, ci_report_sha256=source_hash, original_report_sha256=worker_hash)
             elif preview:
                 proof.update(report_origin="local-verifier", local_report_sha256=source_hash)
@@ -157,28 +159,47 @@ def main():
 
     mode = args.preview_mode or target["publication_stage"]
     plan = json.loads((DOC / "_data/legacy-pages.json").read_text())
-    if plan["version"] != version:
+    previous_version = target.get("previous_version")
+    default_version = target.get("default_version", version)
+    if plan["version"] != (previous_version or version):
         parser.error("Legacy route map targets a different version")
+    if default_version not in {version, previous_version} or previous_version == version:
+        parser.error("Invalid documentation default or previous version")
     exact = args.output / version
     shutil.copytree(args.html, exact)
     reports = copy_public_reports(args.reports, exact)
-    rows = publish_coverage(exact, gate, reports, preview=preview)
+    rows = publish_coverage(exact, gate, reports, preview=preview, actions_run=bool(args.run_url))
 
     restored = migration["add_legacy_site"](args.output, plan, mode)
-    write_entry_pages(args.output, version)
+    write_entry_pages(args.output, default_version)
     write_json(args.output / "_meta/legacy-evidence.json", {
         "version": plan["old_version"], "archive_sha256": plan["archive"]["sha256"],
         "files": {name: plan["old_files"][name] for name in plan["retained_evidence"]},
     })
     if mode == "redirect":
-        write_json(exact / "verification/legacy-redirects.json", {
-            "from_version": plan["old_version"], "to_version": version, "pages": plan["pages"],
-        })
-    versions = [dict(version=version, name=version, url=SITE_PREFIX + version + "/")]
+        if not previous_version:
+            write_json(exact / "verification/legacy-redirects.json", {
+                "from_version": plan["old_version"], "to_version": version, "pages": plan["pages"],
+            })
+    active_versions = [version]
+    if previous_version:
+        previous = json.loads((DOC / "_data/previous-site.json").read_text())
+        if previous["old_version"] != previous_version:
+            parser.error("Archived documentation does not match the previous version")
+        migration["restore_old_files"](args.output, previous, "preserve")
+        archived_build = json.loads((args.output / previous_version / "_meta/build.json").read_text())
+        if (archived_build["product_version"] != previous_version
+                or archived_build["source_commit"] != previous["source_commit"]
+                or archived_build["documentation_commit"] != previous["documentation_commit"]
+                or archived_build["acceptance"] != "ci" or archived_build["pending_case_profiles"]):
+            parser.error("Archived documentation lacks complete installation evidence")
+        active_versions.append(previous_version)
+    active_versions.sort(key=lambda item: item != default_version)
+    versions = [dict(version=item, name=item, url=SITE_PREFIX + item + "/") for item in active_versions]
     if mode == "preserve":
         old = plan["old_version"]
         versions.append(dict(version=old, name=old, url=SITE_PREFIX + old + "/"))
-    write_versions(args.output, versions, version)
+    write_versions(args.output, versions, default_version)
 
     build = dict(
         schema=2, product_version=version, source_commit=target["source_commit"],
@@ -192,6 +213,11 @@ def main():
         build_tools={name: importlib.metadata.version(name)
                      for name in ("sphinx", "myst-parser", "pydata-sphinx-theme", "sphinx-autoapi")},
     )
+    if previous_version:
+        build["default_documentation_version"] = default_version
+        build["exact_versions"] = {
+            item: SITE_PREFIX + item + "/_meta/build.json" for item in active_versions
+        }
     write_json(args.output / "_meta/build.json", build)
     write_json(exact / "_meta/build.json", build)
     (args.output / ".nojekyll").write_text("", encoding="utf-8")

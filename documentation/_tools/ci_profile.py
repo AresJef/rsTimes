@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 from urllib.request import urlopen
@@ -19,12 +20,17 @@ def main():
     parser.add_argument('--work', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--release-source', type=Path)
+    parser.add_argument('--candidate-distributions', type=Path)
     args = parser.parse_args()
     inventory_only = args.profile.startswith('inventory')
     profiles = json.loads((DOC / '_data/profiles.json').read_text())['profiles']
     if args.profile not in profiles and args.profile not in ('inventory312', 'inventory314', 'inventory315'):
         parser.error('Unknown documentation profile')
     official = args.release_source.resolve() if args.release_source else None
+    candidate = args.candidate_distributions.resolve() if args.candidate_distributions else None
+    target = json.loads((DOC / 'target.json').read_text())
+    if bool(candidate) != (target['status'] == 'candidate'):
+        parser.error('Only a candidate target accepts the verified CI distributions directory')
     if (args.profile == 'full' or args.profile.startswith('nogil')) and official is None:
         parser.error('This profile requires the independent released source checkout')
     if os.environ.get('PYTHON_GIL') or os.environ.get('PYTHONPATH'):
@@ -49,7 +55,9 @@ def main():
     release = json.loads((DOC / '_data/release.json').read_text())
     version = release['version']
     wheels = work / 'wheel'
-    run('-m', 'pip', 'download', '--only-binary=:all:', '--no-deps', '--dest', wheels, 'rsTimes==' + version)
+    distribution_source = ('--no-index', '--find-links', candidate) if candidate else ()
+    run('-m', 'pip', 'download', '--only-binary=:all:', '--no-deps', '--dest', wheels,
+        *distribution_source, 'rsTimes==' + version)
     run('-I', DOC / '_tools/bind_release.py', '--wheel-dir', wheels, '--check-wheel-only')
     wheel = next(wheels.glob('*.whl'))
     run('-m', 'pip', 'install', '--no-deps', wheel)
@@ -74,14 +82,18 @@ def main():
         if args.profile == 'full':
             run('-I', DOC / '_tools/extract_stubs.py', '--output', work / 'stubs')
             source_check = DOC / '_tools/check_published_source.py'
-            run('-I', source_check, '--tag-repository', official, '--output', work / 'source-tag.json')
+            source_argument = '--commit-repository' if candidate else '--tag-repository'
+            run('-I', source_check, source_argument, official, '--output', work / 'source-tag.json')
             (source_file, source_record), = [
                 (name, record) for name, record in release['files'].items()
                 if record['packagetype'] == 'sdist'
             ]
             archive = work / source_file
-            with urlopen(source_record['url'], timeout=60) as response:
-                archive.write_bytes(response.read(source_record['size'] + 1))
+            if candidate:
+                shutil.copyfile(candidate / source_file, archive)
+            else:
+                with urlopen(source_record['url'], timeout=60) as response:
+                    archive.write_bytes(response.read(source_record['size'] + 1))
             run('-I', source_check, '--sdist', archive, '--output', work / 'source-sdist.json')
             run('-I', official / 'tools/check_public_docs.py', '--evidence-dir', work / 'stub-audit')
             command += ['--stubs', work / 'stubs']

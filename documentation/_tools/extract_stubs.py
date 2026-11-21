@@ -17,76 +17,15 @@ args = parser.parse_args()
 args.output = args.output / 'rstimes'
 args.output.mkdir(parents=True, exist_ok=True)
 package = Path(rstimes.__file__).resolve().parent
-public_classes = {"Delta", "Configs", "Pydt", "Pddt", "Pldt", "RstimesError", "ParseError", "ConfigError"}
+public_classes = {"Delta", "Configs", "Pydt", "Pddt", "Pldt", "RstimesError", "ParseError", "ConfigError", "DependencyWarning"}
 public_functions = {"parse", "parse_str", "parse_to_epoch", "parse_to_integer", "parse_to_float",
                     "to_unix_ms", "from_unix_ms"}
 
-PLDT_FACTORY_UNIT = (
-    "Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars\n"
-    "    has no Datetime(s)."
-)
-PLDT_EXPR_UNITS = {
-    "parse": (
-        "Choose a storage unit for String input. With the unit omitted, Datetime keeps its\n"
-        "    declared unit, Date and Null use milliseconds, and numeric ticks use nanoseconds."
-    ),
-    "fromisoformat": "Choose a storage unit for String input, including text without fractional seconds.",
-    "strptime": (
-        "Supply an explicit unit when creating an expression with an effective ``%f``. An escaped\n"
-        "    ``%%f`` is literal text. Formats without a fractional directive default to microseconds."
-    ),
-    "combine": (
-        "Choose a storage unit when the clock expression has Time, Datetime(ns), String\n"
-        "    or floating-point dtype. A Python ``datetime.time`` literal can supply its precision."
-    ),
-    "fromdate": "A Date input uses millisecond storage when the unit is omitted.",
-    "fromdatetime": "A Datetime input keeps its declared storage unit when the unit is omitted.",
-}
-PLDT_REPLACE_ZONE = (
-    " Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings\n"
-    "    follow this operation."
-)
-PLDT_SWITCH_FIELDS = (
-    "targ_tz : _Zone\n"
-    "    Required target timezone. Use an IANA name, ZoneInfo or a representable standard fixed\n"
-    "    offset. Pass ``None`` to remove the timezone and keep local clocks. A non-None target\n"
-    "    converts the instant. With ``naive=True``, the converted local clock has no timezone.\n"
-    "base_tz : _Zone\n"
-    "    Source timezone for a naive input. Required for conversion to a non-None target. An\n"
-    "    aware source uses its own timezone."
-)
-PLDT_ZONE_OPTIONS = {
-    "fromdatetime": (
-        " Omit ``tz`` or pass ``None`` to keep the source zone and instant. An explicit zone\n"
-        "    reinterprets the source local clock fields in that zone."
-    ),
-    "tz_localize": " Pass ``None`` to remove the zone and keep local clock fields.",
-    "tz_convert": " The source must be aware. Pass ``None`` to convert to UTC and then remove the zone.",
-    "astimezone": " Omit ``tz`` or pass ``None`` to use the system local zone.",
-}
-
-
-def for_website(node, module, expression=False):
+def for_website(node, module):
     """Use the shipped description with links to standalone website examples."""
     doc = ast.get_docstring(node)
     if not doc:
         return
-    if module == "pldt" and isinstance(node, ast.FunctionDef):
-        # Correct wording copied across different 1.0.0 receiver and option roles.
-        if node.name == "as_unit":
-            doc = doc.replace(PLDT_FACTORY_UNIT, "Required target storage unit. Pass ``ms``, ``us`` or ``ns``.")
-        elif expression and node.name in PLDT_EXPR_UNITS:
-            doc = doc.replace(PLDT_FACTORY_UNIT, PLDT_EXPR_UNITS[node.name])
-        zone_note = PLDT_ZONE_OPTIONS.get(node.name, "")
-        if expression and node.name in {"parse", "fromisoformat"}:
-            zone_note = " Supply an explicit target zone when text carries a source timezone."
-        if node.name == "tz_switch":
-            doc, replacements = re.subn(
-                r"(?ms)^targ_tz : _Zone\n.*?(?=^naive : _Boolean\n)", PLDT_SWITCH_FIELDS + "\n", doc)
-            if replacements != 1:
-                raise ValueError("Expected adjacent targ_tz and base_tz fields in the 1.0.0 tz_switch declaration")
-        elif node.name != "replace":
-            doc = doc.replace(PLDT_REPLACE_ZONE, zone_note)
     lines = doc.splitlines()
     starts = [i for i in range(len(lines) - 1)
               if lines[i].strip() and re.fullmatch(r"-{3,}", lines[i + 1])]
@@ -112,16 +51,9 @@ def for_website(node, module, expression=False):
 
 for name in ("__init__", "delta", "parser", "pydt", "pddt", "pldt", "errors"):
     tree = ast.parse((package / (name + ".pyi")).read_text())
-    expression_methods = {
-        member
-        for cls in tree.body
-        if isinstance(cls, ast.ClassDef) and cls.name == "_ExprNamespace"
-        for member in cls.body
-        if isinstance(member, ast.FunctionDef)
-    }
     for node in ast.walk(tree):
         if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef)):
-            for_website(node, name, node in expression_methods)
+            for_website(node, name)
     if name == 'pldt':
         namespaces = []
         for cls in (n for n in tree.body if isinstance(n, ast.ClassDef) and n.name in ('_SeriesNamespace', '_ExprNamespace')):

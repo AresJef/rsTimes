@@ -1,7 +1,7 @@
 {
   "schema": 5,
-  "target_status": "published_1.0.0",
-  "public_entries": 1362,
+  "target_status": "bound_rsTimes_1.1.0",
+  "public_entries": 1387,
   "aliases": {
     "rstimes.delta.Delta": "rstimes.Delta",
     "rstimes.parser.Configs": "rstimes.Configs",
@@ -35,7 +35,7 @@
       "polars": "2.1.0"
     }
   },
-  "inventory_revision_note": "1.0.0 official declarations and real public runtime projections. Execution status is produced by check_coverage.py.",
+  "inventory_revision_note": "Bound 1.1.0 declarations and API roles. Each execution profile independently checks its actual installed package.",
   "entries": [
     {
       "path": "polars.Expr.pldt",
@@ -8315,7 +8315,8 @@
       "examples": [
         "pldt-native-series-parser-and-units",
         "pldt-series-as-unit-options",
-        "pldt-series-as-unit"
+        "pldt-series-as-unit",
+        "pldt-recover-inexact-eager-unit"
       ],
       "profiles": [
         "full",
@@ -8342,6 +8343,8 @@
         "None-rejected",
         "all3-source-units",
         "all3-target-units",
+        "eager-native-series",
+        "earlier-tick-flooring",
         "explicit-unit",
         "name",
         "name-timezone-null",
@@ -8350,6 +8353,7 @@
         "negative",
         "negative-floor",
         "null",
+        "precise-error-location",
         "strict-round_ok",
         "target-us",
         "timezone"
@@ -81777,6 +81781,1609 @@
       "status": "reviewed",
       "description_reviewed": true,
       "owner": "rstimes.errors.ConfigError",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning",
+      "kind": "class",
+      "origin": "library",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols",
+        "dependency-warning-filter"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "optional-dependency-version",
+        "pickle",
+        "state",
+        "traceback",
+        "warning-filter"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__cause__",
+      "kind": "attribute",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__cause__",
+      "family": "exception-metadata",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        }
+      },
+      "examples": [
+        "error-chain-attributes"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ],
+      "scenarios": [
+        "actual-rsTimes-domain-exceptions",
+        "explicit-cause",
+        "instance-created-notes",
+        "retained-context",
+        "traceback-type"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__context__",
+      "kind": "attribute",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__context__",
+      "family": "exception-metadata",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        }
+      },
+      "examples": [
+        "error-chain-attributes"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ],
+      "scenarios": [
+        "actual-rsTimes-domain-exceptions",
+        "explicit-cause",
+        "instance-created-notes",
+        "retained-context",
+        "traceback-type"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__eq__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__eq__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__format__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__format__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__ge__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__ge__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__getstate__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__getstate__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": true,
+          "reason": "Explicit argument or receiver role; allocate tests from the relevant semantic family."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__gt__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__gt__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__hash__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__hash__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__init__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__init__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": true,
+          "reason": "Explicit argument or receiver role; allocate tests from the relevant semantic family."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__le__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__le__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__lt__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__lt__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__ne__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__ne__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__new__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__new__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": true,
+          "reason": "Explicit argument or receiver role; allocate tests from the relevant semantic family."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__notes__",
+      "kind": "attribute",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__notes__",
+      "family": "exception-metadata",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        }
+      },
+      "examples": [
+        "error-chain-attributes"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ],
+      "scenarios": [
+        "actual-rsTimes-domain-exceptions",
+        "explicit-cause",
+        "instance-created-notes",
+        "retained-context",
+        "traceback-type"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__reduce__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__reduce__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": true,
+          "reason": "Explicit argument or receiver role; allocate tests from the relevant semantic family."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__reduce_ex__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__reduce_ex__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": true,
+          "reason": "Explicit argument or receiver role; allocate tests from the relevant semantic family."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__repr__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__repr__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__setstate__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__setstate__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": true,
+          "reason": "Explicit argument or receiver role; allocate tests from the relevant semantic family."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__str__",
+      "kind": "protocol",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__str__",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__suppress_context__",
+      "kind": "attribute",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__suppress_context__",
+      "family": "exception-metadata",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        }
+      },
+      "examples": [
+        "error-chain-attributes"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ],
+      "scenarios": [
+        "actual-rsTimes-domain-exceptions",
+        "explicit-cause",
+        "instance-created-notes",
+        "retained-context",
+        "traceback-type"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.__traceback__",
+      "kind": "attribute",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.__traceback__",
+      "family": "exception-metadata",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Exception/dispatch metadata has no date unit, timezone, numeric ticks, missing-value vector or copy/subclass policy."
+        }
+      },
+      "examples": [
+        "error-chain-attributes"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ],
+      "scenarios": [
+        "actual-rsTimes-domain-exceptions",
+        "explicit-cause",
+        "instance-created-notes",
+        "retained-context",
+        "traceback-type"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.add_note",
+      "kind": "method",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.add_note",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.args",
+      "kind": "property",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.args",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
+      "scenarios": [
+        "NotImplemented",
+        "args",
+        "constructor",
+        "format",
+        "hash",
+        "identity",
+        "note",
+        "pickle",
+        "state",
+        "traceback"
+      ],
+      "dependency_profiles_available": [
+        "full",
+        "pandas2",
+        "current",
+        "312",
+        "314",
+        "315",
+        "nogil314",
+        "nogil315",
+        "core",
+        "polars-only"
+      ]
+    },
+    {
+      "path": "rstimes.errors.DependencyWarning.with_traceback",
+      "kind": "method",
+      "origin": "inherited",
+      "page": "api/errors",
+      "anchor": "rstimes.errors.DependencyWarning.with_traceback",
+      "family": "errors-unix",
+      "semantic_dimensions": {
+        "unit": {
+          "applicable": false,
+          "reason": "Resolution belongs to the containing class; no unit selection parameter at this entry."
+        },
+        "timezone": {
+          "applicable": false,
+          "reason": "No timezone choice; inherits the receiver or returns non-date metadata."
+        },
+        "numeric_role": {
+          "applicable": false,
+          "reason": "No user numeric argument."
+        },
+        "missing_and_shape": {
+          "applicable": false,
+          "reason": "No collection input or receiver beyond its documented scalar/metadata role."
+        },
+        "copy_and_subclass": {
+          "applicable": false,
+          "reason": "Generic return-family and subclass boundary applies; this entry does not choose a copy/state policy."
+        }
+      },
+      "examples": [
+        "error-public-protocols"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "status": "reviewed",
+      "description_reviewed": true,
+      "owner": "rstimes.errors.DependencyWarning",
       "scenarios": [
         "NotImplemented",
         "args",

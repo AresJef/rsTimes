@@ -1,6 +1,6 @@
 # Documentation verification evidence
 
-These receipts describe the rsTimes 1.0.0 documentation and its
+These receipts describe the rsTimes 1.1.0 documentation and its
 actual build and execution context.
 
 - <a href="../verification/coverage.csv">Full entry, scenario, page, example, environment and evidence table in CSV</a>
@@ -35,5 +35,5 @@ origin and retains that producer member's hash.
 
 The public records cover documentation and example execution.
 Product distribution qualifications and performance comparisons
-are recorded with the [1.0.0 release](https://github.com/AresJef/rsTimes/releases/tag/v1.0.0).
+are recorded with the [1.1.0 release](https://github.com/AresJef/rsTimes/releases/tag/v1.1.0).
 For maintenance, see [verify and publish these docs](documentation.md).

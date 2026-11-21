@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "target_status": "published_1.0.0",
+  "target_status": "bound_rsTimes_1.1.0",
   "examples": [
     {
       "id": "install-check-distribution-version",
@@ -13,14 +13,14 @@
         "public-install",
         "windows-full"
       ],
-      "expectation_basis": "Installed distribution metadata of the bound 1.0.0 wheel.",
+      "expectation_basis": "Installed distribution metadata of the bound 1.1.0 wheel.",
       "scenarios": [
         "public-install",
         "version"
       ],
       "reviewed": true,
       "checks": [
-        "assert type(installed) is str and installed == '1.0.0'"
+        "assert type(installed) is str and installed == '1.1.0'"
       ]
     },
     {
@@ -1480,6 +1480,26 @@
         "rstimes.errors.ConfigError.add_note",
         "rstimes.errors.ConfigError.args",
         "rstimes.errors.ConfigError.with_traceback",
+        "rstimes.errors.DependencyWarning",
+        "rstimes.errors.DependencyWarning.__eq__",
+        "rstimes.errors.DependencyWarning.__format__",
+        "rstimes.errors.DependencyWarning.__ge__",
+        "rstimes.errors.DependencyWarning.__getstate__",
+        "rstimes.errors.DependencyWarning.__gt__",
+        "rstimes.errors.DependencyWarning.__hash__",
+        "rstimes.errors.DependencyWarning.__init__",
+        "rstimes.errors.DependencyWarning.__le__",
+        "rstimes.errors.DependencyWarning.__lt__",
+        "rstimes.errors.DependencyWarning.__ne__",
+        "rstimes.errors.DependencyWarning.__new__",
+        "rstimes.errors.DependencyWarning.__reduce__",
+        "rstimes.errors.DependencyWarning.__reduce_ex__",
+        "rstimes.errors.DependencyWarning.__repr__",
+        "rstimes.errors.DependencyWarning.__setstate__",
+        "rstimes.errors.DependencyWarning.__str__",
+        "rstimes.errors.DependencyWarning.add_note",
+        "rstimes.errors.DependencyWarning.args",
+        "rstimes.errors.DependencyWarning.with_traceback",
         "rstimes.errors.ParseError",
         "rstimes.errors.ParseError.__eq__",
         "rstimes.errors.ParseError.__format__",
@@ -9237,6 +9257,11 @@
         "rstimes.errors.ConfigError.__notes__",
         "rstimes.errors.ConfigError.__suppress_context__",
         "rstimes.errors.ConfigError.__traceback__",
+        "rstimes.errors.DependencyWarning.__cause__",
+        "rstimes.errors.DependencyWarning.__context__",
+        "rstimes.errors.DependencyWarning.__notes__",
+        "rstimes.errors.DependencyWarning.__suppress_context__",
+        "rstimes.errors.DependencyWarning.__traceback__",
         "rstimes.errors.ParseError.__cause__",
         "rstimes.errors.ParseError.__context__",
         "rstimes.errors.ParseError.__notes__",
@@ -14150,6 +14175,53 @@
         "import polars as pl",
         "assert type(event) is Pldt and type(elapsed) is pl.Series and elapsed.dtype == pl.Duration('us')",
         "assert elapsed.name == 'event' and elapsed.is_null().to_list() == [True, False, True]"
+      ]
+    },
+    {
+      "id": "dependency-warning-filter",
+      "page": "api/errors.md",
+      "format": "python",
+      "covers": [
+        "rstimes.errors.DependencyWarning"
+      ],
+      "profiles": [
+        "core",
+        "full",
+        "windows-full"
+      ],
+      "expectation_basis": "The installed public warning type is a UserWarning. Python filters can raise it as an exception.",
+      "scenarios": [
+        "constructor",
+        "optional-dependency-version",
+        "warning-filter"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert type(notice) is DependencyWarning and notice.args == ('Example dependency warning',)"
+      ]
+    },
+    {
+      "id": "pldt-recover-inexact-eager-unit",
+      "page": "compatibility/known-issues.md",
+      "format": "python",
+      "covers": [
+        "polars.Series.pldt.as_unit"
+      ],
+      "profiles": [
+        "full",
+        "polars-only",
+        "windows-full"
+      ],
+      "expectation_basis": "The second tick, -1500 ns, is not exactly representable in microseconds. Flooring gives -2 us.",
+      "scenarios": [
+        "precise-error-location",
+        "earlier-tick-flooring",
+        "eager-native-series"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert rounded.name == \"event\" and rounded.dtype == pl.Datetime(\"us\")",
+        "assert rounded.is_null().to_list() == [False, False, True]"
       ]
     }
   ]

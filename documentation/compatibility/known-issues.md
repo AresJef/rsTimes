@@ -112,12 +112,38 @@ with the same clock, zone and fold when passing it to external code.
 
 ## Recover from an eager unit conversion error
 
-In the published 1.0.0 wheel, `Pldt.as_unit` and the native
-`Series.pldt.as_unit` call can name `Pldt` in a conversion error.
-Check the exception type and the reported row. A `ValueError` from
-an inexact conversion with `round_ok=False` means that the target
-unit would lose precision. Keep the current unit for exact values,
-or explicitly use `round_ok=True` to round toward the earlier tick.
-An `OverflowError` means the result is outside the target unit's
-capacity. Keep the current unit or choose a coarser one with enough
-range. Allowing rounding gives no extra range at a finer unit.
+With `round_ok=False`, `Pldt.as_unit` and `Series.pldt.as_unit` report the
+first value that cannot be represented in the requested unit. In this example,
+row 1 contains −1,500 nanoseconds, which lies between two microsecond ticks.
+
+(pldt-recover-inexact-eager-unit)=
+```python
+import polars as pl
+import rstimes.pldt
+
+event = pl.Series("event", [1000, -1500, None], dtype=pl.Datetime("ns"))
+try:
+    event.pldt.as_unit("us", round_ok=False)
+except ValueError as error:
+    message = str(error)
+    print(message.split(":", 1)[0])
+    print("data[1]" in message, "round_ok=True" in message)
+
+rounded = event.pldt.as_unit("us", round_ok=True)
+print(rounded.to_physical().to_list())
+```
+
+**Output**
+
+```text
+Series.pldt.as_unit()
+True True
+[1, -2, None]
+```
+
+Keep the source unit to preserve precision. Choose `round_ok=True` when
+earlier-tick rounding is appropriate. An `OverflowError` means the result
+does not fit the target unit even with rounding. Choose a coarser unit
+with sufficient range or keep the source unit.
+
+For an expression, see {ref}`convert a column in a query <pldt-expr-as-unit>`.
