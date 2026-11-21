@@ -24,7 +24,7 @@ the current account, repository permission, PR head/base, main, tag rules and
 the `pypi` environment. Check the real PyPI project and its Trusted Publisher:
 repository `AresJef/rsTimes`, workflow `publish.yml`, environment `pypi`.
 
-Use the ChatGPT in-app browser for any account handoff. The owner performs
+Use the owner's local Google Chrome for the PyPI account handoff. The owner performs
 login, password confirmation and 2FA; never request or record credentials.
 Verify the requested version is absent on PyPI and the tag is absent on GitHub.
 An existing version with any conflicting file is a stop for that write, not a
@@ -277,6 +277,23 @@ do not repeat an entire valid matrix just to manufacture an attractive timing.
 Completion is reported separately as configuration, actual Actions success,
 GitHub publication, PyPI publication and public-package installation success.
 Save the final report, completion audit, raw identities and budget settlement.
+
+## Verified publication record for 1.1.0
+
+The annotated `v1.1.0` tag points to `f356fa83f1afcb1ea518cd4d655b7c3e67f3ce1c`
+(tree `9596d4ce8e32e3123434884a85b69493099a9003`). [The full product CI](https://github.com/AresJef/rsTimes/actions/runs/44906617934)
+passed all 56 required jobs on its first attempt. The [GitHub Release](https://github.com/AresJef/rsTimes/releases/tag/v1.1.0)
+and [PyPI](https://pypi.org/project/rsTimes/1.1.0/) carry the same 48 wheels and
+one canonical sdist. All 48 public installation positions passed. The six
+macOS ARM64 ABI comparisons cover 105 required cases against the corresponding
+1.0.0 wheels. All 105 met the precision, stability, and protection limits.
+[Release manifest](releases/1.1.0/records/release-manifest.json) · [SHA-256 checksums](releases/1.1.0/records/SHA256SUMS) · [Performance receipt](releases/1.1.0/records/performance-receipt.json).
+
+The [first Pages deployment](https://github.com/AresJef/rsTimes/actions/runs/44928578308) made both exact versions
+public while keeping 1.0.0 as the default. The [second deployment](https://github.com/AresJef/rsTimes/actions/runs/44931121605)
+made 1.1.0 the default. Verify the two exact versions before changing the
+default in a later release. Keep the exact prior site and the prior product
+artifacts available for recovery. [Default documentation](https://aresjef.github.io/rsTimes/) · [1.0.0 documentation](https://aresjef.github.io/rsTimes/1.0.0/).
 
 ## Verified publication record for 1.0.0
 

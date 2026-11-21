@@ -2,7 +2,15 @@
 
 2026-11-05。现行核心断言共26条／77子条款；适用范围和例外是断言的一部分。已采用实现范围见下；未批准的扩展不因断言文字而自动启动。
 
-## 当前公开发行：rsTimes 1.0.0（2026-11-20）
+## 当前开发与发行基线
+
+唯一正式基线为 rsTimes 1.1.0，Git tag 为 `v1.1.0`，发行提交为 `f356fa83f1afcb1ea518cd4d655b7c3e67f3ce1c`。现行 26 条核心断言和 77 条子条款继续适用。后续产品和性能改动以正式实物为依据。
+
+- 正式分发含 48 个 wheel 和 1 个 sdist。48 个真实位置从 PyPI 安装通过，16 个自由线程位置在实际运行中保持 GIL 关闭。macOS ARM64 CP313 native SHA-256 为 `1a03335075a59a91328f4fcdbbea1871e73db6c38f7c997a937a8bf542a1aff6`。[发行清单](docs/releases/1.1.0/records/release-manifest.json) · [本机选择](demo/runtime.json)
+- 六个 macOS ARM64 ABI 对正式 1.0.0 的 105 项必要比较全部严格通过。[结果](docs/releases/1.1.0/records/performance-receipt.json) · [冻结合同](docs/releases/1.1.0/records/performance-contract.json)
+- 英文文档提供 [1.1.0](https://aresjef.github.io/rsTimes/1.1.0/) 和 [1.0.0](https://aresjef.github.io/rsTimes/1.0.0/) 精确版本。当前默认页为 1.1.0。[发行程序](docs/RELEASING.md#verified-publication-record-for-110) · [本机开发](docs/development.md)
+
+## 历史公开发行 rsTimes 1.0.0（2026-11-20）
 
 - Python 与 Cargo 均为 1.0.0。正式 tag `v1.0.0` 指向 `d900219a0360e780cb10b108fd15d402879db572`，注释对象为 `915480e175d8d41dab7c4ba050e72e1e409550b2`。
 - 完整 CI 运行 `44667590001` 首轮 56 个必要任务全部通过。48 个 wheel 和 1 个 sdist 已在 GitHub 和 PyPI 实际读回。48 个公开安装位置及 144 个依赖视图均通过。公开安装首轮 47 个通过，Windows ARM64 CPython 3.15t 使用原文件和原测试单独重跑通过。
