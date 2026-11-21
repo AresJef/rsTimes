@@ -10,7 +10,7 @@ from rstimes.errors import RstimesError, ParseError, ConfigError
 
 def test_three_domain_classes_have_unambiguous_bases():
     from rstimes import errors
-    assert errors.__all__ == ['RstimesError', 'ParseError', 'ConfigError']
+    assert errors.__all__ == ['RstimesError', 'ParseError', 'ConfigError', 'DependencyWarning']
     assert issubclass(ParseError, RstimesError) and issubclass(ParseError, ValueError)
     assert issubclass(ConfigError, RstimesError) and issubclass(ConfigError, ValueError)
     assert not issubclass(ParseError, TypeError)
@@ -18,6 +18,16 @@ def test_three_domain_classes_have_unambiguous_bases():
     for name in errors.__all__:
         assert name not in rstimes.__dict__
     assert not hasattr(errors, 'InvalidRelativeDelta')
+
+
+def test_dependency_warning_is_separate_from_domain_errors():
+    from rstimes.errors import DependencyWarning
+
+    exports = {}
+    exec("from rstimes.errors import *", exports)
+    assert exports["DependencyWarning"] is DependencyWarning
+    assert issubclass(DependencyWarning, UserWarning)
+    assert not issubclass(DependencyWarning, RstimesError)
 
 
 @pytest.mark.parametrize('kind', [ValueError, TypeError, OverflowError, RuntimeError, ParseError, ConfigError])

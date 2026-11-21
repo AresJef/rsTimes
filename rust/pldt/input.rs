@@ -257,7 +257,7 @@ pub(super) fn column(
     clippy::too_many_arguments,
     reason = "One native dtype/unit/timezone preparation boundary"
 )]
-#[pyo3(signature=(source,target,unit=None,copy=Truth(false),round_ok=Truth(false),numpy_date=None,numpy_zone=None,tz=None,policy=None))]
+#[pyo3(signature=(source,target,unit=None,copy=Truth(false),round_ok=Truth(false),numpy_date=None,numpy_zone=None,tz=None,policy=None,*,as_unit_entry=None))]
 fn _pldt_native<'py>(
     source: PySeries,
     target: &Bound<'py, PyAny>,
@@ -268,6 +268,7 @@ fn _pldt_native<'py>(
     numpy_zone: Option<&str>,
     tz: Option<PyRef<'_, Context>>,
     policy: Option<PyRef<'_, PolicyContext>>,
+    as_unit_entry: Option<&str>,
 ) -> PyResult<Bound<'py, PyAny>> {
     let py = target.py();
     let source = source.0;
@@ -363,7 +364,10 @@ fn _pldt_native<'py>(
                     round_ok: round_ok.0,
                 },
             )
-            .map_err(|error| error.python(py, "Pldt"))?,
+            .map_err(|error| match as_unit_entry.zip(requested) {
+                Some((entry, unit)) => error.python_as_unit(py, entry, unit),
+                None => error.python(py, "Pldt"),
+            })?,
             target,
         );
     };

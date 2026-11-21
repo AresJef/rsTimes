@@ -101,6 +101,121 @@ def test_as_unit_expr_schema_and_no_dst_reinterpretation():
     assert ticks(query.collect()["t"]) == [1, -2, None]
 
 
+@pytest.mark.parametrize("entry", ["Pldt.as_unit", "Series.pldt.as_unit", "Expr.pldt.as_unit"])
+def test_as_unit_reports_the_public_round_ok_argument(entry):
+    source = pl.Series("event", [1000, -1500, None], dtype=pl.Datetime("ns"))
+    convert = {
+        "Pldt.as_unit": Pldt(source).as_unit,
+        "Series.pldt.as_unit": source.pldt.as_unit,
+        "Expr.pldt.as_unit": pl.col("event").pldt.as_unit,
+    }[entry]
+
+    with pytest.raises(TypeError) as error:
+        convert("us", round_ok=1)  # type: ignore[arg-type]
+    message = str(error.value)
+    assert message.startswith(f"{entry}()")
+    assert "round_ok" in message
+
+    for round_ok in (True, np.bool_(True)):
+        result = convert("us", round_ok=round_ok)
+        if isinstance(result, pl.Expr):
+            frame = source.to_frame()
+            assert ticks(frame.select(result)["event"]) == [1, -2, None]
+            query = frame.lazy().select(result)
+            assert query.collect_schema()["event"] == pl.Datetime("us")
+            result = query.collect()["event"]
+        assert (result.name, result.dtype, ticks(result)) == (
+            "event", pl.Datetime("us"), [1, -2, None],
+        )
+
+
+@pytest.mark.parametrize("zone", [None, "UTC"])
+@pytest.mark.parametrize(("via_namespace", "entry"), [
+    (False, "Pldt.as_unit"),
+    (True, "Series.pldt.as_unit"),
+])
+def test_as_unit_eager_reports_the_operation_and_rescale_failure(zone, via_namespace, entry):
+    def convert(source, unit, *, round_ok):
+        owner = source.pldt if via_namespace else Pldt(source)
+        return owner.as_unit(unit, round_ok=round_ok)
+
+    fine = pl.Series("event", [1000, -1500, None], dtype=pl.Datetime("ns", zone))
+    with pytest.raises(ValueError) as precision:
+        convert(fine, "us", round_ok=False)
+    message = str(precision.value)
+    assert message.startswith(f"{entry}(): data[1]:")
+    assert "'us'" in message and "precision" in message and "round_ok=True" in message
+    rounded = convert(fine, "us", round_ok=True)
+    assert type(rounded) is Pldt
+    assert (rounded.name, rounded.dtype, ticks(rounded)) == (
+        "event", pl.Datetime("us", zone), [1, -2, None],
+    )
+    exact = pl.Series("event", [1000, -2000, None], dtype=fine.dtype)
+    assert ticks(convert(exact, "us", round_ok=False)) == [1, -2, None]
+    assert (fine.name, fine.dtype, ticks(fine)) == ("event", exact.dtype, [1000, -1500, None])
+
+    limit = (2**63 - 1) // 1000
+    coarse = pl.Series("event", [1, None, limit + 1], dtype=pl.Datetime("us", zone))
+    for round_ok in (False, True):
+        with pytest.raises(OverflowError) as capacity:
+            convert(coarse, "ns", round_ok=round_ok)
+        message = str(capacity.value)
+        assert message.startswith(f"{entry}(): data[2]:")
+        assert "'ns'" in message and "capacity" in message and "coarser" in message
+        assert "round_ok=True" not in message
+    assert ticks(convert(coarse, "us", round_ok=False)) == [1, None, limit + 1]
+    within = pl.Series("event", [1, None, limit], dtype=coarse.dtype)
+    assert ticks(convert(within, "ns", round_ok=False)) == [1000, None, limit * 1000]
+
+    with pytest.raises(ValueError, match=r"^Pldt\(\): data\[1\].*explicitly use as_unit"):
+        Pldt(fine, unit="us")
+    with pytest.raises(OverflowError, match=r"^Pldt\(\): data\[2\].*capacity"):
+        Pldt(coarse, unit="ns")
+
+
+def test_as_unit_role_is_preserved_for_both_entrances_on_one_pldt():
+    source = Pldt([1000, -1500, None], unit="ns")
+    for owner, entry in ((source, "Pldt.as_unit"), (source.pldt, "Series.pldt.as_unit")):
+        with pytest.raises(ValueError) as captured:
+            owner.as_unit("us", round_ok=False)
+        assert str(captured.value).startswith(f"{entry}(): data[1]:")
+
+
+def test_as_unit_preserves_original_business_constructor_exception():
+    marker = ValueError("business constructor refused")
+    marker.add_note("application note")
+    cause = RuntimeError("application cause")
+
+    class Business(Pldt):
+        refuse = False
+
+        def __init__(self, *args, **kwargs):
+            if self.refuse:
+                raise marker from cause
+            super().__init__(*args, **kwargs)
+
+    source = Business([1000, None], unit="ns")
+    Business.refuse = True
+    for owner in (source, source.pldt):
+        with pytest.raises(ValueError) as captured:
+            owner.as_unit("us", round_ok=False)
+        assert captured.value is marker
+        assert marker.args == ("business constructor refused",)
+        assert marker.__cause__ is cause
+        assert marker.__notes__ == ["application note"]
+
+
+def test_as_unit_expr_error_keeps_the_verified_batch_local_position():
+    source = pl.Series("event", [1000, -1500, None], dtype=pl.Datetime("ns", "UTC"))
+    frame = pl.DataFrame([source.slice(1, 1)])
+    expr = pl.col("event").pldt.as_unit("us", round_ok=False)
+    lazy = frame.lazy().select(expr)
+    assert lazy.collect_schema()["event"] == pl.Datetime("us", "UTC")
+    for execute in (lambda: frame.select(expr), lazy.collect):
+        with pytest.raises(pl.exceptions.ComputeError, match=r"batch item 0.*round_ok=True"):
+            execute()
+
+
 def test_copy_isolation_and_independent_mutable_shell():
     raw = np.array([1, 2], dtype=np.int64)
     source = pl.Series("t", raw, dtype=pl.Datetime("ns"))

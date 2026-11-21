@@ -8,10 +8,15 @@ import textwrap
 import pytest
 
 
-def run_child(source):
+def run_child(source, *, script=None, options=()):
     """Keep process-local module changes isolated and bound a broken cache wait."""
+    source = textwrap.dedent(source)
+    if script is not None:
+        script.write_text(source, encoding="utf-8")
+    args = [str(script)] if script is not None else ["-c", source]
     result = subprocess.run(
-        [sys.executable, "-I", "-c", textwrap.dedent(source)],
+        [sys.executable, "-I", "-B", *options, *args],
+        cwd=script.parent if script is not None else None,
         capture_output=True, text=True, timeout=8,
     )
     assert result.returncode == 0, result.stdout + result.stderr
@@ -125,6 +130,133 @@ def test_optional_package_internal_import_errors_are_not_hidden(package):
         else: raise AssertionError("broken dependency was silently ignored")
     '''.replace("PACKAGE", repr(package)))
     assert result == {"name": package + ".broken"}
+
+
+@pytest.mark.parametrize("pkg,adapter,version", [
+    ("pandas", "Pddt", "2.3.3rc1"), ("polars", "Pldt", "2.0.0rc2"),
+])
+@pytest.mark.parametrize("entry", [
+    "from rstimes import ADAPTER",
+    "import rstimes.SUBMODULE",
+    "rstimes.ADAPTER",
+    'importlib.import_module("rstimes.SUBMODULE")',
+    "line = load_in_user_wrapper()",
+], ids=["root", "direct", "attribute", "dynamic", "user-wrapper"])
+def test_low_dependency_warning_points_to_first_adapter_request(
+    tmp_path, pkg, adapter, version, entry,
+):
+    pytest.importorskip(pkg)
+    request = entry.replace("SUBMODULE", adapter.lower()).replace("ADAPTER", adapter)
+    source = '''
+        import importlib, json, sys, warnings
+        importlib.import_module(PACKAGE).__version__ = VERSION
+
+        def load_in_user_wrapper():
+            line = sys._getframe().f_lineno + 1
+            importlib.import_module("rstimes." + SUBMODULE)
+            return line
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            import rstimes
+            from rstimes.errors import DependencyWarning
+            assert not any(item.category is DependencyWarning for item in captured)
+            line = sys._getframe().f_lineno + 1
+            REQUEST
+            REQUEST
+        print(json.dumps({"line": line, "warnings": [
+            [item.filename, item.lineno, str(item.message)]
+            for item in captured if item.category is DependencyWarning
+        ]}))
+    '''
+    script = tmp_path / "consumer.py"
+    result = run_child(
+        source.replace("PACKAGE", repr(pkg)).replace("VERSION", repr(version))
+        .replace("SUBMODULE", repr(adapter.lower()))
+        .replace("REQUEST", request),
+        script=script,
+    )
+    assert result["warnings"] == [
+        [str(script), result["line"], _dependency_warning_text(pkg, adapter, version)],
+    ]
+
+
+def _dependency_warning_text(pkg, adapter, version):
+    from platform import machine
+
+    if pkg == "pandas":
+        high_floor = sys.version_info >= (3, 15) or (sys.platform == "win32" and machine() == "ARM64")
+        minimum = "3.0.6" if high_floor else "2.3.3"
+        label = "pandas"
+    else:
+        minimum = "2.0.0"
+        label = "Polars"
+    return (
+        f"{adapter} is using {label} {version}, below the supported minimum of {minimum} "
+        "for this environment. Some operations may fail or produce unexpected results. "
+        f'To upgrade, run `python -m pip install "rsTimes[{pkg}]"`.'
+    )
+
+
+@pytest.mark.parametrize("pkg,adapter,version,submodule", [
+    ("pandas", "Pddt", "2.3.0", "pddt"), ("polars", "Pldt", "1.44.2", "pldt"),
+])
+@pytest.mark.parametrize("entry,options", [
+    ("rstimes.ADAPTER", ("-W", "error")),
+    ("import rstimes.SUBMODULE", ()),
+    ('importlib.import_module("rstimes.SUBMODULE")', ()),
+], ids=["global-error", "module-filter-direct", "module-filter-dynamic"])
+def test_dependency_warning_as_error_leaves_adapter_retryable(
+    tmp_path, pkg, adapter, version, submodule, entry, options,
+):
+    pytest.importorskip(pkg)
+    request = entry.replace("SUBMODULE", submodule).replace("ADAPTER", adapter)
+    source = '''
+        import importlib, json, sys, warnings
+        upstream = importlib.import_module(PACKAGE)
+        upstream.__version__ = VERSION
+        import rstimes
+        from rstimes.errors import DependencyWarning
+        if not sys.warnoptions:
+            warnings.filterwarnings("error", category=DependencyWarning, module=r"^__main__$")
+        hosts = (upstream.Series, upstream.Expr) if PACKAGE == "polars" else ()
+        before = [vars(host).get("pldt") for host in hosts]
+        assert all(item is None for item in before)
+        try:
+            REQUEST
+        except DependencyWarning as error:
+            assert type(error) is DependencyWarning
+            message = str(error)
+            assert "rstimes." + SUBMODULE not in sys.modules
+            assert "ADAPTER" not in vars(rstimes)
+            assert [vars(host).get("pldt") for host in hosts] == before
+        else:
+            raise AssertionError("expected the warning filter to interrupt the first import")
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", category=DependencyWarning)
+            line = sys._getframe().f_lineno + 1
+            REQUEST
+            obj = rstimes.ADAPTER(["1970-01-02", None], unit="us", name="event")
+            assert obj.name == "event" and len(obj) == 2
+            assert all(vars(host).get("pldt") is not None for host in hosts)
+            assert rstimes.ADAPTER is type(obj)
+        print(json.dumps({
+            "error": message,
+            "line": line,
+            "warnings": [[item.category is DependencyWarning, str(item.message), item.filename, item.lineno]
+                         for item in captured],
+        }))
+    '''
+    script = tmp_path / "consumer.py"
+    result = run_child(
+        source.replace("PACKAGE", repr(pkg)).replace("VERSION", repr(version))
+        .replace("SUBMODULE", repr(submodule)).replace("ADAPTER", adapter)
+        .replace("REQUEST", request),
+        script=script, options=options,
+    )
+    message = _dependency_warning_text(pkg, adapter, version)
+    assert result["error"] == message
+    assert result["warnings"] == [[True, message, str(script), result["line"]]]
 
 
 def test_polars_real_series_subclass_is_not_filtered_by_name():

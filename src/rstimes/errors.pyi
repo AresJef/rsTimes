@@ -1,4 +1,4 @@
-"""Domain errors for text parsing and configuration."""
+"""Parsing and configuration failures and optional dependency warnings."""
 from typing import NoReturn, TypeVar
 
 _Error = TypeVar("_Error", bound=BaseException)
@@ -43,6 +43,9 @@ class ConfigError(RstimesError, ValueError):
     -----
     An unsupported object type raises TypeError. Errors inside user callbacks
     keep their original exception; they are not automatically ConfigError."""
+
+class DependencyWarning(UserWarning):
+    """An adapter is using an optional dependency below its supported version."""
 
 __all__: list[str]
 
