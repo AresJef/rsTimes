@@ -95,27 +95,44 @@ True
 ...     assert result.to_list() == ['early', 'early', 'late', None]
 ```
 
-```{doctest} inherited-pldt-native-runs-and-callbacks
+```{doctest} inherited-pldt-rle
+>>> # coverage: {"covers":["rstimes.Pldt.rle"],"scenarios":["exact-nested-runs","null"]}
 >>> runs = Pldt(pl.Series('event', [first, first, None, None, last], dtype=value.dtype))
 >>> encoded = runs.rle()
 >>> (type(encoded) is pl.Series, encoded.dtype == pl.Struct({'len': pl.UInt32, 'value': value.dtype}))
 (True, True)
 >>> encoded.to_physical().to_list()
 [{'len': 2, 'value': 1704067200000000123}, {'len': 2, 'value': None}, {'len': 1, 'value': 1704240000000000789}]
+```
+
+```{doctest} inherited-pldt-rle-id
+>>> # coverage: {"covers":["rstimes.Pldt.rle_id"],"scenarios":["run-identifiers","null"]}
 >>> identifiers = runs.rle_id()
 >>> (type(identifiers) is pl.Series, identifiers.dtype, identifiers.to_list())
 (True, UInt32, [0, 0, 1, 1, 2])
+```
+
+```{doctest} inherited-pldt-ns-adjacent-diff
+>>> # coverage: {"covers":["rstimes.Pldt.diff"],"scenarios":["inherited-adjacent-difference","Duration-ns","drop-null-behavior","shortened-shape","null"]}
 >>> difference = value.diff()
->>> (type(difference) is pl.Series, difference.dtype, difference.to_physical().to_list())
-(True, Duration(time_unit='ns'), [None, None, None, 172800000000666])
+>>> (type(difference) is pl.Series, difference.dtype, difference.name, difference.to_physical().to_list())
+(True, Duration(time_unit='ns'), 'event', [None, None, None, 172800000000666])
 >>> shortened = value.diff(null_behavior='drop')
->>> (type(shortened) is pl.Series, shortened.dtype, shortened.to_physical().to_list())
-(True, Duration(time_unit='ns'), [None, None, 172800000000666])
+>>> (type(shortened) is pl.Series, shortened.dtype, shortened.name, shortened.to_physical().to_list())
+(True, Duration(time_unit='ns'), 'event', [None, None, 172800000000666])
+```
+
+```{doctest} inherited-pldt-date-callback
+>>> # coverage: {"covers":["rstimes.Pldt.map_elements"],"scenarios":["business-callback","Int64","null"]}
 >>> def business_code(date):
 ...     return {1: 10, 3: 30}.get(date.day, 0)
 >>> codes = value.map_elements(business_code, return_dtype=pl.Int64)
 >>> (type(codes) is pl.Series, codes.dtype, codes.name, codes.to_list())
 (True, Int64, 'event', [30, None, 10, 30])
+```
+
+```{doctest} inherited-pldt-date-summary
+>>> # coverage: {"covers":["rstimes.Pldt.describe"],"scenarios":["summary","String","null"]}
 >>> summary = value.describe()
 >>> (type(summary) is pl.DataFrame, summary.schema == {'statistic': pl.String, 'value': pl.String})
 (True, True)

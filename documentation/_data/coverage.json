@@ -158,14 +158,14 @@
         }
       },
       "examples": [
-        "expr-calendar-relative-and-unit",
         "expr-collected-native-versus-protected-export",
         "recipe-event-renewals",
         "free-threaded-actual-date-work",
         "expr-broadcast-group-offset",
         "expr-restore-native-query",
         "free-threaded-check-after-query",
-        "renewal-calculate-from-text-feed"
+        "renewal-calculate-from-text-feed",
+        "expr-calendar-add-components"
       ],
       "profiles": [
         "full",
@@ -194,12 +194,10 @@
         "GIL-before-after",
         "Real eager and lazy two-stage event parsing/month renewal; ns UTC/null schema and exact ticks.",
         "all-relative-components",
-        "all3units",
         "calendar-month",
-        "capacity-error",
         "collect",
         "end-to-end-text-feed",
-        "explicit-unit",
+        "exact-cancellation",
         "free-threaded",
         "grouped-aggregate",
         "independent-null",
@@ -215,7 +213,6 @@
         "same-environment",
         "scalar-broadcast",
         "select",
-        "signed-subtraction",
         "timezone",
         "valid-MIN",
         "window"
@@ -349,7 +346,8 @@
         }
       },
       "examples": [
-        "expr-calendar-relative-and-unit"
+        "expr-calendar-as-unit",
+        "pldt-expr-as-unit"
       ],
       "profiles": [
         "full",
@@ -372,12 +370,18 @@
         "polars-only"
       ],
       "scenarios": [
-        "all-relative-components",
+        "Expr-accessor",
+        "None-rejected",
         "all3units",
         "capacity-error",
+        "collect",
         "explicit-unit",
+        "name-timezone-null",
+        "negative-floor",
         "precision-error",
-        "signed-subtraction"
+        "schema",
+        "select",
+        "target-us"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
     },
@@ -556,7 +560,7 @@
         }
       },
       "examples": [
-        "expr-iso-format-and-combine"
+        "expr-input-combine-time"
       ],
       "profiles": [
         "full",
@@ -579,15 +583,11 @@
         "polars-only"
       ],
       "scenarios": [
-        "ISO-only",
+        "Python-time",
         "Time-role",
         "execution-error",
-        "explicit-format",
-        "final-format-truncation",
-        "preparation-error",
-        "scalar-clock",
+        "null",
         "snapshot",
-        "static-timezone",
         "static-unit",
         "vector-clock"
       ],
@@ -1813,7 +1813,7 @@
         }
       },
       "examples": [
-        "expr-iso-format-and-combine"
+        "expr-input-isoformat"
       ],
       "profiles": [
         "full",
@@ -1837,16 +1837,10 @@
       ],
       "scenarios": [
         "ISO-only",
-        "Time-role",
         "execution-error",
-        "explicit-format",
-        "final-format-truncation",
-        "preparation-error",
-        "scalar-clock",
-        "snapshot",
-        "static-timezone",
-        "static-unit",
-        "vector-clock"
+        "explicit-ISO-timezone",
+        "explicit-ISO-unit",
+        "null"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
     },
@@ -4612,8 +4606,8 @@
         }
       },
       "examples": [
-        "expr-iso-format-and-combine",
-        "expr-strptime-chosen-resolution"
+        "expr-strptime-chosen-resolution",
+        "expr-input-strptime"
       ],
       "profiles": [
         "full",
@@ -4638,22 +4632,18 @@
         "polars-only"
       ],
       "scenarios": [
-        "ISO-only",
-        "Time-role",
         "collect",
-        "execution-error",
         "explicit-format",
         "final-format-truncation",
+        "literal-percent-f",
         "null",
         "precision-reduction",
         "preparation-error",
-        "scalar-clock",
         "select",
-        "snapshot",
         "static-option-error",
         "static-timezone",
         "static-unit",
-        "vector-clock"
+        "whole-format-default-us"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
     },
@@ -4687,7 +4677,7 @@
         }
       },
       "examples": [
-        "expr-calendar-relative-and-unit"
+        "expr-calendar-sub-components"
       ],
       "profiles": [
         "full",
@@ -4711,9 +4701,6 @@
       ],
       "scenarios": [
         "all-relative-components",
-        "all3units",
-        "capacity-error",
-        "explicit-unit",
         "precision-error",
         "signed-subtraction"
       ],
@@ -5272,7 +5259,8 @@
         }
       },
       "examples": [
-        "expr-calendar-fields-and-rows"
+        "expr-calendar-fields-and-rows",
+        "expr-calendar-to-date-capacity"
       ],
       "profiles": [
         "full",
@@ -5295,6 +5283,7 @@
         "polars-only"
       ],
       "scenarios": [
+        "capacity-error",
         "fitted-fields",
         "fraction-tail",
         "no-length-one-broadcast",
@@ -8324,7 +8313,9 @@
         }
       },
       "examples": [
-        "pldt-native-series-parser-and-units"
+        "pldt-native-series-parser-and-units",
+        "pldt-series-as-unit-options",
+        "pldt-series-as-unit"
       ],
       "profiles": [
         "full",
@@ -8348,13 +8339,19 @@
       ],
       "scenarios": [
         "Configs",
+        "None-rejected",
         "all3-source-units",
         "all3-target-units",
+        "explicit-unit",
         "name",
+        "name-timezone-null",
+        "native-Series-accessor",
         "native-Series-parse",
         "negative",
+        "negative-floor",
         "null",
         "strict-round_ok",
+        "target-us",
         "timezone"
       ]
     },
@@ -41720,7 +41717,6 @@
         "pldt-repeated-time-policies",
         "pldt-source-resolution",
         "pldt-source-zone-and-metadata",
-        "pldt-unit-and-source-ownership",
         "recipe-event-renewals",
         "recipe-calendar-batches",
         "recipe-exact-arrow-exchange",
@@ -41733,7 +41729,8 @@
         "pldt-read-index-utc-instants",
         "pldt-arrow-valid-endpoint-roundtrip",
         "compat-reject-custom-date-target",
-        "exchange-roundtrip-full-date-tick"
+        "exchange-roundtrip-full-date-tick",
+        "pldt-constructor-source-ownership"
       ],
       "profiles": [
         "core",
@@ -41802,7 +41799,6 @@
         "end-to-end-arrow",
         "explicit-loss",
         "explicit-name",
-        "explicit-unit",
         "external-source",
         "full-int64-domain",
         "full-position-mask",
@@ -41824,6 +41820,7 @@
         "mixed-input",
         "multi-chunk",
         "mutable-buffer",
+        "name-validation",
         "nanoseconds",
         "nat",
         "native-input",
@@ -41862,12 +41859,11 @@
         "source-name",
         "source-resolution",
         "source-units",
-        "strict-boolean",
+        "strict-copy-boolean",
         "strict-error",
         "strict-independent",
         "strict-numeric-role",
         "strict-options",
-        "strict-round_ok",
         "stride",
         "subnanosecond-input",
         "target-zone-error",
@@ -43111,7 +43107,6 @@
         "pldt-repeated-time-policies",
         "pldt-source-resolution",
         "pldt-source-zone-and-metadata",
-        "pldt-unit-and-source-ownership",
         "pldt-read-independent-null-mask",
         "pldt-choose-repeated-clock",
         "pldt-business-zone-as-source",
@@ -43119,7 +43114,8 @@
         "pldt-capture-date-column",
         "pldt-read-index-utc-instants",
         "compat-reject-custom-date-target",
-        "exchange-roundtrip-full-date-tick"
+        "exchange-roundtrip-full-date-tick",
+        "pldt-constructor-source-ownership"
       ],
       "profiles": [
         "full",
@@ -43190,7 +43186,6 @@
         "end-to-end-arrow",
         "explicit-loss",
         "explicit-name",
-        "explicit-unit",
         "external-source",
         "full-int64-domain",
         "full-position-mask",
@@ -43212,6 +43207,7 @@
         "mixed-input",
         "multi-chunk",
         "mutable-buffer",
+        "name-validation",
         "nanoseconds",
         "nat",
         "native-input",
@@ -43246,12 +43242,11 @@
         "source-name",
         "source-resolution",
         "source-units",
-        "strict-boolean",
+        "strict-copy-boolean",
         "strict-error",
         "strict-independent",
         "strict-numeric-role",
         "strict-options",
-        "strict-round_ok",
         "stride",
         "subnanosecond-input",
         "target-zone-error",
@@ -44348,6 +44343,7 @@
         "native-values",
         "no-reinit",
         "pickle",
+        "restored-column-name",
         "state-roundtrip",
         "state-shape-error",
         "timezone",
@@ -45036,6 +45032,7 @@
         "independent-validity",
         "name",
         "pickle",
+        "restored-column-name",
         "state-roundtrip",
         "state-shape-error",
         "timezone",
@@ -45134,8 +45131,8 @@
         "pldt-duration-and-date-operands",
         "pldt-numpy-temporal-ufuncs",
         "pldt-application-arithmetic-protocols",
-        "pldt-native-diff-versus-elapsed",
-        "pldt-measure-actual-duration"
+        "pldt-measure-actual-duration",
+        "pldt-native-paired-subtraction"
       ],
       "profiles": [
         "full",
@@ -45159,6 +45156,7 @@
       ],
       "scenarios": [
         "DST",
+        "Duration-ns",
         "NumPy-scalar-array",
         "actual-TypeError",
         "all-Delta-fields",
@@ -45176,7 +45174,6 @@
         "generator",
         "genuine-business-override",
         "independent-null",
-        "inherited-adjacent-difference",
         "missing-parameter-error",
         "mixed-precision-subtraction",
         "named-date-result-required",
@@ -45189,8 +45186,8 @@
         "null",
         "object-array",
         "once-callback",
-        "ordinary-Duration",
         "original-exception",
+        "paired-subtraction",
         "row-Delta-vector",
         "scalar",
         "source-nullskip",
@@ -46484,10 +46481,10 @@
         }
       },
       "examples": [
-        "pldt-unit-and-source-ownership",
         "pldt-input-conversion-errors",
         "pldt-native-series-parser-and-units",
-        "pldt-floor-unit-conversion"
+        "pldt-floor-unit-conversion",
+        "pldt-direct-as-unit-options"
       ],
       "profiles": [
         "full",
@@ -46511,11 +46508,10 @@
       ],
       "scenarios": [
         "Configs",
+        "None-rejected",
         "all3-source-units",
         "all3-target-units",
-        "captured-owner",
         "conversion",
-        "copy-isolation",
         "dimension-error",
         "explicit-unit",
         "fixed-unit",
@@ -46529,7 +46525,6 @@
         "overflow",
         "precision-error",
         "round_ok",
-        "strict-boolean",
         "strict-round_ok",
         "subnanosecond-input",
         "timezone"
@@ -49756,7 +49751,7 @@
         }
       },
       "examples": [
-        "inherited-pldt-native-runs-and-callbacks"
+        "inherited-pldt-date-summary"
       ],
       "profiles": [
         "full",
@@ -49779,7 +49774,9 @@
         "polars-only"
       ],
       "scenarios": [
-        "Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table."
+        "String",
+        "null",
+        "summary"
       ]
     },
     {
@@ -49812,8 +49809,9 @@
         }
       },
       "examples": [
-        "inherited-pldt-native-runs-and-callbacks",
-        "pldt-native-diff-versus-elapsed"
+        "inherited-pldt-ns-adjacent-diff",
+        "pldt-native-adjacent-diff",
+        "pldt-adjacent-duration"
       ],
       "profiles": [
         "full",
@@ -49836,11 +49834,12 @@
         "polars-only"
       ],
       "scenarios": [
-        "Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.",
+        "Duration-ns",
+        "Duration-us",
+        "drop-null-behavior",
         "inherited-adjacent-difference",
-        "mixed-precision-subtraction",
         "null",
-        "ordinary-Duration"
+        "shortened-shape"
       ]
     },
     {
@@ -59265,7 +59264,7 @@
         }
       },
       "examples": [
-        "inherited-pldt-native-runs-and-callbacks"
+        "inherited-pldt-date-callback"
       ],
       "profiles": [
         "full",
@@ -59288,7 +59287,9 @@
         "polars-only"
       ],
       "scenarios": [
-        "Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table."
+        "Int64",
+        "business-callback",
+        "null"
       ]
     },
     {
@@ -60151,6 +60152,7 @@
         }
       },
       "examples": [
+        "pldt-pickle-min-tick",
         "inherited-pldt-container-metadata"
       ],
       "profiles": [
@@ -60174,7 +60176,12 @@
         "polars-only"
       ],
       "scenarios": [
-        "literal ns/UTC/validity, byte counts and real sorted input"
+        "independent-validity",
+        "literal ns/UTC/validity, byte counts and real sorted input",
+        "pickle",
+        "restored-column-name",
+        "state-roundtrip",
+        "timezone"
       ]
     },
     {
@@ -62170,7 +62177,7 @@
         }
       },
       "examples": [
-        "inherited-pldt-native-runs-and-callbacks"
+        "inherited-pldt-rle"
       ],
       "profiles": [
         "full",
@@ -62193,7 +62200,8 @@
         "polars-only"
       ],
       "scenarios": [
-        "Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table."
+        "exact-nested-runs",
+        "null"
       ]
     },
     {
@@ -62226,7 +62234,7 @@
         }
       },
       "examples": [
-        "inherited-pldt-native-runs-and-callbacks"
+        "inherited-pldt-rle-id"
       ],
       "profiles": [
         "full",
@@ -62249,7 +62257,8 @@
         "polars-only"
       ],
       "scenarios": [
-        "Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table."
+        "null",
+        "run-identifiers"
       ]
     },
     {
@@ -63631,6 +63640,7 @@
         }
       },
       "examples": [
+        "pldt-scatter-clone",
         "inherited-pldt-native-mutation"
       ],
       "profiles": [
@@ -63654,7 +63664,11 @@
         "polars-only"
       ],
       "scenarios": [
-        "Actual cloned rsTimes receiver mutation versus returned replacement; matching date dtype, None and unchanged original."
+        "Actual cloned rsTimes receiver mutation versus returned replacement; matching date dtype, None and unchanged original.",
+        "in-place-clone-mutation",
+        "null",
+        "original-unchanged",
+        "timezone"
       ]
     },
     {
@@ -71906,6 +71920,7 @@
         }
       },
       "examples": [
+        "pydt-english-ctime",
         "pydt-calendar-output"
       ],
       "profiles": [
@@ -71917,10 +71932,13 @@
       "description_reviewed": true,
       "owner": "rstimes.Pydt",
       "scenarios": [
+        "English-clock-text",
         "all-calendar-containers",
         "date-clock-role",
         "naive-DST-unknown",
+        "no-fraction-or-offset",
         "return-type",
+        "space-padded-day",
         "timezone"
       ],
       "dependency_profiles_available": [

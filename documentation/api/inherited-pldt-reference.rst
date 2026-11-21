@@ -219,8 +219,6 @@ For all provider parameter details, see the `Polars Series reference
 
    Read the Series name string.
 
-   **Executed examples:** :doc:`/api/inherited-pldt-container`.
-
 .. py:method:: rstimes.Pldt.new_from_index(index, length)
 
    Repeat one positional value for the requested length and return Pldt.
@@ -1282,8 +1280,6 @@ For all provider parameter details, see the `Polars Series reference
 
    Mutate and return the same Pldt wrapper. Use a matching date Series operand for explicit exact date values.
 
-   **Executed examples:** :doc:`inherited-pldt-transformations`.
-
 .. py:method:: rstimes.Pldt.set(filter, value)
 
    Return native Series with masked scalar date replacements; leave the original Pldt unchanged.
@@ -1388,15 +1384,11 @@ For all provider parameter details, see the `Polars Series reference
 
 .. py:method:: rstimes.Pldt.describe(percentiles=(0.25, 0.5, 0.75), interpolation='nearest')
 
-   Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.
-
-   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+   Return a Polars DataFrame of descriptive statistics. For a Datetime column, the statistic names and displayed values are strings.
 
 .. py:method:: rstimes.Pldt.diff(n=1, null_behavior='ignore')
 
-   Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.
-
-   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+   Subtract the value ``n`` rows earlier from each row. The result is a native Series with a Duration dtype at the source resolution. The default preserves row positions and has nulls where either operand is missing. For ``n=1``, ``null_behavior="drop"`` omits the first result position.
 
 .. py:method:: rstimes.Pldt.hist(bins=None, *, bin_count=None, include_category=True, include_breakpoint=True)
 
@@ -1412,9 +1404,7 @@ For all provider parameter details, see the `Polars Series reference
 
 .. py:method:: rstimes.Pldt.map_elements(function, return_dtype=None, *, skip_nulls=True, _disable_inefficient_map_warning=False)
 
-   Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.
-
-   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+   Apply the Python function to each value and return a native Series. Supply ``return_dtype`` for the function's output, such as Int64 for an integer code. By default, nulls remain null and do not call the function.
 
 .. py:method:: rstimes.Pldt.max()
 
@@ -1484,15 +1474,11 @@ For all provider parameter details, see the `Polars Series reference
 
 .. py:method:: rstimes.Pldt.rle()
 
-   Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.
-
-   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+   Encode consecutive equal values as a native Struct Series. Each run has a UInt32 length and a value in the input Datetime dtype. Consecutive nulls form a run.
 
 .. py:method:: rstimes.Pldt.rle_id()
 
-   Exact nested date run storage and nulls; Duration(ns) row differences, shortened shape; Python business callback Int64; readable String summary table.
-
-   **Executed examples:** :doc:`/api/inherited-pldt-analysis`.
+   Return a UInt32 Series with the zero-based run number for each source row, including rows in runs of nulls.
 
 .. py:method:: rstimes.Pldt.rolling_kurtosis(window_size, *, fisher=True, bias=True, min_samples=None, center=False)
 

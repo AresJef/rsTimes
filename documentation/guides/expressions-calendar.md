@@ -79,7 +79,29 @@ each logical row needs a different rule. An Object column or a
 dynamic Python arithmetic override cannot serve as an Expr Delta.
 
 Date transformations retain the existing storage unit.
-To convert, pass a target unit of `"ms"`, `"us"` or `"ns"` to
-`.pldt.as_unit`.
-`round_ok=False` requires exact representation at the target unit.
 Relative components combine before the final precision check.
+
+## Convert a column's unit inside a query
+
+(pldt-expr-as-unit)=
+```python
+import polars as pl
+import rstimes.pldt
+
+source = pl.Series("event", [-1500, None], dtype=pl.Datetime("ns", "UTC"))
+frame = pl.DataFrame([source])
+converted = pl.col("event").pldt.as_unit("us")
+print(frame.select(converted)["event"].to_physical().to_list())
+print(frame.lazy().select(converted).collect()["event"].to_physical().to_list())
+```
+
+**Output**
+
+```text
+[-2, None]
+[-2, None]
+```
+
+Choose `"ms"`, `"us"` or `"ns"` as the target unit. The default
+rounding picks the earlier tick. Set `round_ok=False` to require an
+exact conversion. Select or collect the expression to get the new column.

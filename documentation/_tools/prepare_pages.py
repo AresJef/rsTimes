@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 from datetime import datetime, timezone
+from html import escape
 import importlib.metadata
 import json
 from pathlib import Path
@@ -33,11 +34,14 @@ def copy_public_reports(source, destination):
         public = Path("verification/reports") / relative
         published = destination / public
         write_json(published, report)
-        reports[relative.as_posix()] = (public.as_posix(), digest(path.read_bytes()), digest(published.read_bytes()))
+        reports[relative.as_posix()] = (
+            public.as_posix(), digest(path.read_bytes()), digest(published.read_bytes()),
+            report.get("original_report_sha256"),
+        )
     return reports
 
 
-def publish_coverage(exact, gate, reports):
+def publish_coverage(exact, gate, reports, *, preview=False):
     manifest = json.loads((DOC / "_data/coverage.json").read_text())
     mapped = {row["path"]: row for row in manifest["entries"]}
     rows = []
@@ -45,10 +49,18 @@ def publish_coverage(exact, gate, reports):
         row = dict(record)
         proofs = []
         for item in record["evidence"]:
-            public, original, published = reports[item["report"]]
-            if original != item["report_sha256"]:
+            public, source_hash, published, worker_hash = reports[item["report"]]
+            if source_hash != item["report_sha256"]:
                 raise ValueError("Page report differs from the checked evidence")
-            proofs.append(dict(item, report=public, report_sha256=published, ci_report_sha256=original))
+            proof = dict(item, report=public, report_sha256=published)
+            if worker_hash:
+                origin = "historical-actions-producer" if preview else "actions-producer"
+                proof.update(report_origin=origin, ci_report_sha256=source_hash, original_report_sha256=worker_hash)
+            elif preview:
+                proof.update(report_origin="local-verifier", local_report_sha256=source_hash)
+            else:
+                raise ValueError("The Actions producer report is missing its worker receipt hash")
+            proofs.append(proof)
         row["evidence"] = proofs
         row["examples"] = mapped[row["path"]]["examples"]
         row["profiles"] = mapped[row["path"]]["profiles"]
@@ -69,6 +81,24 @@ def publish_coverage(exact, gate, reports):
                 evidence=json.dumps(row["evidence"]), pending=json.dumps(row["pending"]), status=row["status"],
             ))
     return rows
+
+
+def write_versions(site, versions, default):
+    write_json(site / "versions.json", versions)
+    links = "\n".join(
+        f'<li><a href="{escape(item["url"], quote=True)}">rsTimes {escape(item["name"])}</a>'
+        + (" (default)" if item["version"] == default else "") + "</li>"
+        for item in versions
+    )
+    (site / "versions.html").write_text(f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documentation versions — rsTimes</title>
+<style>body{{font:1rem/1.65 system-ui;margin:4rem auto;padding:0 1.25rem;max-width:44rem}}a:focus-visible{{outline:3px solid #176b94;outline-offset:3px}}</style>
+</head><body><main>
+<h1>Documentation versions</h1>
+<nav aria-label="rsTimes documentation versions"><ul>{links}</ul></nav>
+</main></body></html>
+""", encoding="utf-8")
 
 
 def write_entry_pages(site, version):
@@ -132,7 +162,7 @@ def main():
     exact = args.output / version
     shutil.copytree(args.html, exact)
     reports = copy_public_reports(args.reports, exact)
-    rows = publish_coverage(exact, gate, reports)
+    rows = publish_coverage(exact, gate, reports, preview=preview)
 
     restored = migration["add_legacy_site"](args.output, plan, mode)
     write_entry_pages(args.output, version)
@@ -148,7 +178,7 @@ def main():
     if mode == "preserve":
         old = plan["old_version"]
         versions.append(dict(version=old, name=old, url=SITE_PREFIX + old + "/"))
-    write_json(args.output / "versions.json", versions)
+    write_versions(args.output, versions, version)
 
     build = dict(
         schema=2, product_version=version, source_commit=target["source_commit"],

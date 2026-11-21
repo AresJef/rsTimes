@@ -49,10 +49,30 @@ unchanged. See [changing the stored fraction](pydt-boundaries.md)
 if the value itself needs lower precision.
 
 `isoformat` produces standard datetime ISO output. You can select
-its separator and standard `timespec`. `ctime` gives an English
-calendar and time string. `month_name` and `weekday_name` select
+its separator and standard `timespec`. `month_name` and `weekday_name` select
 localized names. Their locale controls display, while `Configs`
 controls parsing vocabulary.
+
+## Show a date as English clock text
+
+(pydt-english-ctime)=
+```python
+from datetime import timezone
+from rstimes import Pydt
+
+value = Pydt(2024, 2, 9, 9, 30, 0, 123456, tzinfo=timezone.utc)
+text = value.ctime()
+print(text)
+```
+
+**Output**
+
+```text
+Fri Feb  9 09:30:00 2024
+```
+
+Notice the space-padded day. The string omits fractional seconds and the
+UTC offset.
 
 ## Choose a calendar export
 

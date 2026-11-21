@@ -86,6 +86,8 @@ def main():
             run('-I', official / 'tools/check_public_docs.py', '--evidence-dir', work / 'stub-audit')
             command += ['--stubs', work / 'stubs']
         run(*command)
+        if args.profile in ('full', 'windows-full'):
+            run('-I', DOC / '_tools/check_receiver_observer.py', output / 'receiver-observer.json')
     if inventory_report.exists():
         (output / 'inventory.json').write_bytes(inventory_report.read_bytes())
     if args.profile == 'full':

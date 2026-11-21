@@ -109,3 +109,15 @@ external standard-library protocol. During the repeated New York
 hour, it can choose the later instant for a Pydt.
 [Use a standard datetime carrier](../guides/pydt-timezones.md)
 with the same clock, zone and fold when passing it to external code.
+
+## Recover from an eager unit conversion error
+
+In the published 1.0.0 wheel, `Pldt.as_unit` and the native
+`Series.pldt.as_unit` call can name `Pldt` in a conversion error.
+Check the exception type and the reported row. A `ValueError` from
+an inexact conversion with `round_ok=False` means that the target
+unit would lose precision. Keep the current unit for exact values,
+or explicitly use `round_ok=True` to round toward the earlier tick.
+An `OverflowError` means the result is outside the target unit's
+capacity. Keep the current unit or choose a coarser one with enough
+range. Allowing rounding gives no extra range at a finer unit.
