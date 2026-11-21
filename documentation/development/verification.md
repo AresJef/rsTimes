@@ -3,10 +3,10 @@
 These receipts describe the rsTimes 1.0.0 documentation and its
 actual build and execution context.
 
-- [Full entry, scenario, page, example, environment and evidence table in CSV](https://aresjef.github.io/rsTimes/1.0.0/verification/coverage.csv)
-- [The same coverage table in JSON](https://aresjef.github.io/rsTimes/1.0.0/verification/coverage.json)
-- [Documented product, documentation commit, wheel identities and deployment run](https://aresjef.github.io/rsTimes/1.0.0/_meta/build.json)
-- [Checksums of deployed files](https://aresjef.github.io/rsTimes/_meta/files.json)
+- <a href="../verification/coverage.csv">Full entry, scenario, page, example, environment and evidence table in CSV</a>
+- <a href="../verification/coverage.json">The same coverage table in JSON</a>
+- <a href="../_meta/build.json">Documented product, documentation commit, wheel identities and build context</a>
+- <a href="../../_meta/files.json">Checksums of site files</a>
 
 The canonical public entries include rsTimes-owned APIs,
 registered namespaces and supported documentation for inherited
@@ -17,10 +17,21 @@ source. Expr evidence comes from executed queries.
 Wrong identities, missing cases and stale page results prevent
 a complete gate from passing.
 
-Each evidence row records the checksum of the linked public
-report in `report_sha256`. The public copy uses a generic package
-path and omits the full transcript. The original Actions report
-has the checksum recorded in `ci_report_sha256`.
+Use the hash for the bytes you downloaded.
+
+- `report_sha256` verifies the linked report in this site. The
+  report uses a generic package path and omits the full transcript.
+- `ci_report_sha256` verifies the sanitized report member in the
+  Actions producer ZIP. Line endings can make its bytes differ from
+  those of the report linked here.
+- `original_report_sha256` records the worker report's hash before
+  export. It appears in the exported report. Verification of that
+  hash requires the original worker bytes.
+
+A preview identifies the local verifier receipts with
+`report_origin` and `local_report_sha256`. When it reuses a matching
+historical Actions producer receipt, it identifies the historical
+origin and retains that producer member's hash.
 
 The public records cover documentation and example execution.
 Product distribution qualifications and performance comparisons

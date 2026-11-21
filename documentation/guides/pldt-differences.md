@@ -52,5 +52,24 @@ print(elapsed.to_physical().to_list())
 ```
 
 This result is a Duration Series with microsecond ticks.
-For differences from the preceding row, use the inherited
-`event.diff()` Series operation.
+
+## Measure the time since the preceding row
+
+(pldt-adjacent-duration)=
+```python
+from rstimes import Pldt
+
+event = Pldt([1001, 2002, None], unit="us", name="event")
+elapsed = event.diff()
+print(elapsed.to_physical().to_list())
+```
+
+**Output**
+
+```text
+[None, 1001, None]
+```
+
+The inherited `diff()` compares adjacent rows and returns a native
+Duration Series in the input unit. The first row has no predecessor.
+Subtract a separate date column to compare matching rows instead.

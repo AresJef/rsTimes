@@ -10,19 +10,50 @@ import json
 from pathlib import Path
 import re
 import runpy
+from urllib.parse import unquote, urljoin, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = re.compile(r"^\x60{3}\{doctest\} ([^\n]+)\n(.*?)^\x60{3}[ \t]*$", re.M | re.S)
 SCAN = runpy.run_path(str(ROOT / "_tools/example_blocks.py"))["scan_examples"]
+MAPPINGS = runpy.run_path(str(ROOT / "_tools/sync_coverage.py"))
 
 
-class Anchors(HTMLParser):
+class APISections(HTMLParser):
+    """Read links attached to a signature or to a hand-written reference row."""
+
     def __init__(self):
         super().__init__()
         self.ids = set()
+        self.links = {}
+        self.sections = []
 
     def handle_starttag(self, tag, attrs):
-        self.ids.update(value for name, value in attrs if name == "id")
+        attributes = dict(attrs)
+        if tag in {"dl", "tr"}:
+            self.sections.append((tag, []))
+        if anchor := attributes.get("id"):
+            self.ids.add(anchor)
+            if self.sections:
+                self.links[anchor] = self.sections[-1][1]
+        if tag == "a" and self.sections and attributes.get("href"):
+            self.sections[-1][1].append(attributes["href"])
+
+    def handle_endtag(self, tag):
+        if self.sections and self.sections[-1][0] == tag:
+            self.sections.pop()
+
+
+def linked_locations(page, links):
+    """Resolve internal paths relative to the page that contains the API."""
+    locations = []
+    for href in links:
+        if urlsplit(href).netloc or urlsplit(href).scheme:
+            continue
+        target = urlsplit(urljoin("/" + page, href))
+        location = (unquote(target.path.lstrip("/")), unquote(target.fragment))
+        if location[0].endswith(".html") and location != (page, "") and location not in locations:
+            locations.append(location)
+    return locations
 
 
 def sha(content):
@@ -85,7 +116,16 @@ def authored_cases(examples, rendered_pages):
                 hashes["checks_sha256"] = sha("\n".join(registration["checks"]).encode())
                 hashes["expected_output"] = example.output
             elif format == "contract" and name in contracts:
-                hashes = {"sha256": sha(contracts[name].encode())}
+                body = contracts[name]
+                hashes = {"sha256": sha(body.encode())}
+                marker = ">>> # coverage: "
+                if body.startswith(marker):
+                    claim = json.loads(body.splitlines()[0][len(marker):])
+                    for field in ("covers", "scenarios"):
+                        if set(claim[field]) != set(registration[field]):
+                            errors.append(
+                                f"Executed witness ownership differs for {name}/{field}: "
+                                f"authored {claim[field]}, registered {registration[field]}")
             else:
                 errors.append(f"Registered case missing from its actual source: {name}")
                 continue
@@ -174,6 +214,7 @@ def main():
     identity = read_json(args.identity)
     profiles = read_json(ROOT / "_data/profiles.json")["profiles"]
     declared = read_json(ROOT / "_data/examples.json")["examples"]
+    reader_targets = read_json(ROOT / "_data/reader-targets.json")
     rendered = read_json(args.rendered_examples)
     if args.defer_profile and (not args.allow_candidate or not set(args.defer_profile) <= profiles.keys()):
         parser.error("Deferrals require local reporting and declared profiles.")
@@ -210,6 +251,13 @@ def main():
         if (not set(example["covers"]) <= canonical or not example["profiles"]
                 or not set(example["profiles"]) <= profiles.keys() or not example.get("reviewed")):
             problems.append(f"Invalid case registration: {example['id']}")
+    if not set(reader_targets) <= canonical:
+        problems.append("Reader targets must refer to canonical public entries.")
+    reverse = MAPPINGS["examples_by_entry"](declared)
+    visible_locations = {
+        (Path(case["page"]).with_suffix(".html").as_posix(), case["id"]): case
+        for case in declared if case["format"] == "python"
+    }
     selected = [entry for entry in table["entries"] if args.slice == "all"
                 or entry["owner"] in ("rstimes.Delta", "rstimes.Configs", "rstimes")
                 or entry["owner"].startswith("rstimes.errors.")]
@@ -237,14 +285,32 @@ def main():
         invalid, evidence, pending_cases = [], [], []
         if not entry["description_reviewed"] or not entry["examples"]:
             invalid.append("Description or example mapping incomplete.")
-        rendered_page = args.html_dir / (entry["page"] + ".html")
+        page_name = entry["page"] + ".html"
+        rendered_page = args.html_dir / page_name
         if rendered_page not in anchors:
-            dom = Anchors()
+            dom = APISections()
             if rendered_page.is_file():
                 dom.feed(rendered_page.read_text(encoding="utf-8"))
-            anchors[rendered_page] = dom.ids
-        if entry["anchor"] not in anchors[rendered_page]:
+            anchors[rendered_page] = dom
+        dom = anchors[rendered_page]
+        if entry["anchor"] not in dom.ids:
             invalid.append("Rendered public anchor missing.")
+        for field, expected in MAPPINGS["derived_fields"](entry, reverse[path]).items():
+            actual = entry[field]
+            if actual != expected:
+                invalid.append(f"Stale {field}: missing {sorted(set(expected) - set(actual))}, "
+                               f"extra {sorted(set(actual) - set(expected))}, or noncanonical list.")
+        locations = linked_locations(page_name, dom.links.get(entry["anchor"], []))
+        linked_cases = [visible_locations[location] for location in locations if location in visible_locations]
+        if path in reader_targets:
+            preferred = reader_targets[path]
+            expected = examples.get(preferred, {})
+            if (preferred not in entry["examples"] or expected.get("format") != "python"
+                    or path not in expected.get("covers", [])):
+                invalid.append(f"Reader target is not a visible example registered for this entry: {preferred}.")
+            actual = [case["id"] for case in linked_cases]
+            if preferred not in actual or any(path not in case["covers"] for case in linked_cases):
+                invalid.append(f"Wrong rendered reader link: expected {preferred}, saw {actual or locations}.")
         for name in entry["examples"]:
             example = examples.get(name)
             if not example or path not in example["covers"]:
@@ -273,6 +339,9 @@ def main():
         records.append({
             "path": path, "kind": entry["kind"], "origin": entry["origin"],
             "page": entry["page"], "anchor": entry["anchor"],
+            "rendered_example_links": [
+                {"page": case["page"], "id": case["id"]} for case in linked_cases
+            ],
             "semantic_dimensions": entry["semantic_dimensions"],
             "scenarios": entry["scenarios"], "evidence": evidence, "pending": pending_cases,
             "known_issue_ids": entry.get("known_issue_ids", []),

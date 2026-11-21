@@ -33,11 +33,14 @@ def copy_public_reports(source, destination):
         public = Path("verification/reports") / relative
         published = destination / public
         write_json(published, report)
-        reports[relative.as_posix()] = (public.as_posix(), digest(path.read_bytes()), digest(published.read_bytes()))
+        reports[relative.as_posix()] = (
+            public.as_posix(), digest(path.read_bytes()), digest(published.read_bytes()),
+            report.get("original_report_sha256"),
+        )
     return reports
 
 
-def publish_coverage(exact, gate, reports):
+def publish_coverage(exact, gate, reports, *, preview=False):
     manifest = json.loads((DOC / "_data/coverage.json").read_text())
     mapped = {row["path"]: row for row in manifest["entries"]}
     rows = []
@@ -45,10 +48,18 @@ def publish_coverage(exact, gate, reports):
         row = dict(record)
         proofs = []
         for item in record["evidence"]:
-            public, original, published = reports[item["report"]]
-            if original != item["report_sha256"]:
+            public, source_hash, published, worker_hash = reports[item["report"]]
+            if source_hash != item["report_sha256"]:
                 raise ValueError("Page report differs from the checked evidence")
-            proofs.append(dict(item, report=public, report_sha256=published, ci_report_sha256=original))
+            proof = dict(item, report=public, report_sha256=published)
+            if worker_hash:
+                origin = "historical-actions-producer" if preview else "actions-producer"
+                proof.update(report_origin=origin, ci_report_sha256=source_hash, original_report_sha256=worker_hash)
+            elif preview:
+                proof.update(report_origin="local-verifier", local_report_sha256=source_hash)
+            else:
+                raise ValueError("The Actions producer report is missing its worker receipt hash")
+            proofs.append(proof)
         row["evidence"] = proofs
         row["examples"] = mapped[row["path"]]["examples"]
         row["profiles"] = mapped[row["path"]]["profiles"]
@@ -132,7 +143,7 @@ def main():
     exact = args.output / version
     shutil.copytree(args.html, exact)
     reports = copy_public_reports(args.reports, exact)
-    rows = publish_coverage(exact, gate, reports)
+    rows = publish_coverage(exact, gate, reports, preview=preview)
 
     restored = migration["add_legacy_site"](args.output, plan, mode)
     write_entry_pages(args.output, version)

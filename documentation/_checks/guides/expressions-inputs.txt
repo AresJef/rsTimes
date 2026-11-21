@@ -100,15 +100,22 @@ True
 >>> check_polars_error(pl.DataFrame({'raw': ['2024-01-01']}), pl.col('raw').pldt.fromdate(), 'Date')
 ```
 
-```{doctest} expr-iso-format-and-combine
+```{doctest} expr-input-isoformat
+>>> # coverage: {"covers":["polars.Expr.pldt.fromisoformat"],"scenarios":["ISO-only","explicit-ISO-unit","explicit-ISO-timezone","execution-error","null"]}
 >>> iso_text = pl.DataFrame({'raw': ['1970-01-01T00:00:00.123456789', None]})
 >>> check_dates(iso_text, pl.col('raw').pldt.fromisoformat(unit='ns'), pl.Datetime('ns'), [123456789, None])
 >>> dates = pl.DataFrame({'raw': ['1970-01-02', None]})
 >>> check_polars_error(dates, pl.col('raw').pldt.fromisoformat(), 'explicit unit')
->>> check_dates(dates, pl.col('raw').pldt.strptime('%Y-%m-%d'), pl.Datetime('us'), [86400000000, None])
 >>> aware_iso = pl.DataFrame({'raw': ['1970-01-01T05:30:00+05:30', None]})
 >>> check_polars_error(aware_iso, pl.col('raw').pldt.fromisoformat(unit='ns'), 'explicit tz')
 >>> check_dates(aware_iso, pl.col('raw').pldt.fromisoformat(unit='ns', tz='UTC'), pl.Datetime('ns', 'UTC'), [0, None])
+```
+
+```{doctest} expr-input-strptime
+>>> # coverage: {"covers":["polars.Expr.pldt.strptime"],"scenarios":["explicit-format","whole-format-default-us","final-format-truncation","literal-percent-f","static-unit","static-timezone","preparation-error","null"]}
+>>> check_dates(dates, pl.col('raw').pldt.strptime('%Y-%m-%d'), pl.Datetime('us'), [86400000000, None])
+>>> literal = pl.DataFrame({'raw': ['1970-01-02 %f', None]})
+>>> check_dates(literal, pl.col('raw').pldt.strptime('%Y-%m-%d %%f'), pl.Datetime('us'), [86400000000, None])
 >>> formatted = pl.DataFrame({'raw': ['1970-01-01 00:00:00.123456789', None]})
 >>> for unit, tick in [('us', 123456), ('ns', 123456789)]:
 ...     check_dates(formatted, pl.col('raw').pldt.strptime('%Y-%m-%d %H:%M:%S.%f', unit=unit), pl.Datetime(unit), [tick, None])
@@ -118,6 +125,10 @@ True
 ...     except ValueError:
 ...         continue
 ...     raise AssertionError('dynamic output schema was accepted')
+```
+
+```{doctest} expr-input-combine-time
+>>> # coverage: {"covers":["polars.Expr.pldt.combine"],"scenarios":["Time-role","vector-clock","snapshot","Python-time","static-unit","execution-error","null"]}
 >>> frame = pl.DataFrame({'day': [date(2024, 1, 2), date(2024, 1, 3)], 'clock': pl.Series([1, None], dtype=pl.Time)})
 >>> check_dates(frame, pl.col('day').pldt.combine(pl.col('clock'), unit='ns'), pl.Datetime('ns'), [1704153600000000001, None])
 >>> check_polars_error(frame, pl.col('day').pldt.combine(pl.col('clock')), 'unit')

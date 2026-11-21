@@ -32,8 +32,8 @@ PLDT_EXPR_UNITS = {
     ),
     "fromisoformat": "Choose a storage unit for String input, including text without fractional seconds.",
     "strptime": (
-        "Choose a storage unit for formats containing ``%f``. Formats without ``%f``\n"
-        "    default to microseconds."
+        "Supply an explicit unit when creating an expression with an effective ``%f``. An escaped\n"
+        "    ``%%f`` is literal text. Formats without a fractional directive default to microseconds."
     ),
     "combine": (
         "Choose a storage unit when the clock expression has Time, Datetime(ns), String\n"
@@ -45,6 +45,15 @@ PLDT_EXPR_UNITS = {
 PLDT_REPLACE_ZONE = (
     " Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings\n"
     "    follow this operation."
+)
+PLDT_SWITCH_FIELDS = (
+    "targ_tz : _Zone\n"
+    "    Required target timezone. Use an IANA name, ZoneInfo or a representable standard fixed\n"
+    "    offset. Pass ``None`` to remove the timezone and keep local clocks. A non-None target\n"
+    "    converts the instant. With ``naive=True``, the converted local clock has no timezone.\n"
+    "base_tz : _Zone\n"
+    "    Source timezone for a naive input. Required for conversion to a non-None target. An\n"
+    "    aware source uses its own timezone."
 )
 PLDT_ZONE_OPTIONS = {
     "fromdatetime": (
@@ -71,7 +80,13 @@ def for_website(node, module, expression=False):
         zone_note = PLDT_ZONE_OPTIONS.get(node.name, "")
         if expression and node.name in {"parse", "fromisoformat"}:
             zone_note = " Supply an explicit target zone when text carries a source timezone."
-        doc = doc.replace(PLDT_REPLACE_ZONE, zone_note)
+        if node.name == "tz_switch":
+            doc, replacements = re.subn(
+                r"(?ms)^targ_tz : _Zone\n.*?(?=^naive : _Boolean\n)", PLDT_SWITCH_FIELDS + "\n", doc)
+            if replacements != 1:
+                raise ValueError("Expected adjacent targ_tz and base_tz fields in the 1.0.0 tz_switch declaration")
+        elif node.name != "replace":
+            doc = doc.replace(PLDT_REPLACE_ZONE, zone_note)
     lines = doc.splitlines()
     starts = [i for i in range(len(lines) - 1)
               if lines[i].strip() and re.fullmatch(r"-{3,}", lines[i + 1])]

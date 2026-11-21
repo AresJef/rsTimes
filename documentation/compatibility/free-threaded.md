@@ -23,7 +23,8 @@ Free-threaded Intel macOS and the NumPy-dependent ARM64 Python
 import sys
 import sysconfig
 
-assert sysconfig.get_config_var("Py_GIL_DISABLED") == 1
+if sysconfig.get_config_var("Py_GIL_DISABLED") != 1:
+    raise SystemExit("Run this example with a free-threaded CPython 3.14t or 3.15t interpreter.")
 before = sys._is_gil_enabled()
 
 import polars as pl
@@ -33,7 +34,9 @@ frame = pl.DataFrame({
     "event": pl.Series([123, None], dtype=pl.Datetime("ns")),
 })
 expr = pl.col("event").pldt.add(nanoseconds=1)
+selected = frame.select(expr)["event"]
 events = frame.lazy().select(expr).collect()["event"]
+assert selected.equals(events)
 print(events.to_physical().to_list())
 print(before, sys._is_gil_enabled())
 ```
@@ -45,9 +48,11 @@ print(before, sys._is_gil_enabled())
 False False
 ```
 
-Use a fresh interpreter with its ordinary GIL configuration.
-An imported extension can enable the GIL. Check before imports
-and again after the calculations your application uses.
+The output above is from a fresh free-threaded interpreter with the
+GIL disabled throughout. To run the same calculation with the GIL
+enabled, start that interpreter with `-X gil=1`. The same date ticks
+then precede `True True`. An imported extension can enable the GIL.
+Check before imports and after the calculations your application uses.
 
 ## Share a completed month vocabulary
 
