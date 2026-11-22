@@ -19,96 +19,102 @@ _EpochInput = _Default | _PolarsSeries
 class Configs:
     """Editable token rules and date-order preferences for the parsing functions.
 
-Parameters
-----------
-yearfirst : bool or numpy.bool_, default True
-    Prefer a year in the first position of an ambiguous numeric date.
-dayfirst : bool or numpy.bool_, default False
-    Prefer a day before a month in an ambiguous numeric date.
+    Examples
+    --------
+    >>> from rstimes import Configs, parse_str
+    >>> cfg = Configs()
+    >>> cfg.add_month("harvest", 10)
+    True
+    >>> parse_str("7 harvest 2024", cfg=cfg).isoformat()
+    '2024-10-07T00:00:00'
 
-Returns
--------
-Configs
-    A completed instance of this class.
+    Parameters
+    ----------
+    yearfirst : bool or numpy.bool_, default True
+        Prefer a year in the first position of an ambiguous numeric date.
+    dayfirst : bool or numpy.bool_, default False
+        Prefer a day before a month in an ambiguous numeric date.
 
-Notes
------
-Ordering flags accept only Python bool or NumPy boolean scalars; other types raise TypeError.
+    Returns
+    -------
+    Configs
+        A completed instance of this class.
 
-__new__ validates the flags and returns a complete default configuration.
-yearfirst and dayfirst cannot be assigned directly. Calling __init__ again
-does not change flags or rules. Create another Configs for different flags,
-or override the ordering for one parse call. Rule tables remain editable;
-reset_settings restores default tables while preserving the ordering flags.
+    Notes
+    -----
+    Ordering flags accept only Python bool or NumPy boolean scalars; other types raise TypeError.
 
-Configs cannot be subclassed. Copies and restored snapshots are independently editable. Returned dictionaries and sets are independent snapshots, so edit the configuration with add_*, del_* and set_*.
+    __new__ validates the flags and returns a complete default configuration.
+    yearfirst and dayfirst cannot be assigned directly. Calling __init__ again
+    does not change flags or rules. Create another Configs for different flags,
+    or override the ordering for one parse call. Rule tables remain editable;
+    reset_settings restores default tables while preserving the ordering flags.
 
-Concurrent read-only parsing is supported, including first lookup-cache preparation. Finish business edits before sharing an instance between threads. Concurrent edits on separate instances are supported; overlapping edits or edit/read operations on the same instance can raise RuntimeError. Same-thread callbacks retain their supported reentry behavior. Internal read-only cache publication is not a business edit.
+    Configs cannot be subclassed. Copies and restored snapshots are independently editable. Returned dictionaries and sets are independent snapshots, so edit the configuration with add_*, del_* and set_*.
 
-Words use the stored lowercase, uppercase and titlecase forms; arbitrary mixed case is not inferred. Word namespaces reject conflicting tokens except that jump words may overlap. Region names are exact, case-sensitive ZoneInfo keys validated when registered. Restoring a missing region keeps its key and warns; using an unavailable region raises an error.
+    Concurrent read-only parsing is supported, including first lookup-cache preparation. Finish business edits before sharing an instance between threads. Concurrent edits on separate instances are supported; overlapping edits or edit/read operations on the same instance can raise RuntimeError. Same-thread callbacks retain their supported reentry behavior. Internal read-only cache publication is not a business edit.
 
-Examples
---------
->>> cfg = Configs()
->>> cfg.add_month("harvest", 10)
-True
->>> parse_str("7 harvest 2024", cfg=cfg).isoformat()
-'2024-10-07T00:00:00'"""
+    Words use the stored lowercase, uppercase and titlecase forms; arbitrary mixed case is not inferred. Word namespaces reject conflicting tokens except that jump words may overlap. Region names are exact, case-sensitive ZoneInfo keys validated when registered. Restoring a missing region keeps its key and warns; using an unavailable region raises an error.
+    """
 
     def __new__(cls: type[Configs], yearfirst: bool | np.bool_=True, dayfirst: bool | np.bool_=False) -> Configs:
         """Create a complete configuration with multilingual default rules.
 
-Parameters
-----------
-yearfirst : bool or numpy.bool_, default True
-    Prefer year in the first position of an ambiguous numeric date.
-dayfirst : bool or numpy.bool_, default False
-    Prefer day before month; with yearfirst=True, select Y/D/M.
+        Parameters
+        ----------
+        yearfirst : bool or numpy.bool_, default True
+            Prefer year in the first position of an ambiguous numeric date.
+        dayfirst : bool or numpy.bool_, default False
+            Prefer day before month; with yearfirst=True, select Y/D/M.
 
-Returns
--------
-Configs
-    A fully initialized, independently editable configuration. Direct calls to
-    __new__ have the same argument validation and default rules as Configs().
+        Returns
+        -------
+        Configs
+            A fully initialized, independently editable configuration. Direct calls to
+            __new__ have the same argument validation and default rules as Configs().
 
-Raises
-------
-TypeError
-    A flag is not a Python bool or NumPy boolean scalar, or arguments cannot
-    be bound. None, integers, text and other truth-value objects are rejected.
+        Raises
+        ------
+        TypeError
+            A flag is not a Python bool or NumPy boolean scalar, or arguments cannot
+            be bound. None, integers, text and other truth-value objects are rejected.
 
-Examples
---------
->>> cfg = Configs.__new__(Configs, yearfirst=False, dayfirst=True)
->>> (cfg.yearfirst, cfg.dayfirst, cfg.month['jan'])
-(False, True, 1)"""
+        Examples
+        --------
+        >>> from rstimes import Configs
+        >>> cfg = Configs.__new__(Configs, yearfirst=False, dayfirst=True)
+        >>> (cfg.yearfirst, cfg.dayfirst, cfg.month['jan'])
+        (False, True, 1)
+        """
         ...
 
     def __init__(self, yearfirst: bool | np.bool_=True, dayfirst: bool | np.bool_=False) -> None:
         """Leave the configuration already created by __new__ unchanged.
 
-Parameters
-----------
-yearfirst : bool or numpy.bool_, default True
-    Validated and applied during construction in __new__. A direct repeated
-    __init__ call does not read or apply this value again.
-dayfirst : bool or numpy.bool_, default False
-    Validated and applied during construction in __new__; not reapplied here.
+        Parameters
+        ----------
+        yearfirst : bool or numpy.bool_, default True
+            Validated and applied during construction in __new__. A direct repeated
+            __init__ call does not read or apply this value again.
+        dayfirst : bool or numpy.bool_, default False
+            Validated and applied during construction in __new__; not reapplied here.
 
-Returns
--------
-None
-    No return value or state change. Token tables, registered regions and
-    ordering flags remain unchanged. Use add/del/set/reset methods for rules.
+        Returns
+        -------
+        None
+            No return value or state change. Token tables, registered regions and
+            ordering flags remain unchanged. Use add/del/set/reset methods for rules.
 
-Examples
---------
->>> cfg = Configs(dayfirst=True)
->>> cfg.add_month('harvest', 10)
-True
->>> cfg.__init__(dayfirst=False)
->>> (cfg.dayfirst, cfg.month['harvest'])
-(True, 10)"""
+        Examples
+        --------
+        >>> from rstimes import Configs
+        >>> cfg = Configs(dayfirst=True)
+        >>> cfg.add_month('harvest', 10)
+        True
+        >>> cfg.__init__(dayfirst=False)
+        >>> (cfg.dayfirst, cfg.month['harvest'])
+        (True, 10)
+        """
         ...
 
     def __copy__(self) -> Configs:
@@ -907,12 +913,11 @@ dict[str, int]
 
     @property
     def hms(self) -> dict[str, int]:
-        """Return an independent snapshot of clock-unit names: 0 for hours, 1 for minutes and 2 for seconds.
+        """Return a copy of the vocabulary for clock units.
 
-Returns
--------
-dict[str, int]
-    An independent container. Editing it does not change the Configs instance."""
+        Values are 0 for hours, 1 for minutes and 2 for seconds.
+        Use add_hms, del_hms or set_hms to edit the configuration.
+        """
         ...
 
     def add_hms(self, token: str, flag: SupportsIndex) -> bool:
@@ -997,12 +1002,11 @@ dict[str, int]
 
     @property
     def ampm(self) -> dict[str, int]:
-        """Return an independent snapshot of AM/PM names: 0 for AM and 1 for PM.
+        """Return a copy of the vocabulary for AM and PM.
 
-Returns
--------
-dict[str, int]
-    An independent container. Editing it does not change the Configs instance."""
+        Values are 0 for AM and 1 for PM.
+        Use add_ampm, del_ampm or set_ampm to edit the configuration.
+        """
         ...
 
     def add_ampm(self, token: str, flag: SupportsIndex) -> bool:
@@ -1118,9 +1122,9 @@ str
 @overload
 def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bool_ | None=None, dayfirst: bool | np.bool_ | None=None, ignoretz: bool | np.bool_=True, isoformat: bool | np.bool_=True, strict: bool | np.bool_=False, cfg: Configs | None=None, dtclass: None=None) -> datetime.datetime:
     """Parse date/time text into the requested datetime class.
-    
+
     The parser recognizes fields and forwards timezone and fold to the output constructor. It does not repair or reject missing regional times itself. A default datetime supplies fold; otherwise fold=0. Explicit invalid fields follow strict, and the chosen output type decides its representable date range.
-    
+
     Parameters
     ----------
     dtstr : str
@@ -1159,13 +1163,13 @@ def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bo
         Constructor for the completed datetime fields. None selects
         datetime.datetime. Regional existence and repeated-time policy belong to
         this constructor; Pydt rejects missing local times.
-    
+
     Returns
     -------
     datetime.datetime
         The requested datetime result. A custom constructor may return None when
         permitted by its overload.
-    
+
     Raises
     ------
     TypeError
@@ -1178,25 +1182,29 @@ def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bo
         constructor rejects the completed fields. Callback errors propagate unchanged.
     OverflowError
         An integer conversion or result exceeds the supported range.
-    
+
     Examples
     --------
+    >>> from rstimes import parse_str
     >>> parse_str("2024-01-02 12:99").minute
     59
     >>> parse_str("2024-05-07T15:30+08:00", ignoretz=False).isoformat()
     '2024-05-07T15:30:00+08:00'
 
+    Notes
+    -----
     Boolean options accept only bool or numpy.bool_. Other values raise TypeError
     without calling their truth-conversion methods. yearfirst and dayfirst also
-    accept None to use the corresponding Configs preference."""
+    accept None to use the corresponding Configs preference.
+    """
     ...
 
 @overload
 def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bool_ | None=None, dayfirst: bool | np.bool_ | None=None, ignoretz: bool | np.bool_=True, isoformat: bool | np.bool_=True, strict: bool | np.bool_=False, cfg: Configs | None=None, dtclass: type[_DT]=...) -> _DT:
     """Parse date/time text into the requested datetime class.
-    
+
     The parser recognizes fields and forwards timezone and fold to the output constructor. It does not repair or reject missing regional times itself. A default datetime supplies fold; otherwise fold=0. Explicit invalid fields follow strict, and the chosen output type decides its representable date range.
-    
+
     Parameters
     ----------
     dtstr : str
@@ -1235,13 +1243,13 @@ def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bo
         Constructor for the completed datetime fields. None selects
         datetime.datetime. Regional existence and repeated-time policy belong to
         this constructor; Pydt rejects missing local times.
-    
+
     Returns
     -------
     datetime subclass
         The requested datetime result. A custom constructor may return None when
         permitted by its overload.
-    
+
     Raises
     ------
     TypeError
@@ -1257,15 +1265,21 @@ def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bo
 
     Boolean options accept only bool or numpy.bool_. Other values raise TypeError
     without calling their truth-conversion methods. yearfirst and dayfirst also
-    accept None to use the corresponding Configs preference."""
+    accept None to use the corresponding Configs preference.
+
+    Examples
+    --------
+    See the complete example at
+    https://aresjef.github.io/rsTimes/1.1.1/guides/parsing.html#parse-one-date-string
+    """
     ...
 
 @overload
 def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bool_ | None=None, dayfirst: bool | np.bool_ | None=None, ignoretz: bool | np.bool_=True, isoformat: bool | np.bool_=True, strict: bool | np.bool_=False, cfg: Configs | None=None, dtclass: Callable[..., _DT | None]=...) -> _DT | None:
     """Parse date/time text into the requested datetime class.
-    
+
     The parser recognizes fields and forwards timezone and fold to the output constructor. It does not repair or reject missing regional times itself. A default datetime supplies fold; otherwise fold=0. Explicit invalid fields follow strict, and the chosen output type decides its representable date range.
-    
+
     Parameters
     ----------
     dtstr : str
@@ -1304,13 +1318,13 @@ def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bo
         Constructor for the completed datetime fields. None selects
         datetime.datetime. Regional existence and repeated-time policy belong to
         this constructor; Pydt rejects missing local times.
-    
+
     Returns
     -------
     datetime subclass | None
         The requested datetime result. A custom constructor may return None when
         permitted by its overload.
-    
+
     Raises
     ------
     TypeError
@@ -1326,15 +1340,21 @@ def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bo
 
     Boolean options accept only bool or numpy.bool_. Other values raise TypeError
     without calling their truth-conversion methods. yearfirst and dayfirst also
-    accept None to use the corresponding Configs preference."""
+    accept None to use the corresponding Configs preference.
+
+    Examples
+    --------
+    See the complete example at
+    https://aresjef.github.io/rsTimes/1.1.1/guides/parsing.html#parse-one-date-string
+    """
     ...
 
 @overload
 def parse(dtobj: str | datetime.datetime | datetime.date | int | float | np.datetime64, default: _Default | None=None, yearfirst: bool | np.bool_ | None=None, dayfirst: bool | np.bool_ | None=None, ignoretz: bool | np.bool_=True, isoformat: bool | np.bool_=True, strict: bool | np.bool_=False, cfg: Configs | None=None, dtclass: None=None) -> datetime.datetime:
     """Convert text or a supported scalar date/time value into the requested datetime class.
-    
+
     The parser recognizes fields and forwards timezone and fold to the output constructor. It does not repair or reject missing regional times itself. A default datetime supplies fold; otherwise fold=0. Explicit invalid fields follow strict, and the chosen output type decides its representable date range.
-    
+
     Parameters
     ----------
     dtobj : str | datetime.datetime | datetime.date | int | float | np.datetime64
@@ -1374,13 +1394,13 @@ def parse(dtobj: str | datetime.datetime | datetime.date | int | float | np.date
         Constructor for the completed datetime fields. None selects
         datetime.datetime. Regional existence and repeated-time policy belong to
         this constructor; Pydt rejects missing local times.
-    
+
     Returns
     -------
     datetime.datetime
         The requested datetime result. A custom constructor may return None when
         permitted by its overload.
-    
+
     Raises
     ------
     TypeError
@@ -1393,23 +1413,27 @@ def parse(dtobj: str | datetime.datetime | datetime.date | int | float | np.date
         constructor rejects the completed fields. Callback errors propagate unchanged.
     OverflowError
         An integer conversion or result exceeds the supported range.
-    
+
     Examples
     --------
+    >>> from rstimes import parse
     >>> parse(1.1).isoformat()
     '1970-01-01T00:00:01.100000'
 
+    Notes
+    -----
     Boolean options accept only bool or numpy.bool_. Other values raise TypeError
     without calling their truth-conversion methods. yearfirst and dayfirst also
-    accept None to use the corresponding Configs preference."""
+    accept None to use the corresponding Configs preference.
+    """
     ...
 
 @overload
 def parse(dtobj: str | datetime.datetime | datetime.date | int | float | np.datetime64, default: _Default | None=None, yearfirst: bool | np.bool_ | None=None, dayfirst: bool | np.bool_ | None=None, ignoretz: bool | np.bool_=True, isoformat: bool | np.bool_=True, strict: bool | np.bool_=False, cfg: Configs | None=None, dtclass: type[_DT]=...) -> _DT:
     """Convert text or a supported scalar date/time value into the requested datetime class.
-    
+
     The parser recognizes fields and forwards timezone and fold to the output constructor. It does not repair or reject missing regional times itself. A default datetime supplies fold; otherwise fold=0. Explicit invalid fields follow strict, and the chosen output type decides its representable date range.
-    
+
     Parameters
     ----------
     dtobj : str | datetime.datetime | datetime.date | int | float | np.datetime64
@@ -1449,13 +1473,13 @@ def parse(dtobj: str | datetime.datetime | datetime.date | int | float | np.date
         Constructor for the completed datetime fields. None selects
         datetime.datetime. Regional existence and repeated-time policy belong to
         this constructor; Pydt rejects missing local times.
-    
+
     Returns
     -------
     datetime subclass
         The requested datetime result. A custom constructor may return None when
         permitted by its overload.
-    
+
     Raises
     ------
     TypeError
@@ -1471,15 +1495,21 @@ def parse(dtobj: str | datetime.datetime | datetime.date | int | float | np.date
 
     Boolean options accept only bool or numpy.bool_. Other values raise TypeError
     without calling their truth-conversion methods. yearfirst and dayfirst also
-    accept None to use the corresponding Configs preference."""
+    accept None to use the corresponding Configs preference.
+
+    Examples
+    --------
+    See the complete example at
+    https://aresjef.github.io/rsTimes/1.1.1/guides/parser-interop.html#parser-date-to-midnight
+    """
     ...
 
 @overload
 def parse(dtobj: str | datetime.datetime | datetime.date | int | float | np.datetime64, default: _Default | None=None, yearfirst: bool | np.bool_ | None=None, dayfirst: bool | np.bool_ | None=None, ignoretz: bool | np.bool_=True, isoformat: bool | np.bool_=True, strict: bool | np.bool_=False, cfg: Configs | None=None, dtclass: Callable[..., _DT | None]=...) -> _DT | None:
     """Convert text or a supported scalar date/time value into the requested datetime class.
-    
+
     The parser recognizes fields and forwards timezone and fold to the output constructor. It does not repair or reject missing regional times itself. A default datetime supplies fold; otherwise fold=0. Explicit invalid fields follow strict, and the chosen output type decides its representable date range.
-    
+
     Parameters
     ----------
     dtobj : str | datetime.datetime | datetime.date | int | float | np.datetime64
@@ -1519,13 +1549,13 @@ def parse(dtobj: str | datetime.datetime | datetime.date | int | float | np.date
         Constructor for the completed datetime fields. None selects
         datetime.datetime. Regional existence and repeated-time policy belong to
         this constructor; Pydt rejects missing local times.
-    
+
     Returns
     -------
     datetime subclass | None
         The requested datetime result. A custom constructor may return None when
         permitted by its overload.
-    
+
     Raises
     ------
     TypeError
@@ -1541,14 +1571,20 @@ def parse(dtobj: str | datetime.datetime | datetime.date | int | float | np.date
 
     Boolean options accept only bool or numpy.bool_. Other values raise TypeError
     without calling their truth-conversion methods. yearfirst and dayfirst also
-    accept None to use the corresponding Configs preference."""
+    accept None to use the corresponding Configs preference.
+
+    Examples
+    --------
+    See the complete example at
+    https://aresjef.github.io/rsTimes/1.1.1/guides/parser-interop.html#parser-date-to-midnight
+    """
     ...
 
 def parse_to_epoch(dtobj: _EpochInput, unit: str='us', default: _Default | None=None, yearfirst: bool | np.bool_ | None=None, dayfirst: bool | np.bool_ | None=None, ignoretz: bool | np.bool_=False, isoformat: bool | np.bool_=True, strict: bool | np.bool_=False, cfg: Configs | None=None, *, input_unit: str='s') -> int:
     """Convert one supported date/time value to integer epoch ticks.
-    
+
     Returns a Python int directly, without selecting a datetime result class. Regional wall times use their timezone offset and fold without repairing or rejecting missing local times. A datetime default supplies its stored fold; otherwise fold=0. Explicit invalid fields follow strict. The integer result is not limited by datetime years or NumPy integer storage; actual arithmetic and timezone-conversion limits still raise errors.
-    
+
     Parameters
     ----------
     dtobj : date-like or Polars Series
@@ -1597,14 +1633,14 @@ def parse_to_epoch(dtobj: _EpochInput, unit: str='us', default: _Default | None=
         Resolution of numeric input ticks only: s, ms, us or ns. The default s means
         a number such as 1 denotes one epoch second; native temporal values keep
         their own unit.
-    
+
     Returns
     -------
     int
         Integer ticks since 1970-01-01T00:00:00. Naive dates use the same epoch
         without a host-local conversion; Python integers are not restricted to int64
         storage.
-    
+
     Raises
     ------
     TypeError
@@ -1617,24 +1653,25 @@ def parse_to_epoch(dtobj: _EpochInput, unit: str='us', default: _Default | None=
         constructor rejects the completed fields. Callback errors propagate unchanged.
     OverflowError
         An integer conversion or result exceeds the supported range.
-    
+
     Notes
     -----
     Native NumPy, pandas and Polars values retain their supported fine precision.
     Numeric input is converted directly at the requested precision; a coarser unit
     selects the earlier boundary. Python datetime retains its microsecond precision.
     Numeric default values keep their established microsecond conversion.
-    
+
     Examples
     --------
+    >>> from rstimes import parse_to_epoch
+    >>> parse_to_epoch(1, unit="ms")
+    1000
     >>> from datetime import datetime, timezone, timedelta
     >>> value = datetime(1970, 1, 1, 8, tzinfo=timezone(timedelta(hours=8)))
     >>> parse_to_epoch(value)
     0
     >>> parse_to_epoch(value, ignoretz=True)
     28800000000
-    >>> parse_to_epoch(1, "ms")
-    1000
     >>> parse_to_epoch(1, "ms", input_unit="ms")
     1
     >>> parse_to_epoch(1e-9, unit="ns")
@@ -1642,9 +1679,12 @@ def parse_to_epoch(dtobj: _EpochInput, unit: str='us', default: _Default | None=
     >>> parse_to_epoch("10000-01-02", "ns") > 2**63
     True
 
+    Notes
+    -----
     Boolean options accept only bool or numpy.bool_. Other values raise TypeError
     without calling their truth-conversion methods. yearfirst and dayfirst also
-    accept None to use the corresponding Configs preference."""
+    accept None to use the corresponding Configs preference.
+    """
     ...
 
 
@@ -1681,6 +1721,7 @@ def parse_to_integer(token: str, *, strict: bool | np.bool_ = True, allow_groupi
 
     Examples
     --------
+    >>> from rstimes import parse_to_integer
     >>> parse_to_integer("9223372036854775808")
     9223372036854775808
     >>> parse_to_integer("quantity 1.234 items", strict=False, allow_grouping=True)
@@ -1728,6 +1769,7 @@ def parse_to_float(token: str, *, strict: bool | np.bool_ = True, allow_grouping
 
     Examples
     --------
+    >>> from rstimes import parse_to_float
     >>> parse_to_float("0.3")
     0.3
     >>> parse_to_float("price 1.234,56 EUR", strict=False, allow_grouping=True)

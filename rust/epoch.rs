@@ -825,14 +825,15 @@ impl<'py> IntoPyObject<'py> for EpochInteger {
 ///
 /// Examples
 /// --------
+/// >>> from rstimes import parse_to_epoch
+/// >>> parse_to_epoch(1, unit="ms")
+/// 1000
 /// >>> from datetime import datetime, timezone, timedelta
 /// >>> value = datetime(1970, 1, 1, 8, tzinfo=timezone(timedelta(hours=8)))
 /// >>> parse_to_epoch(value)
 /// 0
 /// >>> parse_to_epoch(value, ignoretz=True)
 /// 28800000000
-/// >>> parse_to_epoch(1, "ms")
-/// 1000
 /// >>> parse_to_epoch(1, "ms", input_unit="ms")
 /// 1
 /// >>> parse_to_epoch("10000-01-02", "ns") > 2**63

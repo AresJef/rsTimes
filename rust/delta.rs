@@ -92,6 +92,18 @@ pub(crate) fn configure_hash(py: Python<'_>) {
 
 /// An immutable calendar increment with relative amounts and optional field settings.
 ///
+/// Examples
+/// --------
+/// >>> from rstimes import Delta
+/// >>> from datetime import date
+/// >>> date(2024, 1, 31) + Delta(months=1)
+/// datetime.date(2024, 2, 29)
+///
+/// >>> Delta(hour=None).hour is None
+/// True
+/// >>> Delta(hour=0).hour
+/// 0
+///
 /// Parameters
 /// ----------
 /// years : int or SupportsIndex, default 0
@@ -163,7 +175,7 @@ pub(crate) fn configure_hash(py: Python<'_>) {
 ///     zero is an actual setting. Floats and out-of-range numbers are rejected. If
 ///     millisecond is also set, only the final three microsecond digits are used.
 /// nanosecond : int | None, keyword-only, default None
-///     Absolute tail after the six microsecond digits, in0..999. None leaves
+///     Absolute tail after the six microsecond digits, from 0 through 999. None leaves
 ///     this field unset; zero explicitly clears the source tail. Setting only
 ///     microsecond also clears the source tail when applied to a date.
 ///
@@ -184,17 +196,6 @@ pub(crate) fn configure_hash(py: Python<'_>) {
 /// values keep their fixed unit and reject an inexact or overflowing result.
 ///
 /// Values compare and hash by their fields with other Delta values. Fields cannot be changed in place; calling __init__ again leaves the existing value unchanged.
-///
-/// Examples
-/// --------
-/// >>> Delta(hour=None).hour is None
-/// True
-/// >>> Delta(hour=0).hour
-/// 0
-/// >>> from datetime import date
-/// >>> date(2024, 1, 31) + Delta(months=1)
-/// datetime.date(2024, 2, 29)
-///
 #[pyclass(frozen, subclass, immutable_type, module = "rstimes.delta")]
 pub struct Delta {
     value: value::DeltaValue,
@@ -472,6 +473,7 @@ impl Delta {
     ///
     /// Examples
     /// --------
+    /// >>> from rstimes import Delta
     /// >>> from dateutil.relativedelta import relativedelta
     /// >>> Delta.from_relativedelta(relativedelta(months=1)).months
     /// 1
@@ -523,6 +525,8 @@ impl Delta {
     ///
     /// Examples
     /// --------
+    /// >>> from datetime import date
+    /// >>> from rstimes import Delta
     /// >>> Delta(hours=25).to_timedelta()
     /// datetime.timedelta(days=1, seconds=3600)
     /// >>> Delta(months=1).to_timedelta(date(2024, 1, 31))
@@ -594,6 +598,8 @@ impl Delta {
     ///
     /// Examples
     /// --------
+    /// >>> from datetime import date
+    /// >>> from rstimes import Delta
     /// >>> Delta(days=1).apply_many([date(2024, 1, 1), date(2024, 1, 2)])
     /// [datetime.date(2024, 1, 2), datetime.date(2024, 1, 3)]
     fn apply_many<'py>(
@@ -1174,7 +1180,7 @@ impl Delta {
     fn microsecond(&self) -> Option<i64> {
         self.absolute(15)
     }
-    /// int: Normalized relative nanosecond tail, in0..999.
+    /// int: Normalized relative nanosecond tail, from 0 through 999.
     #[getter]
     fn nanoseconds(&self) -> i64 {
         self.relative(7)

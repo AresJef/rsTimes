@@ -66,7 +66,15 @@ def _boolean(value, entry, parameter):
 
 
 class Pydt(_PydtBase):
-    """A datetime subclass with consistent calendar and timezone conveniences.
+    """A datetime with methods for moving between calendar dates and timezones.
+
+    Examples
+    --------
+    >>> from rstimes import Pydt
+    >>> Pydt(2024, 1, 31).to_month(1).isoformat()
+    '2024-02-29T00:00:00'
+    >>> Pydt(2024, 5, 7, 12, tzinfo="Asia/Shanghai").tz_convert("UTC").hour
+    4
 
     Parameters
     ----------
@@ -111,13 +119,6 @@ class Pydt(_PydtBase):
     Its date difference returns a standard timedelta, rounded once to the nearest
     microsecond with ties to even. Both operands sharing the same tzinfo object
     follow Python's wall-clock subtraction rule, ignoring fold. Values are immutable, and ordinary subclasses may keep their own extra attributes.
-
-    Examples
-    --------
-    >>> Pydt(2024, 1, 31).to_month(1).isoformat()
-    '2024-02-29T00:00:00'
-    >>> Pydt(2024, 5, 7, 12, tzinfo="Asia/Shanghai").tz_convert("UTC").hour
-    4
     """
 
     def __new__(cls, year=1, month=1, day=1, hour=0, minute=0, second=0,
@@ -258,6 +259,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-calendar.html#reader-pydt-month-and-fields
         """
         try:
             return _parse(dtobj, default, yearfirst, dayfirst, ignoretz, isoformat,
@@ -370,6 +376,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt.html#pydt-combine-calendar-and-clock
         """
         try:
             if date is None:
@@ -494,6 +505,7 @@ class Pydt(_PydtBase):
 
         Examples
         --------
+        >>> from rstimes import Pydt
         >>> Pydt.fromseconds(0, "Asia/Shanghai").isoformat()
         '1970-01-01T00:00:00+08:00'
         >>> Pydt.fromseconds(-0.000001).tomicroseconds()
@@ -547,6 +559,7 @@ class Pydt(_PydtBase):
 
         Examples
         --------
+        >>> from rstimes import Pydt
         >>> Pydt.frommicroseconds(-1).isoformat()
         '1969-12-31T23:59:59.999999'
         >>> Pydt.frommicroseconds(1).tomicroseconds()
@@ -583,6 +596,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-interop.html#reader-pydt-three-epoch-inputs
         """
         try:
             if issubclass(type(ts), _BOOL_TYPES):
@@ -662,6 +680,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/parsing.html#parse-compact-iso-clock
         """
         try:
             if cls is Pydt:
@@ -812,6 +835,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-interop.html#reader-pydt-datetime-source-zone
         """
         try:
             if not issubclass(type(dt), datetime):
@@ -871,6 +899,8 @@ class Pydt(_PydtBase):
 
         Examples
         --------
+        >>> import datetime
+        >>> from rstimes import Pydt
         >>> value = Pydt(2024, 1, 2, 12)
         >>> value.replace(hour=None) is value
         True
@@ -939,6 +969,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-interop.html#pydt-read-negative-numpy-tick
         """
         try:
             if tz is None:
@@ -979,6 +1014,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/parsing.html#parse-explicit-format-fraction
         """
         try:
             return _pydt_strptime(cls, dtstr, _prepare_format(fmt), cfg)
@@ -1082,6 +1122,7 @@ class Pydt(_PydtBase):
 
         Examples
         --------
+        >>> from rstimes import Pydt
         >>> value = Pydt(1970, 1, 1, 8, tzinfo="Asia/Shanghai")
         >>> value.tomicroseconds(), value.tomicroseconds(utc=True)
         (28800000000, 0)
@@ -1120,6 +1161,7 @@ class Pydt(_PydtBase):
 
         Examples
         --------
+        >>> from rstimes import Pydt
         >>> value = Pydt(1970, 1, 1, 8, tzinfo="Asia/Shanghai")
         >>> value.toseconds(), value.toseconds(utc=True)
         (28800.0, 0.0)
@@ -1444,6 +1486,7 @@ class Pydt(_PydtBase):
 
         Examples
         --------
+        >>> from rstimes import Pydt
         >>> Pydt(2021, 1, 1).is_long_year()
         False
         >>> Pydt(2020, 1, 1).is_long_year()
@@ -2053,6 +2096,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-calendar.html#reader-pydt-month-and-fields
         """
         try:
             return _pydt_shift(self, 1, 0, None, day)
@@ -2366,6 +2414,7 @@ class Pydt(_PydtBase):
 
         Examples
         --------
+        >>> from rstimes import Pydt
         >>> value = Pydt(2024, 1, 2, 12)
         >>> (value.to_time(hour=None).hour, value.to_time(hour=0).hour)
         (12, 0)
@@ -2399,6 +2448,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-month-boundaries
         """
         try:
             return _pydt_boundary(self, unit, False, False)
@@ -2429,6 +2483,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-month-boundaries
         """
         try:
             return _pydt_is_boundary(self, unit, False, False)
@@ -2459,6 +2518,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-month-boundaries
         """
         try:
             return _pydt_boundary(self, unit, True, False)
@@ -2522,6 +2586,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-month-boundaries
         """
         try:
             return _pydt_boundary(self, unit, False, True)
@@ -2554,6 +2623,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-month-boundaries
         """
         try:
             return _pydt_is_boundary(self, unit, False, True)
@@ -2587,6 +2661,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-month-boundaries
         """
         try:
             return _pydt_boundary(self, unit, True, True)
@@ -2650,6 +2729,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-second-grid
         """
         try:
             return _pydt_round(self, freq, 0)
@@ -2681,6 +2765,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-second-grid
         """
         try:
             return _pydt_round(self, freq, 1)
@@ -2712,6 +2801,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-second-grid
         """
         try:
             return _pydt_round(self, freq, 2)
@@ -2746,6 +2840,7 @@ class Pydt(_PydtBase):
 
         Examples
         --------
+        >>> from rstimes import Pydt
         >>> Pydt(2024, 1, 2, 12, 30).snap("h").hour
         13
         >>> Pydt(2024, 1, 2).snap("January").month
@@ -2780,6 +2875,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-second-grid
         """
         try:
             return _pydt_fsp(self, precision)
@@ -2861,6 +2961,7 @@ class Pydt(_PydtBase):
 
         Examples
         --------
+        >>> from rstimes import Pydt
         >>> Pydt(2024, 7, 1, tzinfo="America/New_York").is_dst()
         True
         """
@@ -2906,6 +3007,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-timezones.html#reader-pydt-timezone-choices
         """
         try:
             target = _local_timezone() if tz is None else _timezone(tz)
@@ -2947,6 +3053,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-timezones.html#reader-pydt-timezone-choices
         """
         try:
             if tz is None:
@@ -2985,6 +3096,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-timezones.html#reader-pydt-timezone-choices
         """
         try:
             try:
@@ -3033,6 +3149,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-timezones.html#reader-pydt-timezone-choices
         """
         try:
             if type(naive) is not bool:
@@ -3219,6 +3340,11 @@ class Pydt(_PydtBase):
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#pydt-count-crossed-midnights
         """
         try:
             try:
@@ -3246,6 +3372,8 @@ class Pydt(_PydtBase):
 
         Examples
         --------
+        >>> from datetime import timedelta
+        >>> from rstimes import Pydt
         >>> (Pydt(2024, 1, 1) + timedelta(days=1)).day
         2
         """
@@ -3290,6 +3418,7 @@ class Pydt(_PydtBase):
 
         Examples
         --------
+        >>> from rstimes import Pydt
         >>> (Pydt(2024, 1, 2) - Pydt(2024, 1, 1)).days
         1
         """
@@ -3384,6 +3513,7 @@ class Pydt(_PydtBase):
 
         Examples
         --------
+        >>> from rstimes import Pydt
         >>> Pydt(2024, 1, 1, microsecond=123456).strftime("%f|%.3f|%.9f|%.0f")
         '123456|.123|.123456000|'
         """

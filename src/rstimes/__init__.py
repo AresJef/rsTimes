@@ -37,12 +37,15 @@ def to_unix_ms(value: datetime) -> int:
         ValueError: If value is timezone-naive.
         OverflowError: If conversion exceeds the supported UTC datetime range.
 
-    Examples:
-        >>> to_unix_ms(datetime(1970, 1, 1, tzinfo=timezone.utc))
-        0
-        >>> to_unix_ms(datetime(1969, 12, 31, 23, 59, 59, 999999,
-        ...                     tzinfo=timezone.utc))
-        -1
+    Examples
+    --------
+    >>> from rstimes import to_unix_ms
+    >>> from datetime import datetime, timezone
+    >>> to_unix_ms(datetime(1970, 1, 1, tzinfo=timezone.utc))
+    0
+    >>> to_unix_ms(datetime(1969, 12, 31, 23, 59, 59, 999999,
+    ...                     tzinfo=timezone.utc))
+    -1
     """
     try:
         if not issubclass(type(value), datetime):
@@ -78,11 +81,13 @@ def from_unix_ms(value: int) -> datetime:
         TypeError: If value is not an int, or is a bool.
         OverflowError: If value is outside Python's datetime range (years 1–9999).
 
-    Examples:
-        >>> from_unix_ms(0).isoformat()
-        '1970-01-01T00:00:00+00:00'
-        >>> to_unix_ms(from_unix_ms(-1))
-        -1
+    Examples
+    --------
+    >>> from rstimes import from_unix_ms, to_unix_ms
+    >>> from_unix_ms(0).isoformat()
+    '1970-01-01T00:00:00+00:00'
+    >>> to_unix_ms(from_unix_ms(-1))
+    -1
     """
     try:
         kind = type(value)

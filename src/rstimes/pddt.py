@@ -744,7 +744,19 @@ def _restore_pddt(cls,marker,version,data,unit,tz,name,freq):
 
 
 class Pddt(pd.DatetimeIndex):
-    """A date index with explicit resolution and shared Rust calendar rules.
+    """A pandas DatetimeIndex with calendar operations and an explicit time resolution.
+
+    Examples
+    --------
+    >>> from rstimes import Pddt
+    >>> end = Pddt(["2024-01-31"], unit="us").to_next_month()
+    >>> end.strftime("%Y-%m-%d").tolist()
+    ['2024-02-29']
+
+    >>> Pddt([1], unit="ms").asi8.tolist()
+    [1]
+    >>> Pddt(["0000-01-01"], unit="us").year.tolist()
+    [0]
 
     Parameters
     ----------
@@ -789,13 +801,6 @@ class Pddt(pd.DatetimeIndex):
     -------
     Pddt
         A real DatetimeIndex subclass with original order and missing positions.
-
-    Examples
-    --------
-    >>> Pddt([1], unit="ms").asi8.tolist()
-    [1]
-    >>> Pddt(["0000-01-01"], unit="us").year.tolist()
-    [0]
     """
 
     if TYPE_CHECKING:
@@ -811,7 +816,7 @@ class Pddt(pd.DatetimeIndex):
                 isoformat=True, strict=False, cfg=None,
                 ambiguous="raise", nonexistent="raise"):
         """A date index with explicit resolution and shared Rust calendar rules.
-        
+
         Parameters
         ----------
         data : one-dimensional collection
@@ -846,7 +851,7 @@ class Pddt(pd.DatetimeIndex):
         ambiguous, nonexistent : policy, default 'raise'
             Policies for interpreting regional local dates. Already-known instants
             do not need another ambiguity decision.
-        
+
         Notes
         -----
         Numeric date data, integer fields and counts reject boolean values. Integer-only fields use the index protocol and reject floats, including 1.0. Bare input ticks separately allow whole values of the documented floating types. Boolean options accept only bool or numpy.bool_; DST strategy strings and true boolean masks follow their own documented roles.
@@ -855,9 +860,10 @@ class Pddt(pd.DatetimeIndex):
         -------
         Pddt
             A real DatetimeIndex subclass with original order and missing positions.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt([1], unit="ms").asi8.tolist()
         [1]
         >>> Pddt(["0000-01-01"], unit="us").year.tolist()
@@ -890,7 +896,7 @@ class Pddt(pd.DatetimeIndex):
               isoformat=True, strict=False, cfg=None,
               ambiguous="raise", nonexistent="raise"):
         """Parse a collection using the same date, unit and timezone rules as Pddt.
-        
+
         Parameters
         ----------
         data : one-dimensional collection
@@ -925,7 +931,7 @@ class Pddt(pd.DatetimeIndex):
         ambiguous, nonexistent : policy, default 'raise'
             Policies for interpreting regional local dates. Already-known instants
             do not need another ambiguity decision.
-        
+
         Notes
         -----
         Numeric date data, integer fields and counts reject boolean values. Integer-only fields use the index protocol and reject floats, including 1.0. Bare input ticks separately allow whole values of the documented floating types. Boolean options accept only bool or numpy.bool_; DST strategy strings and true boolean masks follow their own documented roles.
@@ -934,9 +940,10 @@ class Pddt(pd.DatetimeIndex):
         -------
         Pddt
             A real DatetimeIndex subclass with original order and missing positions.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt([1], unit="ms").asi8.tolist()
         [1]
         >>> Pddt(["0000-01-01"], unit="us").year.tolist()
@@ -977,6 +984,8 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> import numpy as np
+        >>> from rstimes import Pddt
         >>> Pddt(np.array([-1500], dtype='datetime64[ns]')).as_unit('us').asi8.tolist()
         [-2]
         """
@@ -1067,6 +1076,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt([0], unit="s", tz="UTC").tz_convert("Asia/Shanghai").hour.tolist()
         [8]
         """
@@ -1109,6 +1119,11 @@ class Pddt(pd.DatetimeIndex):
             A local time cannot be resolved or a result loses unit precision.
         OverflowError
             A result exceeds the current unit or dynamic timezone range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-timezones.html#reader-pddt-timezone-choices
         """
         try:
             policy = _policies(ambiguous, nonexistent)
@@ -1150,6 +1165,11 @@ class Pddt(pd.DatetimeIndex):
             A required local time cannot be resolved.
         TypeError
             A timezone or policy has an unsupported type.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-timezones.html#reader-pddt-timezone-choices
         """
         try:
             policy = _policies(ambiguous, nonexistent)
@@ -1193,6 +1213,11 @@ class Pddt(pd.DatetimeIndex):
             A naive source has no base_tz or cannot be resolved by the policies.
         TypeError
             A flag, timezone or policy has an unsupported type.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-timezones.html#reader-pddt-timezone-choices
         """
         try:
             naive = _boolean(naive, "Pddt.tz_switch", "naive")
@@ -1244,6 +1269,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.now(0, unit="ns").unit
         'ns'
         """
@@ -1333,6 +1359,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.fromseconds(0, size=1, tz="Asia/Shanghai").hour.tolist()
         [0]
         >>> Pddt.fromseconds([1.5], unit="ms").asi8.tolist()
@@ -1374,6 +1401,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.frommicroseconds(0, size=1, tz="Asia/Shanghai").hour.tolist()
         [0]
         """
@@ -1408,6 +1436,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.fromtimestamp(0, size=1, tz="Asia/Shanghai").hour.tolist()
         [8]
         """
@@ -1504,6 +1533,11 @@ class Pddt(pd.DatetimeIndex):
         -------
         Pddt
             Dates of this class, in original order and with missing positions.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-factories.html#reader-pddt-datetime-source-zone
         """
         try:
             return _from_dates(cls, dt, size, tz, unit, name, ambiguous,
@@ -1538,6 +1572,11 @@ class Pddt(pd.DatetimeIndex):
         -------
         Pddt
             Dates of this class, in original order and with missing positions.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-factories.html#reader-pddt-numpy-date-input
         """
         try:
             return _from_dates(cls, dt64, size, tz, unit, name, ambiguous,
@@ -1694,6 +1733,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.fromisoformat("2024-002", size=1).day.tolist()
         [2]
         >>> Pddt.fromisoformat("2024-01-02x12:30.5", size=1).microsecond.tolist()
@@ -1744,6 +1784,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.combine(["2024-01-02", "2024-01-03"], "12:30").hour.tolist()
         [12, 12]
         """
@@ -1803,6 +1844,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.strptime("2024-05-07", "%Y-%m-%d", size=1).day.tolist()
         [7]
         >>> Pddt.strptime("1970-01-01 00:00:00.123456789", "%Y-%m-%d %H:%M:%S.%f", size=1, unit="us").asi8.tolist()
@@ -1876,6 +1918,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.date_range("2024-01-01", periods=3).day.tolist()
         [1, 2, 3]
         """
@@ -1933,14 +1976,18 @@ class Pddt(pd.DatetimeIndex):
 
     @property
     def pddt(self):
-        """Return the date-field namespace for this Pddt instance.
+        """Access date-field operations on this Pddt.
 
-        Returns
-        -------
-        _PddtNamespace
-            Its replace method changes date fields. A direct replace method,
-            when provided by the installed pandas, retains pandas' complete
-            whole-value replacement contract.
+        Use index.pddt.replace to set date and clock fields. Direct
+        index.replace, when pandas provides it, uses pandas' whole-value
+        replacement rules.
+
+        Examples
+        --------
+        >>> from rstimes import Pddt
+        >>> dates = Pddt(["2024-02-29"])
+        >>> dates.pddt.replace(day=15).day.tolist()
+        [15]
         """
         return _PddtNamespace(self)
 
@@ -1963,6 +2010,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-31"]).to_datetime(month=2).day.tolist()
         [29]
         """
@@ -1987,6 +2035,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-31 12:00"]).to_date(month=2).day.tolist()
         [29]
         """
@@ -2011,6 +2060,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-01"]).to_time(hour=9).hour.tolist()
         [9]
         """
@@ -2038,6 +2088,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-31"]).add(months=1).day.tolist()
         [29]
         """
@@ -2065,6 +2116,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-31"]).sub(months=1).day.tolist()
         [31]
         """
@@ -2343,6 +2395,11 @@ class Pddt(pd.DatetimeIndex):
         -------
         Pddt
             Selected dates preserving clock, resolution, name and NaT positions.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-calendar.html#reader-pddt-month-and-fields
         """
         try:
             return _moved(self, "month", 1, None, day, "Pddt.to_next_month")
@@ -2404,7 +2461,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error, "Pddt.to_next_weekday", "arguments", None)
 
     def to_monday(self):
-        """Select this week's monday while keeping each clock.
+        """Move to Monday of the current calendar week, keeping the time of day.
 
         Returns
         -------
@@ -2417,7 +2474,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error, "Pddt.to_monday", "arguments", None)
 
     def to_tuesday(self):
-        """Select this week's tuesday while keeping each clock.
+        """Move to Tuesday of the current calendar week, keeping the time of day.
 
         Returns
         -------
@@ -2430,7 +2487,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error, "Pddt.to_tuesday", "arguments", None)
 
     def to_wednesday(self):
-        """Select this week's wednesday while keeping each clock.
+        """Move to Wednesday of the current calendar week, keeping the time of day.
 
         Returns
         -------
@@ -2443,7 +2500,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error, "Pddt.to_wednesday", "arguments", None)
 
     def to_thursday(self):
-        """Select this week's thursday while keeping each clock.
+        """Move to Thursday of the current calendar week, keeping the time of day.
 
         Returns
         -------
@@ -2456,7 +2513,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error, "Pddt.to_thursday", "arguments", None)
 
     def to_friday(self):
-        """Select this week's friday while keeping each clock.
+        """Move to Friday of the current calendar week, keeping the time of day.
 
         Returns
         -------
@@ -2469,7 +2526,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error, "Pddt.to_friday", "arguments", None)
 
     def to_saturday(self):
-        """Select this week's saturday while keeping each clock.
+        """Move to Saturday of the current calendar week, keeping the time of day.
 
         Returns
         -------
@@ -2482,7 +2539,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error, "Pddt.to_saturday", "arguments", None)
 
     def to_sunday(self):
-        """Select this week's sunday while keeping each clock.
+        """Move to Sunday of the current calendar week, keeping the time of day.
 
         Returns
         -------
@@ -2594,6 +2651,11 @@ class Pddt(pd.DatetimeIndex):
         -------
         Pddt
             Selected dates at the original resolution, timezone and name.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-month-boundaries
         """
         try:
             return _period(self,unit,0,False,"Pddt.to_first_of")
@@ -2614,6 +2676,11 @@ class Pddt(pd.DatetimeIndex):
         -------
         pandas.Index
             Boolean results; original NaT positions are False.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-month-boundaries
         """
         try:
             return _period(self,unit,0,True,"Pddt.is_first_of")
@@ -2634,6 +2701,11 @@ class Pddt(pd.DatetimeIndex):
         -------
         Pddt
             Selected dates at the original resolution, timezone and name.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-month-boundaries
         """
         try:
             return _period(self,unit,1,False,"Pddt.to_last_of")
@@ -2674,6 +2746,11 @@ class Pddt(pd.DatetimeIndex):
         -------
         Pddt
             Selected dates at the original resolution, timezone and name.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-month-boundaries
         """
         try:
             return _period(self,unit,2,False,"Pddt.to_start_of")
@@ -2694,6 +2771,11 @@ class Pddt(pd.DatetimeIndex):
         -------
         pandas.Index
             Boolean results; original NaT positions are False.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-month-boundaries
         """
         try:
             return _period(self,unit,2,True,"Pddt.is_start_of")
@@ -2714,6 +2796,11 @@ class Pddt(pd.DatetimeIndex):
         -------
         Pddt
             Selected dates at the original resolution, timezone and name.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-month-boundaries
         """
         try:
             return _period(self,unit,3,False,"Pddt.to_end_of")
@@ -2751,6 +2838,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-02 12:30"]).normalize().hour.tolist()
         [0]
         """
@@ -2775,6 +2863,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-01 00:00:00.123456789"]).fsp(3)[0].microsecond
         123000
         """
@@ -2810,6 +2899,11 @@ class Pddt(pd.DatetimeIndex):
         Pddt
             Rounded dates at the existing unit, timezone and name, with NaT
             positions retained. The old unit and DST policy keywords are absent.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-second-grid
         """
         try:
             return _rounded(self,freq,0,"Pddt.round")
@@ -2831,6 +2925,11 @@ class Pddt(pd.DatetimeIndex):
         Pddt
             Rounded dates at the existing unit, timezone and name, with NaT
             positions retained. The old unit and DST policy keywords are absent.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-second-grid
         """
         try:
             return _rounded(self,freq,1,"Pddt.ceil")
@@ -2852,6 +2951,11 @@ class Pddt(pd.DatetimeIndex):
         Pddt
             Rounded dates at the existing unit, timezone and name, with NaT
             positions retained. The old unit and DST policy keywords are absent.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-second-grid
         """
         try:
             return _rounded(self,freq,2,"Pddt.floor")
@@ -2881,6 +2985,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-02 12:00"]).snap("D").day.tolist()
         [3]
         """
@@ -3066,7 +3171,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error,"Pddt.is_long_year","arguments",None)
 
     def is_year(self, year):
-        """Compare each local calendar value with a scalar or row target.
+        """Test whether each local year equals the supplied year.
 
         Parameters
         ----------
@@ -3087,7 +3192,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error,"Pddt.is_year","year",year)
 
     def is_quarter(self, quarter):
-        """Compare each local calendar value with a scalar or row target.
+        """Test whether each date lies in the supplied quarter of its year.
 
         Parameters
         ----------
@@ -3108,7 +3213,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error,"Pddt.is_quarter","quarter",quarter)
 
     def is_month(self, month):
-        """Compare each local calendar value with a scalar or row target.
+        """Test whether each local month equals the supplied number or registered month name.
 
         Parameters
         ----------
@@ -3129,7 +3234,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error,"Pddt.is_month","month",month)
 
     def is_weekday(self, weekday):
-        """Compare each local calendar value with a scalar or row target.
+        """Test for a local weekday by name or by number, with Monday as 0.
 
         Parameters
         ----------
@@ -3150,7 +3255,7 @@ class Pddt(pd.DatetimeIndex):
             _raise_argument_context(error,"Pddt.is_weekday","weekday",weekday)
 
     def is_day(self, day):
-        """Compare each local calendar value with a scalar or row target.
+        """Test whether each local day of the month equals the supplied day.
 
         Parameters
         ----------
@@ -3219,6 +3324,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2021-01-01"]).isocalendar()["week"].tolist()
         [53]
         """
@@ -3306,6 +3412,8 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> import numpy as np
+        >>> from rstimes import Pddt
         >>> Pddt([np.datetime64(2, "s")]).diff(1, "s").tolist()
         [1]
         >>> Pddt([np.datetime64(1, "ns")]).diff(1e-9, "ns").tolist()
@@ -3352,6 +3460,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> x=Pddt(["1970-01-01 08:00"],tz="Asia/Shanghai")
         >>> x.toseconds().tolist(), x.toseconds(utc=True).tolist()
         ([28800.0], [0.0])
@@ -3378,6 +3487,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> x=Pddt(["1970-01-01 08:00"],tz="Asia/Shanghai")
         >>> x.tomicroseconds().tolist(), x.tomicroseconds(utc=True).tolist()
         ([28800000000], [0])
@@ -3465,6 +3575,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-01 12:30:45.123456789"]).isoformat(timespec="ns").tolist()
         ['2024-01-01T12:30:45.123456789']
         """
@@ -3495,6 +3606,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-01T12:34:56.123456789"]).strftime("%f %.3f").tolist()
         ['123456789 .123']
         """
@@ -3800,6 +3912,7 @@ class _PddtNamespace:
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-02"]).pddt.replace(day=3).day.tolist()
         [3]
         """

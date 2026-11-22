@@ -48,58 +48,60 @@ _ReplaceFields
     fold: SupportsIndex | np.bool_ | None
 
 class Pydt(datetime.datetime):
-    """A datetime subclass with consistent calendar and timezone conveniences.
+    """A datetime with methods for moving between calendar dates and timezones.
 
-Parameters
-----------
-year : int, default 1
-    Year field in 1 through 9999.
-month : int, default 1
-    Month field in 1 through 12.
-day : int, default 1
-    Day field in 1 through 31.
-hour : int, default 0
-    Hour field in 0 through 23.
-minute : int, default 0
-    Minute field in 0 through 59.
-second : int, default 0
-    Second field in 0 through 59.
-microsecond : int, default 0
-    Microsecond field in 0 through 999999.
-tzinfo : datetime.tzinfo | str | None, default None
-    Timezone name or tzinfo. None leaves a naive result unless this factory
-    explicitly uses the local timezone. Named regions use ZoneInfo; missing
-    local times are rejected when creating Pydt.
-fold : int, default 0
-    Integer 0/1 or a Python/NumPy boolean selects the earlier/later repeated time.
-    Numeric None retains it in replace; missing local times are rejected for
-    either fold.
+    Examples
+    --------
+    >>> from rstimes import Pydt
+    >>> Pydt(2024, 1, 31).to_month(1).isoformat()
+    '2024-02-29T00:00:00'
+    >>> Pydt(2024, 5, 7, 12, tzinfo="Asia/Shanghai").tz_convert("UTC").hour
+    4
 
-Returns
--------
-Pydt
-    A completed instance of this class.
+    Parameters
+    ----------
+    year : int, default 1
+        Year field in 1 through 9999.
+    month : int, default 1
+        Month field in 1 through 12.
+    day : int, default 1
+        Day field in 1 through 31.
+    hour : int, default 0
+        Hour field in 0 through 23.
+    minute : int, default 0
+        Minute field in 0 through 59.
+    second : int, default 0
+        Second field in 0 through 59.
+    microsecond : int, default 0
+        Microsecond field in 0 through 999999.
+    tzinfo : datetime.tzinfo | str | None, default None
+        Timezone name or tzinfo. None leaves a naive result unless this factory
+        explicitly uses the local timezone. Named regions use ZoneInfo; missing
+        local times are rejected when creating Pydt.
+    fold : int, default 0
+        Integer 0/1 or a Python/NumPy boolean selects the earlier/later repeated time.
+        Numeric None retains it in replace; missing local times are rejected for
+        either fold.
 
-Notes
------
-Numeric date fields and calendar counts accept integer-index objects, not floats or booleans. Seconds factories retain their documented numeric protocols and reject boolean/text inputs. Ordinary boolean options accept only bool or numpy.bool_; fold additionally accepts the documented integer 0 or 1.
+    Returns
+    -------
+    Pydt
+        A completed instance of this class.
 
-Explicit construction and replace() require a valid date and an existing regional local time. fold selects the earlier or later occurrence of a repeated time only; it cannot make a missing time valid. ZoneInfo subclasses follow the same regional checks.
+    Notes
+    -----
+    Numeric date fields and calendar counts accept integer-index objects, not floats or booleans. Seconds factories retain their documented numeric protocols and reject boolean/text inputs. Ordinary boolean options accept only bool or numpy.bool_; fold additionally accepts the documented integer 0 or 1.
 
-Calendar conveniences prefer the original UTC offset when selecting a repeated local result and choose an existing result when a clock adjustment crosses a gap. Period starts and ends stay within the requested period; round/ceil/floor retain their rounding meanings. Naive values, UTC and standard fixed offsets need no regional-time checks.
+    Explicit construction and replace() require a valid date and an existing regional local time. fold selects the earlier or later occurrence of a repeated time only; it cannot make a missing time valid. ZoneInfo subclasses follow the same regional checks.
 
-Comparisons, hashing and subtraction between ordinary datetimes retain Python semantics.
-A pandas Timestamp is compared using its real date and nanosecond precision.
-Its date difference returns a standard timedelta, rounded once to the nearest
-microsecond with ties to even. Both operands sharing the same tzinfo object
-follow Python's wall-clock subtraction rule, ignoring fold. Values are immutable, and ordinary subclasses may keep their own extra attributes.
+    Calendar conveniences prefer the original UTC offset when selecting a repeated local result and choose an existing result when a clock adjustment crosses a gap. Period starts and ends stay within the requested period; round/ceil/floor retain their rounding meanings. Naive values, UTC and standard fixed offsets need no regional-time checks.
 
-Examples
---------
->>> Pydt(2024, 1, 31).to_month(1).isoformat()
-'2024-02-29T00:00:00'
->>> Pydt(2024, 5, 7, 12, tzinfo="Asia/Shanghai").tz_convert("UTC").hour
-4"""
+    Comparisons, hashing and subtraction between ordinary datetimes retain Python semantics.
+    A pandas Timestamp is compared using its real date and nanosecond precision.
+    Its date difference returns a standard timedelta, rounded once to the nearest
+    microsecond with ties to even. Both operands sharing the same tzinfo object
+    follow Python's wall-clock subtraction rule, ignoring fold. Values are immutable, and ordinary subclasses may keep their own extra attributes.
+    """
 
     def __new__(cls, year: SupportsIndex=1, month: SupportsIndex=1, day: SupportsIndex=1, hour: SupportsIndex=0, minute: SupportsIndex=0, second: SupportsIndex=0, microsecond: SupportsIndex=0, tzinfo: datetime.tzinfo | str | None=None, *, fold: SupportsIndex | np.bool_=0) -> Self:
         """Construct a complete value of this class.
@@ -148,52 +150,58 @@ OverflowError
     def parse(cls, dtobj: DatetimeLike, default: DatetimeLike | None=None, yearfirst: bool | np.bool_ | None=None, dayfirst: bool | np.bool_ | None=None, ignoretz: bool | np.bool_=True, isoformat: bool | np.bool_=True, strict: bool | np.bool_=False, cfg: Configs | None=None) -> Self:
         """Parse text or a supported date object into this class.
 
-Parameters
-----------
-dtobj : DatetimeLike
-    One supported date/time input: text, a Python date/datetime, numeric epoch
-    seconds, or a NumPy datetime64 scalar. NaT and unsupported containers are
-    rejected.
-default : str | date | datetime | int | float | numpy.datetime64 | None, default None
-    An independently complete date used to fill missing year, month and day
-    only. Date/datetime subclasses, complete date text, numeric epoch seconds
-    and NumPy datetime64 are supported. A datetime also supplies its stored
-    fold; its clock and timezone are not defaults.
-yearfirst : bool | None, default None
-    Prefer a year in the first position of an ambiguous numeric date. None uses
-    Configs when this parser option is optional.
-dayfirst : bool | None, default None
-    Prefer a day before a month in an ambiguous numeric date. None uses Configs
-    when this parser option is optional.
-ignoretz : bool, default True
-    For text, True discards recognized timezone information without changing the
-    clock. False retains the timezone. Existing datetime objects retain their
-    own timezone.
-isoformat : bool, default True
-    Try ISO date/time forms before the general grammar. This does not restrict
-    input to ISO text.
-strict : bool, default False
-    True rejects explicit invalid fields, conflicting repeated fields and a
-    weekday inconsistent with a full written date. False clips invalid fields
-    without carrying and allows later conflicting fields to win. A two-digit
-    year requires False and a complete default date.
-cfg : Configs | None, default None
-    Optional Configs vocabulary and ordering rules for text. None uses the
-    library defaults.
+        Parameters
+        ----------
+        dtobj : DatetimeLike
+            One supported date/time input: text, a Python date/datetime, numeric epoch
+            seconds, or a NumPy datetime64 scalar. NaT and unsupported containers are
+            rejected.
+        default : str | date | datetime | int | float | numpy.datetime64 | None, default None
+            An independently complete date used to fill missing year, month and day
+            only. Date/datetime subclasses, complete date text, numeric epoch seconds
+            and NumPy datetime64 are supported. A datetime also supplies its stored
+            fold; its clock and timezone are not defaults.
+        yearfirst : bool | None, default None
+            Prefer a year in the first position of an ambiguous numeric date. None uses
+            Configs when this parser option is optional.
+        dayfirst : bool | None, default None
+            Prefer a day before a month in an ambiguous numeric date. None uses Configs
+            when this parser option is optional.
+        ignoretz : bool, default True
+            For text, True discards recognized timezone information without changing the
+            clock. False retains the timezone. Existing datetime objects retain their
+            own timezone.
+        isoformat : bool, default True
+            Try ISO date/time forms before the general grammar. This does not restrict
+            input to ISO text.
+        strict : bool, default False
+            True rejects explicit invalid fields, conflicting repeated fields and a
+            weekday inconsistent with a full written date. False clips invalid fields
+            without carrying and allows later conflicting fields to win. A two-digit
+            year requires False and a complete default date.
+        cfg : Configs | None, default None
+            Optional Configs vocabulary and ordering rules for text. None uses the
+            library defaults.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-calendar.html#reader-pydt-month-and-fields
+        """
         ...
 
     @classmethod
@@ -247,38 +255,41 @@ Pydt
     def combine(cls, date: DatetimeLike | None=None, time: DatetimeLike | datetime.time | None=None, tz: datetime.tzinfo | str | None=None) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY047; see tests/typing/pyright_exceptions.json.
         """Combine date and time fields; omitted fields use today and midnight.
 
-Parameters
-----------
-date : DatetimeLike | None, default None
-    A date/datetime, date text, numeric epoch seconds or NumPy datetime64. Only
-    its date fields are used. None uses today; NaT is rejected.
-time : DatetimeLike | datetime.time | None, default None
-    A time, datetime or other scalar accepted by parse. Only clock fields,
-    timezone and fold are used. None supplies midnight. Text is parsed with a
-    fixed date for missing date fields; NaT is rejected. An explicit tz replaces
-    the input timezone without converting the clock.
-tz : datetime.tzinfo | str | None, default None
-    Timezone name or tzinfo to attach without moving clock fields. None keeps
-    the input time's timezone, or leaves the result naive when it has none.
+        Parameters
+        ----------
+        date : DatetimeLike | None, default None
+            A date/datetime, date text, numeric epoch seconds or NumPy datetime64. Only
+            its date fields are used. None uses today; NaT is rejected.
+        time : DatetimeLike | datetime.time | None, default None
+            A time, datetime or other scalar accepted by parse. Only clock fields,
+            timezone and fold are used. None supplies midnight. Text is parsed with a
+            fixed date for missing date fields; NaT is rejected. An explicit tz replaces
+            the input timezone without converting the clock.
+        tz : datetime.tzinfo | str | None, default None
+            Timezone name or tzinfo to attach without moving clock fields. None keeps
+            the input time's timezone, or leaves the result naive when it has none.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range.
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
 
-Examples
---------
->>> Pydt.combine(datetime.date(2024, 5, 7), datetime.datetime(2000, 1, 1, 9, 30)).isoformat()
-'2024-05-07T09:30:00'"""
+        Examples
+        --------
+        >>> import datetime
+        >>> from rstimes import Pydt
+        >>> Pydt.combine(datetime.date(2024, 5, 7), datetime.datetime(2000, 1, 1, 9, 30)).isoformat()
+        '2024-05-07T09:30:00'
+        """
         ...
 
     @classmethod
@@ -314,105 +325,113 @@ OverflowError
     def fromseconds(cls, seconds: SupportsFloat | SupportsIndex, tz: datetime.tzinfo | str | None=None) -> Self:
         """Build from epoch seconds, attaching tz without a clock conversion.
 
-Parameters
-----------
-seconds : number
-    Numeric seconds since the naive epoch 1970-01-01. Custom float-convertible
-    and integer-index objects are accepted. Boolean values, str, bytes and
-    bytearray are rejected.
-    Floating inputs follow parse: round to seven decimal places, then discard
-    the seventh digit for microseconds. tz attaches without a clock conversion.
-tz : datetime.tzinfo | str | None, default None
-    Timezone name or tzinfo to attach without converting the clock fields.
-    None produces a naive value. Named regions use ZoneInfo; nonexistent
-    regional local times raise ValueError.
+        Parameters
+        ----------
+        seconds : number
+            Numeric seconds since the naive epoch 1970-01-01. Custom float-convertible
+            and integer-index objects are accepted. Boolean values, str, bytes and
+            bytearray are rejected.
+            Floating inputs follow parse: round to seven decimal places, then discard
+            the seventh digit for microseconds. tz attaches without a clock conversion.
+        tz : datetime.tzinfo | str | None, default None
+            Timezone name or tzinfo to attach without converting the clock fields.
+            None produces a naive value. Named regions use ZoneInfo; nonexistent
+            regional local times raise ValueError.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range.
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
 
-Examples
---------
->>> Pydt.fromseconds(0, "Asia/Shanghai").isoformat()
-'1970-01-01T00:00:00+08:00'
->>> Pydt.fromseconds(-0.000001).tomicroseconds()
--1
-"""
+        Examples
+        --------
+        >>> from rstimes import Pydt
+        >>> Pydt.fromseconds(0, "Asia/Shanghai").isoformat()
+        '1970-01-01T00:00:00+08:00'
+        >>> Pydt.fromseconds(-0.000001).tomicroseconds()
+        -1
+        """
         ...
 
     @classmethod
     def frommicroseconds(cls, us: SupportsIndex, tz: datetime.tzinfo | str | None=None) -> Self:
         """Build from exact integer epoch microseconds, attaching an optional tz.
 
-Parameters
-----------
-us : number
-    Integer epoch microseconds, read with the index protocol. Floats, booleans,
-    text and byte strings are rejected.
-tz : datetime.tzinfo | str | None, default None
-    Timezone name or tzinfo to attach without converting the clock fields.
-    None produces a naive value. Named regions use ZoneInfo; nonexistent
-    regional local times raise ValueError.
+        Parameters
+        ----------
+        us : number
+            Integer epoch microseconds, read with the index protocol. Floats, booleans,
+            text and byte strings are rejected.
+        tz : datetime.tzinfo | str | None, default None
+            Timezone name or tzinfo to attach without converting the clock fields.
+            None produces a naive value. Named regions use ZoneInfo; nonexistent
+            regional local times raise ValueError.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range.
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
 
-Examples
---------
->>> Pydt.frommicroseconds(-1).isoformat()
-'1969-12-31T23:59:59.999999'
->>> Pydt.frommicroseconds(1).tomicroseconds()
-1
-"""
+        Examples
+        --------
+        >>> from rstimes import Pydt
+        >>> Pydt.frommicroseconds(-1).isoformat()
+        '1969-12-31T23:59:59.999999'
+        >>> Pydt.frommicroseconds(1).tomicroseconds()
+        1
+        """
         ...
 
     @classmethod
     def fromtimestamp(cls, ts: int | float, tz: datetime.tzinfo | str | None=None) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY048; see tests/typing/pyright_exceptions.json.
         """Build from a POSIX timestamp, converting to tz or naive local time.
 
-Parameters
-----------
-ts : int | float
-    POSIX seconds since 1970-01-01T00:00:00Z. Numeric values are accepted;
-    strings and byte strings are rejected.
-tz : datetime.tzinfo | str | None, default None
-    Timezone name or tzinfo for converting the Unix instant. None returns the
-    system-local clock fields without a timezone.
+        Parameters
+        ----------
+        ts : int | float
+            POSIX seconds since 1970-01-01T00:00:00Z. Numeric values are accepted;
+            strings and byte strings are rejected.
+        tz : datetime.tzinfo | str | None, default None
+            Timezone name or tzinfo for converting the Unix instant. None returns the
+            system-local clock fields without a timezone.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-interop.html#reader-pydt-three-epoch-inputs
+        """
         ...
 
     @classmethod
@@ -444,25 +463,31 @@ OverflowError
     def fromisoformat(cls, dtstr: str) -> Self:
         """Build from text accepted by datetime.fromisoformat.
 
-Parameters
-----------
-dtstr : str
-    Date/time text, including real str subclasses. Native stored content is
-            read directly, without calling __str__.
+        Parameters
+        ----------
+        dtstr : str
+            Date/time text, including real str subclasses. Native stored content is
+                    read directly, without calling __str__.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/parsing.html#parse-compact-iso-clock
+        """
         ...
 
     @classmethod
@@ -566,84 +591,22 @@ OverflowError
     def fromdatetime(cls, dt: datetime.datetime, tz: datetime.tzinfo | str | None=None) -> Self:
         """Copy a datetime, optionally replacing its timezone without conversion.
 
-Parameters
-----------
-dt : datetime.datetime
-    A Python datetime, including a true datetime subclass. Its stored calendar,
-    timezone and fold are read. Pandas Timestamp uses its actual date,
-    not a substitute year; NaT is rejected. Wide dates that cannot fit
-    Pydt raise OverflowError.
-tz : datetime.tzinfo | str | None, default None
-    Optional timezone name or tzinfo to attach or replace without moving clock
-    fields. None retains the source timezone and fold.
-
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
-        ...
-
-    @classmethod
-    def fromdatetime64(cls, dt64: np.datetime64, tz: datetime.tzinfo | str | None=None) -> Self:
-        """Copy a NumPy datetime64 scalar at microsecond precision.
-
-Parameters
-----------
-dt64 : np.datetime64
-    One NumPy datetime64 scalar. Dtype multipliers are honored. Submicrosecond values are floored to microseconds and NaT
-    raises ValueError. Collections are unsupported; tz attaches to the decoded
-    clock fields without converting them.
-tz : datetime.tzinfo | str | None, default None
-    Timezone name or tzinfo to attach without converting the clock fields.
-    None produces a naive value. Named regions use ZoneInfo; nonexistent
-    regional local times raise ValueError.
-
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
-        ...
-
-    @classmethod
-    def strptime(cls, dtstr: str, fmt: str, *, cfg: Configs | None = None) -> Self:
-        """Build a datetime by parsing text with a strptime format.
-        
         Parameters
         ----------
-        dtstr : str
-            Date/time text, including real str subclasses. Native stored content is
-            read directly, without calling __str__.
-        fmt : str
-            A shared strptime format, for example "%Y-%m-%d". Fractional seconds
-            are read completely and truncated once to microseconds at output.
-        
-        cfg : Configs or None, default None
-            Current month, weekday, AM/PM and explicit timezone names. None uses
-            default Rust words. Unknown %Z names require Configs registration.
-        
+        dt : datetime.datetime
+            A Python datetime, including a true datetime subclass. Its stored calendar,
+            timezone and fold are read. Pandas Timestamp uses its actual date,
+            not a substitute year; NaT is rejected. Wide dates that cannot fit
+            Pydt raise OverflowError.
+        tz : datetime.tzinfo | str | None, default None
+            Optional timezone name or tzinfo to attach or replace without moving clock
+            fields. None retains the source timezone and fold.
+
         Returns
         -------
         Pydt
             An immutable Pydt value of the same subclass.
-        
+
         Raises
         ------
         TypeError
@@ -652,6 +615,85 @@ OverflowError
             An input is invalid or cannot retain the requested date/time meaning.
         OverflowError
             An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-interop.html#reader-pydt-datetime-source-zone
+        """
+        ...
+
+    @classmethod
+    def fromdatetime64(cls, dt64: np.datetime64, tz: datetime.tzinfo | str | None=None) -> Self:
+        """Copy a NumPy datetime64 scalar at microsecond precision.
+
+        Parameters
+        ----------
+        dt64 : np.datetime64
+            One NumPy datetime64 scalar. Dtype multipliers are honored. Submicrosecond values are floored to microseconds and NaT
+            raises ValueError. Collections are unsupported; tz attaches to the decoded
+            clock fields without converting them.
+        tz : datetime.tzinfo | str | None, default None
+            Timezone name or tzinfo to attach without converting the clock fields.
+            None produces a naive value. Named regions use ZoneInfo; nonexistent
+            regional local times raise ValueError.
+
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-interop.html#pydt-read-negative-numpy-tick
+        """
+        ...
+
+    @classmethod
+    def strptime(cls, dtstr: str, fmt: str, *, cfg: Configs | None = None) -> Self:
+        """Build a datetime by parsing text with a strptime format.
+
+        Parameters
+        ----------
+        dtstr : str
+            Date/time text, including real str subclasses. Native stored content is
+            read directly, without calling __str__.
+        fmt : str
+            A shared strptime format, for example "%Y-%m-%d". Fractional seconds
+            are read completely and truncated once to microseconds at output.
+
+        cfg : Configs or None, default None
+            Current month, weekday, AM/PM and explicit timezone names. None uses
+            default Rust words. Unknown %Z names require Configs registration.
+
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/parsing.html#parse-explicit-format-fraction
         """
         ...
 
@@ -710,69 +752,71 @@ dict[str, int]
     def toseconds(self, utc: bool | np.bool_=False) -> float:
         """Return epoch seconds, including the microsecond fraction.
 
-Parameters
-----------
-utc : bool, default False
-    True subtracts the aware UTC offset before measuring epoch units. False uses
-    local clock fields directly; naive values use their clock fields in either
-    case. Only bool and numpy.bool_ are accepted; other values raise TypeError
-    without invoking their truth-conversion methods.
+        Parameters
+        ----------
+        utc : bool, default False
+            True subtracts the aware UTC offset before measuring epoch units. False uses
+            local clock fields directly; naive values use their clock fields in either
+            case. Only bool and numpy.bool_ are accepted; other values raise TypeError
+            without invoking their truth-conversion methods.
 
-Returns
--------
-float
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated.
+        Returns
+        -------
+        float
+            The value described above, in the stated type and units; None represents an
+            absent optional field or offset where indicated.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range.
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
 
-Examples
---------
->>> value = Pydt(1970, 1, 1, 8, tzinfo="Asia/Shanghai")
->>> value.toseconds(), value.toseconds(utc=True)
-(28800.0, 0.0)
-"""
+        Examples
+        --------
+        >>> from rstimes import Pydt
+        >>> value = Pydt(1970, 1, 1, 8, tzinfo="Asia/Shanghai")
+        >>> value.toseconds(), value.toseconds(utc=True)
+        (28800.0, 0.0)
+        """
         ...
 
     def tomicroseconds(self, utc: bool | np.bool_=False) -> int:
         """Return exact epoch microseconds; optionally subtract an aware UTC offset.
 
-Parameters
-----------
-utc : bool, default False
-    True subtracts the aware UTC offset before measuring epoch units. False uses
-    local clock fields directly; naive values use their clock fields in either
-    case. Only bool and numpy.bool_ are accepted; other values raise TypeError
-    without invoking their truth-conversion methods.
+        Parameters
+        ----------
+        utc : bool, default False
+            True subtracts the aware UTC offset before measuring epoch units. False uses
+            local clock fields directly; naive values use their clock fields in either
+            case. Only bool and numpy.bool_ are accepted; other values raise TypeError
+            without invoking their truth-conversion methods.
 
-Returns
--------
-int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated.
+        Returns
+        -------
+        int
+            The value described above, in the stated type and units; None represents an
+            absent optional field or offset where indicated.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range.
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
 
-Examples
---------
->>> value = Pydt(1970, 1, 1, 8, tzinfo="Asia/Shanghai")
->>> value.tomicroseconds(), value.tomicroseconds(utc=True)
-(28800000000, 0)
-"""
+        Examples
+        --------
+        >>> from rstimes import Pydt
+        >>> value = Pydt(1970, 1, 1, 8, tzinfo="Asia/Shanghai")
+        >>> value.tomicroseconds(), value.tomicroseconds(utc=True)
+        (28800000000, 0)
+        """
         ...
 
     def to_curr_year(self, month: SupportsIndex | str | None=None, day: SupportsIndex | None=None) -> Self:
@@ -1068,27 +1112,33 @@ OverflowError
     def to_next_month(self, day: SupportsIndex | None=None) -> Self:
         """Select a day in the next month, limiting it to month end.
 
-Parameters
-----------
-day : int | None, default None
-    Day in 1..31 to select, or None to retain the original day. A valid
-    requested day may be limited to the destination month end; other values
-    raise ValueError.
+        Parameters
+        ----------
+        day : int | None, default None
+            Day in 1..31 to select, or None to retain the original day. A valid
+            requested day may be limited to the destination month end; other values
+            raise ValueError.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-calendar.html#reader-pydt-month-and-fields
+        """
         ...
 
     def to_month(self, offset: SupportsIndex, day: SupportsIndex | None=None) -> Self:
@@ -1447,181 +1497,209 @@ OverflowError
     def to_time(self, hour: SupportsIndex | None=None, minute: SupportsIndex | None=None, second: SupportsIndex | None=None, microsecond: SupportsIndex | None=None) -> Self:
         """Set clock fields; None preserves a field and zero sets it to zero.
 
-Explicit clock fields require the integer index protocol; floats, negative values and values above the normal maximum are rejected.
+        Explicit clock fields require the integer index protocol; floats, negative values and values above the normal maximum are rejected.
 
-Parameters
-----------
-hour : int | None, default None
-    Hour field in 0 through 23. None retains the existing field.
-minute : int | None, default None
-    Minute field in 0 through 59. None retains the existing field.
-second : int | None, default None
-    Second field in 0 through 59. None retains the existing field.
-microsecond : int | None, default None
-    Microsecond field in 0 through 999999. None retains the existing field.
+        Parameters
+        ----------
+        hour : int | None, default None
+            Hour field in 0 through 23. None retains the existing field.
+        minute : int | None, default None
+            Minute field in 0 through 59. None retains the existing field.
+        second : int | None, default None
+            Second field in 0 through 59. None retains the existing field.
+        microsecond : int | None, default None
+            Microsecond field in 0 through 999999. None retains the existing field.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range.
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
 
-Examples
---------
->>> value = Pydt(2024, 1, 2, 12)
->>> (value.to_time(hour=None).hour, value.to_time(hour=0).hour)
-(12, 0)"""
+        Examples
+        --------
+        >>> from rstimes import Pydt
+        >>> value = Pydt(2024, 1, 2, 12)
+        >>> (value.to_time(hour=None).hour, value.to_time(hour=0).hour)
+        (12, 0)
+        """
         ...
 
     def to_first_of(self, unit: str | Literal['Y', 'Q', 'M', 'W']) -> Self:
         """Return the first of a calendar period or named month.
 
-Parameters
-----------
-unit : str | Literal['Y', 'Q', 'M', 'W']
-    Calendar period or stored month name; start/end operations also accept
-    stored weekday names and clock units. Unknown or empty names raise
-    ValueError.
+        Parameters
+        ----------
+        unit : str | Literal['Y', 'Q', 'M', 'W']
+            Calendar period or stored month name; start/end operations also accept
+            stored weekday names and clock units. Unknown or empty names raise
+            ValueError.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-month-boundaries
+        """
         ...
 
     def to_last_of(self, unit: str | Literal['Y', 'Q', 'M', 'W']) -> Self:
         """Return the last of a calendar period or named month.
 
-Parameters
-----------
-unit : str | Literal['Y', 'Q', 'M', 'W']
-    Calendar period or stored month name; start/end operations also accept
-    stored weekday names and clock units. Unknown or empty names raise
-    ValueError.
+        Parameters
+        ----------
+        unit : str | Literal['Y', 'Q', 'M', 'W']
+            Calendar period or stored month name; start/end operations also accept
+            stored weekday names and clock units. Unknown or empty names raise
+            ValueError.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-month-boundaries
+        """
         ...
 
     def to_start_of(self, unit: str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']) -> Self:
         """Return the start of a calendar period or named month/weekday.
 
-For 'us' and its 'ns' alias, return this same object, retaining fold
-and the represented instant.
+        For 'us' and its 'ns' alias, return this same object, retaining fold
+        and the represented instant.
 
-Parameters
-----------
-unit : str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']
-    Calendar period or stored month name; start/end operations also accept
-    stored weekday names and clock units. Unknown or empty names raise
-    ValueError.
+        Parameters
+        ----------
+        unit : str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']
+            Calendar period or stored month name; start/end operations also accept
+            stored weekday names and clock units. Unknown or empty names raise
+            ValueError.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range.
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
 
-Examples
---------
->>> value = Pydt(2024, 5, 7, 9, 30, fold=1)
->>> value.to_start_of("us") is value
-True"""
+        Examples
+        --------
+        >>> from rstimes import Pydt
+        >>> value = Pydt(2024, 5, 7, 9, 30, fold=1)
+        >>> value.to_start_of("us") is value
+        True
+        """
         ...
 
     def to_end_of(self, unit: str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']) -> Self:
         """Return the end of a calendar period or named month/weekday.
 
-For 'us' and its 'ns' alias, return this same object, retaining fold
-and the represented instant.
+        For 'us' and its 'ns' alias, return this same object, retaining fold
+        and the represented instant.
 
-Parameters
-----------
-unit : str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']
-    Calendar period or stored month name; start/end operations also accept
-    stored weekday names and clock units. Unknown or empty names raise
-    ValueError.
+        Parameters
+        ----------
+        unit : str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']
+            Calendar period or stored month name; start/end operations also accept
+            stored weekday names and clock units. Unknown or empty names raise
+            ValueError.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-month-boundaries
+        """
         ...
 
     def is_first_of(self, unit: str | Literal['Y', 'Q', 'M', 'W']) -> bool:
         """Test whether this date is the period's first calendar day, ignoring the clock.
 
-Parameters
-----------
-unit : str | Literal['Y', 'Q', 'M', 'W']
-    Calendar period or stored month name; start/end operations also accept
-    stored weekday names and clock units. Unknown or empty names raise
-    ValueError.
+        Parameters
+        ----------
+        unit : str | Literal['Y', 'Q', 'M', 'W']
+            Calendar period or stored month name; start/end operations also accept
+            stored weekday names and clock units. Unknown or empty names raise
+            ValueError.
 
-Returns
--------
-bool
-    Whether the stated condition holds. A legitimate nonmatch returns False;
-    invalid inputs raise the documented error.
+        Returns
+        -------
+        bool
+            Whether the stated condition holds. A legitimate nonmatch returns False;
+            invalid inputs raise the documented error.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-month-boundaries
+        """
         ...
 
     def is_last_of(self, unit: str | Literal['Y', 'Q', 'M', 'W']) -> bool:
@@ -1653,29 +1731,35 @@ OverflowError
     def is_start_of(self, unit: str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']) -> bool:
         """Test whether this value is the period's first existing local time.
 
-Always True for the native microsecond unit 'us' and its 'ns' alias.
+        Always True for the native microsecond unit 'us' and its 'ns' alias.
 
-Parameters
-----------
-unit : str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']
-    Calendar period or stored month name; start/end operations also accept
-    stored weekday names and clock units. Unknown or empty names raise
-    ValueError.
+        Parameters
+        ----------
+        unit : str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']
+            Calendar period or stored month name; start/end operations also accept
+            stored weekday names and clock units. Unknown or empty names raise
+            ValueError.
 
-Returns
--------
-bool
-    Whether the stated condition holds. A legitimate nonmatch returns False;
-    invalid inputs raise the documented error.
+        Returns
+        -------
+        bool
+            Whether the stated condition holds. A legitimate nonmatch returns False;
+            invalid inputs raise the documented error.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-month-boundaries
+        """
         ...
 
     def is_end_of(self, unit: str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']) -> bool:
@@ -1709,142 +1793,168 @@ OverflowError
     def round(self, freq: Literal['D', 'h', 'm', 'min', 's', 'ms', 'us', 'ns']) -> Self:
         """Round local clock fields to D, h, m, s, ms or us.
 
-Round local clock fields with ties to even. The result remains frequency-aligned; regional adjustments select an existing boundary.
+        Round local clock fields with ties to even. The result remains frequency-aligned; regional adjustments select an existing boundary.
 
-Parameters
-----------
-freq : Literal['D', 'h', 'm', 'min', 's', 'ms', 'us', 'ns']
-    Single rounding unit: D, h, m/min, s, ms, us or the existing ns alias for
-    us. Multi-frequency forms such as 15min are not supported.
+        Parameters
+        ----------
+        freq : Literal['D', 'h', 'm', 'min', 's', 'ms', 'us', 'ns']
+            Single rounding unit: D, h, m/min, s, ms, us or the existing ns alias for
+            us. Multi-frequency forms such as 15min are not supported.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-second-grid
+        """
         ...
 
     def ceil(self, freq: Literal['D', 'h', 'm', 'min', 's', 'ms', 'us', 'ns']) -> Self:
         """Ceil local clock fields to D, h, m, s, ms or us.
 
-Choose an existing frequency-aligned result no earlier than the input instant.
+        Choose an existing frequency-aligned result no earlier than the input instant.
 
-Parameters
-----------
-freq : Literal['D', 'h', 'm', 'min', 's', 'ms', 'us', 'ns']
-    Single rounding unit: D, h, m/min, s, ms, us or the existing ns alias for
-    us. Multi-frequency forms such as 15min are not supported.
+        Parameters
+        ----------
+        freq : Literal['D', 'h', 'm', 'min', 's', 'ms', 'us', 'ns']
+            Single rounding unit: D, h, m/min, s, ms, us or the existing ns alias for
+            us. Multi-frequency forms such as 15min are not supported.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-second-grid
+        """
         ...
 
     def floor(self, freq: Literal['D', 'h', 'm', 'min', 's', 'ms', 'us', 'ns']) -> Self:
         """Floor local clock fields to D, h, m, s, ms or us.
 
-Choose an existing frequency-aligned result no later than the input instant.
+        Choose an existing frequency-aligned result no later than the input instant.
 
-Parameters
-----------
-freq : Literal['D', 'h', 'm', 'min', 's', 'ms', 'us', 'ns']
-    Single rounding unit: D, h, m/min, s, ms, us or the existing ns alias for
-    us. Multi-frequency forms such as 15min are not supported.
+        Parameters
+        ----------
+        freq : Literal['D', 'h', 'm', 'min', 's', 'ms', 'us', 'ns']
+            Single rounding unit: D, h, m/min, s, ms, us or the existing ns alias for
+            us. Multi-frequency forms such as 15min are not supported.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-second-grid
+        """
         ...
 
     def snap(self, unit: str='s') -> Self:
         """Return the nearest existing calendar-period start; equal distances select the later one.
 
-Units are Y, Q, M, W, D, h, m/min, s, ms and us (ns is an existing alias for the unchanged microsecond value), plus the stored weekday/month names. Weeks start on Monday; a month name repeats annually. Aware distances use actual instants. A partially missing period starts at its first existing local time; wholly missing periods are skipped when finding adjacent starts. Repeated clock boundaries are compared as distinct real instants. Calendar periods use their first existing start. No multi-frequency syntax is accepted.
+        Units are Y, Q, M, W, D, h, m/min, s, ms and us (ns is an existing alias for the unchanged microsecond value), plus the stored weekday/month names. Weeks start on Monday; a month name repeats annually. Aware distances use actual instants. A partially missing period starts at its first existing local time; wholly missing periods are skipped when finding adjacent starts. Repeated clock boundaries are compared as distinct real instants. Calendar periods use their first existing start. No multi-frequency syntax is accepted.
 
-Parameters
-----------
-unit : str, default 's'
-    Single calendar unit or stored month/weekday name listed below. The default
-    s selects whole seconds.
+        Parameters
+        ----------
+        unit : str, default 's'
+            Single calendar unit or stored month/weekday name listed below. The default
+            s selects whole seconds.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range.
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
 
-Examples
---------
->>> Pydt(2024, 1, 2, 12, 30).snap("h").hour
-13
->>> Pydt(2024, 1, 2).snap("January").month
-1"""
+        Examples
+        --------
+        >>> from rstimes import Pydt
+        >>> Pydt(2024, 1, 2, 12, 30).snap("h").hour
+        13
+        >>> Pydt(2024, 1, 2).snap("January").month
+        1
+        """
         ...
 
     def fsp(self, precision: SupportsIndex) -> Self:
         """Keep precision decimal places in the fractional second, without rounding.
 
-Parameters
-----------
-precision : number
-    Decimal places to retain in fractional seconds. Negative precision is
-    invalid; Pydt keeps its value unchanged at 6 or more places, while Pddt has
-    nanosecond precision.
+        Parameters
+        ----------
+        precision : number
+            Decimal places to retain in fractional seconds. Negative precision is
+            invalid; Pydt keeps its value unchanged at 6 or more places, while Pddt has
+            nanosecond precision.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#reader-pydt-second-grid
+        """
         ...
 
     def isoyear(self) -> int:
@@ -1916,20 +2026,22 @@ bool
     def is_long_year(self) -> bool:
         """Return whether the local calendar year contains 53 ISO weeks.
 
-Use the datetime's local Gregorian year even when the date's ISO week belongs
-to the preceding or following year.
+        Use the datetime's local Gregorian year even when the date's ISO week belongs
+        to the preceding or following year.
 
-Returns
--------
-bool
-    True if the local calendar year contains 53 ISO weeks.
+        Returns
+        -------
+        bool
+            True if the local calendar year contains 53 ISO weeks.
 
-Examples
---------
->>> Pydt(2021, 1, 1).is_long_year()
-False
->>> Pydt(2020, 1, 1).is_long_year()
-True"""
+        Examples
+        --------
+        >>> from rstimes import Pydt
+        >>> Pydt(2021, 1, 1).is_long_year()
+        False
+        >>> Pydt(2020, 1, 1).is_long_year()
+        True
+        """
         ...
 
     def leap_bt_year(self, year: SupportsIndex) -> int:
@@ -2264,24 +2376,26 @@ bool
 
     def is_dst(self) -> bool:
         """Return whether the daylight-saving adjustment is nonzero.
-        
+
         Returns
         -------
         bool
             False for None or a zero duration. Any legal nonzero adjustment,
             including negative daylight saving or a nanosecond, returns True.
-        
+
         Raises
         ------
         TypeError
             The timezone returns something other than None or a timedelta.
         ValueError
             The adjustment is not strictly between -24 and +24 hours.
-        
+
         Examples
         --------
+        >>> from rstimes import Pydt
         >>> Pydt(2024, 7, 1, tzinfo="America/New_York").is_dst()
-        True"""
+        True
+        """
         ...
 
     def utcoffset_seconds(self) -> int | None:
@@ -2297,110 +2411,134 @@ int | None
     def astimezone(self, tz: datetime.tzinfo | str | None=None) -> Self:
         """Express the same instant in tz; None selects the system local timezone.
 
-Parameters
-----------
-tz : datetime.tzinfo | str | None, default None
-    Target timezone name or tzinfo. None selects the process-local timezone; the
-    represented instant is preserved.
+        Parameters
+        ----------
+        tz : datetime.tzinfo | str | None, default None
+            Target timezone name or tzinfo. None selects the process-local timezone; the
+            represented instant is preserved.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-timezones.html#reader-pydt-timezone-choices
+        """
         ...
 
     def tz_localize(self, tz: datetime.tzinfo | str | None) -> Self:
         """Attach a timezone to naive clock fields, or remove it with tz=None.
 
-Attaching a regional timezone rejects a missing local time. fold selects repeated times only; it never repairs a missing time.
+        Attaching a regional timezone rejects a missing local time. fold selects repeated times only; it never repairs a missing time.
 
-Parameters
-----------
-tz : datetime.tzinfo | str | None
-    Timezone name or tzinfo to attach to naive local fields. None removes the
-    timezone while retaining the clock.
+        Parameters
+        ----------
+        tz : datetime.tzinfo | str | None
+            Timezone name or tzinfo to attach to naive local fields. None removes the
+            timezone while retaining the clock.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-timezones.html#reader-pydt-timezone-choices
+        """
         ...
 
     def tz_convert(self, tz: datetime.tzinfo | str | None) -> Self:
         """Convert an aware value to tz, preserving its instant.
 
-Parameters
-----------
-tz : datetime.tzinfo | str | None
-    Target timezone name or tzinfo. None converts to UTC and then removes the
-    timezone; input must be aware.
+        Parameters
+        ----------
+        tz : datetime.tzinfo | str | None
+            Target timezone name or tzinfo. None converts to UTC and then removes the
+            timezone; input must be aware.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-timezones.html#reader-pydt-timezone-choices
+        """
         ...
 
     def tz_switch(self, targ_tz: datetime.tzinfo | str | None, base_tz: datetime.tzinfo | str | None=None, naive: bool | np.bool_=False) -> Self:
         """Convert timezones, supplying base_tz when this value is naive.
 
-Parameters
-----------
-targ_tz : datetime.tzinfo | str | None
-    Target timezone name or tzinfo. None removes the timezone while preserving
-    clock fields.
-base_tz : datetime.tzinfo | str | None, default None
-    Timezone used to interpret a timezone-naive input before conversion. It is
-    required when the input has no usable timezone and a target conversion is
-    requested.
-naive : bool, default False
-    True removes the target timezone after conversion. False returns a timezone-
-    aware result when a target timezone is given.
+        Parameters
+        ----------
+        targ_tz : datetime.tzinfo | str | None
+            Target timezone name or tzinfo. None removes the timezone while preserving
+            clock fields.
+        base_tz : datetime.tzinfo | str | None, default None
+            Timezone used to interpret a timezone-naive input before conversion. It is
+            required when the input has no usable timezone and a target conversion is
+            requested.
+        naive : bool, default False
+            True removes the target timezone after conversion. False returns a timezone-
+            aware result when a target timezone is given.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-timezones.html#reader-pydt-timezone-choices
+        """
         ...
 
     def add(self, years: SupportsIndex=0, quarters: SupportsIndex=0, months: SupportsIndex=0, weeks: SupportsIndex=0, days: SupportsIndex=0, hours: SupportsIndex=0, minutes: SupportsIndex=0, seconds: SupportsIndex=0, milliseconds: SupportsIndex=0, microseconds: SupportsIndex=0) -> Self:
@@ -2522,35 +2660,41 @@ Relative arguments use the integer index protocol. Floats, booleans, text and
     def diff(self, dtobj: DatetimeLike, unit: Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 'min', 's', 'ms', 'us'], absolute: bool | np.bool_=False, inclusive: Literal['one', 'both', 'neither']='one') -> int:
         """Count unit boundaries between this value and a supported date input.
 
-Parameters
-----------
-dtobj : str | date | datetime | int | float | numpy.datetime64
-    One supported date/time input: text, a Python date/datetime, numeric epoch
-    seconds, or a NumPy datetime64 scalar. NaT and unsupported containers are
-    rejected.
-unit : Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 'min', 's', 'ms', 'us']
-    Calendar or clock boundary unit: Y, Q, M, W, D, h, m/min, s, ms or us.
-absolute : bool, default False
-    True returns the magnitude of the difference; False retains its sign.
-inclusive : Literal['one', 'both', 'neither'], default 'one'
-    Boundary-count convention: one counts one endpoint, both adds one to the
-    magnitude, and neither subtracts one. Equal boundaries with absolute=True
-    and neither may yield -1.
+        Parameters
+        ----------
+        dtobj : str | date | datetime | int | float | numpy.datetime64
+            One supported date/time input: text, a Python date/datetime, numeric epoch
+            seconds, or a NumPy datetime64 scalar. NaT and unsupported containers are
+            rejected.
+        unit : Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 'min', 's', 'ms', 'us']
+            Calendar or clock boundary unit: Y, Q, M, W, D, h, m/min, s, ms or us.
+        absolute : bool, default False
+            True returns the magnitude of the difference; False retains its sign.
+        inclusive : Literal['one', 'both', 'neither'], default 'one'
+            Boundary-count convention: one counts one endpoint, both adds one to the
+            magnitude, and neither subtracts one. Equal boundaries with absolute=True
+            and neither may yield -1.
 
-Returns
--------
-int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated.
+        Returns
+        -------
+        int
+            The value described above, in the stated type and units; None represents an
+            absent optional field or offset where indicated.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range."""
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pydt-boundaries.html#pydt-count-crossed-midnights
+        """
         ...
 
     def __add__(self, other: datetime.timedelta | Delta | relativedelta | np.timedelta64) -> Self:
@@ -2606,32 +2750,35 @@ OverflowError
     def __sub__(self, other: datetime.datetime | datetime.date | str | np.datetime64) -> datetime.timedelta:
         """Return the datetime difference as a standard timedelta.
 
-Parameters
-----------
-other : datetime | date | str | numpy.datetime64
-    Right-hand date/time value or relative increment. Text dates follow parse().
+        Parameters
+        ----------
+        other : datetime | date | str | numpy.datetime64
+            Right-hand date/time value or relative increment. Text dates follow parse().
 
-Returns
--------
-timedelta
-    A signed duration. Ordinary datetime operands follow Python subtraction
-    rules. Pandas Timestamp operands retain nanoseconds until one final
-    nearest-microsecond rounding, with ties to even.
+        Returns
+        -------
+        timedelta
+            A signed duration. Ordinary datetime operands follow Python subtraction
+            rules. Pandas Timestamp operands retain nanoseconds until one final
+            nearest-microsecond rounding, with ties to even.
 
-Raises
-------
-TypeError
-    The operand type is unsupported, or aware and naive datetimes are mixed.
-ValueError
-    A date or timezone rule is invalid.
-OverflowError
-    The date difference is outside the supported timedelta range.
+        Raises
+        ------
+        TypeError
+            The operand type is unsupported, or aware and naive datetimes are mixed.
+        ValueError
+            A date or timezone rule is invalid.
+        OverflowError
+            The date difference is outside the supported timedelta range.
 
-Examples
---------
->>> from pandas import Timestamp
->>> Pydt(2024, 1, 1) - Timestamp("2024-01-01 00:00:00.000000877") == datetime.timedelta(microseconds=-1)
-True"""
+        Examples
+        --------
+        >>> import datetime
+        >>> from rstimes import Pydt
+        >>> from pandas import Timestamp
+        >>> Pydt(2024, 1, 1) - Timestamp("2024-01-01 00:00:00.000000877") == datetime.timedelta(microseconds=-1)
+        True
+        """
         ...
 
     @overload
@@ -2781,55 +2928,58 @@ int
     def replace(self, year: SupportsIndex | None=..., month: SupportsIndex | None=..., day: SupportsIndex | None=..., hour: SupportsIndex | None=..., minute: SupportsIndex | None=..., second: SupportsIndex | None=..., microsecond: SupportsIndex | None=..., tzinfo: datetime.tzinfo | str | None=..., *, fold: SupportsIndex | np.bool_ | None=...) -> Self:
         """Return a new value with selected fields, or self if nothing changes.
 
-Omitted or None numeric fields preserve their stored values. Omitted tzinfo preserves the timezone; tzinfo=None removes it, and a name resolves through ZoneInfo. An invalid date or missing regional time raises ValueError. An unchanged value returns self.
+        Omitted or None numeric fields preserve their stored values. Omitted tzinfo preserves the timezone; tzinfo=None removes it, and a name resolves through ZoneInfo. An invalid date or missing regional time raises ValueError. An unchanged value returns self.
 
-Parameters
-----------
-year : int | None, optional
-    Year field in 1 through 9999. None retains the existing field.
-month : int | None, optional
-    Month field in 1 through 12. None retains the existing field.
-day : int | None, optional
-    Day field in 1 through 31. None retains the existing field.
-hour : int | None, optional
-    Hour field in 0 through 23. None retains the existing field.
-minute : int | None, optional
-    Minute field in 0 through 59. None retains the existing field.
-second : int | None, optional
-    Second field in 0 through 59. None retains the existing field.
-microsecond : int | None, optional
-    Microsecond field in 0 through 999999. None retains the existing field.
-tzinfo : datetime.tzinfo | str | None, optional
-    Timezone name, tzinfo or None. Omitting it keeps the timezone; None removes
-    it. Replacing a timezone keeps the clock fields instead of converting an
-    instant.
-fold : int | None, optional
-    0 selects the earlier and 1 the later occurrence of a repeated local time.
-    Numeric None retains it in replace; missing local times are rejected for
-    either fold.
+        Parameters
+        ----------
+        year : int | None, optional
+            Year field in 1 through 9999. None retains the existing field.
+        month : int | None, optional
+            Month field in 1 through 12. None retains the existing field.
+        day : int | None, optional
+            Day field in 1 through 31. None retains the existing field.
+        hour : int | None, optional
+            Hour field in 0 through 23. None retains the existing field.
+        minute : int | None, optional
+            Minute field in 0 through 59. None retains the existing field.
+        second : int | None, optional
+            Second field in 0 through 59. None retains the existing field.
+        microsecond : int | None, optional
+            Microsecond field in 0 through 999999. None retains the existing field.
+        tzinfo : datetime.tzinfo | str | None, optional
+            Timezone name, tzinfo or None. Omitting it keeps the timezone; None removes
+            it. Replacing a timezone keeps the clock fields instead of converting an
+            instant.
+        fold : int | None, optional
+            0 selects the earlier and 1 the later occurrence of a repeated local time.
+            Numeric None retains it in replace; missing local times are rejected for
+            either fold.
 
-Returns
--------
-Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes.
+        Returns
+        -------
+        Pydt
+            An immutable Pydt value of the same subclass.
+            A convenience operation may return the original value when nothing changes.
 
-Raises
-------
-TypeError
-    An argument has an unsupported type.
-ValueError
-    An input is invalid or cannot retain the requested date/time meaning.
-OverflowError
-    An integer conversion or result exceeds the supported range.
+        Raises
+        ------
+        TypeError
+            An argument has an unsupported type.
+        ValueError
+            An input is invalid or cannot retain the requested date/time meaning.
+        OverflowError
+            An integer conversion or result exceeds the supported range.
 
-Examples
---------
->>> value = Pydt(2024, 1, 2, 12)
->>> value.replace(hour=None) is value
-True
->>> value.replace(tzinfo="UTC").tzinfo is datetime.timezone.utc
-True"""
+        Examples
+        --------
+        >>> import datetime
+        >>> from rstimes import Pydt
+        >>> value = Pydt(2024, 1, 2, 12)
+        >>> value.replace(hour=None) is value
+        True
+        >>> value.replace(tzinfo="UTC").tzinfo is datetime.timezone.utc
+        True
+        """
         ...
 
     def __replace__(self, **changes: Unpack[_ReplaceFields]) -> Self:
@@ -2859,23 +3009,23 @@ OverflowError
 
     def strftime(self, format: str) -> str:
         """Format with system directives and exact ``%f``/``%.0f``–``%.9f``.
-        
+
         ``%f`` uses six digits. Explicit dot precision truncates or pads the
         stored microsecond value; ``%.0f`` emits nothing. Other system rules
         and real subclass ``__format__``/``strftime`` dispatch stay intact.
-        
+
         Parameters
         ----------
         format : str
             System format, including an empty string. ``%.1f`` through
             ``%.9f`` emit a decimal dot and that many fraction digits.
-        
+
         Returns
         -------
         str
             Formatted text. Pydt has microsecond precision, so digits beyond
             six are zero padding; this does not invent measured nanoseconds.
-        
+
         Raises
         ------
         TypeError
@@ -2883,9 +3033,11 @@ OverflowError
         ValueError
             An explicit fractional format is invalid, or the platform rejects
             another system directive. Actual external exceptions propagate.
-        
+
         Examples
         --------
+        >>> from rstimes import Pydt
         >>> Pydt(2024, 1, 1, microsecond=123456).strftime("%f|%.3f|%.9f|%.0f")
-        '123456|.123|.123456000|'"""
+        '123456|.123|.123456000|'
+        """
         ...
