@@ -2693,34 +2693,31 @@ class _QueryMethods:
         Parameters
         ----------
         year : integer or one-dimensional integer collection or polars.Expr
-            Required scalar or equal-length target; legal nonmatching numeric values return False. Missing
-            targets fail even for source null; unknown/empty saved month names fail instead of silently
-            returning False.
+            Required integer year or an equal-length column of years. A valid nonmatching year yields False.
 
         Returns
         -------
         pl.Series | pl.Expr
-            A date column or query result for direct calls. The Expr accessor returns
-            a native expression to evaluate inside a query.
+            An eager Series, or an Expr producing a Boolean column. With a valid target, a null source date yields False.
 
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            Unsupported Python arguments, including a literal None target, fail
+            when the expression is created. Eager calls also raise TypeError for a missing target.
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            If a target expression with a valid dtype yields a null, Polars raises this
+            error while evaluating the rows in select or collect.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
-        Polars checks its input types when planning and evaluates values in select or collect.
-        An execution error can report a position within its input batch.
-
-        Supply a valid target. A missing target, including None, raises TypeError.
-        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
-        A missing source date returns False in the Boolean result.
+        A scalar applies to each row. A target column must have the source length
+        and is paired by position. Schema planning checks the input types, and
+        a target error can report a position within the evaluated batch.
         """
         return _query_operation(self, 100, "is_year", year, parameter="year")
 
@@ -2762,32 +2759,31 @@ class _QueryMethods:
         Parameters
         ----------
         month : integer, name or one-dimensional collection or polars.Expr
-            Month number or a month name in the library's default vocabulary.
+            Required month number or name from the default vocabulary. A column pairs by position.
 
         Returns
         -------
         pl.Series | pl.Expr
-            A date column or query result for direct calls. The Expr accessor returns
-            a native expression to evaluate inside a query.
+            An eager Series, or an Expr producing a Boolean column. With a valid target, a null source date yields False.
 
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            Unsupported Python arguments, including a literal None target, fail
+            when the expression is created. Eager calls also raise TypeError for a missing target.
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            If a target expression with a valid dtype yields a null, Polars raises this
+            error while evaluating the rows in select or collect.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
-        Polars checks its input types when planning and evaluates values in select or collect.
-        An execution error can report a position within its input batch.
-
-        Supply a valid target. A missing target, including None, raises TypeError.
-        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
-        A missing source date returns False in the Boolean result.
+        A scalar applies to each row. A target column must have the source length
+        and is paired by position. Schema planning checks the input types, and
+        a target error can report a position within the evaluated batch.
         """
         return _query_operation(self, 102, "is_month", month, 1, "month")
 
@@ -2829,34 +2825,31 @@ class _QueryMethods:
         Parameters
         ----------
         day : integer or one-dimensional integer collection or polars.Expr
-            Required scalar or equal-length target; legal nonmatching numeric values return False. Missing
-            targets fail even for source null; unknown/empty saved month names fail instead of silently
-            returning False.
+            Required integer day of the month or an equal-length column of days. A valid nonmatching day yields False.
 
         Returns
         -------
         pl.Series | pl.Expr
-            A date column or query result for direct calls. The Expr accessor returns
-            a native expression to evaluate inside a query.
+            An eager Series, or an Expr producing a Boolean column. With a valid target, a null source date yields False.
 
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            Unsupported Python arguments, including a literal None target, fail
+            when the expression is created. Eager calls also raise TypeError for a missing target.
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            If a target expression with a valid dtype yields a null, Polars raises this
+            error while evaluating the rows in select or collect.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
-        Polars checks its input types when planning and evaluates values in select or collect.
-        An execution error can report a position within its input batch.
-
-        Supply a valid target. A missing target, including None, raises TypeError.
-        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
-        A missing source date returns False in the Boolean result.
+        A scalar applies to each row. A target column must have the source length
+        and is paired by position. Schema planning checks the input types, and
+        a target error can report a position within the evaluated batch.
         """
         return _query_operation(self, 104, "is_day", day, parameter="day")
 
@@ -2892,34 +2885,31 @@ class _QueryMethods:
         Parameters
         ----------
         year : integer or one-dimensional integer collection or polars.Expr
-            Required signed integer target year or exactly equal-length targets. Count leap years between
-            the two years, lower inclusive and upper exclusive; missing targets fail even for null source
-            dates.
+            Required integer year or an equal-length column of years. Count leap years from the lower year inclusive to the upper year exclusive.
 
         Returns
         -------
         pl.Series | pl.Expr
-            A date column or query result for direct calls. The Expr accessor returns
-            a native expression to evaluate inside a query.
+            An eager Series, or an Expr producing a nullable integer count. A null source date yields null.
 
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            Unsupported Python arguments, including a literal None target, fail
+            when the expression is created. Eager calls also raise TypeError for a missing target.
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            If a target expression with a valid dtype yields a null, Polars raises this
+            error while evaluating the rows in select or collect.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
-        Polars checks its input types when planning and evaluates values in select or collect.
-        An execution error can report a position within its input batch.
-
-        Supply a valid target. A missing target, including None, raises TypeError.
-        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
-        Each count describes the years between the two inputs.
+        A scalar applies to each row. A target column must have the source length
+        and is paired by position. Schema planning checks the input types, and
+        a target error can report a position within the evaluated batch.
         """
         return _query_operation(self, 11, "leap_bt_year", year, parameter="year")
 
@@ -3165,6 +3155,18 @@ class _PeriodMethods:
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.to_first_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-month-boundaries
+
+        For Series.pldt.to_first_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-month-boundaries
+
+        For Pldt.to_first_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-month-boundaries
         """
         return _period_operation(self, "boundary", unit, 0, 0, False, "to_first_of")
 
@@ -3196,6 +3198,18 @@ class _PeriodMethods:
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.is_first_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-month-boundaries
+
+        For Series.pldt.is_first_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-month-boundaries
+
+        For Pldt.is_first_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-month-boundaries
         """
         return _period_operation(self, "boundary", unit, 0, 0, True, "is_first_of")
 
@@ -3229,6 +3243,18 @@ class _PeriodMethods:
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.to_last_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-month-boundaries
+
+        For Series.pldt.to_last_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-month-boundaries
+
+        For Pldt.to_last_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-month-boundaries
         """
         return _period_operation(self, "boundary", unit, 0, 1, False, "to_last_of")
 
@@ -3293,6 +3319,18 @@ class _PeriodMethods:
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.to_start_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-month-boundaries
+
+        For Series.pldt.to_start_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-month-boundaries
+
+        For Pldt.to_start_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-month-boundaries
         """
         return _period_operation(self, "boundary", unit, 0, 2, False, "to_start_of")
 
@@ -3324,6 +3362,18 @@ class _PeriodMethods:
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.is_start_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-month-boundaries
+
+        For Series.pldt.is_start_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-month-boundaries
+
+        For Pldt.is_start_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-month-boundaries
         """
         return _period_operation(self, "boundary", unit, 0, 2, True, "is_start_of")
 
@@ -3357,6 +3407,18 @@ class _PeriodMethods:
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.to_end_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-month-boundaries
+
+        For Series.pldt.to_end_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-month-boundaries
+
+        For Pldt.to_end_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-month-boundaries
         """
         return _period_operation(self, "boundary", unit, 0, 3, False, "to_end_of")
 
@@ -3507,6 +3569,18 @@ class _PeriodMethods:
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.fsp, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-second-grid
+
+        For Series.pldt.fsp, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-second-grid
+
+        For Pldt.fsp, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-second-grid
         """
         return _period_operation(self, "fsp", None, precision, 0, False, "fsp")
 
@@ -3563,6 +3637,18 @@ class _TransformMethods:
         None keeps an optional field. An explicit zero sets a clock field to zero.
         A calendar day up to 31 is fitted to the final month's length.
         A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+
+        Examples
+        --------
+
+        For Expr.pldt.to_datetime, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-calendar.html#reader-expr-month-and-fields
+
+        For Series.pldt.to_datetime, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-calendar.html#reader-series-month-and-fields
+
+        For Pldt.to_datetime, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-calendar.html#reader-pldt-month-and-fields
         """
         return _date_operation(self, "adjust", (year, month, day, hour, minute, second, microsecond, nanosecond), "to_datetime")
 
@@ -4195,6 +4281,18 @@ class _TransformMethods:
 
         Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
         A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+
+        Examples
+        --------
+
+        For Expr.pldt.to_next_month, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-calendar.html#reader-expr-month-and-fields
+
+        For Series.pldt.to_next_month, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-calendar.html#reader-series-month-and-fields
+
+        For Pldt.to_next_month, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-calendar.html#reader-pldt-month-and-fields
         """
         return _date_operation(self, "month", (1, day), "to_next_month")
 
@@ -6580,6 +6678,9 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
     >>> source = pl.Series("day", ["2024-02-29", None])
     >>> source.pldt.parse(unit="us").isoformat().to_list()
     ['2024-02-29T00:00:00', None]
+
+    For Pldt(...).pldt, see
+    https://aresjef.github.io/rsTimes/1.1.1/api/inherited-pldt-accessors.html#ref-pldt-native-registered-accessor
     """
 
     def diff(self, dtobj: _DiffInput, unit: str, absolute: _Boolean=False, inclusive: str='one') -> pl.Series | pl.Expr:
@@ -6655,6 +6756,12 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.round, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-second-grid
         """
         return _period_operation(self, "round", None, freq, 0, False, "pldt.round")
 
@@ -6684,6 +6791,12 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.ceil, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-second-grid
         """
         return _period_operation(self, "round", None, freq, 1, False, "pldt.ceil")
 
@@ -6713,6 +6826,12 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.floor, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-second-grid
         """
         return _period_operation(self, "round", None, freq, 2, False, "pldt.floor")
 
@@ -6790,6 +6909,12 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.sub_delta, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-arithmetic.html#reader-series-subtract-delta
         """
         return _binary_eager(self, delta, subtract=True, named=True)
 
@@ -6934,6 +7059,12 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.fromisoformat, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-factories.html#reader-series-iso-text
         """
         cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
         return _iso_factory(cls, self._series, tz=tz, unit=unit, name=name,
@@ -6982,6 +7113,12 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.combine, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-factories.html#reader-series-combine-clock
         """
         cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
         return _combine_factory(cls, self._series, time, tz=tz, unit=unit, name=name,
@@ -7514,6 +7651,12 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.fromdatetime, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-factories.html#reader-series-datetime-source-zone
         """
         return _date_factory((type(self._series) if isinstance(self._series, Pldt) else Pldt), self._series, "datetime", tz=tz, unit=unit, name=name,
                                   ambiguous=ambiguous, nonexistent=nonexistent)
@@ -7586,6 +7729,12 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.tz_localize, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-timezones.html#reader-series-timezone-choices
         """
         return _tz_eager(self._series, "localize", tz, ambiguous=ambiguous, nonexistent=nonexistent)
 
@@ -7615,6 +7764,12 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.tz_convert, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-timezones.html#reader-series-timezone-choices
         """
         return _tz_eager(self._series, "convert", tz)
 
@@ -7651,6 +7806,12 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.astimezone, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-timezones.html#reader-series-timezone-choices
         """
         return _tz_eager(self._series, "astimezone", tz, ambiguous=ambiguous, nonexistent=nonexistent)
 
@@ -7693,6 +7854,12 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.tz_switch, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-timezones.html#reader-series-timezone-choices
         """
         return _tz_eager(self._series, "switch", targ_tz, base_tz, naive, ambiguous, nonexistent)
 
@@ -7791,6 +7958,12 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.round, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-second-grid
         """
         return _period_operation(self, "round", None, freq, 0, False, "pldt.round")
 
@@ -7823,6 +7996,12 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.ceil, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-second-grid
         """
         return _period_operation(self, "round", None, freq, 1, False, "pldt.ceil")
 
@@ -7855,6 +8034,12 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.floor, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-second-grid
         """
         return _period_operation(self, "round", None, freq, 2, False, "pldt.floor")
 
@@ -7886,6 +8071,12 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.add_delta, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-calendar.html#expr-apply-concrete-delta
         """
         return _delta_expression(self._expr, delta, False)
 
@@ -7917,6 +8108,12 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.sub_delta, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-calendar.html#reader-expr-subtract-delta
         """
         return _delta_expression(self._expr, delta, True)
 
@@ -8060,6 +8257,12 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.fromisoformat, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-inputs.html#reader-expr-iso-text
         """
         return _iso_expression(self._expr, tz=tz, unit=unit, ambiguous=ambiguous, nonexistent=nonexistent)
 
@@ -8109,6 +8312,12 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.combine, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-inputs.html#reader-expr-combine-clock
         """
         return _combine_expression(self._expr, time, tz=tz, unit=unit,
                                     ambiguous=ambiguous, nonexistent=nonexistent)
@@ -8651,6 +8860,12 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.fromdatetime, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-inputs.html#reader-expr-datetime-source-zone
         """
         return _date_expression(self._expr, "datetime", tz=tz, unit=unit,
                                   ambiguous=ambiguous, nonexistent=nonexistent)
@@ -8675,17 +8890,18 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         Raises
         ------
         TypeError
-            The unit or round_ok argument has an unsupported type.
+            Creating the expression rejects an unsupported type for unit or round_ok.
         ValueError
-            The unit is unsupported, or an exact conversion would lose precision.
-        OverflowError
-            A value exceeds the target unit's capacity, even when rounding is allowed.
+            Creating the expression rejects any unit string outside ms, us and ns.
+        polars.exceptions.ComputeError
+            During select or collect, a value would lose precision with round_ok=False,
+            or would exceed the target unit's capacity even when rounding is allowed.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
-        Polars checks its input types when planning and evaluates values in select or collect.
-        An execution error can report a position within its input batch.
+        Schema planning for a Datetime input exposes the target unit and preserves
+        the timezone without converting any row values. A conversion error can
+        report the position within the batch being evaluated.
 
         Examples
         --------
@@ -8741,6 +8957,12 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.tz_localize, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-timezones.html#reader-expr-timezone-choices
         """
         return _tz_expr(self._expr, "localize", tz, ambiguous=ambiguous, nonexistent=nonexistent)
 
@@ -8773,6 +8995,12 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.tz_convert, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-timezones.html#reader-expr-timezone-choices
         """
         return _tz_expr(self._expr, "convert", tz)
 
@@ -8813,6 +9041,12 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.astimezone, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-timezones.html#reader-expr-timezone-choices
         """
         return _tz_expr(self._expr, "astimezone", tz, ambiguous=ambiguous, nonexistent=nonexistent)
 
@@ -8860,6 +9094,12 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.tz_switch, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-timezones.html#reader-expr-timezone-choices
         """
         return _tz_expr(self._expr, "switch", targ_tz, base_tz, naive, ambiguous, nonexistent)
 

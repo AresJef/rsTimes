@@ -10445,33 +10445,31 @@ class _ExprNamespace:
         Parameters
         ----------
         year : integer or one-dimensional integer collection or polars.Expr
-            Required scalar or equal-length target; legal nonmatching numeric values return False. Missing
-            targets fail even for source null; unknown/empty saved month names fail instead of silently
-            returning False.
+            Required integer year or an equal-length column of years. A valid nonmatching year yields False.
 
         Returns
         -------
         pl.Expr
-            A native expression evaluated by Polars in select or collect.
+            An Expr producing a Boolean column. With a valid target, a null source date yields False.
 
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            Unsupported Python arguments, including a literal None target, fail
+            when the expression is created.
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            If a target expression with a valid dtype yields a null, Polars raises this
+            error while evaluating the rows in select or collect.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
-        Polars checks its input types when planning and evaluates values in select or collect.
-        An execution error can report a position within its input batch.
-
-        Supply a valid target. A missing target, including None, raises TypeError.
-        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
-        A missing source date returns False in the Boolean result.
+        A scalar applies to each row. A target column must have the source length
+        and is paired by position. Schema planning checks the input types, and
+        a target error can report a position within the evaluated batch.
         """
         ...
 
@@ -10512,31 +10510,31 @@ class _ExprNamespace:
         Parameters
         ----------
         month : integer, name or one-dimensional collection or polars.Expr
-            Month number or a month name in the library's default vocabulary.
+            Required month number or name from the default vocabulary. A column pairs by position.
 
         Returns
         -------
         pl.Expr
-            A native expression evaluated by Polars in select or collect.
+            An Expr producing a Boolean column. With a valid target, a null source date yields False.
 
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            Unsupported Python arguments, including a literal None target, fail
+            when the expression is created.
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            If a target expression with a valid dtype yields a null, Polars raises this
+            error while evaluating the rows in select or collect.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
-        Polars checks its input types when planning and evaluates values in select or collect.
-        An execution error can report a position within its input batch.
-
-        Supply a valid target. A missing target, including None, raises TypeError.
-        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
-        A missing source date returns False in the Boolean result.
+        A scalar applies to each row. A target column must have the source length
+        and is paired by position. Schema planning checks the input types, and
+        a target error can report a position within the evaluated batch.
         """
         ...
 
@@ -10577,33 +10575,31 @@ class _ExprNamespace:
         Parameters
         ----------
         day : integer or one-dimensional integer collection or polars.Expr
-            Required scalar or equal-length target; legal nonmatching numeric values return False. Missing
-            targets fail even for source null; unknown/empty saved month names fail instead of silently
-            returning False.
+            Required integer day of the month or an equal-length column of days. A valid nonmatching day yields False.
 
         Returns
         -------
         pl.Expr
-            A native expression evaluated by Polars in select or collect.
+            An Expr producing a Boolean column. With a valid target, a null source date yields False.
 
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            Unsupported Python arguments, including a literal None target, fail
+            when the expression is created.
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            If a target expression with a valid dtype yields a null, Polars raises this
+            error while evaluating the rows in select or collect.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
-        Polars checks its input types when planning and evaluates values in select or collect.
-        An execution error can report a position within its input batch.
-
-        Supply a valid target. A missing target, including None, raises TypeError.
-        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
-        A missing source date returns False in the Boolean result.
+        A scalar applies to each row. A target column must have the source length
+        and is paired by position. Schema planning checks the input types, and
+        a target error can report a position within the evaluated batch.
         """
         ...
 
@@ -10638,33 +10634,31 @@ class _ExprNamespace:
         Parameters
         ----------
         year : integer or one-dimensional integer collection or polars.Expr
-            Required signed integer target year or exactly equal-length targets. Count leap years between
-            the two years, lower inclusive and upper exclusive; missing targets fail even for null source
-            dates.
+            Required integer year or an equal-length column of years. Count leap years from the lower year inclusive to the upper year exclusive.
 
         Returns
         -------
         pl.Expr
-            A native expression evaluated by Polars in select or collect.
+            An Expr producing a nullable integer count. A null source date yields null.
 
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            Unsupported Python arguments, including a literal None target, fail
+            when the expression is created.
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            If a target expression with a valid dtype yields a null, Polars raises this
+            error while evaluating the rows in select or collect.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
-        Polars checks its input types when planning and evaluates values in select or collect.
-        An execution error can report a position within its input batch.
-
-        Supply a valid target. A missing target, including None, raises TypeError.
-        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
-        Each count describes the years between the two inputs.
+        A scalar applies to each row. A target column must have the source length
+        and is paired by position. Schema planning checks the input types, and
+        a target error can report a position within the evaluated batch.
         """
         ...
 
@@ -12250,17 +12244,18 @@ class _ExprNamespace:
         Raises
         ------
         TypeError
-            The unit or round_ok argument has an unsupported type.
+            Creating the expression rejects an unsupported type for unit or round_ok.
         ValueError
-            The unit is unsupported, or an exact conversion would lose precision.
-        OverflowError
-            A value exceeds the target unit's capacity, even when rounding is allowed.
+            Creating the expression rejects any unit string outside ms, us and ns.
+        polars.exceptions.ComputeError
+            During select or collect, a value would lose precision with round_ok=False,
+            or would exceed the target unit's capacity even when rounding is allowed.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
-        Polars checks its input types when planning and evaluates values in select or collect.
-        An execution error can report a position within its input batch.
+        Schema planning for a Datetime input exposes the target unit and preserves
+        the timezone without converting any row values. A conversion error can
+        report the position within the batch being evaluated.
 
         Examples
         --------
