@@ -52,16 +52,19 @@ expr = pl.col("raw").pldt.parse(
 ).alias("event")
 config.set_month({"jan": 8})
 print(frame.lazy().select(expr).collect()["event"].to_list())
+fresh = frame["raw"].pldt.parse(unit="us", cfg=config, default="14 Jan 2024")
+print(fresh.to_list())
 ```
 
 **Output**
 
 ```text
 [datetime.datetime(2024, 1, 14, 12, 30), None]
+[datetime.datetime(2024, 8, 14, 12, 30), None]
 ```
 
-This expression captured January 14 before the edit. A new
-expression or a new eager call sees the updated month vocabulary.
+The query captured January 14 before the edit. The new eager parse
+uses the updated vocabulary and reads `Jan` as August.
 Text parsing reads the stored text of a `str` subclass. To use
 that subclass's custom conversion, call `str(value)` explicitly
 before passing the result.

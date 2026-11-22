@@ -13010,7 +13010,8 @@
       "id": "expr-freeze-parser-default",
       "covers": [
         "polars.Expr.pldt.parse",
-        "polars.Series.pldt.parse"
+        "polars.Series.pldt.parse",
+        "rstimes.Configs.set_month"
       ],
       "format": "python",
       "profiles": [
@@ -13027,8 +13028,8 @@
         "query = frame.lazy().select(expr)",
         "assert query.collect_schema() == {'event': pl.Datetime('us')}",
         "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('us')}\n    assert column.to_physical().to_list() == [1705235400000000,None]",
-        "eager = frame['raw'].pldt.parse(cfg=config,default='14 Jan 2024')",
-        "assert eager.to_physical().to_list() == [1723638600000000,None]"
+        "assert fresh.name == \"raw\" and fresh.dtype == pl.Datetime(\"us\")",
+        "assert fresh.to_physical().to_list() == [1723638600000000, None]"
       ],
       "scenarios": [
         "parser-config",
@@ -15943,6 +15944,39 @@
       ],
       "reviewed": true,
       "checks": []
+    },
+    {
+      "id": "pddt-weekday-periods",
+      "page": "guides/pddt-calendar.md",
+      "covers": [
+        "rstimes.Pddt.to_curr_weekday",
+        "rstimes.Pddt.to_prev_weekday",
+        "rstimes.Pddt.to_next_weekday",
+        "rstimes.Pddt.to_weekday"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "March 15, 2024 is a Friday. The three relative weeks start March 11, March 4, and March 18, and the clock is retained.",
+      "scenarios": [
+        "weekday",
+        "calendar-week",
+        "clock-preserved",
+        "null",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert all(type(dates) is Pddt and dates.name == \"event\" and dates.unit == \"us\" for dates in choices)",
+        "assert all(dates.isna().tolist() == [False, True] for dates in choices)",
+        "assert [dates[0].day for dates in choices] == [11, 4, 18, 18]"
+      ]
     }
   ]
 }

@@ -19729,7 +19729,8 @@
         }
       },
       "examples": [
-        "configs-mapping-lifecycle"
+        "configs-mapping-lifecycle",
+        "expr-freeze-parser-default"
       ],
       "profiles": [
         "core",
@@ -38083,7 +38084,8 @@
         }
       },
       "examples": [
-        "pddt-calendar-selectors"
+        "pddt-calendar-selectors",
+        "pddt-weekday-periods"
       ],
       "profiles": [
         "full",
@@ -39156,7 +39158,8 @@
         }
       },
       "examples": [
-        "pddt-calendar-selectors"
+        "pddt-calendar-selectors",
+        "pddt-weekday-periods"
       ],
       "profiles": [
         "full",
@@ -39510,7 +39513,8 @@
         }
       },
       "examples": [
-        "pddt-calendar-selectors"
+        "pddt-calendar-selectors",
+        "pddt-weekday-periods"
       ],
       "profiles": [
         "full",
@@ -40304,7 +40308,8 @@
         }
       },
       "examples": [
-        "pddt-calendar-selectors"
+        "pddt-calendar-selectors",
+        "pddt-weekday-periods"
       ],
       "profiles": [
         "full",
