@@ -833,38 +833,6 @@
       "id": "TY049"
     },
     {
-      "id": "TY050",
-      "file": "src/rstimes/_pddt_state.py",
-      "line_at_review": 5,
-      "symbol": "CPython reconstruction import",
-      "statement": "from copy import _reconstruct",
-      "rules": [
-        "reportAttributeAccessIssue"
-      ],
-      "reason": "CPython copy._reconstruct is deliberately the real standard copy protocol, absent from typeshed public exports.",
-      "contract": "Q04 exact narrow exception, no changed user or host protocol",
-      "runtime_tests": [
-        "tests/pddt/test_rewrite_state.py"
-      ],
-      "static_guard": "reportUnnecessaryTypeIgnoreComment=error"
-    },
-    {
-      "id": "TY051",
-      "file": "src/rstimes/_pldt_state.py",
-      "line_at_review": 6,
-      "symbol": "CPython reconstruction import",
-      "statement": "from copy import _reconstruct",
-      "rules": [
-        "reportAttributeAccessIssue"
-      ],
-      "reason": "CPython copy._reconstruct is deliberately the real standard copy protocol, absent from typeshed public exports.",
-      "contract": "Q04 exact narrow exception, no changed user or host protocol",
-      "runtime_tests": [
-        "tests/pldt/test_state_and_native_boundaries.py"
-      ],
-      "static_guard": "reportUnnecessaryTypeIgnoreComment=error"
-    },
-    {
       "id": "TY052",
       "file": "tools/wheel_smoke.py",
       "line_at_review": 101,

@@ -239,6 +239,7 @@ pub(crate) fn parse(text: &str) -> Result<Option<Plan>, Error> {
             }
         }
         "SMS" | "SME" => {
+            let start = code == "SMS";
             let day = if let Some(anchor) = anchor {
                 if anchor.is_empty() || !anchor.bytes().all(|value| value.is_ascii_digit()) {
                     return Err(Error::Value(
@@ -251,13 +252,15 @@ pub(crate) fn parse(text: &str) -> Result<Option<Plan>, Error> {
             } else {
                 15
             };
-            if !(1..=27).contains(&day) {
-                return Err(Error::Value("semi-month anchor must be in 1..27"));
+            let first = if start { 2 } else { 1 };
+            if !(first..=27).contains(&day) {
+                return Err(Error::Value(if start {
+                    "freq 'SMS' requires a day anchor from 2 through 27"
+                } else {
+                    "freq 'SME' requires a day anchor from 1 through 27"
+                }));
             }
-            Kind::Semi {
-                start: code == "SMS",
-                day,
-            }
+            Kind::Semi { start, day }
         }
         "WOM" => {
             let anchor = anchor.ok_or(Error::Value("WOM needs 1MON through 4SUN"))?;

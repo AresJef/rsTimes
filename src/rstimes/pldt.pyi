@@ -3559,11 +3559,12 @@ class Pldt(pl.Series):
             Source/target in this factory's stated role. Actual dtype/unit/zone and independent validity
             are preserved; a scalar broadcasts only where the named factory permits it.
         periods : SupportsIndex | None
-            Single nonnegative integer count. Named scalar factories require size; a supplied collection
-            cannot also supply size.
+            Number of periods as a nonnegative integer.
         freq : object
-            Positive fixed rounding grid, for example 15min, or this range factory's approved native
-            calendar/special delegated rule. A single value, never a row-wise column.
+            A frequency string, timedelta, or supported pandas DateOffset. The step can be positive
+            (forward) or negative (backward). Semi-month starts (SMS) accept day anchors 2 through 27,
+            and semi-month ends (SME) accept 1 through 27. With start, end, and periods supplied,
+            freq=None spaces the values evenly between the endpoints. Otherwise None defaults to days.
         tz : _Zone
             Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
             UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings

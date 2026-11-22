@@ -3,11 +3,9 @@
 Only copy/save operations enter this module. Date operations never scan state.
 """
 from copy import copy, deepcopy
-from copy import _reconstruct  # pyright: ignore[reportAttributeAccessIssue] -- TY050; see tests/typing/pyright_exceptions.json.
 from typing import cast
-from collections.abc import Iterable
 from ._class_protocol import definition as _definition
-from ._class_protocol import copy_reduction, NATIVE_COPY
+from ._class_protocol import copy_reduction, reconstruct_copy, NATIVE_COPY
 from ._state_storage import snapshot as _snapshot_state
 
 from .errors import _own_error, _external_error
@@ -102,14 +100,7 @@ def copy_value(value,restore_copy,deep,memo=None,name=None,honor_copy=False):
     custom=reduction is not NATIVE_COPY
     if not custom:
         reduction=(restore_copy,(cls,value.array,value.name if name is None else name,value.freq),state(value))
-    if isinstance(reduction,str):
-        result=value
-    else:
-        # This is the same complete helper used by copy.copy/deepcopy themselves,
-        # verified on the fixed Python3.11/3.13 environments, not a new interpreter.
-        # The standard unpacking boundary validates actual business recipes;
-        # the annotation does not convert or pre-read an external return value.
-        result=_reconstruct(value,memo if deep else None,*cast("Iterable[object]", reduction))
+    result=reconstruct_copy(value,reduction,memo if deep else None)
     return _named_result(value,result,name) if custom and name is not None else result
 
 
