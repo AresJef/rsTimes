@@ -11607,7 +11607,12 @@
         "null"
       ],
       "reviewed": true,
-      "checks": "from rstimes import Pldt\nassert type(source) is pl.Series and type(adjusted) is Pldt\nassert adjusted.name == \"event\" and adjusted.dtype == pl.Datetime(\"us\")\nassert adjusted.to_physical().to_list() == [1709078400000000, None]",
+      "checks": [
+        "from rstimes import Pldt",
+        "assert type(source) is pl.Series and type(adjusted) is Pldt",
+        "assert adjusted.name == \"event\" and adjusted.dtype == pl.Datetime(\"us\")",
+        "assert adjusted.to_physical().to_list() == [1709078400000000, None]"
+      ],
       "expectation_basis": "A native named Series invokes the advertised accessor, with independent calendar values and preserved missing rows."
     },
     {
@@ -11874,7 +11879,10 @@
         "null"
       ],
       "reviewed": true,
-      "checks": "assert type(source) is pl.Series and type(days) is pl.Series\nassert days.dtype == pl.Int64 and days.name == \"event\" and days.to_list() == [2, None]",
+      "checks": [
+        "assert type(source) is pl.Series and type(days) is pl.Series",
+        "assert days.dtype == pl.Int64 and days.name == \"event\" and days.to_list() == [2, None]"
+      ],
       "expectation_basis": "A native named Series invokes the advertised accessor, with independent calendar values and preserved missing rows."
     },
     {
