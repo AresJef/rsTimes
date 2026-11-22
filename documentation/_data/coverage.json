@@ -9596,7 +9596,8 @@
         "pldt-all-boundary-difference-units",
         "pldt-inclusive-difference-and-capacity",
         "pldt-difference-target-roles",
-        "pldt-count-month-boundary"
+        "pldt-count-month-boundary",
+        "pldt-series-diff"
       ],
       "profiles": [
         "full",
@@ -12499,7 +12500,8 @@
       },
       "examples": [
         "pldt-calendar-field-replacement",
-        "pldt-replace-fields-positionally"
+        "pldt-replace-fields-positionally",
+        "pldt-series-replace"
       ],
       "profiles": [
         "full",

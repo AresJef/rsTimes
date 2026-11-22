@@ -59,6 +59,24 @@ A zero clock component is a real value. An explicit microsecond replaces
 the six-digit fraction and clears an unspecified nanosecond tail.
 Changing another field retains the existing fraction.
 
+## Replace fields on a native Series
+
+(pldt-series-replace)=
+```python
+import polars as pl
+import rstimes.pldt
+
+source = pl.Series("event", ["2024-01-31", None]).str.to_datetime(time_unit="us")
+adjusted = source.pldt.replace(month=2, day=28)
+print(adjusted.isoformat().to_list())
+```
+
+**Output**
+
+```text
+['2024-02-28T00:00:00', None]
+```
+
 ## Add a calendar offset at the existing unit
 
 (pldt-add-cancelling-fine-amounts)=

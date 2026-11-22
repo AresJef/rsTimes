@@ -11588,6 +11588,29 @@
       "page": "guides/pldt-calendar.md"
     },
     {
+      "id": "pldt-series-replace",
+      "page": "guides/pldt-calendar.md",
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "covers": [
+        "polars.Series.pldt.replace"
+      ],
+      "scenarios": [
+        "strict-replace",
+        "row-pairing",
+        "length-error",
+        "null"
+      ],
+      "reviewed": true,
+      "checks": "from rstimes import Pldt\nassert type(source) is pl.Series and type(adjusted) is Pldt\nassert adjusted.name == \"event\" and adjusted.dtype == pl.Datetime(\"us\")\nassert adjusted.to_physical().to_list() == [1709078400000000, None]",
+      "expectation_basis": "A native named Series invokes the advertised accessor, with independent calendar values and preserved missing rows."
+    },
+    {
       "id": "pldt-add-cancelling-fine-amounts",
       "covers": [
         "rstimes.Pldt.add",
@@ -11830,6 +11853,29 @@
       ],
       "reviewed": true,
       "page": "guides/pldt-differences.md"
+    },
+    {
+      "id": "pldt-series-diff",
+      "page": "guides/pldt-differences.md",
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "covers": [
+        "polars.Series.pldt.diff"
+      ],
+      "scenarios": [
+        "calendar-bucket",
+        "namespace",
+        "integer-output",
+        "null"
+      ],
+      "reviewed": true,
+      "checks": "assert type(source) is pl.Series and type(days) is pl.Series\nassert days.dtype == pl.Int64 and days.name == \"event\" and days.to_list() == [2, None]",
+      "expectation_basis": "A native named Series invokes the advertised accessor, with independent calendar values and preserved missing rows."
     },
     {
       "id": "pldt-measure-actual-duration",
