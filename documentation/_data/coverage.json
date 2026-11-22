@@ -19735,6 +19735,10 @@
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
+        "polars-current",
+        "polars-only",
         "windows-full"
       ],
       "status": "reviewed",
@@ -19743,9 +19747,15 @@
       "scenarios": [
         "None",
         "absent-delete",
+        "collect",
+        "default",
         "empty",
         "integer-index",
+        "live-eager",
         "normal",
+        "null",
+        "parser-config",
+        "select",
         "snapshot"
       ],
       "dependency_profiles_available": [
@@ -38089,6 +38099,8 @@
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -38098,11 +38110,17 @@
       "scenarios": [
         "NaT",
         "all-selectors",
+        "calendar-week",
+        "clock-preserved",
+        "eager",
         "metadata",
         "month-end-fit",
         "named-month-weekday",
         "negative",
         "ns-tail",
+        "null",
+        "reader-example",
+        "weekday",
         "zero"
       ],
       "dependency_profiles_available": [
@@ -39163,6 +39181,8 @@
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -39172,11 +39192,17 @@
       "scenarios": [
         "NaT",
         "all-selectors",
+        "calendar-week",
+        "clock-preserved",
+        "eager",
         "metadata",
         "month-end-fit",
         "named-month-weekday",
         "negative",
         "ns-tail",
+        "null",
+        "reader-example",
+        "weekday",
         "zero"
       ],
       "dependency_profiles_available": [
@@ -39518,6 +39544,8 @@
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -39527,11 +39555,17 @@
       "scenarios": [
         "NaT",
         "all-selectors",
+        "calendar-week",
+        "clock-preserved",
+        "eager",
         "metadata",
         "month-end-fit",
         "named-month-weekday",
         "negative",
         "ns-tail",
+        "null",
+        "reader-example",
+        "weekday",
         "zero"
       ],
       "dependency_profiles_available": [
@@ -40313,6 +40347,8 @@
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -40322,11 +40358,17 @@
       "scenarios": [
         "NaT",
         "all-selectors",
+        "calendar-week",
+        "clock-preserved",
+        "eager",
         "metadata",
         "month-end-fit",
         "named-month-weekday",
         "negative",
         "ns-tail",
+        "null",
+        "reader-example",
+        "weekday",
         "zero"
       ],
       "dependency_profiles_available": [
