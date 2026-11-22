@@ -1,6 +1,6 @@
 # rsTimes documentation
 
-Use rsTimes 1.1.0 to parse dates, adjust calendars, and work with date columns.
+Use rsTimes 1.1.1 to parse dates, adjust calendars, and work with date columns.
 Start with the data you have, or [install rsTimes and move your first date](getting-started/index.md).
 
 | Your data or task | Start here |
@@ -10,7 +10,7 @@ Start with the data you have, or [install rsTimes and move your first date](gett
 | A Polars date column | [Work with a Pldt column](guides/pldt.md) |
 | A Polars expression or LazyFrame | [Parse a column in a query](getting-started/polars-query.md) |
 | Date strings or epoch values | [Parse a date or timestamp](guides/parsing.md) |
-| An earlier rsTimes installation | [Upgrade to 1.1.0](compatibility/migration.md) |
+| An earlier rsTimes installation | [Upgrade to 1.1.1](compatibility/migration.md) |
 
 [Look up an API](api/index.md) for its signature, return type, and examples.
 

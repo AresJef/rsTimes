@@ -94,6 +94,29 @@ has Time, Datetime(ns), String or floating-point dtype.
 | `fromisoformat`, `strptime` | ISO-only text or explicit format text. |
 | `combine` | Calendar date plus a clock from a literal or column. |
 
+## Convert a column of seconds inside a query
+
+(pldt-expr-fromseconds)=
+```python
+import polars as pl
+import rstimes.pldt
+
+frame = pl.DataFrame({"seconds": [1, None, -1]})
+expr = pl.col("seconds").pldt.fromseconds(unit="ms")
+dates = frame.select(expr)["seconds"]
+print(dates.to_physical().to_list())
+```
+
+**Output**
+
+```text
+[1000, None, -1000]
+```
+
+The same expression works in `frame.lazy().select(expr).collect()`.
+Both queries produce a `Datetime("ms")` column named `seconds`.
+Each input value is in seconds.
+
 ## Handle malformed data in an otherwise valid query
 
 (expr-report-invalid-row)=
@@ -122,3 +145,104 @@ Invalid option values can fail when the Expr is created.
 Schema and row failures can occur when Polars plans or executes
 the query. An otherwise valid schema does not make malformed
 data parseable.
+
+## Build dates from integer microseconds
+
+(pldt-expr-frommicroseconds)=
+```python
+import polars as pl
+import rstimes.pldt
+frame = pl.DataFrame([pl.Series('event', [1, None, -1])])
+expr = pl.col('event').pldt.frommicroseconds(unit='ns')
+dates = frame.select(expr)['event']
+print(dates.to_physical().to_list())
+```
+
+**Output**
+
+```text
+[1000, None, -1000]
+```
+
+
+## Display POSIX seconds in Tokyo
+
+(pldt-expr-fromtimestamp)=
+```python
+import polars as pl
+import rstimes.pldt
+frame = pl.DataFrame([pl.Series('event', [0, None])])
+expr = pl.col('event').pldt.fromtimestamp(tz='Asia/Tokyo', unit='us')
+dates = frame.select(expr)['event']
+print(dates.dt.strftime('%Y-%m-%d %H:%M %z').to_list())
+```
+
+**Output**
+
+```text
+['1970-01-01 09:00 +0900', None]
+```
+
+## Keep a source zone or attach another
+
+(reader-expr-datetime-source-zone)=
+```python
+import polars as pl
+import rstimes.pldt
+
+source = pl.Series('event', [0], dtype=pl.Datetime('us', 'UTC'))
+frame = pl.DataFrame([source])
+original = pl.col('event').pldt.fromdatetime()
+new_zone = pl.col('event').pldt.fromdatetime(tz='Asia/Tokyo')
+print(frame.select(original.pldt.isoformat())['event'].to_list()[0])
+print(frame.select(new_zone.pldt.isoformat())['event'].to_list()[0])
+```
+
+**Output**
+
+```text
+1970-01-01T00:00:00+00:00
+1970-01-01T00:00:00+09:00
+```
+
+To keep the instant and change the clock display, use tz_convert after creating the date value or column.
+
+
+## Read a leap date in ISO format
+
+(reader-expr-iso-text)=
+```python
+import polars as pl
+import rstimes.pldt
+
+raw = pl.Series('event', ['2024-02-29T03:04:05', None])
+frame = pl.DataFrame([raw])
+expr = pl.col('event').pldt.fromisoformat(unit='us')
+print(frame.lazy().select(expr.pldt.isoformat()).collect()['event'].to_list())
+```
+
+**Output**
+
+```text
+['2024-02-29T03:04:05', None]
+```
+
+
+## Apply a Python clock to a date column
+
+(reader-expr-combine-clock)=
+```python
+from datetime import date, time
+import polars as pl
+import rstimes.pldt
+
+frame = pl.DataFrame({'event': [date(2024, 2, 29), date(2024, 3, 1)]})
+expr = pl.col('event').pldt.combine(time(9, 30), unit='us')
+print(frame.select(expr.pldt.isoformat())['event'].to_list())
+```
+
+**Output**
+
+```text
+['2024-02-29T09:30:00', '2024-03-01T09:30:00']
+```

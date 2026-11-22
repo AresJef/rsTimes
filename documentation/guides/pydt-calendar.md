@@ -88,3 +88,23 @@ Use `weekday()` for the standard datetime method. Calendar queries
 such as `is_month` return a bool for a valid target. An unknown name
 raises `ValueError`. See [calendar boundaries](pydt-boundaries.md)
 for rounding or comparing dates.
+
+## Move to the next month or set calendar fields
+
+(reader-pydt-month-and-fields)=
+```python
+from rstimes import Pydt
+
+source = Pydt.parse('2024-01-31 14:30')
+moved = source.to_next_month()
+edited = source.to_datetime(month=2, day=31, hour=9)
+print(moved.strftime('%Y-%m-%d %H:%M'))
+print(edited.strftime('%Y-%m-%d %H:%M'))
+```
+
+**Output**
+
+```text
+2024-02-29 14:30
+2024-02-29 09:30
+```

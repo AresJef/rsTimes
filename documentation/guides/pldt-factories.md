@@ -30,6 +30,27 @@ With no zone it returns local clock fields. `utcfromtimestamp` returns
 aware UTC. Numeric seconds can supply a nanosecond fraction. `unit`
 sets the output representation.
 
+## Convert an existing Series of seconds
+
+(pldt-series-fromseconds)=
+```python
+import polars as pl
+from rstimes import Pldt
+
+seconds = pl.Series("seconds", [1, None, -1])
+dates = seconds.pldt.fromseconds(unit="ms")
+print(dates.to_physical().to_list())
+```
+
+**Output**
+
+```text
+[1000, None, -1000]
+```
+
+The result is a `Pldt` named `seconds` with millisecond resolution.
+Each input value is in seconds. The null stays in place.
+
 ## Decode native calendar coordinates
 
 (pldt-unsigned-calendar-columns)=
@@ -55,6 +76,35 @@ numbers weekdays Monday=1 through Sunday=7. A high week, weekday or
 day-of-year selects the final valid position. A value below one raises
 for those positions. Native unsigned integer columns, including UInt128,
 can supply representable values. An explicit `unit` must be ms, us or ns.
+
+(pldt-locate-wide-tick)=
+## Locate an out-of-range tick
+
+When a native integer column contains a value outside signed 64-bit
+capacity, eager construction gives the first bad row. Row numbering
+starts at zero. A Polars expression reports the position within its
+input batch.
+
+(pldt-wide-tick-error)=
+```python
+import polars as pl
+from rstimes import Pldt
+
+ticks = pl.Series("event", [0, None, 2**63], dtype=pl.UInt64)
+try:
+    Pldt(ticks, unit="ns")
+except OverflowError as error:
+    print(error)
+```
+
+**Output**
+
+```text
+Pldt(): data[2]: numeric date tick exceeds signed64
+```
+
+Check the source row or correct the integer before constructing the
+column. A null value keeps its own validity state.
 
 ## Combine a date and a native Time column
 
@@ -90,3 +140,218 @@ print(events.isoformat().to_list())
 
 Zero-size current time results retain dtype. The chosen storage unit
 does not describe the precision of the system clock.
+
+## Parse a fractional second using a format
+
+(pldt-series-strptime)=
+```python
+import polars as pl
+import rstimes.pldt
+source = pl.Series('event', ['1970-01-01 00:00:00.123456789', None])
+dates = source.pldt.strptime('%Y-%m-%d %H:%M:%S.%f', unit='ns')
+print(dates.to_physical().to_list())
+```
+
+**Output**
+
+```text
+[123456789, None]
+```
+
+
+## Build dates from integer microseconds
+
+(pldt-series-frommicroseconds)=
+```python
+import polars as pl
+import rstimes.pldt
+source = pl.Series('event', [1, None, -1])
+dates = source.pldt.frommicroseconds(unit='ns')
+print(dates.to_physical().to_list())
+```
+
+**Output**
+
+```text
+[1000, None, -1000]
+```
+
+
+## Display POSIX seconds in Tokyo
+
+(pldt-series-fromtimestamp)=
+```python
+import polars as pl
+import rstimes.pldt
+source = pl.Series('event', [0, None])
+dates = source.pldt.fromtimestamp(tz='Asia/Tokyo', unit='us')
+print(dates.dt.strftime('%Y-%m-%d %H:%M %z').to_list())
+```
+
+**Output**
+
+```text
+['1970-01-01 09:00 +0900', None]
+```
+
+## Choose clock coordinates or POSIX instants
+
+(reader-pldt-three-epoch-inputs)=
+```python
+from rstimes import Pldt
+
+clock = Pldt.fromseconds(0, tz='Asia/Tokyo', size=1, unit='us')
+instant = Pldt.fromtimestamp(0, tz='Asia/Tokyo', size=1, unit='us')
+microsecond = Pldt.frommicroseconds(1, tz='Asia/Tokyo', size=1, unit='us')
+print(clock.isoformat().to_list()[0])
+print(instant.isoformat().to_list()[0])
+print(microsecond.isoformat().to_list()[0])
+```
+
+**Output**
+
+```text
+1970-01-01T00:00:00+09:00
+1970-01-01T09:00:00+09:00
+1970-01-01T00:00:00.000001+09:00
+```
+
+
+## Keep a source zone or attach another
+
+(reader-pldt-datetime-source-zone)=
+```python
+from datetime import datetime, timezone
+from rstimes import Pldt
+
+source = datetime(1970, 1, 1, tzinfo=timezone.utc)
+original = Pldt.fromdatetime(source, size=1)
+new_zone = Pldt.fromdatetime(source, tz='Asia/Tokyo', size=1)
+print(original.isoformat().to_list()[0])
+print(new_zone.isoformat().to_list()[0])
+```
+
+**Output**
+
+```text
+1970-01-01T00:00:00+00:00
+1970-01-01T00:00:00+09:00
+```
+
+To keep the instant and change the clock display, use tz_convert after creating the date value or column.
+
+
+## Keep a source zone or attach another on a Series
+
+(reader-series-datetime-source-zone)=
+```python
+import polars as pl
+import rstimes.pldt
+
+source = pl.Series('event', [0], dtype=pl.Datetime('us', 'UTC'))
+original = source.pldt.fromdatetime()
+new_zone = source.pldt.fromdatetime(tz='Asia/Tokyo')
+print(original.isoformat().to_list()[0])
+print(new_zone.isoformat().to_list()[0])
+```
+
+**Output**
+
+```text
+1970-01-01T00:00:00+00:00
+1970-01-01T00:00:00+09:00
+```
+
+To keep the instant and change the clock display, use tz_convert after creating the date value or column.
+
+
+## Read a leap date in ISO format
+
+(reader-pldt-iso-text)=
+```python
+from rstimes import Pldt
+
+dates = Pldt.fromisoformat(['2024-02-29T03:04:05'], unit='us')
+print(dates.isoformat().to_list())
+```
+
+**Output**
+
+```text
+['2024-02-29T03:04:05']
+```
+
+
+## Read a leap date in ISO format from a Series
+
+(reader-series-iso-text)=
+```python
+import polars as pl
+import rstimes.pldt
+
+raw = pl.Series('event', ['2024-02-29T03:04:05', None])
+dates = raw.pldt.fromisoformat(unit='us')
+print(dates.isoformat().to_list())
+```
+
+**Output**
+
+```text
+['2024-02-29T03:04:05', None]
+```
+
+
+## Keep the multiplier of NumPy dates
+
+(reader-pldt-numpy-date-input)=
+```python
+import numpy as np
+from rstimes import Pldt
+
+source = np.array([1, 2], dtype='datetime64[3ms]')
+dates = Pldt.fromdatetime64(source)
+print(dates.to_physical().to_list())
+```
+
+**Output**
+
+```text
+[3, 6]
+```
+
+
+## Apply a Python clock to a date column on a Series
+
+(reader-series-combine-clock)=
+```python
+from datetime import date, time
+import polars as pl
+import rstimes.pldt
+
+source = pl.Series('event', [date(2024, 2, 29), date(2024, 3, 1)])
+dates = source.pldt.combine(time(9, 30), unit='us')
+print(dates.isoformat().to_list())
+```
+
+**Output**
+
+```text
+['2024-02-29T09:30:00', '2024-03-01T09:30:00']
+```
+
+
+## Decode nanoseconds with a supplied format
+
+(reader-pldt-formatted-text)=
+```python
+from rstimes import Pldt
+
+dates = Pldt.strptime(['1970-01-01 00:00:00.123456789'], '%Y-%m-%d %H:%M:%S.%f', unit='ns')
+print(dates.to_physical().to_list())
+```
+
+**Output**
+
+```text
+[123456789]
+```

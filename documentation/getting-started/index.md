@@ -1,10 +1,10 @@
 # Move your first date with rsTimes
 
-Install rsTimes 1.1.0 in a Python environment. You can move a standard Python
+Install rsTimes 1.1.1 in a Python environment. You can move a standard Python
 date with `Delta` as soon as the installation finishes.
 
 ```bash
-python -m pip install "rsTimes==1.1.0"
+python -m pip install "rsTimes==1.1.1"
 ```
 
 ## Add one month to a billing date
@@ -38,7 +38,7 @@ February, which is February 29 in 2024. The result is a Python `date`.
 
 [Choose a date API for your data](choose.md) to compare return types.
 [Installation](install.md) covers the optional extras and supported interpreters. If you used the beta, read
-[what changed in 1.1.0](../compatibility/migration.md).
+[what changed in 1.1.1](../compatibility/migration.md).
 
 ```{toctree}
 :hidden:

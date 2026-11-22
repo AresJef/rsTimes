@@ -67,3 +67,78 @@ timestamp colliding with the destination's reserved NaT tick.
 For exact transfer of all physical values, retain the native
 validity or use a destination with independent validity.
 [Choose an eager output](pldt-output.md) for Python objects.
+
+## Read local-clock seconds from dates
+
+(pldt-expr-toseconds)=
+```python
+import polars as pl
+import rstimes.pldt
+frame = pl.DataFrame([pl.Series('event', [0, None], dtype=pl.Datetime('us', 'Asia/Shanghai'))])
+expr = pl.col('event').pldt.toseconds()
+dates = frame.select(expr)['event']
+print(dates.to_list())
+```
+
+**Output**
+
+```text
+[28800.0, None]
+```
+
+
+## Export integer microseconds from nanosecond dates
+
+(pldt-expr-tomicroseconds)=
+```python
+import polars as pl
+import rstimes.pldt
+frame = pl.DataFrame([pl.Series('event', [-1500, None], dtype=pl.Datetime('ns'))])
+expr = pl.col('event').pldt.tomicroseconds()
+dates = frame.select(expr)['event']
+print(dates.to_list())
+```
+
+**Output**
+
+```text
+[-2, None]
+```
+
+
+## Read POSIX seconds from timezone-aware dates
+
+(pldt-expr-timestamp)=
+```python
+import polars as pl
+import rstimes.pldt
+frame = pl.DataFrame([pl.Series('event', [0, None], dtype=pl.Datetime('us', 'Asia/Shanghai'))])
+expr = pl.col('event').pldt.timestamp()
+dates = frame.select(expr)['event']
+print(dates.to_list())
+```
+
+**Output**
+
+```text
+[0.0, None]
+```
+
+
+## Format fractional seconds from stored nanoseconds
+
+(pldt-expr-strftime)=
+```python
+import polars as pl
+import rstimes.pldt
+frame = pl.DataFrame([pl.Series('event', [123_456_789, None], dtype=pl.Datetime('ns'))])
+expr = pl.col('event').pldt.strftime('%f|%.3f|%.0f')
+dates = frame.select(expr)['event']
+print(dates.to_list())
+```
+
+**Output**
+
+```text
+['123456789|.123|', None]
+```

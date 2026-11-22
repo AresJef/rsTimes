@@ -107,7 +107,8 @@ def verify_migration(site, documents, hashes, preview, problems):
     legacy = plan['old_version']
     target = json.loads((DOC / 'target.json').read_text())
     active = target['version']
-    previous_version = target.get('previous_version')
+    snapshots = runpy.run_path(str(DOC / '_tools/legacy_site.py'))['retained_snapshots'](target)
+    exact_versions = [active, *snapshots]
     default = target.get('default_version', active)
     if build['product_version'] != active or mode not in ('preserve', 'redirect'):
         problems.append('Unexpected released identity or archive stage')
@@ -115,7 +116,7 @@ def verify_migration(site, documents, hashes, preview, problems):
         problems.append('A preview cannot serve as a verified production artifact')
     if not preview and build['pending_case_profiles']:
         problems.append('Incomplete example coverage')
-    expected_versions = [active, previous_version] if previous_version else [active]
+    expected_versions = exact_versions.copy()
     expected_versions.sort(key=lambda item: item != default)
     if mode == 'preserve':
         expected_versions.append(legacy)
@@ -127,14 +128,14 @@ def verify_migration(site, documents, hashes, preview, problems):
     choices = documents.get('versions.html')
     if not choices or set(choices.links) != {PREFIX + item + '/' for item in expected_versions}:
         problems.append('Version choices do not link to the exact versions')
-    if previous_version:
-        previous = json.loads((DOC / '_data/previous-site.json').read_text())
-        retained = {name: digest for name, digest in hashes.items() if name.startswith(previous_version + '/')}
-        if previous['old_version'] != previous_version or retained != previous['old_files']:
-            problems.append('The previous exact-version site differs from the verified archive')
+    for retained_version, record in snapshots.items():
+        retained = {name: digest for name, digest in hashes.items() if name.startswith(retained_version + '/')}
+        if retained != record['old_files']:
+            problems.append(f'Exact version {retained_version} differs from the verified archive')
+    if snapshots:
         if (build.get('default_documentation_version') != default
                 or build.get('exact_versions') != {
-                    item: PREFIX + item + '/_meta/build.json' for item in (active, previous_version)
+                    item: PREFIX + item + '/_meta/build.json' for item in exact_versions
                 }):
             problems.append('Versioned build evidence pointers do not match the site default')
     receipts = {name: plan['old_files'][name] for name in plan['retained_evidence']}
@@ -155,14 +156,15 @@ def verify_migration(site, documents, hashes, preview, problems):
     if documents['404.html'].destination or 'Page not found' not in (site / '404.html').read_text():
         problems.append('Missing dedicated 404 page')
     for name, doc in documents.items():
-        exact = next((item for item in (active, previous_version) if item and name.startswith(item + '/')), None)
+        exact = next((item for item in exact_versions if name.startswith(item + '/')), None)
         if exact and any(not url.startswith(BASE + exact + '/') for url in doc.canonical):
             problems.append('Canonical URL leaves its exact version: ' + name)
     if mode != 'redirect':
         return dict(stage=mode, old_body_pages=len(plan['pages']), historical_receipts=len(receipts))
 
-    manifest = json.loads((site / version / 'verification/legacy-redirects.json').read_text())
-    if manifest != dict(from_version=legacy, to_version=version, pages=plan['pages']):
+    redirect_table = site / version / 'verification/legacy-redirects.json'
+    if (not redirect_table.is_file()
+            or json.loads(redirect_table.read_text()) != dict(from_version=legacy, to_version=version, pages=plan['pages'])):
         problems.append('Public redirect table differs from the planned mapping')
     count = 0
     for name, route in plan['pages'].items():

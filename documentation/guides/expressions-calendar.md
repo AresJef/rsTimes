@@ -105,3 +105,47 @@ print(frame.lazy().select(converted).collect()["event"].to_physical().to_list())
 Choose `"ms"`, `"us"` or `"ns"` as the target unit. The default
 rounding picks the earlier tick. Set `round_ok=False` to require an
 exact conversion. Select or collect the expression to get the new column.
+
+## Move to the next month or set calendar fields
+
+(reader-expr-month-and-fields)=
+```python
+import polars as pl
+import rstimes.pldt
+
+source = pl.Series('event', ['2024-01-31 14:30']).str.to_datetime(time_unit='us')
+frame = pl.DataFrame([source])
+moved = pl.col('event').pldt.to_next_month()
+edited = pl.col('event').pldt.to_datetime(month=2, day=31, hour=9)
+print(frame.select(moved.pldt.strftime('%Y-%m-%d %H:%M'))['event'].to_list()[0])
+print(frame.select(edited.pldt.strftime('%Y-%m-%d %H:%M'))['event'].to_list()[0])
+```
+
+**Output**
+
+```text
+2024-02-29 14:30
+2024-02-29 09:30
+```
+
+
+## Subtract a calendar month through Delta
+
+(reader-expr-subtract-delta)=
+```python
+import polars as pl
+import rstimes.pldt
+from rstimes import Delta
+
+source = pl.Series('event', ['2024-01-31 14:30']).str.to_datetime(time_unit='us')
+frame = pl.DataFrame([source])
+delta = Delta(months=1)
+moved = pl.col('event').pldt.sub_delta(delta)
+print(frame.select(moved.pldt.strftime('%Y-%m-%d %H:%M'))['event'].to_list()[0])
+```
+
+**Output**
+
+```text
+2023-12-31 14:30
+```

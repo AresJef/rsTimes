@@ -79,3 +79,23 @@ remaining relative quantities. Date results keep their current unit
 and metadata. A result too fine for that unit raises `ValueError`;
 choose a finer unit before the calculation. See the
 [Pddt reference](../api/reference/rstimes/pddt/index.rst) for each role.
+
+## Move to the next month or set calendar fields
+
+(reader-pddt-month-and-fields)=
+```python
+from rstimes import Pddt
+
+source = Pddt.parse(['2024-01-31 14:30'], unit='us')
+moved = source.to_next_month()
+edited = source.to_datetime(month=2, day=31, hour=9)
+print(moved.strftime('%Y-%m-%d %H:%M').tolist()[0])
+print(edited.strftime('%Y-%m-%d %H:%M').tolist()[0])
+```
+
+**Output**
+
+```text
+2024-02-29 14:30
+2024-02-29 09:30
+```

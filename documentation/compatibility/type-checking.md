@@ -1,7 +1,7 @@
 # Type-check rsTimes in your application
 
 Check against the installed release in your application environment.
-The rsTimes 1.1.0 development check uses Pyright 1.1.414. Select
+The rsTimes 1.1.1 development check uses Pyright 1.1.414. Select
 the same interpreter for runtime and checker resolution.
 
 ## Describe an expression accessor to the checker
@@ -61,5 +61,21 @@ signature without adding pandas to the runtime, install
 and set Pyright's `extraPaths` to that directory. Keep it out
 of your application's runtime import path.
 
-See the [type-checking guide from the release source](https://github.com/AresJef/rsTimes/blob/v1.1.0/docs/type-checking.md)
+## Check units and shared array metadata
+
+`Pddt.as_unit()` accepts a string at the type boundary. The four
+runtime choices are `"s"`, `"ms"`, `"us"` and `"ns"`. An unknown
+unit raises `ValueError`. `Pldt.as_unit()` and the two Polars
+accessors use the three supported Polars unit literals.
+
+`Delta.__array_priority__` is a float class attribute used by NumPy
+when choosing which operand handles an operation. It can be read
+through the class or an instance and has the value `1000.0`.
+
+Use `rstimes.pydt.DatetimeLike` in type annotations. A consumer can
+import the alias under `if TYPE_CHECKING` and postpone annotation
+evaluation. At runtime pass a supported date, string or numeric value
+to the actual date API.
+
+See the [type-checking guide from the release source](https://github.com/AresJef/rsTimes/blob/v1.1.1/docs/type-checking.md)
 for the pinned analyzer installation and full project gate.

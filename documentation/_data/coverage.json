@@ -1,6 +1,6 @@
 {
   "schema": 5,
-  "target_status": "bound_rsTimes_1.1.0",
+  "target_status": "bound_rsTimes_1.1.1",
   "public_entries": 1387,
   "aliases": {
     "rstimes.delta.Delta": "rstimes.Delta",
@@ -416,10 +416,13 @@
       },
       "examples": [
         "expr-timezone-operation-roles",
-        "expr-timezone-errors-and-local-default"
+        "expr-timezone-errors-and-local-default",
+        "reader-expr-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -441,6 +444,7 @@
       "scenarios": [
         "actual-local-default",
         "attachment",
+        "collect",
         "conversion",
         "deferred-error",
         "explicit-target",
@@ -448,11 +452,13 @@
         "metadata",
         "naive-base",
         "ns-tail",
+        "reader-example",
         "remove-zone",
         "schema",
         "static-error",
         "subprocess",
         "switch",
+        "timezone-choices",
         "wrong-role"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -488,7 +494,8 @@
       },
       "examples": [
         "expr-rounding-snap-fsp",
-        "expr-round-signed-ticks"
+        "expr-round-signed-ticks",
+        "reader-expr-second-grid"
       ],
       "profiles": [
         "full",
@@ -518,6 +525,8 @@
         "nanoseconds",
         "null",
         "positive-fixed-grid",
+        "reader-example",
+        "second-grid",
         "select",
         "signed-date-rounding",
         "signed-rounding",
@@ -560,10 +569,13 @@
         }
       },
       "examples": [
-        "expr-input-combine-time"
+        "expr-input-combine-time",
+        "reader-expr-combine-clock"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -585,8 +597,11 @@
       "scenarios": [
         "Python-time",
         "Time-role",
+        "collect",
+        "combine-clock",
         "execution-error",
         "null",
+        "reader-example",
         "snapshot",
         "static-unit",
         "vector-clock"
@@ -1462,7 +1477,8 @@
       "examples": [
         "expr-rounding-snap-fsp",
         "expr-round-signed-ticks",
-        "type-check-registered-expr"
+        "type-check-registered-expr",
+        "reader-expr-second-grid"
       ],
       "profiles": [
         "full",
@@ -1493,7 +1509,9 @@
         "nanoseconds",
         "null",
         "positive-fixed-grid",
+        "reader-example",
         "runtime-registration",
+        "second-grid",
         "select",
         "signed-date-rounding",
         "signed-rounding",
@@ -1602,10 +1620,13 @@
         }
       },
       "examples": [
-        "expr-calendar-and-date-factories"
+        "expr-calendar-and-date-factories",
+        "reader-expr-datetime-source-zone"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -1628,9 +1649,12 @@
         "actual-date-schema",
         "all-calendar-factories",
         "clock-vs-instant",
+        "collect",
+        "datetime-source-zone",
         "dtype-error",
         "explicit-factory-zone",
         "null",
+        "reader-example",
         "row-Expr",
         "scalar-aggregate",
         "wide-year"
@@ -1813,10 +1837,13 @@
         }
       },
       "examples": [
-        "expr-input-isoformat"
+        "expr-input-isoformat",
+        "reader-expr-iso-text"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -1837,10 +1864,13 @@
       ],
       "scenarios": [
         "ISO-only",
+        "collect",
         "execution-error",
         "explicit-ISO-timezone",
         "explicit-ISO-unit",
-        "null"
+        "iso-text",
+        "null",
+        "reader-example"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
     },
@@ -1874,10 +1904,13 @@
         }
       },
       "examples": [
-        "expr-numeric-date-factories"
+        "expr-numeric-date-factories",
+        "pldt-expr-frommicroseconds"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -1900,8 +1933,12 @@
         "actual-float-tail",
         "all-numeric-factories",
         "all3units",
+        "collect",
         "missing",
+        "native-receiver",
         "quantity-vs-instant",
+        "schema",
+        "select",
         "static-output-unit",
         "strict-numeric-errors"
       ],
@@ -2010,10 +2047,13 @@
         }
       },
       "examples": [
-        "expr-numeric-date-factories"
+        "expr-numeric-date-factories",
+        "pldt-expr-fromseconds"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -2036,8 +2076,14 @@
         "actual-float-tail",
         "all-numeric-factories",
         "all3units",
+        "collect",
+        "epoch-seconds",
         "missing",
+        "native-Expr",
+        "null",
         "quantity-vs-instant",
+        "schema",
+        "select",
         "static-output-unit",
         "strict-numeric-errors"
       ],
@@ -2073,10 +2119,13 @@
         }
       },
       "examples": [
-        "expr-numeric-date-factories"
+        "expr-numeric-date-factories",
+        "pldt-expr-fromtimestamp"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -2099,8 +2148,12 @@
         "actual-float-tail",
         "all-numeric-factories",
         "all3units",
+        "collect",
         "missing",
+        "native-receiver",
         "quantity-vs-instant",
+        "schema",
+        "select",
         "static-output-unit",
         "strict-numeric-errors"
       ],
@@ -2136,10 +2189,13 @@
         }
       },
       "examples": [
-        "expr-rounding-snap-fsp"
+        "expr-rounding-snap-fsp",
+        "reader-expr-second-grid"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -2160,7 +2216,10 @@
       ],
       "scenarios": [
         "all-fsp",
+        "collect",
         "positive-fixed-grid",
+        "reader-example",
+        "second-grid",
         "signed-rounding",
         "snap-later",
         "storage-preserved",
@@ -2477,10 +2536,13 @@
         }
       },
       "examples": [
-        "expr-period-boundaries"
+        "expr-period-boundaries",
+        "reader-expr-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -2502,9 +2564,12 @@
       "scenarios": [
         "all-periods",
         "all3units",
+        "collect",
         "first-last-day",
         "first-last-time",
+        "month-boundaries",
         "native-Boolean-False-null",
+        "reader-example",
         "wide-boundary-query"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -3008,10 +3073,13 @@
         }
       },
       "examples": [
-        "expr-period-boundaries"
+        "expr-period-boundaries",
+        "reader-expr-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -3033,9 +3101,12 @@
       "scenarios": [
         "all-periods",
         "all3units",
+        "collect",
         "first-last-day",
         "first-last-time",
+        "month-boundaries",
         "native-Boolean-False-null",
+        "reader-example",
         "wide-boundary-query"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -4324,7 +4395,8 @@
       "examples": [
         "expr-rounding-snap-fsp",
         "expr-zone-boundaries-and-errors",
-        "expr-round-signed-ticks"
+        "expr-round-signed-ticks",
+        "reader-expr-second-grid"
       ],
       "profiles": [
         "full",
@@ -4359,7 +4431,9 @@
         "null",
         "positive-fixed-grid",
         "query-vs-transformation-capacity",
+        "reader-example",
         "repeated-hour",
+        "second-grid",
         "select",
         "signed-date-rounding",
         "signed-rounding",
@@ -4467,10 +4541,13 @@
       },
       "examples": [
         "expr-rounding-snap-fsp",
-        "expr-zone-boundaries-and-errors"
+        "expr-zone-boundaries-and-errors",
+        "pldt-expr-snap"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -4492,12 +4569,16 @@
       "scenarios": [
         "DST",
         "all-fsp",
+        "collect",
         "deferred-error",
         "missing-midnight",
         "native-Date-promotion",
+        "native-receiver",
         "positive-fixed-grid",
         "query-vs-transformation-capacity",
         "repeated-hour",
+        "schema",
+        "select",
         "signed-rounding",
         "snap-later",
         "static-error",
@@ -4538,10 +4619,13 @@
       },
       "examples": [
         "expr-text-output-and-locales",
-        "expr-native-serialization"
+        "expr-native-serialization",
+        "pldt-expr-strftime"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -4565,11 +4649,15 @@
         "all-fractional-formats",
         "all-timespecs",
         "captured-rules",
+        "collect",
         "installed-plugin",
         "locale",
         "naive-zone-null",
         "native-Expr",
+        "native-receiver",
         "no-wrapper",
+        "schema",
+        "select",
         "serialization",
         "static-option-error",
         "unit-digits"
@@ -4737,7 +4825,8 @@
       },
       "examples": [
         "expr-concrete-delta-rules",
-        "expr-apply-concrete-delta"
+        "expr-apply-concrete-delta",
+        "reader-expr-subtract-delta"
       ],
       "profiles": [
         "full",
@@ -4770,10 +4859,12 @@
         "metadata",
         "nanoseconds",
         "null",
+        "reader-example",
         "relative-vs-absolute",
         "row-vector",
         "select",
         "snapshot",
+        "subtract-delta",
         "subtraction"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -4943,10 +5034,13 @@
         }
       },
       "examples": [
-        "expr-native-output-types"
+        "expr-native-output-types",
+        "pldt-expr-timestamp"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -4967,13 +5061,17 @@
       ],
       "scenarios": [
         "all-numeric-outputs",
+        "collect",
         "exact-ns",
         "local-Datetime",
         "local-vs-instant",
         "native-Date",
         "native-Time",
         "native-dtypes",
-        "negative-floor"
+        "native-receiver",
+        "negative-floor",
+        "schema",
+        "select"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
     },
@@ -5326,10 +5424,13 @@
         }
       },
       "examples": [
-        "expr-calendar-fields-and-rows"
+        "expr-calendar-fields-and-rows",
+        "reader-expr-month-and-fields"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -5349,10 +5450,13 @@
         "polars-only"
       ],
       "scenarios": [
+        "collect",
         "fitted-fields",
         "fraction-tail",
+        "month-and-fields",
         "no-length-one-broadcast",
         "optional-None",
+        "reader-example",
         "real-zero",
         "row-Expr",
         "scalar-aggregate",
@@ -5472,7 +5576,8 @@
       "examples": [
         "expr-period-boundaries",
         "expr-zone-boundaries-and-errors",
-        "expr-find-exact-month-end"
+        "expr-find-exact-month-end",
+        "reader-expr-month-boundaries"
       ],
       "profiles": [
         "full",
@@ -5508,11 +5613,13 @@
         "first-last-time",
         "fixed-unit",
         "missing-midnight",
+        "month-boundaries",
         "native-Boolean-False-null",
         "native-Date-promotion",
         "null",
         "predicate",
         "query-vs-transformation-capacity",
+        "reader-example",
         "repeated-hour",
         "select",
         "static-error",
@@ -5550,10 +5657,13 @@
         }
       },
       "examples": [
-        "expr-period-boundaries"
+        "expr-period-boundaries",
+        "reader-expr-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -5575,9 +5685,12 @@
       "scenarios": [
         "all-periods",
         "all3units",
+        "collect",
         "first-last-day",
         "first-last-time",
+        "month-boundaries",
         "native-Boolean-False-null",
+        "reader-example",
         "wide-boundary-query"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -5675,10 +5788,13 @@
         }
       },
       "examples": [
-        "expr-period-boundaries"
+        "expr-period-boundaries",
+        "reader-expr-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -5700,9 +5816,12 @@
       "scenarios": [
         "all-periods",
         "all3units",
+        "collect",
         "first-last-day",
         "first-last-time",
+        "month-boundaries",
         "native-Boolean-False-null",
+        "reader-example",
         "wide-boundary-query"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -5864,7 +5983,8 @@
       },
       "examples": [
         "expr-calendar-selectors",
-        "expr-fit-date-in-next-month"
+        "expr-fit-date-in-next-month",
+        "reader-expr-month-and-fields"
       ],
       "profiles": [
         "full",
@@ -5893,9 +6013,11 @@
         "all-selectors",
         "calendar-fit",
         "collect",
+        "month-and-fields",
         "nanoseconds",
         "null",
         "original-ns-clock",
+        "reader-example",
         "select",
         "timezone",
         "type",
@@ -6501,10 +6623,13 @@
       },
       "examples": [
         "expr-period-boundaries",
-        "expr-zone-boundaries-and-errors"
+        "expr-zone-boundaries-and-errors",
+        "reader-expr-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -6527,13 +6652,16 @@
         "DST",
         "all-periods",
         "all3units",
+        "collect",
         "deferred-error",
         "first-last-day",
         "first-last-time",
         "missing-midnight",
+        "month-boundaries",
         "native-Boolean-False-null",
         "native-Date-promotion",
         "query-vs-transformation-capacity",
+        "reader-example",
         "repeated-hour",
         "static-error",
         "wide-boundary-query"
@@ -7139,10 +7267,13 @@
         }
       },
       "examples": [
-        "expr-native-output-types"
+        "expr-native-output-types",
+        "pldt-expr-tomicroseconds"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -7163,13 +7294,17 @@
       ],
       "scenarios": [
         "all-numeric-outputs",
+        "collect",
         "exact-ns",
         "local-Datetime",
         "local-vs-instant",
         "native-Date",
         "native-Time",
         "native-dtypes",
-        "negative-floor"
+        "native-receiver",
+        "negative-floor",
+        "schema",
+        "select"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
     },
@@ -7267,10 +7402,13 @@
         }
       },
       "examples": [
-        "expr-native-output-types"
+        "expr-native-output-types",
+        "pldt-expr-toseconds"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -7291,13 +7429,17 @@
       ],
       "scenarios": [
         "all-numeric-outputs",
+        "collect",
         "exact-ns",
         "local-Datetime",
         "local-vs-instant",
         "native-Date",
         "native-Time",
         "native-dtypes",
-        "negative-floor"
+        "native-receiver",
+        "negative-floor",
+        "schema",
+        "select"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
     },
@@ -7333,7 +7475,8 @@
       "examples": [
         "expr-timezone-operation-roles",
         "expr-timezone-errors-and-local-default",
-        "expr-localize-then-convert"
+        "expr-localize-then-convert",
+        "reader-expr-timezone-choices"
       ],
       "profiles": [
         "full",
@@ -7372,12 +7515,14 @@
         "naive-base",
         "ns-tail",
         "null",
+        "reader-example",
         "remove-zone",
         "schema",
         "select",
         "static-error",
         "subprocess",
         "switch",
+        "timezone-choices",
         "wrong-role"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -7416,7 +7561,8 @@
         "expr-timezone-ambiguity-policies",
         "expr-timezone-gap-policies",
         "expr-timezone-errors-and-local-default",
-        "expr-localize-then-convert"
+        "expr-localize-then-convert",
+        "reader-expr-timezone-choices"
       ],
       "profiles": [
         "full",
@@ -7466,6 +7612,7 @@
         "ns-tail",
         "null",
         "original-order",
+        "reader-example",
         "remove-zone",
         "same-DST",
         "schema",
@@ -7476,6 +7623,7 @@
         "subprocess",
         "switch",
         "timedelta",
+        "timezone-choices",
         "wrong-role"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -7511,10 +7659,13 @@
       },
       "examples": [
         "expr-timezone-operation-roles",
-        "expr-timezone-errors-and-local-default"
+        "expr-timezone-errors-and-local-default",
+        "reader-expr-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -7536,6 +7687,7 @@
       "scenarios": [
         "actual-local-default",
         "attachment",
+        "collect",
         "conversion",
         "deferred-error",
         "explicit-target",
@@ -7543,11 +7695,13 @@
         "metadata",
         "naive-base",
         "ns-tail",
+        "reader-example",
         "remove-zone",
         "schema",
         "static-error",
         "subprocess",
         "switch",
+        "timezone-choices",
         "wrong-role"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -8166,10 +8320,13 @@
       },
       "examples": [
         "pldt-calendar-row-arguments",
-        "pldt-calendar-relative-components"
+        "pldt-calendar-relative-components",
+        "pldt-series-add"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -8192,9 +8349,11 @@
         "all11components",
         "all4arithmetic-directions",
         "calendar-vs-elapsed",
+        "eager",
         "exact-final-precision",
         "exact-length",
         "native-null-optional",
+        "native-receiver",
         "no-length-one-broadcast",
         "null-row-validation",
         "required-count-error",
@@ -8389,10 +8548,13 @@
         }
       },
       "examples": [
-        "pldt-zone-operation-roles"
+        "pldt-zone-operation-roles",
+        "reader-series-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -8416,12 +8578,15 @@
         "attachment",
         "base-zone",
         "conversion",
+        "eager",
         "eager-Pldt",
         "fractional-offset-error",
         "naive",
         "no-zone",
+        "reader-example",
         "strict-bool",
-        "switch"
+        "switch",
+        "timezone-choices"
       ]
     },
     {
@@ -8454,10 +8619,13 @@
         }
       },
       "examples": [
-        "pldt-rounding-snap-fraction"
+        "pldt-rounding-snap-fraction",
+        "reader-series-second-grid"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -8478,11 +8646,14 @@
       ],
       "scenarios": [
         "all-fsp",
+        "eager",
         "fixed-grid",
         "namespace-rounding",
         "negative",
         "positive-grid",
         "precision-error",
+        "reader-example",
+        "second-grid",
         "snap-vs-round",
         "ties-even",
         "timedelta",
@@ -8519,10 +8690,13 @@
         }
       },
       "examples": [
-        "pldt-text-and-combine-factories"
+        "pldt-text-and-combine-factories",
+        "reader-series-combine-clock"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -8546,10 +8720,13 @@
         "ISO",
         "Time-ns",
         "clock-role",
+        "combine-clock",
         "date-role",
+        "eager",
         "invalid-text",
         "length-error",
         "missing",
+        "reader-example",
         "size-zero-zone",
         "strptime",
         "target-unit"
@@ -8716,10 +8893,13 @@
       },
       "examples": [
         "pldt-python-object-output",
-        "pldt-export-python-datetime"
+        "pldt-export-python-datetime",
+        "pldt-series-datetime"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -8742,11 +8922,13 @@
         "None",
         "Pydt",
         "broad-clock",
+        "eager",
         "eager-object-export",
         "fold",
         "microsecond-truncation",
         "nanoseconds",
         "native-ns",
+        "native-receiver",
         "native-time",
         "ndarray",
         "no-Expr-exit",
@@ -9494,10 +9676,13 @@
         }
       },
       "examples": [
-        "pldt-rounding-snap-fraction"
+        "pldt-rounding-snap-fraction",
+        "reader-series-second-grid"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -9518,11 +9703,14 @@
       ],
       "scenarios": [
         "all-fsp",
+        "eager",
         "fixed-grid",
         "namespace-rounding",
         "negative",
         "positive-grid",
         "precision-error",
+        "reader-example",
+        "second-grid",
         "snap-vs-round",
         "ties-even",
         "timedelta",
@@ -9623,10 +9811,13 @@
         }
       },
       "examples": [
-        "pldt-date-source-factories"
+        "pldt-date-source-factories",
+        "reader-series-datetime-source-zone"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -9649,10 +9840,13 @@
         "NumPy-date-role",
         "actual-date-role",
         "actual-datetime-role",
+        "datetime-source-zone",
+        "eager",
         "empty-zone",
         "metadata",
         "missing",
         "multiplier",
+        "reader-example",
         "target-zone",
         "wrong-source-error"
       ]
@@ -9823,10 +10017,13 @@
         }
       },
       "examples": [
-        "pldt-text-and-combine-factories"
+        "pldt-text-and-combine-factories",
+        "reader-series-iso-text"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -9851,9 +10048,12 @@
         "Time-ns",
         "clock-role",
         "date-role",
+        "eager",
         "invalid-text",
+        "iso-text",
         "length-error",
         "missing",
+        "reader-example",
         "size-zero-zone",
         "strptime",
         "target-unit"
@@ -9889,10 +10089,13 @@
         }
       },
       "examples": [
-        "pldt-numeric-factories"
+        "pldt-numeric-factories",
+        "pldt-series-frommicroseconds"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -9915,8 +10118,10 @@
         "None",
         "all4numeric-factories",
         "collection",
+        "eager",
         "fraction",
         "integer-only",
+        "native-receiver",
         "no-length-one-broadcast",
         "precision-error",
         "scalar-size",
@@ -10022,10 +10227,13 @@
         }
       },
       "examples": [
-        "pldt-numeric-factories"
+        "pldt-numeric-factories",
+        "pldt-series-fromseconds"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -10048,13 +10256,18 @@
         "None",
         "all4numeric-factories",
         "collection",
+        "epoch-seconds",
         "fraction",
         "integer-only",
+        "native-Series",
         "no-length-one-broadcast",
+        "null",
+        "physical-ticks",
         "precision-error",
         "scalar-size",
         "shape-error",
-        "strict-bool"
+        "strict-bool",
+        "unit-and-name"
       ]
     },
     {
@@ -10087,10 +10300,13 @@
         }
       },
       "examples": [
-        "pldt-numeric-factories"
+        "pldt-numeric-factories",
+        "pldt-series-fromtimestamp"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -10113,8 +10329,10 @@
         "None",
         "all4numeric-factories",
         "collection",
+        "eager",
         "fraction",
         "integer-only",
+        "native-receiver",
         "no-length-one-broadcast",
         "precision-error",
         "scalar-size",
@@ -10152,10 +10370,13 @@
         }
       },
       "examples": [
-        "pldt-rounding-snap-fraction"
+        "pldt-rounding-snap-fraction",
+        "reader-series-second-grid"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -10176,11 +10397,14 @@
       ],
       "scenarios": [
         "all-fsp",
+        "eager",
         "fixed-grid",
         "namespace-rounding",
         "negative",
         "positive-grid",
         "precision-error",
+        "reader-example",
+        "second-grid",
         "snap-vs-round",
         "ties-even",
         "timedelta",
@@ -10469,10 +10693,13 @@
         }
       },
       "examples": [
-        "pldt-calendar-period-boundaries"
+        "pldt-calendar-period-boundaries",
+        "reader-series-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -10497,10 +10724,13 @@
         "all-periods",
         "all3units",
         "both-native-query-owners",
+        "eager",
         "first-last-day",
         "first-last-time",
         "metadata",
-        "named-period"
+        "month-boundaries",
+        "named-period",
+        "reader-example"
       ]
     },
     {
@@ -11042,10 +11272,13 @@
         }
       },
       "examples": [
-        "pldt-calendar-period-boundaries"
+        "pldt-calendar-period-boundaries",
+        "reader-series-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -11070,10 +11303,13 @@
         "all-periods",
         "all3units",
         "both-native-query-owners",
+        "eager",
         "first-last-day",
         "first-last-time",
         "metadata",
-        "named-period"
+        "month-boundaries",
+        "named-period",
+        "reader-example"
       ]
     },
     {
@@ -11296,10 +11532,13 @@
       },
       "examples": [
         "pldt-iso-struct-query",
-        "pldt-extract-iso-week-struct"
+        "pldt-extract-iso-week-struct",
+        "pldt-series-isocalendar"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -11322,7 +11561,9 @@
         "ISO-calendar",
         "Struct",
         "capacity-error",
+        "eager",
         "fixed-child-schema",
+        "native-receiver",
         "null",
         "outer-null",
         "signed-ISO-year",
@@ -12327,10 +12568,13 @@
       },
       "examples": [
         "pldt-rounding-snap-fraction",
-        "pldt-round-ties-even"
+        "pldt-round-ties-even",
+        "reader-series-second-grid"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -12351,6 +12595,7 @@
       ],
       "scenarios": [
         "all-fsp",
+        "eager",
         "fixed-grid",
         "half-even",
         "namespace-rounding",
@@ -12359,6 +12604,8 @@
         "null",
         "positive-grid",
         "precision-error",
+        "reader-example",
+        "second-grid",
         "signed-grid",
         "snap-vs-round",
         "ties-even",
@@ -12458,10 +12705,13 @@
         }
       },
       "examples": [
-        "pldt-rounding-snap-fraction"
+        "pldt-rounding-snap-fraction",
+        "pldt-series-snap"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -12482,8 +12732,10 @@
       ],
       "scenarios": [
         "all-fsp",
+        "eager",
         "fixed-grid",
         "namespace-rounding",
+        "native-receiver",
         "negative",
         "positive-grid",
         "precision-error",
@@ -12524,10 +12776,13 @@
       },
       "examples": [
         "pldt-text-output",
-        "pldt-format-exact-fraction"
+        "pldt-format-exact-fraction",
+        "pldt-series-strftime"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -12549,10 +12804,12 @@
       "scenarios": [
         "Unicode-separator",
         "all-timespec-aliases",
+        "eager",
         "empty-fraction",
         "escaped-format",
         "locale-error",
         "nanoseconds",
+        "native-receiver",
         "ns-formatting",
         "null",
         "strict-types",
@@ -12589,10 +12846,13 @@
         }
       },
       "examples": [
-        "pldt-text-and-combine-factories"
+        "pldt-text-and-combine-factories",
+        "pldt-series-strptime"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -12617,9 +12877,11 @@
         "Time-ns",
         "clock-role",
         "date-role",
+        "eager",
         "invalid-text",
         "length-error",
         "missing",
+        "native-receiver",
         "size-zero-zone",
         "strptime",
         "target-unit"
@@ -12718,10 +12980,13 @@
       },
       "examples": [
         "pldt-delta-field-arithmetic",
-        "pldt-series-delta-precision"
+        "pldt-series-delta-precision",
+        "reader-series-subtract-delta"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -12745,6 +13010,7 @@
         "all-Delta-fields",
         "all-arithmetic-directions",
         "capacity",
+        "eager",
         "fixed-unit",
         "generator",
         "missing-parameter-error",
@@ -12752,9 +13018,11 @@
         "null",
         "object-array",
         "precision-error",
+        "reader-example",
         "row-Delta-vector",
         "scalar",
-        "series-namespace"
+        "series-namespace",
+        "subtract-delta"
       ]
     },
     {
@@ -12913,10 +13181,13 @@
         }
       },
       "examples": [
-        "pldt-native-output-roles"
+        "pldt-native-output-roles",
+        "pldt-series-timestamp"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -12939,8 +13210,10 @@
         "actual-native-Series",
         "all-return-dtypes",
         "capacity-error",
+        "eager",
         "local-vs-instant",
         "locale",
+        "native-receiver",
         "negative-floor",
         "null",
         "strict-bool",
@@ -13368,10 +13641,13 @@
         }
       },
       "examples": [
-        "pldt-calendar-field-replacement"
+        "pldt-calendar-field-replacement",
+        "reader-series-month-and-fields"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -13392,10 +13668,13 @@
       ],
       "scenarios": [
         "capacity",
+        "eager",
         "fitted-fields",
         "microsecond-tail",
+        "month-and-fields",
         "ns-tail",
         "optional-None",
+        "reader-example",
         "real-zero",
         "strict-replace",
         "target-zone",
@@ -13497,10 +13776,13 @@
       },
       "examples": [
         "pldt-calendar-period-boundaries",
-        "pldt-exact-month-boundary"
+        "pldt-exact-month-boundary",
+        "reader-series-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -13527,12 +13809,15 @@
         "both-native-query-owners",
         "boundary-query",
         "calendar-month",
+        "eager",
         "first-last-day",
         "first-last-time",
         "fixed-unit",
         "metadata",
+        "month-boundaries",
         "named-period",
-        "null"
+        "null",
+        "reader-example"
       ]
     },
     {
@@ -13565,10 +13850,13 @@
         }
       },
       "examples": [
-        "pldt-calendar-period-boundaries"
+        "pldt-calendar-period-boundaries",
+        "reader-series-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -13593,10 +13881,13 @@
         "all-periods",
         "all3units",
         "both-native-query-owners",
+        "eager",
         "first-last-day",
         "first-last-time",
         "metadata",
-        "named-period"
+        "month-boundaries",
+        "named-period",
+        "reader-example"
       ]
     },
     {
@@ -13692,10 +13983,13 @@
         }
       },
       "examples": [
-        "pldt-calendar-period-boundaries"
+        "pldt-calendar-period-boundaries",
+        "reader-series-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -13720,10 +14014,13 @@
         "all-periods",
         "all3units",
         "both-native-query-owners",
+        "eager",
         "first-last-day",
         "first-last-time",
         "metadata",
-        "named-period"
+        "month-boundaries",
+        "named-period",
+        "reader-example"
       ]
     },
     {
@@ -13883,10 +14180,13 @@
       },
       "examples": [
         "pldt-calendar-selectors",
-        "pldt-fit-next-month-end"
+        "pldt-fit-next-month-end",
+        "reader-series-month-and-fields"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -13910,10 +14210,13 @@
         "both-eager-owners",
         "calendar-fit",
         "date-fit",
+        "eager",
+        "month-and-fields",
         "name",
         "ns",
         "null",
         "original-clock",
+        "reader-example",
         "series-namespace",
         "timezone",
         "unit"
@@ -14516,10 +14819,13 @@
         }
       },
       "examples": [
-        "pldt-calendar-period-boundaries"
+        "pldt-calendar-period-boundaries",
+        "reader-series-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -14544,10 +14850,13 @@
         "all-periods",
         "all3units",
         "both-native-query-owners",
+        "eager",
         "first-last-day",
         "first-last-time",
         "metadata",
-        "named-period"
+        "month-boundaries",
+        "named-period",
+        "reader-example"
       ]
     },
     {
@@ -15150,10 +15459,13 @@
       },
       "examples": [
         "pldt-native-output-roles",
-        "pldt-export-utc-coordinate"
+        "pldt-export-utc-coordinate",
+        "pldt-series-tomicroseconds"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -15176,8 +15488,10 @@
         "actual-native-Series",
         "all-return-dtypes",
         "capacity-error",
+        "eager",
         "local-vs-instant",
         "locale",
+        "native-receiver",
         "negative-floor",
         "null",
         "numeric-coordinate",
@@ -15283,10 +15597,13 @@
         }
       },
       "examples": [
-        "pldt-native-output-roles"
+        "pldt-native-output-roles",
+        "pldt-series-toseconds"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -15309,8 +15626,10 @@
         "actual-native-Series",
         "all-return-dtypes",
         "capacity-error",
+        "eager",
         "local-vs-instant",
         "locale",
+        "native-receiver",
         "negative-floor",
         "null",
         "strict-bool",
@@ -15411,10 +15730,13 @@
         }
       },
       "examples": [
-        "pldt-zone-operation-roles"
+        "pldt-zone-operation-roles",
+        "reader-series-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -15438,12 +15760,15 @@
         "attachment",
         "base-zone",
         "conversion",
+        "eager",
         "eager-Pldt",
         "fractional-offset-error",
         "naive",
         "no-zone",
+        "reader-example",
         "strict-bool",
-        "switch"
+        "switch",
+        "timezone-choices"
       ]
     },
     {
@@ -15477,10 +15802,13 @@
       },
       "examples": [
         "pldt-zone-operation-roles",
-        "pldt-attach-and-convert-zone"
+        "pldt-attach-and-convert-zone",
+        "reader-series-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -15504,14 +15832,17 @@
         "attachment",
         "base-zone",
         "conversion",
+        "eager",
         "eager-Pldt",
         "fractional-offset-error",
         "naive",
         "no-zone",
         "null",
+        "reader-example",
         "strict-bool",
         "switch",
         "timezone-attach",
+        "timezone-choices",
         "timezone-convert",
         "wall-clock"
       ]
@@ -15546,10 +15877,13 @@
         }
       },
       "examples": [
-        "pldt-zone-operation-roles"
+        "pldt-zone-operation-roles",
+        "reader-series-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -15573,12 +15907,15 @@
         "attachment",
         "base-zone",
         "conversion",
+        "eager",
         "eager-Pldt",
         "fractional-offset-error",
         "naive",
         "no-zone",
+        "reader-example",
         "strict-bool",
-        "switch"
+        "switch",
+        "timezone-choices"
       ]
     },
     {
@@ -27459,10 +27796,13 @@
       },
       "examples": [
         "pddt-zone-operation-roles",
-        "pddt-zone-metadata"
+        "pddt-zone-metadata",
+        "reader-pddt-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -27475,14 +27815,17 @@
         "available-set",
         "aware",
         "base-zone",
+        "eager",
         "explicit-local-zone",
         "missing-query",
         "mixed-zone-error",
         "naive",
         "naive-output",
         "process-local",
+        "reader-example",
         "strict-bool",
         "timestamp-local-role",
+        "timezone-choices",
         "zone-identity"
       ],
       "dependency_profiles_available": [
@@ -27581,10 +27924,13 @@
         }
       },
       "examples": [
-        "pddt-rounding-grids-and-snap"
+        "pddt-rounding-grids-and-snap",
+        "reader-pddt-second-grid"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -27593,13 +27939,16 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "all-fsp-precisions",
+        "eager",
         "fixed-offset-grid",
         "integer-role",
         "invalid-grid",
         "multiple-frequency",
         "named-period",
         "negative",
+        "reader-example",
         "round-vs-snap",
+        "second-grid",
         "ties-even"
       ],
       "dependency_profiles_available": [
@@ -27644,10 +27993,13 @@
       },
       "examples": [
         "pddt-text-and-combine-factories",
-        "pddt-polars-native-exchange"
+        "pddt-polars-native-exchange",
+        "reader-pddt-combine-clock"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -27662,13 +28014,16 @@
         "Polars-duration",
         "Polars-time",
         "clock-source",
+        "combine-clock",
         "complete-format-error",
         "date-source",
+        "eager",
         "length-error",
         "missing",
         "native-ns",
         "null",
         "precision",
+        "reader-example",
         "size-zero-zone",
         "strptime",
         "timezone",
@@ -29698,10 +30053,13 @@
         }
       },
       "examples": [
-        "pddt-rounding-grids-and-snap"
+        "pddt-rounding-grids-and-snap",
+        "reader-pddt-second-grid"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -29710,13 +30068,16 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "all-fsp-precisions",
+        "eager",
         "fixed-offset-grid",
         "integer-role",
         "invalid-grid",
         "multiple-frequency",
         "named-period",
         "negative",
+        "reader-example",
         "round-vs-snap",
+        "second-grid",
         "ties-even"
       ],
       "dependency_profiles_available": [
@@ -29988,10 +30349,13 @@
       },
       "examples": [
         "pddt-date-source-factories",
-        "pddt-polars-native-exchange"
+        "pddt-polars-native-exchange",
+        "reader-pddt-datetime-source-zone"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -30004,11 +30368,14 @@
         "Polars-duration",
         "Polars-time",
         "actual-source-type",
+        "datetime-source-zone",
+        "eager",
         "missing",
         "multiplier",
         "native-ns",
         "native-unit",
         "null",
+        "reader-example",
         "size-zero-zone",
         "timezone-attach",
         "timezone-reinterpret",
@@ -30058,10 +30425,13 @@
       },
       "examples": [
         "pddt-date-source-factories",
-        "pddt-broadcast-typed-nat"
+        "pddt-broadcast-typed-nat",
+        "reader-pddt-numpy-date-input"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas-current",
         "pandas2",
         "windows-full"
@@ -30071,9 +30441,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "actual-source-type",
+        "eager",
         "missing",
         "multiplier",
         "native-unit",
+        "numpy-date-input",
+        "reader-example",
         "scalar-broadcast",
         "size-zero-zone",
         "timezone-attach",
@@ -30250,10 +30623,13 @@
         }
       },
       "examples": [
-        "pddt-text-and-combine-factories"
+        "pddt-text-and-combine-factories",
+        "reader-pddt-iso-text"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -30266,9 +30642,12 @@
         "clock-source",
         "complete-format-error",
         "date-source",
+        "eager",
+        "iso-text",
         "length-error",
         "missing",
         "precision",
+        "reader-example",
         "size-zero-zone",
         "strptime",
         "timezone"
@@ -30314,10 +30693,13 @@
         }
       },
       "examples": [
-        "pddt-factory-sizes-and-numbers"
+        "pddt-factory-sizes-and-numbers",
+        "reader-pddt-three-epoch-inputs"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -30328,13 +30710,16 @@
         "all-numeric-factories",
         "bool-error",
         "collection",
+        "eager",
         "fraction",
         "integer-only",
         "lossless-error",
         "missing",
+        "reader-example",
         "scalar-size",
         "size-zero",
-        "text-error"
+        "text-error",
+        "three-epoch-inputs"
       ],
       "dependency_profiles_available": [
         "full",
@@ -30445,10 +30830,13 @@
         }
       },
       "examples": [
-        "pddt-factory-sizes-and-numbers"
+        "pddt-factory-sizes-and-numbers",
+        "reader-pddt-three-epoch-inputs"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -30459,13 +30847,16 @@
         "all-numeric-factories",
         "bool-error",
         "collection",
+        "eager",
         "fraction",
         "integer-only",
         "lossless-error",
         "missing",
+        "reader-example",
         "scalar-size",
         "size-zero",
-        "text-error"
+        "text-error",
+        "three-epoch-inputs"
       ],
       "dependency_profiles_available": [
         "full",
@@ -30509,10 +30900,13 @@
       },
       "examples": [
         "pddt-factory-sizes-and-numbers",
-        "pddt-zone-metadata"
+        "pddt-zone-metadata",
+        "reader-pddt-three-epoch-inputs"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -30524,6 +30918,7 @@
         "available-set",
         "bool-error",
         "collection",
+        "eager",
         "explicit-local-zone",
         "fraction",
         "integer-only",
@@ -30531,9 +30926,11 @@
         "missing",
         "missing-query",
         "process-local",
+        "reader-example",
         "scalar-size",
         "size-zero",
         "text-error",
+        "three-epoch-inputs",
         "timestamp-local-role",
         "zone-identity"
       ],
@@ -30578,10 +30975,13 @@
         }
       },
       "examples": [
-        "pddt-rounding-grids-and-snap"
+        "pddt-rounding-grids-and-snap",
+        "reader-pddt-second-grid"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -30590,13 +30990,16 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "all-fsp-precisions",
+        "eager",
         "fixed-offset-grid",
         "integer-role",
         "invalid-grid",
         "multiple-frequency",
         "named-period",
         "negative",
+        "reader-example",
         "round-vs-snap",
+        "second-grid",
         "ties-even"
       ],
       "dependency_profiles_available": [
@@ -32031,10 +32434,13 @@
         }
       },
       "examples": [
-        "pddt-first-last-boundaries"
+        "pddt-first-last-boundaries",
+        "reader-pddt-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -32046,9 +32452,12 @@
         "True-False-query",
         "all-clock-units",
         "all-periods",
+        "eager",
         "metadata",
         "missing-midnight",
+        "month-boundaries",
         "named-period",
+        "reader-example",
         "return-type"
       ],
       "dependency_profiles_available": [
@@ -33206,10 +33615,13 @@
         }
       },
       "examples": [
-        "pddt-first-last-boundaries"
+        "pddt-first-last-boundaries",
+        "reader-pddt-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -33221,9 +33633,12 @@
         "True-False-query",
         "all-clock-units",
         "all-periods",
+        "eager",
         "metadata",
         "missing-midnight",
+        "month-boundaries",
         "named-period",
+        "reader-example",
         "return-type"
       ],
       "dependency_profiles_available": [
@@ -35461,10 +35876,13 @@
         }
       },
       "examples": [
-        "pddt-parse-options"
+        "pddt-parse-options",
+        "reader-pddt-month-and-fields"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -35477,7 +35895,10 @@
         "boolean-options",
         "cfg-type-error",
         "default-date-only",
+        "eager",
+        "month-and-fields",
         "parser-options",
+        "reader-example",
         "strict-error",
         "unit-error",
         "unused-default"
@@ -36126,10 +36547,13 @@
         }
       },
       "examples": [
-        "pddt-rounding-grids-and-snap"
+        "pddt-rounding-grids-and-snap",
+        "reader-pddt-second-grid"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -36138,13 +36562,16 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "all-fsp-precisions",
+        "eager",
         "fixed-offset-grid",
         "integer-role",
         "invalid-grid",
         "multiple-frequency",
         "named-period",
         "negative",
+        "reader-example",
         "round-vs-snap",
+        "second-grid",
         "ties-even"
       ],
       "dependency_profiles_available": [
@@ -36628,10 +37055,13 @@
         }
       },
       "examples": [
-        "pddt-rounding-grids-and-snap"
+        "pddt-rounding-grids-and-snap",
+        "reader-pddt-snap-tie"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -36640,13 +37070,16 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "all-fsp-precisions",
+        "eager",
         "fixed-offset-grid",
         "integer-role",
         "invalid-grid",
         "multiple-frequency",
         "named-period",
         "negative",
+        "reader-example",
         "round-vs-snap",
+        "snap-tie",
         "ties-even"
       ],
       "dependency_profiles_available": [
@@ -37845,10 +38278,13 @@
         }
       },
       "examples": [
-        "pddt-field-replacement"
+        "pddt-field-replacement",
+        "reader-pddt-month-and-fields"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -37858,7 +38294,10 @@
       "scenarios": [
         "None",
         "all-field-roles",
+        "eager",
+        "month-and-fields",
         "ns-tail-order",
+        "reader-example",
         "source-unchanged",
         "strict-error",
         "timezone-remove",
@@ -37976,10 +38415,13 @@
         }
       },
       "examples": [
-        "pddt-first-last-boundaries"
+        "pddt-first-last-boundaries",
+        "reader-pddt-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -37991,9 +38433,12 @@
         "True-False-query",
         "all-clock-units",
         "all-periods",
+        "eager",
         "metadata",
         "missing-midnight",
+        "month-boundaries",
         "named-period",
+        "reader-example",
         "return-type"
       ],
       "dependency_profiles_available": [
@@ -38037,10 +38482,13 @@
         }
       },
       "examples": [
-        "pddt-first-last-boundaries"
+        "pddt-first-last-boundaries",
+        "reader-pddt-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -38052,9 +38500,12 @@
         "True-False-query",
         "all-clock-units",
         "all-periods",
+        "eager",
         "metadata",
         "missing-midnight",
+        "month-boundaries",
         "named-period",
+        "reader-example",
         "return-type"
       ],
       "dependency_profiles_available": [
@@ -38324,10 +38775,13 @@
         }
       },
       "examples": [
-        "pddt-first-last-boundaries"
+        "pddt-first-last-boundaries",
+        "reader-pddt-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -38339,9 +38793,12 @@
         "True-False-query",
         "all-clock-units",
         "all-periods",
+        "eager",
         "metadata",
         "missing-midnight",
+        "month-boundaries",
         "named-period",
+        "reader-example",
         "return-type"
       ],
       "dependency_profiles_available": [
@@ -38569,10 +39026,13 @@
         }
       },
       "examples": [
-        "pddt-calendar-selectors"
+        "pddt-calendar-selectors",
+        "reader-pddt-month-and-fields"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -38582,11 +39042,14 @@
       "scenarios": [
         "NaT",
         "all-selectors",
+        "eager",
         "metadata",
+        "month-and-fields",
         "month-end-fit",
         "named-month-weekday",
         "negative",
         "ns-tail",
+        "reader-example",
         "zero"
       ],
       "dependency_profiles_available": [
@@ -39405,10 +39868,13 @@
         }
       },
       "examples": [
-        "pddt-first-last-boundaries"
+        "pddt-first-last-boundaries",
+        "reader-pddt-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -39420,9 +39886,12 @@
         "True-False-query",
         "all-clock-units",
         "all-periods",
+        "eager",
         "metadata",
         "missing-midnight",
+        "month-boundaries",
         "named-period",
+        "reader-example",
         "return-type"
       ],
       "dependency_profiles_available": [
@@ -40500,10 +40969,13 @@
       },
       "examples": [
         "pddt-zone-operation-roles",
-        "pddt-ambiguous-infer-and-known-instants"
+        "pddt-ambiguous-infer-and-known-instants",
+        "reader-pddt-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -40516,12 +40988,15 @@
         "aware",
         "aware-instants-no-relocalization",
         "base-zone",
+        "eager",
         "infer-insufficient-error",
         "infer-success",
         "mixed-zone-error",
         "naive",
         "naive-output",
-        "strict-bool"
+        "reader-example",
+        "strict-bool",
+        "timezone-choices"
       ],
       "dependency_profiles_available": [
         "full",
@@ -40565,10 +41040,13 @@
       },
       "examples": [
         "pddt-zone-operation-roles",
-        "pddt-move-missing-clock-forward"
+        "pddt-move-missing-clock-forward",
+        "reader-pddt-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas-current",
         "pandas2",
         "windows-full"
@@ -40581,12 +41059,15 @@
         "all-zone-operations",
         "aware",
         "base-zone",
+        "eager",
         "mixed-zone-error",
         "naive",
         "naive-output",
         "nearest-valid-boundary",
         "nonexistent-clock",
-        "strict-bool"
+        "reader-example",
+        "strict-bool",
+        "timezone-choices"
       ],
       "dependency_profiles_available": [
         "full",
@@ -40629,10 +41110,13 @@
         }
       },
       "examples": [
-        "pddt-zone-operation-roles"
+        "pddt-zone-operation-roles",
+        "reader-pddt-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas2",
         "windows-full"
       ],
@@ -40644,10 +41128,13 @@
         "all-zone-operations",
         "aware",
         "base-zone",
+        "eager",
         "mixed-zone-error",
         "naive",
         "naive-output",
-        "strict-bool"
+        "reader-example",
+        "strict-bool",
+        "timezone-choices"
       ],
       "dependency_profiles_available": [
         "full",
@@ -41734,7 +42221,8 @@
         "pldt-arrow-valid-endpoint-roundtrip",
         "compat-reject-custom-date-target",
         "exchange-roundtrip-full-date-tick",
-        "pldt-constructor-source-ownership"
+        "pldt-constructor-source-ownership",
+        "pldt-wide-tick-error"
       ],
       "profiles": [
         "core",
@@ -41804,6 +42292,7 @@
         "explicit-loss",
         "explicit-name",
         "external-source",
+        "first-invalid-row",
         "full-int64-domain",
         "full-position-mask",
         "full-row-mask",
@@ -41882,6 +42371,7 @@
         "us",
         "utc",
         "valid-MIN",
+        "wide-integer",
         "wrong-source-role",
         "zone-metadata"
       ],
@@ -42224,10 +42714,13 @@
         }
       },
       "examples": [
-        "pldt-numpy-temporal-ufuncs"
+        "pldt-numpy-temporal-ufuncs",
+        "reader-pldt-numpy-temporal-arithmetic"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -42249,9 +42742,12 @@
       "scenarios": [
         "actual-TypeError",
         "all-approved-directions",
+        "eager",
         "native-fallback",
         "np-add",
         "np-subtract",
+        "numpy-temporal-arithmetic",
+        "reader-example",
         "temporal-array"
       ]
     },
@@ -46564,10 +47060,13 @@
         }
       },
       "examples": [
-        "pldt-zone-operation-roles"
+        "pldt-zone-operation-roles",
+        "reader-pldt-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -46591,12 +47090,15 @@
         "attachment",
         "base-zone",
         "conversion",
+        "eager",
         "eager-Pldt",
         "fractional-offset-error",
         "naive",
         "no-zone",
+        "reader-example",
         "strict-bool",
-        "switch"
+        "switch",
+        "timezone-choices"
       ]
     },
     {
@@ -48908,7 +49410,8 @@
         "pldt-range-dst-and-validation",
         "pldt-local-daily-schedule",
         "pldt-subdivide-nanos-range",
-        "pldt-custom-holiday-range"
+        "pldt-custom-holiday-range",
+        "pldt-semi-month-range"
       ],
       "profiles": [
         "full",
@@ -48951,6 +49454,7 @@
         "frequency-error",
         "holiday",
         "integer-range",
+        "invalid-anchor",
         "invalid-endpoints",
         "literal-series",
         "mask-before-slice",
@@ -48963,6 +49467,7 @@
         "periods",
         "precision-error",
         "select",
+        "semi-month",
         "shape-error",
         "strict-bool",
         "timedelta",
@@ -54737,10 +55242,13 @@
       "examples": [
         "pldt-date-source-factories",
         "pldt-arrow-factory-roles",
-        "pldt-arrow-date-role"
+        "pldt-arrow-date-role",
+        "reader-pldt-datetime-source-zone"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas-current",
         "pandas2",
         "polars-current",
@@ -54769,11 +55277,14 @@
         "clock-ns",
         "clock-replacement",
         "date-only",
+        "datetime-source-zone",
+        "eager",
         "empty-zone",
         "instant-conversion",
         "metadata",
         "missing",
         "multiplier",
+        "reader-example",
         "target-zone",
         "wrong-source-error",
         "wrong-source-role"
@@ -54810,10 +55321,13 @@
       },
       "examples": [
         "pldt-date-source-factories",
-        "pldt-arrow-input-protocols"
+        "pldt-arrow-input-protocols",
+        "reader-pldt-numpy-date-input"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas-current",
         "pandas2",
         "polars-current",
@@ -54841,13 +55355,16 @@
         "capacity",
         "captured-owner",
         "dtype-integrity",
+        "eager",
         "empty-zone",
         "metadata",
         "missing",
         "multiplier",
+        "numpy-date-input",
         "once-exporter",
         "original-error",
         "precision",
+        "reader-example",
         "target-zone",
         "wrong-source-error",
         "wrong-source-role"
@@ -55019,10 +55536,13 @@
         }
       },
       "examples": [
-        "pldt-text-and-combine-factories"
+        "pldt-text-and-combine-factories",
+        "reader-pldt-iso-text"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -55047,9 +55567,12 @@
         "Time-ns",
         "clock-role",
         "date-role",
+        "eager",
         "invalid-text",
+        "iso-text",
         "length-error",
         "missing",
+        "reader-example",
         "size-zero-zone",
         "strptime",
         "target-unit"
@@ -55085,10 +55608,13 @@
         }
       },
       "examples": [
-        "pldt-numeric-factories"
+        "pldt-numeric-factories",
+        "reader-pldt-three-epoch-inputs"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -55111,13 +55637,16 @@
         "None",
         "all4numeric-factories",
         "collection",
+        "eager",
         "fraction",
         "integer-only",
         "no-length-one-broadcast",
         "precision-error",
+        "reader-example",
         "scalar-size",
         "shape-error",
-        "strict-bool"
+        "strict-bool",
+        "three-epoch-inputs"
       ]
     },
     {
@@ -55226,10 +55755,13 @@
       },
       "examples": [
         "pldt-numeric-factories",
-        "pldt-attach-or-convert-epoch"
+        "pldt-attach-or-convert-epoch",
+        "reader-pldt-three-epoch-inputs"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -55254,14 +55786,17 @@
         "attach-zone",
         "collection",
         "convert-instant",
+        "eager",
         "epoch-seconds",
         "fraction",
         "integer-only",
         "no-length-one-broadcast",
         "precision-error",
+        "reader-example",
         "scalar-size",
         "shape-error",
-        "strict-bool"
+        "strict-bool",
+        "three-epoch-inputs"
       ]
     },
     {
@@ -55295,10 +55830,13 @@
       },
       "examples": [
         "pldt-numeric-factories",
-        "pldt-attach-or-convert-epoch"
+        "pldt-attach-or-convert-epoch",
+        "reader-pldt-three-epoch-inputs"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -55323,14 +55861,17 @@
         "attach-zone",
         "collection",
         "convert-instant",
+        "eager",
         "epoch-seconds",
         "fraction",
         "integer-only",
         "no-length-one-broadcast",
         "precision-error",
+        "reader-example",
         "scalar-size",
         "shape-error",
-        "strict-bool"
+        "strict-bool",
+        "three-epoch-inputs"
       ]
     },
     {
@@ -55363,10 +55904,13 @@
         }
       },
       "examples": [
-        "pldt-rounding-snap-fraction"
+        "pldt-rounding-snap-fraction",
+        "reader-pldt-second-grid"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -55387,11 +55931,14 @@
       ],
       "scenarios": [
         "all-fsp",
+        "eager",
         "fixed-grid",
         "namespace-rounding",
         "negative",
         "positive-grid",
         "precision-error",
+        "reader-example",
+        "second-grid",
         "snap-vs-round",
         "ties-even",
         "timedelta",
@@ -56770,10 +57317,13 @@
         }
       },
       "examples": [
-        "pldt-calendar-period-boundaries"
+        "pldt-calendar-period-boundaries",
+        "reader-pldt-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -56798,10 +57348,13 @@
         "all-periods",
         "all3units",
         "both-native-query-owners",
+        "eager",
         "first-last-day",
         "first-last-time",
         "metadata",
-        "named-period"
+        "month-boundaries",
+        "named-period",
+        "reader-example"
       ]
     },
     {
@@ -57809,10 +58362,13 @@
       },
       "examples": [
         "pldt-calendar-period-boundaries",
-        "pldt-timezone-period-edges"
+        "pldt-timezone-period-edges",
+        "reader-pldt-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -57839,14 +58395,17 @@
         "all-periods",
         "all3units",
         "both-native-query-owners",
+        "eager",
         "first-last-day",
         "first-last-time",
         "full-int64-query",
         "invalid-period",
         "metadata",
         "missing-midnight",
+        "month-boundaries",
         "named-period",
         "native-Date-promotion",
+        "reader-example",
         "repeated-hour",
         "transformation-overflow",
         "wrong-dtype-error"
@@ -58202,7 +58761,8 @@
         "pldt-parse-event-series",
         "pldt-local-daily-schedule",
         "pldt-fit-next-month-end",
-        "pldt-add-cancelling-fine-amounts"
+        "pldt-add-cancelling-fine-amounts",
+        "pldt-semi-month-range"
       ],
       "profiles": [
         "full",
@@ -58235,6 +58795,7 @@
         "escaped-format",
         "fixed-unit",
         "installation-and-registration",
+        "invalid-anchor",
         "locale-error",
         "native-range",
         "ns",
@@ -58242,6 +58803,7 @@
         "null",
         "ordered-text",
         "precision-cancellation",
+        "semi-month",
         "series-namespace",
         "strict-types"
       ]
@@ -60799,10 +61361,13 @@
       },
       "examples": [
         "pldt-parser-options",
-        "pldt-arrow-timestamp-input"
+        "pldt-arrow-timestamp-input",
+        "reader-pldt-month-and-fields"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "pandas-current",
         "pandas2",
         "polars-current",
@@ -60834,10 +61399,13 @@
         "conditional-default",
         "dayfirst",
         "default-date-only",
+        "eager",
         "empty",
         "full-int64-domain",
+        "month-and-fields",
         "null",
         "raw-Arrow-via-Polars",
+        "reader-example",
         "strict-error",
         "timezone",
         "valid-MIN"
@@ -64917,10 +65485,13 @@
         }
       },
       "examples": [
-        "pldt-text-and-combine-factories"
+        "pldt-text-and-combine-factories",
+        "reader-pldt-formatted-text"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -64945,9 +65516,12 @@
         "Time-ns",
         "clock-role",
         "date-role",
+        "eager",
+        "formatted-text",
         "invalid-text",
         "length-error",
         "missing",
+        "reader-example",
         "size-zero-zone",
         "strptime",
         "target-unit"
@@ -65984,10 +66558,13 @@
         }
       },
       "examples": [
-        "pldt-calendar-field-replacement"
+        "pldt-calendar-field-replacement",
+        "reader-pldt-month-and-fields"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -66008,10 +66585,13 @@
       ],
       "scenarios": [
         "capacity",
+        "eager",
         "fitted-fields",
         "microsecond-tail",
+        "month-and-fields",
         "ns-tail",
         "optional-None",
+        "reader-example",
         "real-zero",
         "strict-replace",
         "target-zone",
@@ -66170,10 +66750,13 @@
       "examples": [
         "pldt-calendar-period-boundaries",
         "pldt-timezone-period-edges",
-        "pldt-exact-month-boundary"
+        "pldt-exact-month-boundary",
+        "reader-pldt-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -66202,6 +66785,7 @@
         "both-native-query-owners",
         "boundary-query",
         "calendar-month",
+        "eager",
         "first-last-day",
         "first-last-time",
         "fixed-unit",
@@ -66209,9 +66793,11 @@
         "invalid-period",
         "metadata",
         "missing-midnight",
+        "month-boundaries",
         "named-period",
         "native-Date-promotion",
         "null",
+        "reader-example",
         "repeated-hour",
         "transformation-overflow",
         "wrong-dtype-error"
@@ -66247,10 +66833,13 @@
         }
       },
       "examples": [
-        "pldt-calendar-period-boundaries"
+        "pldt-calendar-period-boundaries",
+        "reader-pldt-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -66275,10 +66864,13 @@
         "all-periods",
         "all3units",
         "both-native-query-owners",
+        "eager",
         "first-last-day",
         "first-last-time",
         "metadata",
-        "named-period"
+        "month-boundaries",
+        "named-period",
+        "reader-example"
       ]
     },
     {
@@ -66559,10 +67151,13 @@
         }
       },
       "examples": [
-        "pldt-calendar-period-boundaries"
+        "pldt-calendar-period-boundaries",
+        "reader-pldt-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -66587,10 +67182,13 @@
         "all-periods",
         "all3units",
         "both-native-query-owners",
+        "eager",
         "first-last-day",
         "first-last-time",
         "metadata",
-        "named-period"
+        "month-boundaries",
+        "named-period",
+        "reader-example"
       ]
     },
     {
@@ -66806,10 +67404,13 @@
       },
       "examples": [
         "pldt-calendar-selectors",
-        "pldt-fit-next-month-end"
+        "pldt-fit-next-month-end",
+        "reader-pldt-month-and-fields"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -66833,10 +67434,13 @@
         "both-eager-owners",
         "calendar-fit",
         "date-fit",
+        "eager",
+        "month-and-fields",
         "name",
         "ns",
         "null",
         "original-clock",
+        "reader-example",
         "series-namespace",
         "timezone",
         "unit"
@@ -67676,10 +68280,13 @@
       },
       "examples": [
         "pldt-calendar-period-boundaries",
-        "pldt-timezone-period-edges"
+        "pldt-timezone-period-edges",
+        "reader-pldt-month-boundaries"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -67706,14 +68313,17 @@
         "all-periods",
         "all3units",
         "both-native-query-owners",
+        "eager",
         "first-last-day",
         "first-last-time",
         "full-int64-query",
         "invalid-period",
         "metadata",
         "missing-midnight",
+        "month-boundaries",
         "named-period",
         "native-Date-promotion",
+        "reader-example",
         "repeated-hour",
         "transformation-overflow",
         "wrong-dtype-error"
@@ -68889,10 +69499,13 @@
       "examples": [
         "pldt-zone-operation-roles",
         "pldt-attach-and-convert-zone",
-        "pldt-choose-repeated-clock"
+        "pldt-choose-repeated-clock",
+        "reader-pldt-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -68916,6 +69529,7 @@
         "attachment",
         "base-zone",
         "conversion",
+        "eager",
         "eager-Pldt",
         "fractional-offset-error",
         "full-position-mask",
@@ -68923,9 +69537,11 @@
         "naive",
         "no-zone",
         "null",
+        "reader-example",
         "strict-bool",
         "switch",
         "timezone-attach",
+        "timezone-choices",
         "timezone-convert",
         "timezone-repeat",
         "wall-clock"
@@ -68961,10 +69577,13 @@
         }
       },
       "examples": [
-        "pldt-zone-operation-roles"
+        "pldt-zone-operation-roles",
+        "reader-pldt-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -68988,12 +69607,15 @@
         "attachment",
         "base-zone",
         "conversion",
+        "eager",
         "eager-Pldt",
         "fractional-offset-error",
         "naive",
         "no-zone",
+        "reader-example",
         "strict-bool",
-        "switch"
+        "switch",
+        "timezone-choices"
       ]
     },
     {
@@ -69026,10 +69648,13 @@
         }
       },
       "examples": [
-        "pldt-zone-operation-roles"
+        "pldt-zone-operation-roles",
+        "reader-pldt-timezone-choices"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
         "polars-current",
         "polars-only",
         "windows-full"
@@ -69053,12 +69678,15 @@
         "attachment",
         "base-zone",
         "conversion",
+        "eager",
         "eager-Pldt",
         "fractional-offset-error",
         "naive",
         "no-zone",
+        "reader-example",
         "strict-bool",
-        "switch"
+        "switch",
+        "timezone-choices"
       ]
     },
     {
@@ -71712,11 +72340,14 @@
       "examples": [
         "pydt-zone-operations",
         "pydt-process-local-zone",
-        "pydt-external-timezone-boundary"
+        "pydt-external-timezone-boundary",
+        "reader-pydt-timezone-choices"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -71730,14 +72361,17 @@
         "base_tz",
         "builtin-carrier-workaround",
         "convert",
+        "eager",
         "instant-error-demonstration",
         "local-match",
         "local-nonmatch",
         "naive",
         "process-local-zone",
+        "reader-example",
         "real-fold-result",
         "real-subprocess",
         "strict-naive-bool",
+        "timezone-choices",
         "unsupported-state"
       ],
       "dependency_profiles_available": [
@@ -71783,11 +72417,14 @@
         }
       },
       "examples": [
-        "pydt-rounding-and-snap"
+        "pydt-rounding-and-snap",
+        "reader-pydt-second-grid"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -71795,9 +72432,12 @@
       "owner": "rstimes.Pydt",
       "scenarios": [
         "all-frequencies",
+        "eager",
         "invalid-frequency",
         "named-period",
         "negative",
+        "reader-example",
+        "second-grid",
         "snap-later-tie",
         "ties-even"
       ],
@@ -72807,11 +73447,14 @@
         }
       },
       "examples": [
-        "pydt-rounding-and-snap"
+        "pydt-rounding-and-snap",
+        "reader-pydt-second-grid"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -72819,9 +73462,12 @@
       "owner": "rstimes.Pydt",
       "scenarios": [
         "all-frequencies",
+        "eager",
         "invalid-frequency",
         "named-period",
         "negative",
+        "reader-example",
+        "second-grid",
         "snap-later-tie",
         "ties-even"
       ],
@@ -73037,11 +73683,14 @@
         "pydt-source-factories",
         "pydt-parser-option-branches",
         "pydt-factory-subtypes-and-index",
-        "pydt-pandas-precision"
+        "pydt-pandas-precision",
+        "reader-pydt-datetime-source-zone"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -73058,8 +73707,10 @@
         "boolean-option-error",
         "calendar-zone-attach",
         "date-clock-role",
+        "datetime-source-zone",
         "dayfirst",
         "default-date-only",
+        "eager",
         "factory-type-error",
         "float-error",
         "fold",
@@ -73069,6 +73720,7 @@
         "multiplier",
         "ns-tail",
         "pandas-owned-reflected",
+        "reader-example",
         "source-type",
         "strict",
         "subclass",
@@ -73417,11 +74069,14 @@
       "examples": [
         "pydt-numeric-factories",
         "pydt-seconds-protocol",
-        "pydt-factory-subtypes-and-index"
+        "pydt-factory-subtypes-and-index",
+        "reader-pydt-three-epoch-inputs"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -73432,14 +74087,17 @@
         "bool-error",
         "boolean-error",
         "calendar-zone-attach",
+        "eager",
         "float-error",
         "float-protocol",
         "integer-index",
         "negative",
         "optional-numeric-role",
+        "reader-example",
         "return-type",
         "subclass",
         "text-error",
+        "three-epoch-inputs",
         "timezone-attach",
         "timezone-convert",
         "zero"
@@ -73556,11 +74214,14 @@
         "pydt-numeric-factories",
         "pydt-seconds-protocol",
         "pydt-factory-subtypes-and-index",
-        "pydt-clock-seconds-versus-unix-seconds"
+        "pydt-clock-seconds-versus-unix-seconds",
+        "reader-pydt-three-epoch-inputs"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -73571,15 +74232,18 @@
         "bool-error",
         "boolean-error",
         "calendar-zone-attach",
+        "eager",
         "explicit-zone",
         "float-error",
         "float-protocol",
         "integer-index",
         "negative",
         "optional-numeric-role",
+        "reader-example",
         "return-type",
         "subclass",
         "text-error",
+        "three-epoch-inputs",
         "timezone-attach",
         "timezone-convert",
         "utc-seconds",
@@ -73632,11 +74296,14 @@
         "pydt-numeric-factories",
         "pydt-seconds-protocol",
         "pydt-factory-subtypes-and-index",
-        "pydt-clock-seconds-versus-unix-seconds"
+        "pydt-clock-seconds-versus-unix-seconds",
+        "reader-pydt-three-epoch-inputs"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -73647,15 +74314,18 @@
         "bool-error",
         "boolean-error",
         "calendar-zone-attach",
+        "eager",
         "explicit-zone",
         "float-error",
         "float-protocol",
         "integer-index",
         "negative",
         "optional-numeric-role",
+        "reader-example",
         "return-type",
         "subclass",
         "text-error",
+        "three-epoch-inputs",
         "timezone-attach",
         "timezone-convert",
         "utc-seconds",
@@ -73706,11 +74376,14 @@
       },
       "examples": [
         "pydt-fractional-precision",
-        "pydt-truncate-fractional-value"
+        "pydt-truncate-fractional-value",
+        "reader-pydt-second-grid"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -73719,9 +74392,12 @@
       "scenarios": [
         "all-precision-branches",
         "bool-error",
+        "eager",
         "float-error",
         "negative-error",
         "preserved-microsecond-type",
+        "reader-example",
+        "second-grid",
         "truncation",
         "value-truncation"
       ],
@@ -74041,11 +74717,14 @@
       },
       "examples": [
         "pydt-first-last-days",
-        "pydt-boundary-invalid-inputs"
+        "pydt-boundary-invalid-inputs",
+        "reader-pydt-month-boundaries"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -74056,11 +74735,14 @@
         "all-calendar-periods",
         "bool-error",
         "clock-preserved",
+        "eager",
         "empty-name",
         "invalid-name",
+        "month-boundaries",
         "named-month",
         "query-false",
-        "query-true"
+        "query-true",
+        "reader-example"
       ],
       "dependency_profiles_available": [
         "full",
@@ -74599,11 +75281,14 @@
       "examples": [
         "pydt-start-end-boundaries",
         "pydt-missing-midnight",
-        "pydt-boundary-invalid-inputs"
+        "pydt-boundary-invalid-inputs",
+        "reader-pydt-month-boundaries"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -74614,12 +75299,15 @@
         "all-periods",
         "all-units",
         "bool-error",
+        "eager",
         "empty-name",
         "invalid-name",
         "microsecond-end",
         "missing-midnight",
+        "month-boundaries",
         "named-weekday",
         "query-false",
+        "reader-example",
         "region-gap",
         "return-type",
         "same-date",
@@ -75803,11 +76491,14 @@
         "pydt-text-factories",
         "pydt-parser-option-branches",
         "pydt-factory-subtypes-and-index",
-        "pydt-pandas-precision"
+        "pydt-pandas-precision",
+        "reader-pydt-month-and-fields"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -75827,13 +76518,16 @@
         "calendar-zone-attach",
         "dayfirst",
         "default-date-only",
+        "eager",
         "factory-type-error",
         "float-error",
         "fractional-precision",
         "ignoretz",
         "integer-index",
         "integer-seconds",
+        "month-and-fields",
         "pandas-owned-reflected",
+        "reader-example",
         "strict",
         "strptime",
         "subclass",
@@ -76087,11 +76781,14 @@
       },
       "examples": [
         "pydt-rounding-and-snap",
-        "pydt-nearest-second-midpoint"
+        "pydt-nearest-second-midpoint",
+        "reader-pydt-second-grid"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -76099,11 +76796,14 @@
       "owner": "rstimes.Pydt",
       "scenarios": [
         "all-frequencies",
+        "eager",
         "floor-and-ceiling",
         "half-even",
         "invalid-frequency",
         "named-period",
         "negative",
+        "reader-example",
+        "second-grid",
         "snap-later-tie",
         "snap-tie",
         "ties-even"
@@ -77130,11 +77830,14 @@
       },
       "examples": [
         "pydt-fields-and-replace",
-        "pydt-select-day-in-short-month"
+        "pydt-select-day-in-short-month",
+        "reader-pydt-month-and-fields"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -77142,11 +77845,14 @@
       "owner": "rstimes.Pydt",
       "scenarios": [
         "None",
+        "eager",
         "invalid-field",
+        "month-and-fields",
         "month-end-selector",
         "month-role",
         "partial-fields",
         "preserved-clock",
+        "reader-example",
         "strict-date-error",
         "strict-replace",
         "zero"
@@ -77258,11 +77964,14 @@
       },
       "examples": [
         "pydt-start-end-boundaries",
-        "pydt-boundary-invalid-inputs"
+        "pydt-boundary-invalid-inputs",
+        "reader-pydt-month-boundaries"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -77273,11 +77982,14 @@
         "all-periods",
         "all-units",
         "bool-error",
+        "eager",
         "empty-name",
         "invalid-name",
         "microsecond-end",
+        "month-boundaries",
         "named-weekday",
         "query-false",
+        "reader-example",
         "return-type",
         "unchanged-identity"
       ],
@@ -77325,11 +78037,14 @@
       },
       "examples": [
         "pydt-first-last-days",
-        "pydt-boundary-invalid-inputs"
+        "pydt-boundary-invalid-inputs",
+        "reader-pydt-month-boundaries"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -77340,11 +78055,14 @@
         "all-calendar-periods",
         "bool-error",
         "clock-preserved",
+        "eager",
         "empty-name",
         "invalid-name",
+        "month-boundaries",
         "named-month",
         "query-false",
-        "query-true"
+        "query-true",
+        "reader-example"
       ],
       "dependency_profiles_available": [
         "full",
@@ -77453,11 +78171,14 @@
       },
       "examples": [
         "pydt-first-last-days",
-        "pydt-boundary-invalid-inputs"
+        "pydt-boundary-invalid-inputs",
+        "reader-pydt-month-boundaries"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -77468,11 +78189,14 @@
         "all-calendar-periods",
         "bool-error",
         "clock-preserved",
+        "eager",
         "empty-name",
         "invalid-name",
+        "month-boundaries",
         "named-month",
         "query-false",
-        "query-true"
+        "query-true",
+        "reader-example"
       ],
       "dependency_profiles_available": [
         "full",
@@ -77650,11 +78374,14 @@
         }
       },
       "examples": [
-        "pydt-calendar-selectors"
+        "pydt-calendar-selectors",
+        "reader-pydt-month-and-fields"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -77663,10 +78390,13 @@
       "scenarios": [
         "all-named-selectors",
         "clock-and-timezone-retained",
+        "eager",
+        "month-and-fields",
         "month-end-fit",
         "named-month",
         "named-weekday",
         "negative",
+        "reader-example",
         "return-type",
         "zero"
       ],
@@ -78283,11 +79013,14 @@
         "pydt-start-end-boundaries",
         "pydt-missing-midnight",
         "pydt-boundary-invalid-inputs",
-        "pydt-start-of-month"
+        "pydt-start-of-month",
+        "reader-pydt-month-boundaries"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -78298,14 +79031,17 @@
         "all-periods",
         "all-units",
         "bool-error",
+        "eager",
         "empty-name",
         "invalid-name",
         "microsecond-end",
         "microsecond-scalar",
         "missing-midnight",
+        "month-boundaries",
         "month-boundary",
         "named-weekday",
         "query-false",
+        "reader-example",
         "region-gap",
         "return-type",
         "same-date",
@@ -79304,11 +80040,14 @@
         "pydt-calendar-dst",
         "pydt-process-local-zone",
         "pydt-external-timezone-boundary",
-        "pydt-local-clock-to-utc"
+        "pydt-local-clock-to-utc",
+        "reader-pydt-timezone-choices"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -79323,6 +80062,7 @@
         "builtin-carrier-workaround",
         "calendar-DST",
         "convert",
+        "eager",
         "elapsed-instant",
         "fold0",
         "fold1",
@@ -79335,10 +80075,12 @@
         "missing-time-error",
         "naive",
         "process-local-zone",
+        "reader-example",
         "real-fold-result",
         "real-subprocess",
         "region",
         "strict-naive-bool",
+        "timezone-choices",
         "unsupported-state",
         "wall-clock",
         "wall-clock-subtraction"
@@ -79387,11 +80129,14 @@
       },
       "examples": [
         "pydt-zone-operations",
-        "pydt-local-clock-to-utc"
+        "pydt-local-clock-to-utc",
+        "reader-pydt-timezone-choices"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -79403,10 +80148,13 @@
         "aware",
         "base_tz",
         "convert",
+        "eager",
         "instant-preservation",
         "localization",
         "naive",
+        "reader-example",
         "strict-naive-bool",
+        "timezone-choices",
         "unsupported-state"
       ],
       "dependency_profiles_available": [
@@ -79452,11 +80200,14 @@
         }
       },
       "examples": [
-        "pydt-zone-operations"
+        "pydt-zone-operations",
+        "reader-pydt-timezone-choices"
       ],
       "profiles": [
         "core",
         "full",
+        "nogil314",
+        "nogil315",
         "windows-full"
       ],
       "status": "reviewed",
@@ -79468,8 +80219,11 @@
         "aware",
         "base_tz",
         "convert",
+        "eager",
         "naive",
+        "reader-example",
         "strict-naive-bool",
+        "timezone-choices",
         "unsupported-state"
       ],
       "dependency_profiles_available": [

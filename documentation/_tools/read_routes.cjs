@@ -234,6 +234,7 @@ async function main() {
     browser = await chromium.launch({ executablePath: chrome, headless: true });
     report.chrome = browser.version();
     report.runtimes = {};
+    report.warnings = {};
     for (const version of versions) {
       const exact = part => new URL(version + "/" + part, base).href;
       const runtime = runtimes[version].full;
@@ -245,11 +246,16 @@ async function main() {
           }
         });
       }
+      if (runtimes[version].core) {
+        const core = runtimes[version].core;
+        report.runtimes[version].core = runtimeIdentity(core, version, work, true);
+        report.warnings[version] = await withPage(browser, base, 1440, page => reader(page, exact, warning, core, work));
+      }
     }
     const exact = part => new URL(current + "/" + part, base).href;
     const core = runtimes[current].core;
-    report.runtimes[current].core = runtimeIdentity(core, current, work, true);
-    report.warning = await withPage(browser, base, 1440, page => reader(page, exact, warning, core, work));
+    report.warning = report.warnings[current];
+    assert.ok(report.warning, "The current version must execute the core warning example");
     const wide = report.readers.filter(item => item.version === current && item.viewport.width === 1440);
     const a = wide.find(item => item.entry === expr);
     const b = wide.find(item => item.entry === series);
@@ -268,7 +274,8 @@ async function main() {
     };
     assert.deepEqual(report.page_errors, []);
     report.status = "pass";
-    console.log(report.readers.length + " exact-version reader routes and the core warning route passed");
+    console.log(report.readers.length + " exact-version reader routes and "
+      + Object.keys(report.warnings).length + " core warning routes passed");
   } catch (error) {
     report.status = "fail";
     report.error = error.stack;

@@ -75,6 +75,24 @@ print(schedule.day.to_list())
 
 Ordinary ticks, calendar days, anchored dates such as `W-MON` and
 `ME`, and static business rules work with just the Polars extra.
+Use `SMS` for semi-month starts with an anchor from day 2 through 27,
+or `SME` for semi-month ends with an anchor from day 1 through 27.
+`SMS-1` raises `ValueError`, including when `periods=0`.
+
+(pldt-semi-month-range)=
+```python
+from rstimes import Pldt
+
+schedule = Pldt.date_range("2024-01-01", periods=3, freq="SME-1", unit="us")
+print(schedule.isoformat().to_list())
+```
+
+**Output**
+
+```text
+['2024-01-01T00:00:00', '2024-01-31T00:00:00', '2024-02-01T00:00:00']
+```
+
 Custom business offsets, business hours, general DateOffset objects
 and 52/53-week fiscal offsets use the optional pandas executor.
 Install pandas for those rules. A business-hour rule raises

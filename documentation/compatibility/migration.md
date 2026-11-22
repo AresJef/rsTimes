@@ -1,14 +1,22 @@
-# Upgrade to rsTimes 1.1.0
+# Upgrade to rsTimes 1.1.1
 
 Upgrade the package within your environment. The command includes both optional
 adapters. Keep the extras your project uses and update its version pin and lock
-file to 1.1.0.
+file to 1.1.1.
 
 ```bash
-python -m pip install --upgrade "rsTimes[pandas,polars]==1.1.0"
+python -m pip install --upgrade "rsTimes[pandas,polars]==1.1.1"
 ```
 
-The core package now installs packaging. An installed pandas or Polars below
+With 1.1.1, semi-month-start ranges require an anchor from day 2 through 27.
+Semi-month-end still accepts days 1 through 27. See the
+{ref}`Polars range guide <pldt-choose-range-frequency>` to choose the right
+frequency. Wide integer inputs that exceed the datetime tick capacity
+now report the first bad position. The
+{ref}`Polars factory guide <pldt-locate-wide-tick>` shows an eager call
+and its error.
+
+The core package installs packaging. An installed pandas or Polars below
 its supported minimum emits {ref}`DependencyWarning <dependency-warning-filter>`
 when you first load the corresponding adapter. If a strict warning filter aborts
 that import, upgrade the dependency or adjust the filter before trying again.
@@ -17,8 +25,10 @@ Polars eager unit-conversion errors identify the first unrepresentable row
 and the target unit. Follow the
 {ref}`inexact conversion example <pldt-recover-inexact-eager-unit>` to choose
 between keeping the source resolution and flooring to the earlier output tick.
-See the [1.1.0 release notes](https://github.com/AresJef/rsTimes/releases/tag/v1.1.0)
-and the [exact 1.0.0 documentation](https://aresjef.github.io/rsTimes/1.0.0/) as needed.
+See the [1.1.1 release notes](https://github.com/AresJef/rsTimes/releases/tag/v1.1.1).
+For an older installation, consult the
+[exact 1.1.0 documentation](https://aresjef.github.io/rsTimes/1.1.0/)
+or the [exact 1.0.0 documentation](https://aresjef.github.io/rsTimes/1.0.0/).
 
 ## Changes included since the beta
 
@@ -56,7 +66,7 @@ Date parsing reads the stored content of a `str` subclass. Apply
 
 ## Read a grouped integer
 
-The new `parse_to_integer` and `parse_to_float` functions read numeric text.
+`parse_to_integer` and `parse_to_float` read numeric text.
 Choose integer parsing for a quantity such as `1,250`.
 
 (upgrade-numeric-token)=
@@ -128,8 +138,8 @@ See [Polars timezone conversions](../guides/pldt-timezones.md).
 ## Check custom copy and state hooks
 
 Test shallow copy, deep copy, and state restoration if your application
-subclasses the date or Delta types. 1.0.0 uses the documented custom copy
-and reduction choices. Preserve the original records when moving from a
+subclasses the date or Delta types. The library uses the documented custom
+copy and reduction choices. Preserve the original records when moving from a
 pre-nanosecond Delta state format. See
 [Delta protocol and state](../guides/delta-protocols.md) and
 [Polars date state](../guides/pldt-state.md).

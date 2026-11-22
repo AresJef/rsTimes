@@ -79,3 +79,62 @@ print(adjusted.isoformat().to_list())
 `add` and `sub` combine calendar components and check the final
 precision at the existing unit. Month-end fitting can lose the original
 day intent. For elapsed-duration arithmetic, see [use Delta and duration](pldt-arithmetic.md).
+
+## Apply signed increments to an existing Series
+
+(pldt-series-add)=
+```python
+import polars as pl
+import rstimes.pldt
+source = pl.Series('event', [1, None], dtype=pl.Datetime('us'))
+dates = source.pldt.add(microseconds=1, nanoseconds=-1000)
+print(dates.to_physical().to_list())
+```
+
+**Output**
+
+```text
+[1, None]
+```
+
+## Move to the next month or set calendar fields
+
+(reader-pldt-month-and-fields)=
+```python
+from rstimes import Pldt
+
+source = Pldt.parse(['2024-01-31 14:30'], unit='us')
+moved = source.to_next_month()
+edited = source.to_datetime(month=2, day=31, hour=9)
+print(moved.strftime('%Y-%m-%d %H:%M').to_list()[0])
+print(edited.strftime('%Y-%m-%d %H:%M').to_list()[0])
+```
+
+**Output**
+
+```text
+2024-02-29 14:30
+2024-02-29 09:30
+```
+
+
+## Move to the next month or set calendar fields on a Series
+
+(reader-series-month-and-fields)=
+```python
+import polars as pl
+import rstimes.pldt
+
+source = pl.Series('event', ['2024-01-31 14:30']).str.to_datetime(time_unit='us')
+moved = source.pldt.to_next_month()
+edited = source.pldt.to_datetime(month=2, day=31, hour=9)
+print(moved.strftime('%Y-%m-%d %H:%M').to_list()[0])
+print(edited.strftime('%Y-%m-%d %H:%M').to_list()[0])
+```
+
+**Output**
+
+```text
+2024-02-29 14:30
+2024-02-29 09:30
+```

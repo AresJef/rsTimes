@@ -73,3 +73,49 @@ for the accepted conversion roles and rejected weekday and leapdays
 settings. Standard datetime subtraction keeps Python's same-zone
 clock behavior. Use [timezone conversion](pydt-timezones.md) first to
 compute elapsed time in UTC across a transition.
+
+## Choose clock coordinates or POSIX instants
+
+(reader-pydt-three-epoch-inputs)=
+```python
+from rstimes import Pydt
+
+clock = Pydt.fromseconds(0, tz='Asia/Tokyo')
+instant = Pydt.fromtimestamp(0, tz='Asia/Tokyo')
+microsecond = Pydt.frommicroseconds(1, tz='Asia/Tokyo')
+print(clock.isoformat())
+print(instant.isoformat())
+print(microsecond.isoformat())
+```
+
+**Output**
+
+```text
+1970-01-01T00:00:00+09:00
+1970-01-01T09:00:00+09:00
+1970-01-01T00:00:00.000001+09:00
+```
+
+
+## Keep a source zone or attach another
+
+(reader-pydt-datetime-source-zone)=
+```python
+from datetime import datetime, timezone
+from rstimes import Pydt
+
+source = datetime(1970, 1, 1, tzinfo=timezone.utc)
+original = Pydt.fromdatetime(source)
+new_zone = Pydt.fromdatetime(source, tz='Asia/Tokyo')
+print(original.isoformat())
+print(new_zone.isoformat())
+```
+
+**Output**
+
+```text
+1970-01-01T00:00:00+00:00
+1970-01-01T00:00:00+09:00
+```
+
+To keep the instant and change the clock display, use tz_convert after creating the date value or column.

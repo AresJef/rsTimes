@@ -53,3 +53,23 @@ column supplies midnight. A Time column is appropriate for
 For optional integration with pandas or Arrow-backed dates, see
 [exchange timestamps](pldt-pandas-arrow.md). To intentionally
 reduce precision, use `as_unit`.
+
+## Apply a NumPy nanosecond duration
+
+(reader-pldt-numpy-temporal-arithmetic)=
+```python
+import numpy as np
+from rstimes import Pldt
+
+events = Pldt([1], unit='ns')
+result = events.__array_ufunc__(np.add, '__call__', events, np.timedelta64(2, 'ns'))
+print(result.to_physical().to_list())
+```
+
+**Output**
+
+```text
+[3]
+```
+
+NumPy uses this protocol during array operations. This explicit call shows the result of the date-aware route.

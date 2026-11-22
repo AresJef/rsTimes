@@ -109,3 +109,110 @@ valid tick and null. A NumPy date array has no timezone metadata;
 aware values export as UTC ticks. Use
 [Arrow-backed exchange](pldt-pandas-arrow.md) to preserve the full
 tick and validity.
+
+## Read the ISO calendar at the turn of the year
+
+(pldt-series-isocalendar)=
+```python
+import polars as pl
+import rstimes.pldt
+source = pl.Series('event', ['2021-01-01']).str.to_datetime(time_unit='us')
+dates = source.pldt.isocalendar()
+print(dates.to_list())
+```
+
+**Output**
+
+```text
+[{'year': 2020, 'week': 53, 'day': 5}]
+```
+
+
+## Read local-clock seconds from dates
+
+(pldt-series-toseconds)=
+```python
+import polars as pl
+import rstimes.pldt
+source = pl.Series('event', [0, None], dtype=pl.Datetime('us', 'Asia/Shanghai'))
+dates = source.pldt.toseconds()
+print(dates.to_list())
+```
+
+**Output**
+
+```text
+[28800.0, None]
+```
+
+
+## Export integer microseconds from nanosecond dates
+
+(pldt-series-tomicroseconds)=
+```python
+import polars as pl
+import rstimes.pldt
+source = pl.Series('event', [-1500, None], dtype=pl.Datetime('ns'))
+dates = source.pldt.tomicroseconds()
+print(dates.to_list())
+```
+
+**Output**
+
+```text
+[-2, None]
+```
+
+
+## Read POSIX seconds from timezone-aware dates
+
+(pldt-series-timestamp)=
+```python
+import polars as pl
+import rstimes.pldt
+source = pl.Series('event', [0, None], dtype=pl.Datetime('us', 'Asia/Shanghai'))
+dates = source.pldt.timestamp()
+print(dates.to_list())
+```
+
+**Output**
+
+```text
+[0.0, None]
+```
+
+
+## Format fractional seconds from stored nanoseconds
+
+(pldt-series-strftime)=
+```python
+import polars as pl
+import rstimes.pldt
+source = pl.Series('event', [123_456_789, None], dtype=pl.Datetime('ns'))
+dates = source.pldt.strftime('%f|%.3f|%.0f')
+print(dates.to_list())
+```
+
+**Output**
+
+```text
+['123456789|.123|', None]
+```
+
+
+## Read Python date objects from an existing Series
+
+(pldt-series-datetime)=
+```python
+import polars as pl
+import rstimes.pldt
+source = pl.Series('event', [1234, None], dtype=pl.Datetime('ns'))
+dates = source.pldt.datetime()
+print(type(dates[0]).__name__, dates[0].isoformat(), dates[1])
+```
+
+**Output**
+
+```text
+Pydt 1970-01-01T00:00:00.000001 None
+```
