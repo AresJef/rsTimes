@@ -212,6 +212,53 @@ def test_parse_masks_span_source_nulls_and_original_chunk_order():
         "2024-11-03T05:00", "2024-11-03T05:30", "2024-11-03T06:00", "2024-11-03T06:30")]
 
 
+@pytest.mark.parametrize("method", ["parse", "fromisoformat"])
+@pytest.mark.parametrize("values,input_dtype,expected", [
+    (["1970-01-01T00:00:00.000000007", None, "1969-12-31T23:59:59.999999999"], pl.String, [7, None, -1]),
+    ([], pl.String, []),
+    ([None, None], pl.String, [None, None]),
+    ([None, None], pl.Null, [None, None]),
+])
+def test_naive_text_finish_preserves_ticks_and_schema(method, values, input_dtype, expected):
+    source = pl.Series("event", values, dtype=input_dtype)
+    frame = source.to_frame()
+    expr = getattr(pl.col("event").pldt, method)(unit="ns", ambiguous="infer")
+    lazy = frame.lazy().select(expr)
+    assert lazy.collect_schema()["event"] == pl.Datetime("ns")
+    for result in (getattr(source.pldt, method)(unit="ns", ambiguous="infer"),
+                   frame.select(expr)["event"], lazy.collect()["event"]):
+        assert (result.name, result.dtype, ticks(result)) == ("event", pl.Datetime("ns"), expected)
+        assert result.is_null().to_list() == [value is None for value in expected]
+    inferred = frame.lazy().select(getattr(pl.col("event").pldt, method)())
+    if input_dtype == pl.String:
+        with pytest.raises(pl.exceptions.PolarsError, match="unit"):
+            inferred.collect_schema()
+    else:
+        assert inferred.collect_schema()["event"] == pl.Datetime("ms")
+        assert ticks(inferred.collect()["event"]) == expected
+
+
+@pytest.mark.parametrize("method", ["parse", "fromisoformat"])
+def test_naive_text_finish_does_not_skip_validation_or_offset_resolution(method):
+    def parse_text(values, **kwargs):
+        return getattr(pl.Series("event", values, dtype=pl.String).pldt, method)(**kwargs)
+
+    with pytest.raises(ValueError, match="length"):
+        parse_text(["1970-01-01", None], unit="ns", ambiguous=[True])
+    with pytest.raises(ValueError, match=r"data\[1\].*timezone"):
+        parse_text(["1970-01-01", "1970-01-01T00:00:00+01:00"], unit="ns")
+    mixed = parse_text(["1970-01-01", "1970-01-01T00:00:00+01:00", None], unit="ns", tz="UTC")
+    assert (mixed.name, mixed.dtype, ticks(mixed)) == (
+        "event", pl.Datetime("ns", "UTC"), [0, -3_600_000_000_000, None],
+    )
+    with pytest.raises(ValueError, match=r"data\[1\].*precision"):
+        parse_text([None, "1970-01-01T00:00:00.000000007"], unit="us")
+    with pytest.raises(OverflowError, match=r"data\[1\].*capacity"):
+        parse_text([None, "2500-01-01"], unit="ns")
+    with pytest.raises(ValueError, match=r"data\[1\]"):
+        parse_text([None, "broken date"], unit="ns")
+
+
 def test_parse_boolean_expr_mask_preserves_aggregate_and_vector_roles():
     source = pl.DataFrame({"time": ["2024-11-03 01:30"] * 2, "choice": [True, False]})
     expr = pl.col("time").pldt.parse(unit="us", tz="America/New_York", ambiguous=pl.col("choice"))

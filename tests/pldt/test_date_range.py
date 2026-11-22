@@ -1,5 +1,9 @@
 """Native range families and strict endpoint/unit semantics, independent answers."""
+import ast
 from datetime import date,datetime,timedelta
+import inspect
+from pathlib import Path
+import re
 from zoneinfo import ZoneInfo
 import numpy as np
 import polars as pl
@@ -9,6 +13,27 @@ from rstimes import Pldt
 
 def ticks(value):return value.to_physical().to_list()
 def tick(text,unit="us"):return int(np.datetime64(text,unit).astype(np.int64))
+
+
+@pytest.mark.parametrize("documentation", ["runtime", "installed_stub"])
+def test_date_range_documents_signed_frequency_and_periods(documentation):
+    if documentation == "runtime":
+        doc = inspect.getdoc(Pldt.date_range)
+    else:
+        stub = Path(inspect.getfile(Pldt)).with_suffix(".pyi")
+        module = ast.parse(stub.read_text(encoding="utf-8"))
+        cls = next(node for node in module.body if isinstance(node, ast.ClassDef) and node.name == "Pldt")
+        method = next(node for node in cls.body if isinstance(node, ast.FunctionDef) and node.name == "date_range")
+        doc = ast.get_docstring(method)
+    assert doc is not None
+    parameters = dict(re.findall(r"^(\w+) : [^\n]+\n((?: +[^\n]+\n)+)", doc, re.MULTILINE))
+    freq = " ".join(parameters["freq"].split())
+    assert "positive (forward) or negative (backward)" in freq
+    assert "(SMS) accept day anchors 2 through 27" in freq
+    assert "(SME) accept 1 through 27" in freq
+    assert "start, end, and periods" in freq and "freq=None" in freq and "evenly" in freq
+    periods = parameters["periods"]
+    assert "nonnegative integer" in periods and "size" not in periods
 
 
 @pytest.mark.parametrize("freq,start,expected",[
@@ -39,6 +64,46 @@ def tick(text,unit="us"):return int(np.datetime64(text,unit).astype(np.int64))
 def test_native_frequency_calendar_families(freq,start,expected):
     result=Pldt.date_range(start,periods=3,freq=freq)
     assert result.dtype==pl.Datetime("us") and ticks(result)==[tick(value) for value in expected]
+
+
+@pytest.mark.parametrize("freq", ["SMS-1", "-SMS-1", "SMS-28"])
+@pytest.mark.parametrize("periods", [0, 3])
+def test_semi_month_begin_rejects_invalid_anchor_during_frequency_preparation(freq, periods):
+    with pytest.raises(ValueError, match=r"^Pldt\.date_range\(\): freq .*SMS.*2.*27"):
+        Pldt.date_range("2024-01-01", periods=periods, freq=freq, unit="us")
+
+
+@pytest.mark.parametrize("freq,start,expected", [
+    ("SMS-2", "2024-01-01", ["2024-01-01", "2024-01-02", "2024-02-01"]),
+    ("SMS-27", "2024-01-01", ["2024-01-01", "2024-01-27", "2024-02-01"]),
+    ("-SMS-2", "2024-02-02", ["2024-02-02", "2024-02-01", "2024-01-02"]),
+    ("-SMS-27", "2024-02-27", ["2024-02-27", "2024-02-01", "2024-01-27"]),
+    ("-SMS", "2024-02-15", ["2024-02-15", "2024-02-01", "2024-01-15"]),
+    ("SME-1", "2024-01-01", ["2024-01-01", "2024-01-31", "2024-02-01"]),
+    ("-SME-1", "2024-02-01", ["2024-02-01", "2024-01-31", "2024-01-01"]),
+    ("SME-27", "2024-01-01", ["2024-01-27", "2024-01-31", "2024-02-27"]),
+])
+def test_native_semi_month_anchor_boundaries(freq, start, expected):
+    expected_ticks = [tick(value) for value in expected]
+    result = Pldt.date_range(start, periods=3, freq=freq, unit="us", name="stamp")
+    assert (result.name, result.dtype, ticks(result)) == ("stamp", pl.Datetime("us"), expected_ticks)
+
+
+def test_semi_month_frequency_bounds_match_pandas_for_native_strings():
+    pd = pytest.importorskip("pandas")
+    with pytest.raises(ValueError):
+        pd.offsets.SemiMonthBegin(day_of_month=1)
+    with pytest.raises(ValueError, match=r"freq .*SME.*1.*27"):
+        Pldt.date_range("2024-01-01", periods=0, freq="SME-28", unit="us")
+    for freq, offset in (
+        ("SMS-2", pd.offsets.SemiMonthBegin(day_of_month=2)),
+        ("SME-1", pd.offsets.SemiMonthEnd(day_of_month=1)),
+        ("-SMS-27", pd.offsets.SemiMonthBegin(-1, day_of_month=27)),
+        ("-SME-1", pd.offsets.SemiMonthEnd(-1, day_of_month=1)),
+    ):
+        result = Pldt.date_range("2024-02-01", periods=3, freq=freq, unit="us")
+        comparison = pd.date_range("2024-02-01", periods=3, freq=offset, unit="us")
+        assert ticks(result) == comparison.asi8.tolist()
 
 
 @pytest.mark.parametrize("freq",["500ns","0.5us"])

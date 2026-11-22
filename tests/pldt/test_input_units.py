@@ -1,5 +1,6 @@
 """Independent physical-integer expectations for native input and unit roles."""
 
+from array import array
 from datetime import date, datetime
 import gc
 import numpy as np
@@ -21,6 +22,91 @@ def test_numeric_full_int64_and_independent_null(unit):
     assert result.dtype == pl.Datetime(unit)
     assert result.name == "events"
     assert ticks(result) == values
+
+
+@pytest.mark.parametrize("dtype,bad", [
+    (pl.UInt64, 2**63), (pl.UInt128, 2**63 + 1),
+    (pl.Int128, -(2**63) - 1), (pl.Int128, 2**63),
+])
+def test_wide_native_integer_rejects_first_bad_tick_with_position(dtype, bad):
+    source = pl.concat([
+        pl.Series("raw", [None, 1], dtype=dtype),
+        pl.Series("raw", [bad, None, bad], dtype=dtype),
+    ], rechunk=False)
+    assert source.n_chunks() == 2
+    for data, row in ((source, 2), (source.slice(2), 0)):
+        with pytest.raises(OverflowError, match=rf"^Pldt\(\): data\[{row}\]: numeric date tick exceeds signed64$"):
+            Pldt(data, unit="ns")
+    assert source.to_list() == [None, 1, bad, None, bad]
+
+
+@pytest.mark.parametrize("dtype,first", [(pl.UInt64, 0), (pl.UInt128, 0), (pl.Int128, -(2**63)), (pl.Int16, -1)])
+@pytest.mark.parametrize("copy", [False, True])
+def test_wide_and_narrow_native_integer_keep_endpoints_and_nulls(dtype, first, copy):
+    last = 2**15 - 1 if dtype == pl.Int16 else 2**63 - 1
+    source = pl.concat([
+        pl.Series("event", [first, None], dtype=dtype),
+        pl.Series("event", [last], dtype=dtype),
+    ], rechunk=False)
+    result = Pldt(source, unit="ns", copy=copy)
+    assert (result.name, result.dtype, ticks(result)) == ("event", pl.Datetime("ns"), [first, None, last])
+    assert result.is_null().to_list() == [False, True, False]
+
+
+def test_wide_unsigned_owned_ticks_do_not_alias_numpy_input():
+    raw = np.array([1, 2, 2**63 - 1], dtype=np.uint64)
+    source = pl.Series("event", raw)
+    assert np.shares_memory(source.to_numpy(allow_copy=False), raw)
+    copied = Pldt(source, unit="ns", copy=True)
+    raw[0] = 5
+    assert source[0] == 5
+    assert (copied.name, ticks(copied)) == ("event", [1, 2, 2**63 - 1])
+
+
+@pytest.mark.parametrize("layout", ["unsliced", "bit_offset", "two_chunks"])
+def test_wide_owned_ticks_keep_the_validity_used_during_conversion(layout):
+    pa = pytest.importorskip("pyarrow")
+    bitmap = bytearray([0b1101])
+    values = array("Q", [81, 17, 53, 24])
+    arrow = pa.Array.from_buffers(
+        pa.uint64(), 4, [pa.py_buffer(bitmap), pa.py_buffer(values)], null_count=1
+    )
+    raw = pl.from_arrow(arrow, rechunk=False).rename("raw")
+    source = raw
+    before = [81, None, 53, 24]
+    after = [81, 17, None, 24]
+    if layout == "bit_offset":
+        source = raw.slice(1, 3)
+        before, after = before[1:], after[1:]
+    elif layout == "two_chunks":
+        prefix = [99, None]
+        source = pl.concat([pl.Series("raw", prefix, dtype=pl.UInt64), raw], rechunk=False)
+        assert source.n_chunks() == 2
+        before, after = prefix + before, prefix + after
+
+    frame = source.to_frame()
+    expr = pl.col("raw").pldt.parse(unit="ns")
+    lazy = frame.lazy().select(expr)
+    assert lazy.collect_schema()["raw"] == pl.Datetime("ns")
+    results = {
+        "constructor": Pldt(source, unit="ns"),
+        "copy_false": Pldt(source, unit="ns", copy=False),
+        "copy_true": Pldt(source, unit="ns", copy=True),
+        "factory": Pldt.parse(source, unit="ns"),
+        "accessor": source.pldt.parse(unit="ns"),
+        "select": frame.select(expr)["raw"],
+        "collect": lazy.collect()["raw"],
+    }
+    assert source.to_list() == before
+    assert all(ticks(result) == before for result in results.values())
+
+    bitmap[0] = 0b1011
+    assert source.to_list() == after
+    assert ticks(Pldt(source, unit="ns")) == after
+    for entry, result in results.items():
+        assert (result.name, result.dtype) == ("raw", pl.Datetime("ns")), entry
+        assert ticks(result) == before, entry
+        assert result.is_null().to_list() == [value is None for value in before], entry
 
 
 @pytest.mark.parametrize("factory", [list, tuple, iter, lambda x: np.array(x, dtype=np.int64), lambda x: pl.Series("t", x)])
@@ -94,11 +180,22 @@ def test_as_unit_floor_and_lossless(round_ok, expected):
     assert ticks(source) == [1500, -1500, None]
 
 
-def test_as_unit_expr_schema_and_no_dst_reinterpretation():
-    source = pl.Series("t", [1500, -1500, None], dtype=pl.Datetime("ns", "UTC"))
-    query = pl.DataFrame(source).lazy().select(pl.col("t").pldt.as_unit("us"))
-    assert query.collect_schema()["t"] == pl.Datetime("us", "UTC")
-    assert ticks(query.collect()["t"]) == [1, -2, None]
+@pytest.mark.parametrize("dtype,values,expected", [
+    (pl.Datetime("ns", "UTC"), [1500, -1500, None], [1, -2, None]),
+    (pl.Datetime("ns", "UTC"), [-(2**63), -1500, 2**63 - 1],
+     [-(2**63) // 1000, -2, (2**63 - 1) // 1000]),
+    (pl.Date, [date(1969, 12, 31), None], [-86_400_000_000, None]),
+])
+def test_as_unit_expr_schema_and_no_dst_reinterpretation(dtype, values, expected):
+    source = pl.Series("t", values, dtype=dtype)
+    frame = source.to_frame()
+    expr = pl.col("t").pldt.as_unit("us")
+    zone = "UTC" if dtype == pl.Datetime("ns", "UTC") else None
+    target = pl.Datetime("us", zone)
+    query = frame.lazy().select(expr)
+    assert query.collect_schema()["t"] == target
+    for result in (frame.select(expr)["t"], query.collect()["t"]):
+        assert (result.dtype, result.name, ticks(result)) == (target, "t", expected)
 
 
 @pytest.mark.parametrize("entry", ["Pldt.as_unit", "Series.pldt.as_unit", "Expr.pldt.as_unit"])
@@ -181,6 +278,55 @@ def test_as_unit_role_is_preserved_for_both_entrances_on_one_pldt():
         assert str(captured.value).startswith(f"{entry}(): data[1]:")
 
 
+def test_native_as_unit_keeps_minimum_tick_distinct_from_null_across_chunks():
+    minimum = -(2**63)
+    dtype = pl.Datetime("ns")
+    source = pl.concat([
+        pl.Series("event", [1000, -2000, None], dtype=dtype),
+        pl.Series("event", [minimum], dtype=dtype),
+    ], rechunk=False)
+    assert source.n_chunks() == 2
+    for owner, entry in ((Pldt(source), "Pldt.as_unit"), (source.pldt, "Series.pldt.as_unit")):
+        result = owner.as_unit("us")
+        assert (result.name, result.dtype, ticks(result)) == (
+            "event", pl.Datetime("us"), [1, -2, None, minimum // 1000],
+        )
+        with pytest.raises(ValueError) as captured:
+            owner.as_unit("us", round_ok=False)
+        assert str(captured.value).startswith(f"{entry}(): data[3]:")
+    empty = source.slice(0, 0).pldt.as_unit("us", round_ok=False)
+    assert (empty.name, empty.dtype, ticks(empty)) == ("event", pl.Datetime("us"), [])
+    assert ticks(source) == [1000, -2000, None, minimum]
+
+
+def test_native_cross_unit_constructor_interprets_naive_ticks_in_the_requested_zone():
+    source = pl.Series("event", [0, None], dtype=pl.Datetime("ns"))
+    result = Pldt(source, tz="Asia/Tokyo", unit="us")
+    assert (result.name, result.dtype, ticks(result)) == (
+        "event", pl.Datetime("us", "Asia/Tokyo"), [-32_400_000_000, None],
+    )
+    with pytest.raises(ValueError, match="length"):
+        Pldt(source, unit="us", ambiguous=[True])
+
+
+@pytest.mark.parametrize("zone", [None, "UTC"])
+def test_dense_eager_as_unit_preserves_rounding_and_first_error_across_chunks(zone):
+    source = pl.concat([
+        pl.Series("event", [-1000, 1000], dtype=pl.Datetime("ns", zone)),
+        pl.Series("event", [-1500], dtype=pl.Datetime("ns", zone)),
+    ], rechunk=False)
+    assert source.n_chunks() == 2
+    result = source.pldt.as_unit("us")
+    assert (result.name, result.dtype, ticks(result)) == (
+        "event", pl.Datetime("us", zone), [-1, 1, -2],
+    )
+    with pytest.raises(ValueError, match=r"Series\.pldt\.as_unit\(\): data\[2\]:"):
+        source.pldt.as_unit("us", round_ok=False)
+    coarse = pl.Series("event", [0, 2**63 // 1000 + 1], dtype=pl.Datetime("us", zone))
+    with pytest.raises(OverflowError, match=r"Pldt\.as_unit\(\): data\[1\]:"):
+        Pldt(coarse).as_unit("ns")
+
+
 def test_as_unit_preserves_original_business_constructor_exception():
     marker = ValueError("business constructor refused")
     marker.add_note("application note")
@@ -213,6 +359,17 @@ def test_as_unit_expr_error_keeps_the_verified_batch_local_position():
     assert lazy.collect_schema()["event"] == pl.Datetime("us", "UTC")
     for execute in (lambda: frame.select(expr), lazy.collect):
         with pytest.raises(pl.exceptions.ComputeError, match=r"batch item 0.*round_ok=True"):
+            execute()
+
+
+def test_as_unit_expr_capacity_error_keeps_the_verified_batch_local_position():
+    source = pl.Series("event", [(2**63 - 1) // 1000 + 1], dtype=pl.Datetime("us"))
+    frame = source.to_frame()
+    expr = pl.col("event").pldt.as_unit("ns")
+    lazy = frame.lazy().select(expr)
+    assert lazy.collect_schema()["event"] == pl.Datetime("ns")
+    for execute in (lambda: frame.select(expr), lazy.collect):
+        with pytest.raises(pl.exceptions.ComputeError, match=r"batch item 0 exceeds target capacity"):
             execute()
 
 

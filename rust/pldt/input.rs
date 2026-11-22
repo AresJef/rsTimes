@@ -8,6 +8,9 @@ use polars::prelude::*;
 use pyo3::prelude::*;
 use pyo3_polars::PySeries;
 use pyo3_polars::derive::polars_expr;
+use pyo3_polars::export::polars_arrow::{
+    array::PrimitiveArray, bitmap::Bitmap, datatypes::ArrowDataType,
+};
 use serde::Deserialize;
 
 pub(super) fn resolution(unit: Unit) -> TimeUnit {
@@ -59,6 +62,34 @@ fn native_error(error: PolarsError) -> PyErr {
     super::eager_error(error)
 }
 
+/// Rescale physical ticks after the source and output coordinates are known.
+fn rescale_datetime(
+    values: &Int64Chunked,
+    original: Unit,
+    chosen: Unit,
+    round_ok: bool,
+) -> Result<Int64Chunked, (ScaleError, usize)> {
+    let source_nanos = original.nanos();
+    let output_nanos = chosen.nanos();
+    let convert = |value, row| {
+        crate::precision::epoch_tick(i128::from(value) * source_nanos, output_nanos, round_ok)
+            .map_err(|error| (error, row))
+    };
+    let name = values.name().clone();
+    if values.null_count() == 0 {
+        let mut output = Vec::with_capacity(values.len());
+        for (row, value) in values.into_no_null_iter().enumerate() {
+            output.push(convert(value, row)?);
+        }
+        return Ok(Int64Chunked::from_vec(name, output));
+    }
+    let mut output = PrimitiveChunkedBuilder::<Int64Type>::new(name, values.len());
+    for (row, value) in values.iter().enumerate() {
+        output.append_option(value.map(|value| convert(value, row)).transpose()?);
+    }
+    Ok(output.finish())
+}
+
 /// NumPy sentinel detection is separate from a fast owned contiguous copy.
 /// Existing validity or chunks retain the complete missing-aware builder.
 fn copy_numpy_ticks(values: &Int64Chunked) -> Int64Chunked {
@@ -73,6 +104,46 @@ fn copy_numpy_ticks(values: &Int64Chunked) -> Int64Chunked {
             .iter()
             .map(|value| value.filter(|tick| *tick != i64::MIN)),
     )
+}
+
+/// Narrow wide native ticks in source order, keeping null slots independent.
+fn wide_ticks<T>(values: PolarsResult<&ChunkedArray<T>>) -> Result<Int64Chunked, Failure>
+where
+    T: PolarsNumericType,
+    i64: TryFrom<T::Native>,
+{
+    let values = values.map_err(|error| Failure::new(Kind::Type, error.to_string()))?;
+    let narrow = |value, row| {
+        i64::try_from(value)
+            .map_err(|_| Failure::new(Kind::Capacity, "numeric date tick exceeds signed64").at(row))
+    };
+    let mut first_row = 0;
+    let chunks = values.downcast_iter().map(|chunk| {
+        // The new ticks must keep the validity used to produce them even if
+        // an external owner later writes to the source bitmap.
+        let validity: Option<Bitmap> = chunk
+            .validity()
+            .map(|bitmap| bitmap.clone().make_mut().into());
+        let mut ticks = Vec::with_capacity(chunk.len());
+        if let Some(validity) = &validity {
+            for (row, (&value, present)) in chunk.values_iter().zip(validity.iter()).enumerate() {
+                let tick = if present {
+                    narrow(value, first_row + row)?
+                } else {
+                    0
+                };
+                ticks.push(tick);
+            }
+        } else {
+            for (row, &value) in chunk.values_iter().enumerate() {
+                ticks.push(narrow(value, first_row + row)?);
+            }
+        }
+        first_row += chunk.len();
+        PrimitiveArray::try_new(ArrowDataType::Int64, ticks.into(), validity)
+            .map_err(|error| Failure::new(Kind::Runtime, error.to_string()))
+    });
+    Int64Chunked::try_from_chunk_iter(values.name().clone(), chunks)
 }
 
 /// Pure typed Polars preparation, shared by eager construction and Expr.
@@ -116,27 +187,12 @@ pub(super) fn column(
     }
     if let Ok(dates) = source.datetime()
         && options.target.is_none_or(|_| source_zone.is_some())
-        && (chosen == original || source_zone.is_some())
     {
         let values = if chosen != original {
-            // An aware native column already contains instants. Rescale
-            // directly, with no per-row source zone or localization state.
-            let mut output =
-                PrimitiveChunkedBuilder::<Int64Type>::new(source.name().clone(), source.len());
-            for (row, value) in dates.physical().iter().enumerate() {
-                let tick = value
-                    .map(|value| {
-                        scale(
-                            i128::from(value) * original.nanos(),
-                            chosen,
-                            options.round_ok,
-                        )
-                        .map_err(|error| tick_error(error, row))
-                    })
-                    .transpose()?;
-                output.append_option(tick);
-            }
-            output.finish()
+            // With no new localization, the physical ticks already use the
+            // result's coordinates (wall time for naive, instants for aware).
+            rescale_datetime(dates.physical(), original, chosen, options.round_ok)
+                .map_err(|(error, row)| tick_error(error, row))?
         } else if options.copy {
             Int64Chunked::from_iter_options(source.name().clone(), dates.physical().iter())
         } else {
@@ -182,17 +238,24 @@ pub(super) fn column(
             }
         }
         dtype if dtype.is_integer() => {
-            let values = source
-                .strict_cast(&DataType::Int64)
-                .map_err(|_| Failure::new(Kind::Capacity, "numeric date tick exceeds signed64"))?;
             // Raw numbers are already ticks in the explicitly chosen/default unit.
-            let values = values
-                .i64()
-                .map_err(|error| Failure::new(Kind::Type, error.to_string()))?;
-            let values = if options.copy {
-                Int64Chunked::from_iter_options(source.name().clone(), values.iter())
-            } else {
-                values.clone()
+            let values = match dtype {
+                DataType::UInt64 => wide_ticks(source.u64())?,
+                DataType::UInt128 => wide_ticks(source.u128())?,
+                DataType::Int128 => wide_ticks(source.i128())?,
+                _ => {
+                    let cast = source.strict_cast(&DataType::Int64).map_err(|_| {
+                        Failure::new(Kind::Capacity, "numeric date tick exceeds signed64")
+                    })?;
+                    let values = cast
+                        .i64()
+                        .map_err(|error| Failure::new(Kind::Type, error.to_string()))?;
+                    if options.copy {
+                        Int64Chunked::from_iter_options(source.name().clone(), values.iter())
+                    } else {
+                        values.clone()
+                    }
+                }
             };
             return Ok(values
                 .into_datetime(resolution(chosen), output_zone)
@@ -230,25 +293,13 @@ pub(super) fn column(
             ));
         }
     }
-    let result = rows.finish(
+    rows.finish(
         source.name().clone(),
         Some(chosen),
         options.target,
         options.policy,
         options.round_ok,
-    )?;
-    if options.target.is_none() && source_zone.is_some() {
-        let dates = result
-            .datetime()
-            .map_err(|error| Failure::new(Kind::Runtime, error.to_string()))?;
-        Ok(dates
-            .physical()
-            .clone()
-            .into_datetime(resolution(chosen), source_zone)
-            .into_series())
-    } else {
-        Ok(result)
-    }
+    )
 }
 
 /// Read known native dtype and metadata once, without Python scalar dates.
@@ -533,6 +584,19 @@ fn convert_field(fields: &[Field], options: ConvertOptions) -> PolarsResult<Fiel
     ))
 }
 
+fn as_unit_batch_error(error: ScaleError, row: usize) -> PolarsError {
+    match error {
+        ScaleError::Precision => polars_err!(
+            ComputeError: "Pldt.as_unit: batch item {} cannot preserve precision; choose round_ok=True explicitly",
+            row
+        ),
+        ScaleError::Capacity => polars_err!(
+            ComputeError: "Pldt.as_unit: batch item {} exceeds target capacity",
+            row
+        ),
+    }
+}
+
 #[polars_expr(output_type_func_with_kwargs=convert_field)]
 fn pldt_as_unit(inputs: &[Series], kwargs: ConvertOptions) -> PolarsResult<Series> {
     polars_ensure!(inputs.len()==1,InvalidOperation:"Pldt.as_unit requires one source");
@@ -555,32 +619,35 @@ fn pldt_as_unit(inputs: &[Series], kwargs: ConvertOptions) -> PolarsResult<Serie
     if matches!(source.dtype(),DataType::Datetime(unit,_) if *unit==resolution(target)) {
         return Ok(source.clone());
     }
-    let mut output = PrimitiveChunkedBuilder::<Int64Type>::new(source.name().clone(), source.len());
-    let mut append = |row, value: Option<i128>| -> PolarsResult<()> {
-        output.append_option(value.map(|value|scale(value,target,kwargs.round_ok).map_err(|error|match error{
-            ScaleError::Precision=>polars_err!(ComputeError:"Pldt.as_unit: batch item {} cannot preserve precision; choose round_ok=True explicitly",row),
-            ScaleError::Capacity=>polars_err!(ComputeError:"Pldt.as_unit: batch item {} exceeds target capacity",row),
-        })).transpose()?);
-        Ok(())
-    };
-    match source.dtype() {
-        DataType::Datetime(unit, _) => {
-            for (row, value) in source.datetime()?.physical().iter().enumerate() {
-                append(
-                    row,
-                    value.map(|v| i128::from(v) * epoch_unit(*unit).nanos()),
-                )?;
-            }
-        }
+    let output = match source.dtype() {
+        DataType::Datetime(unit, _) => rescale_datetime(
+            source.datetime()?.physical(),
+            epoch_unit(*unit),
+            target,
+            kwargs.round_ok,
+        )
+        .map_err(|(error, row)| as_unit_batch_error(error, row))?,
         DataType::Date => {
+            let mut output =
+                PrimitiveChunkedBuilder::<Int64Type>::new(source.name().clone(), source.len());
             for (row, value) in source.date()?.physical().iter().enumerate() {
-                append(row, value.map(|v| i128::from(v) * 86_400_000_000_000))?;
+                let tick = value
+                    .map(|value| {
+                        scale(
+                            i128::from(value) * 86_400_000_000_000,
+                            target,
+                            kwargs.round_ok,
+                        )
+                    })
+                    .transpose()
+                    .map_err(|error| as_unit_batch_error(error, row))?;
+                output.append_option(tick);
             }
+            output.finish()
         }
         _ => polars_bail!(InvalidOperation:"Pldt.as_unit requires Date/Datetime"),
-    }
+    };
     Ok(output
-        .finish()
         .into_datetime(resolution(target), zone.clone())
         .into_series())
 }

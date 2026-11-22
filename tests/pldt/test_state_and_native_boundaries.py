@@ -102,7 +102,7 @@ def test_physical_deep_buffers_are_distinct_shallow_buffers_can_share(unit):
 
 
 @pytest.mark.parametrize('method,args', [
-    ('to_next_month', ()), ('add', ()), ('as_unit', ('ns',)),
+    ('to_next_month', ()), ('add', ()), ('as_unit', ('ns',)), ('as_unit', ('ms',)),
     ('normalize', ()), ('snap', ('D',)),
 ])
 def test_owned_date_results_invoke_one_normal_business_constructor(method, args):

@@ -189,3 +189,57 @@ def test_actual_state_descriptor_failure_keeps_its_exception(base, hook, deep):
     with pytest.raises(LookupError) as caught:
         value.copy(deep=deep)
     assert caught.value is original and calls == [hook]
+
+
+def _set_recipe_state(target, state):
+    target.update(state)
+    target["setter"] = "called by pickle"
+
+
+@pytest.mark.parametrize("base", BASES)
+def test_six_item_recipe_preserves_distinct_copy_and_pickle_protocols(base):
+    calls = []
+
+    class Recipe:
+        def __reduce_ex__(self, protocol):
+            return dict, (), {"application": 42}, None, None, _set_recipe_state
+
+    class Business(base):
+        def __reduce_ex__(self, protocol):
+            calls.append(protocol)
+            return Recipe().__reduce_ex__(protocol)
+
+    value = Business(["2024-01-01"])
+    for operation, reference in (
+        (copy.copy, copy.copy),
+        (copy.deepcopy, copy.deepcopy),
+        (lambda item: item.copy(), copy.copy),
+        (lambda item: item.copy(deep=True), copy.deepcopy),
+    ):
+        with pytest.raises(TypeError) as expected:
+            reference(Recipe())
+        with pytest.raises(TypeError) as caught:
+            operation(value)
+        assert str(caught.value) == str(expected.value)
+    assert calls == [4] * 4
+    assert pickle.loads(pickle.dumps(value, protocol=5)) == {
+        "application": 42, "setter": "called by pickle",
+    }
+    assert calls == [4, 4, 4, 4, 5]
+
+
+@pytest.mark.parametrize("base", BASES)
+@pytest.mark.parametrize("deep", (False, True))
+def test_string_recipe_returning_source_preserves_name_and_rejects_renaming(base, deep):
+    calls = []
+
+    class Business(base):
+        def __reduce_ex__(self, protocol):
+            calls.append(protocol)
+            return "application_identity"
+
+    value = Business(["2024-01-01"], name="source")
+    assert value.copy(deep=deep) is value
+    with pytest.raises(ValueError, match="cannot be renamed"):
+        value.copy(name="different", deep=deep)
+    assert value.name == "source" and calls == [4, 4]

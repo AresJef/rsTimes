@@ -93,6 +93,43 @@ def test_fraction_trimming_is_local_and_retains_nanos_when_requested(precision):
     if precision==9:assert got is x
 
 
+@pytest.mark.parametrize("unit,precision", [("s", 0), ("ms", 3), ("us", 6)])
+def test_fraction_trimming_identity_when_naive_storage_already_fits(unit, precision):
+    class Index:
+        calls = 0
+
+        def __index__(self):
+            self.calls += 1
+            return precision
+
+    valid = Pddt.date_range("1969-12-31", periods=3, freq="D", unit=unit, name="event")
+    for value in (valid, Pddt([-1001, None, 1], unit=unit, name="event"),
+                  Pddt([], unit=unit), Pddt([None], unit=unit)):
+        before = (value.asi8.tolist(), value.name, value.freq, value.isna().tolist())
+        value.business = {"job": 1}
+        index = Index()
+        assert value.fsp(index) is value
+        assert index.calls == 1 and value.business == {"job": 1}
+        assert (value.asi8.tolist(), value.name, value.freq, value.isna().tolist()) == before
+        with pytest.raises(TypeError):
+            value.fsp(False)
+        with pytest.raises(ValueError, match="nonnegative"):
+            value.fsp(-1)
+
+
+def test_fraction_trimming_does_not_assume_aware_wall_time_has_storage_precision():
+    zone = timezone(timedelta(microseconds=500))
+    value = Pddt([0], unit="ms", tz=zone)
+    # Its wall time is halfway through a millisecond. Removing that fraction
+    # would require a physical tick that the original ms unit cannot express.
+    with pytest.raises(ValueError, match="cannot preserve this date at the requested unit"):
+        value.fsp(3)
+    ns = Pddt([-1001, None], unit="ns", name="event")
+    result = ns.fsp(6)
+    assert result is not ns and result.unit == "ns" and result.name == "event"
+    assert result.asi8.tolist() == [-2000, -(2**63)]
+
+
 @pytest.mark.parametrize("freq",["D","24h","3h","15min","s","ms","us","500ns"])
 @pytest.mark.parametrize("method",["round","ceil","floor"])
 def test_fixed_frequency_rounding_matches_mature_naive_math(freq,method):

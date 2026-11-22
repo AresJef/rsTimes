@@ -33,6 +33,7 @@ from ._pddt_state import capture as _capture_state, apply as _apply_state, recip
 from ._localization import resolve_timezone as _timezone, local_timezone as _local_timezone
 
 _UNITS = ("s", "ms", "us", "ns")
+_STORAGE_FRACTION_DIGITS = {"s": 0, "ms": 3, "us": 6, "ns": 9}
 _Unit = Literal["s", "ms", "us", "ns"]
 _NumericLayout = tuple[bytes, str, bytes | None]
 _PddtT = TypeVar("_PddtT", bound="Pddt")
@@ -2782,6 +2783,8 @@ class Pddt(pd.DatetimeIndex):
             if precision<0:
                 raise _own_error(ValueError("must be nonnegative"),"precision",precision)
             if precision>=9:
+                return self
+            if type(self) is Pddt and self.tz is None and precision>=_STORAGE_FRACTION_DIGITS[self.unit]:
                 return self
             packed,changed=_pddt_fsp(self.asi8.tobytes(),self.unit,self.tz,precision,"Pddt.fsp")
             if not changed:

@@ -4,13 +4,10 @@ Only explicit copy/save operations enter here. Ordinary date kernels do not
 inspect business dictionaries, slots, reduction hooks or namespace caches.
 """
 from copy import copy, deepcopy
-from copy import _reconstruct  # pyright: ignore[reportAttributeAccessIssue] -- TY051; see tests/typing/pyright_exceptions.json.
-from collections.abc import Iterable
-from typing import cast
 
 from ._optional import POLARS as pl
 from ._native import _pldt_core, _pldt_restore_core, _pldt_copy_core
-from ._class_protocol import definition, copy_reduction, NATIVE_COPY
+from ._class_protocol import definition, copy_reduction, reconstruct_copy, NATIVE_COPY
 from ._state_storage import snapshot as _snapshot_state
 from ._polars import plain_series
 from .errors import _own_error, _external_error
@@ -160,8 +157,7 @@ def copy_value(value, deep, memo=None, *, name=None, honor_copy=False):
         except Exception as error:
             raise _external_error(error)
         reduction = _restore_copy, (cls, core, deep, sorted), state
-    # Standard argument unpacking keeps the real error for an invalid recipe.
-    result = value if isinstance(reduction, str) else _reconstruct(value, memo if deep else None, *cast("Iterable[object]", reduction))
+    result = reconstruct_copy(value, reduction, memo if deep else None)
     return result if name is None else _named_result(value, result, name)
 
 

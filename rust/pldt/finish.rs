@@ -325,46 +325,50 @@ impl Rows {
                 }
             }
         };
-        let needs_infer = policy.infer()
-            && self
-                .values
-                .iter()
-                .zip(&self.sources)
-                .any(|(value, source)| {
-                    value.is_some()
-                        && !source.instant
-                        && match &self.zones[source.zone] {
-                            SourceZone::Region(_) => true,
-                            SourceZone::Naive => {
-                                target.is_some_and(|zone| zone.fixed_seconds().is_none())
+        // With no output zone, a target is absent and every present source
+        // uses naive coordinates. The original wall tick is already final.
+        if output_zone.is_some() {
+            let needs_infer = policy.infer()
+                && self
+                    .values
+                    .iter()
+                    .zip(&self.sources)
+                    .any(|(value, source)| {
+                        value.is_some()
+                            && !source.instant
+                            && match &self.zones[source.zone] {
+                                SourceZone::Region(_) => true,
+                                SourceZone::Naive => {
+                                    target.is_some_and(|zone| zone.fixed_seconds().is_none())
+                                }
+                                SourceZone::Offset(_) => false,
                             }
-                            SourceZone::Offset(_) => false,
-                        }
-                });
-        let mut pending = if needs_infer {
-            vec![None; self.values.len()]
-        } else {
-            Vec::new()
-        };
-        for (row, (value, source)) in self.values.iter_mut().zip(&self.sources).enumerate() {
-            let Some(wall) = *value else { continue };
-            if source.instant {
-                continue;
-            }
-            *value = match &self.zones[source.zone] {
-                SourceZone::Naive => match target {
-                    None => Some(wall),
-                    Some(zone) => policy
-                        .localize(wall, zone, unit, row, self.zones.len(), &mut pending)
-                        .map_err(|error| Failure::from(error).at(row))?,
-                },
-                SourceZone::Offset(offset) => Some(wall - i128::from(*offset) * 1000),
-                SourceZone::Region(zone) => policy
-                    .localize(wall, zone, unit, row, source.zone, &mut pending)
-                    .map_err(|error| Failure::from(error).at(row))?,
+                    });
+            let mut pending = if needs_infer {
+                vec![None; self.values.len()]
+            } else {
+                Vec::new()
             };
+            for (row, (value, source)) in self.values.iter_mut().zip(&self.sources).enumerate() {
+                let Some(wall) = *value else { continue };
+                if source.instant {
+                    continue;
+                }
+                *value = match &self.zones[source.zone] {
+                    SourceZone::Naive => match target {
+                        None => Some(wall),
+                        Some(zone) => policy
+                            .localize(wall, zone, unit, row, self.zones.len(), &mut pending)
+                            .map_err(|error| Failure::from(error).at(row))?,
+                    },
+                    SourceZone::Offset(offset) => Some(wall - i128::from(*offset) * 1000),
+                    SourceZone::Region(zone) => policy
+                        .localize(wall, zone, unit, row, source.zone, &mut pending)
+                        .map_err(|error| Failure::from(error).at(row))?,
+                };
+            }
+            policy.complete(&mut self.values, &pending)?;
         }
-        policy.complete(&mut self.values, &pending)?;
         let mut output = PrimitiveChunkedBuilder::<Int64Type>::new(name, self.values.len());
         for (row, value) in self.values.into_iter().enumerate() {
             let tick = value

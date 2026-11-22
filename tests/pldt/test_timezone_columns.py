@@ -1,9 +1,12 @@
 """Actual eager/Expr timezone execution, schema, logical order and nulls."""
 from datetime import timezone, timedelta
+from pathlib import Path
 import numpy as np
 import polars as pl
+from polars.plugins import register_plugin_function
 import pytest
-from rstimes import Pldt
+from rstimes import Pldt, _native
+from rstimes._pldt_timezone import prepare_timezone
 
 
 def us(text):
@@ -101,6 +104,46 @@ def test_actual_lazy_timezone_pipeline_schema_and_instants():
     assert ticks(query.collect()["time"]) == [us("2024-01-01T04:00"), None]
     expr = pl.col("time").pldt.tz_localize("Asia/Shanghai").pldt.tz_localize(None)
     assert ticks(pl.DataFrame(source).select(expr)["time"]) == ticks(source)
+
+
+def test_regional_localization_keeps_gap_error_and_forward_boundary():
+    source = naive(["2024-03-10T02:30", None])
+    with pytest.raises(ValueError, match=r"data\[0\].*(exist|missing)"):
+        source.pldt.tz_localize("America/New_York")
+    result = source.pldt.tz_localize("America/New_York", nonexistent="shift_forward")
+    assert (result.name, result.dtype, ticks(result)) == (
+        "time", pl.Datetime("us", "America/New_York"), [us("2024-03-10T07:00"), None],
+    )
+
+
+@pytest.mark.parametrize("role", ("target", "base"))
+def test_worker_validates_independent_timezone_rules_after_schema(role):
+    source = naive(["2024-01-01T12:00", None])
+    data = prepare_timezone("America/New_York").plugin_kwargs()
+    utc = prepare_timezone("UTC").plugin_kwargs()
+    options = {
+        "version": 1, "operation": "localize" if role == "target" else "switch",
+        "target": data if role == "target" else utc,
+        "base": None if role == "target" else data,
+        "policy": _native._pldt_policies("raise", "raise").plugin_kwargs(),
+        "naive": False, "mask_scalar": False,
+    }
+
+    def query():
+        expr = register_plugin_function(
+            plugin_path=Path(_native.__file__), function_name="pldt_timezone",
+            args=[pl.col("time")], kwargs=options, is_elementwise=True,
+        )
+        return pl.DataFrame(source).lazy().select(expr)
+
+    expected_dtype = pl.Datetime("us", "America/New_York" if role == "target" else "UTC")
+    assert query().collect_schema()["time"] == expected_dtype
+    assert ticks(query().collect()["time"]) == [us("2024-01-01T17:00"), None]
+    data["data"] = b"invalid TZif"
+    bad = query()
+    assert bad.collect_schema()["time"] == expected_dtype
+    with pytest.raises(pl.exceptions.ComputeError, match=f"{role} timezone data is invalid"):
+        bad.collect()
 
 
 def repeated():

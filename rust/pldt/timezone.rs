@@ -153,16 +153,14 @@ fn execute(inputs: &[Series], mut options: Options) -> Result<Series, Failure> {
     };
     let target = options
         .target
-        .as_ref()
-        .map(|data| Zone::from_data(data.clone()))
+        .map(Zone::from_data)
         .transpose()
         .map_err(|_| ZoneError::Value("target timezone data is invalid or unavailable"))?;
     let interpretation = match options.operation {
         Operation::Localize => target.clone(),
         Operation::Astimezone | Operation::Switch if source_key.is_none() && !strip => options
             .base
-            .as_ref()
-            .map(|data| Zone::from_data(data.clone()))
+            .map(Zone::from_data)
             .transpose()
             .map_err(|_| ZoneError::Value("base timezone data is invalid or unavailable"))?,
         _ => None,
