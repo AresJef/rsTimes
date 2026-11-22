@@ -174,10 +174,21 @@ jobs:
         with:
           python-version: "3.13.17"
       - run: python -m pip install --disable-pip-version-check -r requirements-docs.txt
+      - name: Test upgrade-command detection
+        run: python -I -B documentation/_tools/test_check_upgrade.py -v
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           pattern: docs-evidence-*
           path: .local/docs-producers/
+          digest-mismatch: error
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        if: needs.source.outputs.candidate == 'true'
+        with:
+          name: ${{ needs.source.outputs.artifact }}
+          run-id: ${{ needs.source.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: .local/verified-ci
           digest-mismatch: error
       - name: Assemble only this complete workflow's evidence
         run: >-
@@ -217,6 +228,7 @@ jobs:
           python -I documentation/_tools/prepare_pages.py \
             --html .local/docs-html --coverage .local/docs-coverage.json \
             --reports .local/docs-evidence/reports --identity .local/docs-evidence/identity.json \
+            --receivers .local/docs-evidence/receivers.json --counts .local/docs-evidence/counts.json \
             --output .local/pages --commit "$GITHUB_SHA" \
             --run-url "https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             --run-attempt "$GITHUB_RUN_ATTEMPT" "${mode_args[@]}"
@@ -229,6 +241,22 @@ jobs:
               mode_args+=(--preview)
           fi
           python -I documentation/_tools/check_site.py --site .local/pages --output .local/docs-site-check.json "${mode_args[@]}"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: "26.7.0"
+      - name: Follow the desktop and narrow-screen reader routes in Chrome
+        env:
+          DOC_CANDIDATE: ${{ needs.source.outputs.candidate }}
+        run: |
+          mode_args=()
+          if [[ "$DOC_CANDIDATE" == "true" ]]; then
+              mode_args+=(--candidate-distributions .local/verified-ci/dist)
+          fi
+          python -I -B documentation/_tools/reader_runtimes.py \
+            --site .local/pages --work .local/docs-browser-runtimes --output .local/reader-runtimes.json "${mode_args[@]}"
+          npm install --prefix .local/docs-browser --no-save --no-audit --no-fund playwright-core@1.65.1
+          NODE_PATH="$PWD/.local/docs-browser/node_modules" node documentation/_tools/read_routes.cjs \
+            .local/pages .local/reader-runtimes.json .local/docs-reader-routes.json "$(command -v google-chrome)"
       - id: pages_name
         run: echo "name=github-pages-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
@@ -246,6 +274,9 @@ jobs:
             .local/docs-scope.json
             .local/rendered-examples.json
             .local/docs-evidence/context.json
+            .local/docs-evidence/counts.json
+            .local/docs-evidence/receivers.json
+            .local/docs-reader-routes.json
             .local/docs-evidence/source-tag.json
             .local/docs-evidence/source-sdist.json
           if-no-files-found: error

@@ -41,7 +41,7 @@ def copy_public_reports(source, destination):
     return reports
 
 
-def publish_coverage(exact, gate, reports, *, preview=False, actions_run=False):
+def publish_coverage(exact, gate, reports, identity, receivers, counts, *, preview=False, actions_run=False):
     manifest = json.loads((DOC / "_data/coverage.json").read_text())
     mapped = {row["path"]: row for row in manifest["entries"]}
     rows = []
@@ -67,13 +67,31 @@ def publish_coverage(exact, gate, reports, *, preview=False, actions_run=False):
         row["examples"] = mapped[row["path"]]["examples"]
         row["profiles"] = mapped[row["path"]]["profiles"]
         rows.append(row)
+    if receivers is not None:
+        tool = runpy.run_path(str(DOC / "_tools/receiver_evidence.py"))
+        cases = tool["bind_cases"](receivers, exact, reports, identity, tool["registrations"]())
+        for row in rows:
+            row["rendered_example_links"] = [dict(item, href=cases[item["id"]]["example_link"])
+                                             for item in row["rendered_example_links"]]
+        statuses = tool["add_reader_evidence"](rows, cases)
+        write_json(exact / "verification/receivers.json", dict(
+            version=gate["version"], scope="One observed registered profile per case",
+            reader_status_counts=statuses, cases=cases,
+        ))
+    if counts is not None:
+        if counts["registered_successes"] != gate["passed_case_profiles"]:
+            raise ValueError("Registered worker success count differs from verified case/profile coverage")
+        write_json(exact / "verification/execution-counts.json", counts)
     write_json(exact / "verification/coverage.json", dict(
         version=gate["version"], entries=len(rows), aliases=gate["aliases"], records=rows,
         scope=gate["verification_scope"], pending_case_profiles=gate["pending_case_profiles"],
+        **({"receiver_index": "verification/receivers.json"} if receivers is not None else {}),
     ))
     fields = ("entry", "page", "kind", "origin", "scenarios", "examples", "profiles", "evidence", "pending", "status")
+    reader_fields = ("receiver_index", "reader_status", "rendered_example_links", "reader_witnesses",
+                     "other_visible_witnesses", "backend_witnesses") if receivers is not None else ()
     with (exact / "verification/coverage.csv").open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer = csv.DictWriter(handle, fieldnames=fields + reader_fields)
         writer.writeheader()
         for row in rows:
             writer.writerow(dict(
@@ -81,6 +99,8 @@ def publish_coverage(exact, gate, reports, *, preview=False, actions_run=False):
                 kind=row["kind"], origin=row["origin"], scenarios=json.dumps(row["scenarios"]),
                 examples=json.dumps(row["examples"]), profiles=json.dumps(row["profiles"]),
                 evidence=json.dumps(row["evidence"]), pending=json.dumps(row["pending"]), status=row["status"],
+                **{field: json.dumps(row[field]) if isinstance(row[field], list) else row[field]
+                   for field in reader_fields},
             ))
     return rows
 
@@ -131,6 +151,8 @@ def main():
     parser.add_argument("--coverage", type=Path, required=True)
     parser.add_argument("--reports", type=Path, required=True)
     parser.add_argument("--identity", type=Path, required=True)
+    parser.add_argument("--receivers", type=Path)
+    parser.add_argument("--counts", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--commit", required=True)
     parser.add_argument("--run-url")
@@ -145,6 +167,8 @@ def main():
             parser.error("Local rehearsals require a current complete-scope local verification")
     elif gate.get("publication_authorized_by_this_result") is not True or not args.run_url or not args.run_attempt:
         parser.error("Publication requires a passing complete gate and actual workflow context")
+    if args.run_url and (args.receivers is None or args.counts is None):
+        parser.error("An Actions site requires its receiver observations and worker counts")
     version = target["version"]
     identity = json.loads(args.identity.read_text())
     if version != identity["product_version"] or version != gate["version"]:
@@ -168,7 +192,9 @@ def main():
     exact = args.output / version
     shutil.copytree(args.html, exact)
     reports = copy_public_reports(args.reports, exact)
-    rows = publish_coverage(exact, gate, reports, preview=preview, actions_run=bool(args.run_url))
+    counts = json.loads(args.counts.read_bytes()) if args.counts is not None else None
+    rows = publish_coverage(exact, gate, reports, identity, args.receivers, counts,
+                            preview=preview, actions_run=bool(args.run_url))
 
     restored = migration["add_legacy_site"](args.output, plan, mode)
     write_entry_pages(args.output, default_version)

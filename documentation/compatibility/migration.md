@@ -1,6 +1,8 @@
 # Upgrade to rsTimes 1.1.0
 
-Upgrade the package within your environment. Keep the extras you use.
+Upgrade the package within your environment. The command includes both optional
+adapters. Keep the extras your project uses and update its version pin and lock
+file to 1.1.0.
 
 ```bash
 python -m pip install --upgrade "rsTimes[pandas,polars]==1.1.0"
@@ -20,16 +22,8 @@ and the [exact 1.0.0 documentation](https://aresjef.github.io/rsTimes/1.0.0/) as
 
 ## Changes included since the beta
 
-Upgrade with the extras your application uses. For a project that uses both
-pandas and Polars, run this command.
-
-```bash
-python -m pip install --upgrade "rsTimes[pandas,polars]==1.0.0"
-```
-
-Update the rsTimes version pin in your project's requirements as well.
-The [1.0.0 release notes](https://github.com/AresJef/rsTimes/releases/tag/v1.0.0)
-list the release files and supported interpreters.
+For the earlier beta-to-1.0.0 upgrade and its installation steps, see the
+[1.0.0 migration guide](https://aresjef.github.io/rsTimes/1.0.0/compatibility/migration.html).
 
 ## Create a configuration when date order changes
 

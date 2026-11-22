@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 from html.parser import HTMLParser
 import json
 from pathlib import Path
+import runpy
 from urllib.parse import unquote, urljoin, urlsplit
 
 DOC = Path(__file__).resolve().parents[1]
@@ -51,6 +53,50 @@ class Document(HTMLParser):
 def site_path(path):
     target = unquote(path.removeprefix(PREFIX))
     return target + 'index.html' if not target or target.endswith('/') else target
+
+
+def verify_receiver_exports(site, version, documents, hashes, problems):
+    exact = site / version
+    receiver_path = 'verification/receivers.json'
+    if not (exact / receiver_path).is_file():
+        problems.append('Missing the public example receiver index')
+        return
+    detailed = json.loads((exact / receiver_path).read_bytes())['cases']
+    json_rows = json.loads((exact / 'verification/coverage.json').read_bytes())['records']
+    csv_path = exact / 'verification/coverage.csv'
+    # A verified entry can reference many receipts in its existing evidence cell.
+    field_limit = csv.field_size_limit(csv_path.stat().st_size)
+    try:
+        with csv_path.open(newline='', encoding='utf-8') as file:
+            csv_rows = list(csv.DictReader(file))
+    finally:
+        csv.field_size_limit(field_limit)
+    if [row['entry'] for row in csv_rows] != [row['path'] for row in json_rows]:
+        problems.append('The public CSV and JSON have different entry rows')
+        return
+    for csv_row, row in zip(csv_rows, json_rows):
+        if (csv_row['receiver_index'] != row['receiver_index'] or row['receiver_index'] != receiver_path
+                or csv_row['reader_status'] != row['reader_status']):
+            problems.append(f'{row["path"]}: receiver pointers or reader status differ')
+        for field in ('rendered_example_links', 'reader_witnesses', 'other_visible_witnesses', 'backend_witnesses'):
+            if json.loads(csv_row[field]) != row[field]:
+                problems.append(f'{row["path"]}: CSV/JSON disagree on {field}')
+        for link in row['rendered_example_links']:
+            if link['href'] != detailed[link['id']]['example_link']:
+                problems.append(f'{row["path"]}: rendered example is missing its public deep link')
+    for case, detail in detailed.items():
+        report = version + '/' + detail['report']
+        if hashes.get(report) != detail['report_sha256']:
+            problems.append(f'{case}: published receiver receipt or checksum differs')
+        if link := detail['example_link']:
+            page, fragment = link.split('#', 1)
+            document = documents.get(version + '/' + page)
+            if document is None or fragment not in document.ids:
+                problems.append(f'{case}: missing the public example anchor')
+    counts = json.loads((exact / 'verification/execution-counts.json').read_bytes())
+    for extra in counts['unregistered_successes']:
+        if version + '/' + extra['report'] not in hashes:
+            problems.append(f'{extra["case"]}: successful worker record is not accessible')
 
 
 def verify_migration(site, documents, hashes, preview, problems):
@@ -185,6 +231,14 @@ def main():
     if recorded != hashes:
         problems.append('Packaged site files differ from their checksums')
     migration = verify_migration(args.site, documents, hashes, args.preview, problems)
+    target = json.loads((DOC / 'target.json').read_text())
+    upgrade = args.site / target['version'] / 'compatibility/migration.html'
+    check_upgrade = runpy.run_path(str(DOC / '_tools/check_upgrade.py'))['check_upgrade']
+    try:
+        check_upgrade(upgrade.read_text(encoding='utf-8'), target['version'])
+    except ValueError as error:
+        problems.append(str(error))
+    verify_receiver_exports(args.site, target['version'], documents, hashes, problems)
     result = dict(status='fail' if problems else 'pass', files=len(files), html_pages=len(documents),
                   internal_links_checked=checked, external_links=sorted(external), problems=problems,
                   migration=migration, preview=args.preview)

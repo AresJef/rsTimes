@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import runpy
 import shutil
 
 DOC = Path(__file__).resolve().parents[1]
@@ -20,7 +21,7 @@ def main():
     args = parser.parse_args()
     profiles = set(json.loads((DOC / '_data/profiles.json').read_text())['profiles'])
     expected = profiles | {'inventory312', 'inventory314', 'inventory315'}
-    found = {}
+    found, producers = {}, []
     for context_file in sorted(args.input.rglob('context.json')):
         context = json.loads(context_file.read_text())
         profile = context['profile']
@@ -29,6 +30,9 @@ def main():
         for key in ('repository', 'commit', 'run_id', 'run_attempt'):
             if str(context[key]) != str(getattr(args, key)):
                 parser.error('Evidence from a different workflow context: ' + key)
+        if context['inventory_only'] is not (profile not in profiles):
+            parser.error('Producer reported the wrong verification mode: ' + profile)
+        producers.append(context)
         found[profile] = context_file.parent
     if set(found) != expected:
         parser.error('Missing producer artifacts: ' + ', '.join(sorted(expected - found.keys())))
@@ -53,6 +57,7 @@ def main():
             parser.error('Published source verification failed: ' + kind)
         shutil.copyfile(receipt, args.output / receipt.name)
     identity['profile_identities'] = {}
+    receivers = {}
     for profile, directory in found.items():
         current = json.loads((directory / 'identity.json').read_text())
         if current['product_version'] != identity['product_version'] or current['stubs'] != identity['stubs'] or current['public_api_paths'] != identity['public_api_paths']:
@@ -72,8 +77,17 @@ def main():
             if json.loads(report_file.read_text())['profile'] != profile:
                 parser.error('Report profile differs from its producer')
         shutil.copytree(reports, args.output / 'reports' / profile)
+        observations = json.loads((directory / 'receivers.json').read_text())
+        if observations.keys() & receivers.keys() or any(row['profile'] != profile for row in observations.values()):
+            parser.error('Receiver observations have a duplicate case or a wrong producer: ' + profile)
+        receivers.update(observations)
     shutil.copytree(found['full'] / 'stubs', DOC / '_stubs', dirs_exist_ok=True)
     (args.output / 'identity.json').write_text(json.dumps(identity, indent=2) + '\n')
+    (args.output / 'receivers.json').write_text(json.dumps(receivers, indent=2) + '\n', encoding='utf-8')
+    count_successes = runpy.run_path(str(DOC / '_tools/evidence_counts.py'))['count_successes']
+    registry = {case['id']: case for case in json.loads((DOC / '_data/examples.json').read_text())['examples']}
+    counts = count_successes(args.output / 'reports', registry, producers)
+    (args.output / 'counts.json').write_text(json.dumps(counts, indent=2) + '\n', encoding='utf-8')
     (args.output / 'context.json').write_text(json.dumps(dict(repository=args.repository, commit=args.commit,
         run_id=args.run_id, run_attempt=args.run_attempt, producers=sorted(found)), indent=2) + '\n')
     print(json.dumps({'producers': len(found), 'page_profiles': len(profiles), 'actual_native_identities_kept_separate': True}))
