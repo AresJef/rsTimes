@@ -1257,7 +1257,9 @@ def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bo
     OverflowError
         An integer conversion or result exceeds the supported range.
 
-    Boolean options accept only bool or numpy.bool_. Other values raise TypeError
+    Notes
+    -----
+        Boolean options accept only bool or numpy.bool_. Other values raise TypeError
     without calling their truth-conversion methods. yearfirst and dayfirst also
     accept None to use the corresponding Configs preference.
 
@@ -1332,7 +1334,9 @@ def parse_str(dtstr: str, default: _Default | None=None, yearfirst: bool | np.bo
     OverflowError
         An integer conversion or result exceeds the supported range.
 
-    Boolean options accept only bool or numpy.bool_. Other values raise TypeError
+    Notes
+    -----
+        Boolean options accept only bool or numpy.bool_. Other values raise TypeError
     without calling their truth-conversion methods. yearfirst and dayfirst also
     accept None to use the corresponding Configs preference.
 
@@ -1487,7 +1491,9 @@ def parse(dtobj: str | datetime.datetime | datetime.date | int | float | np.date
     OverflowError
         An integer conversion or result exceeds the supported range.
 
-    Boolean options accept only bool or numpy.bool_. Other values raise TypeError
+    Notes
+    -----
+        Boolean options accept only bool or numpy.bool_. Other values raise TypeError
     without calling their truth-conversion methods. yearfirst and dayfirst also
     accept None to use the corresponding Configs preference.
 
@@ -1563,7 +1569,9 @@ def parse(dtobj: str | datetime.datetime | datetime.date | int | float | np.date
     OverflowError
         An integer conversion or result exceeds the supported range.
 
-    Boolean options accept only bool or numpy.bool_. Other values raise TypeError
+    Notes
+    -----
+        Boolean options accept only bool or numpy.bool_. Other values raise TypeError
     without calling their truth-conversion methods. yearfirst and dayfirst also
     accept None to use the corresponding Configs preference.
 

@@ -764,8 +764,9 @@ class Pddt(pd.DatetimeIndex):
         Text, date, datetime, integer ticks or supported native temporal columns.
         Collections may mix supported date values. A scalar belongs in [value].
     unit : {'s', 'ms', 'us', 'ns'}, optional
-        Storage resolution. Text and datetime normally start at microseconds;
-        nine-digit text preserves nanoseconds. Native dates retain their unit.
+        Storage resolution. Without a unit, text uses us for up to six fractional digits
+        and ns for seven through nine, even if the additional digits are zero.
+        Python datetime starts at us. Native dates retain their unit.
         Bare numbers mean ticks in unit, or nanoseconds when unit is omitted.
         Explicit construction must preserve all source precision.
     tz : tzinfo or str, optional
@@ -3355,7 +3356,7 @@ class Pddt(pd.DatetimeIndex):
         Returns
         -------
         pandas.Index
-            A Int64 index of the same length. Naive and missing dates return pd.NA. Fractional negative offsets round toward the earlier second.
+            An Int64 index of the same length. Naive and missing dates return pd.NA. Fractional negative offsets round toward the earlier second.
         """
         try:
             return _calendar_query(self,12,"Pddt.utcoffset_seconds")

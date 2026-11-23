@@ -5497,6 +5497,12 @@ class _SeriesNamespace(Generic[_PldtT]):
         --------
         >>> import polars as pl
         >>> import rstimes.pldt
+        >>> source = pl.Series("event", ["2024-01-31 14:30", None]).str.to_datetime(time_unit="us")
+        >>> print(source.pldt.add(months=1).isoformat().to_list())
+        ['2024-02-29T14:30:00', None]
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
         >>> source = pl.Series('event', [1, None], dtype=pl.Datetime('us'))
         >>> dates = source.pldt.add(microseconds=1, nanoseconds=-1000)
         >>> print(dates.to_physical().to_list())
@@ -5868,7 +5874,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         >>> import polars as pl
         >>> import rstimes.pldt
         >>> source = pl.Series("event", ["2024-01-02 11:59", "2024-01-02 12:00", None])
-        >>> dates = source.pldt.parse(unit="us").pldt.snap("D")
+        >>> dates = source.str.to_datetime(time_unit="us").pldt.snap("D")
         >>> print(dates.isoformat().to_list())
         ['2024-01-02T00:00:00', '2024-01-03T00:00:00', None]
         """
@@ -9338,6 +9344,15 @@ class _ExprNamespace:
 
         Examples
         --------
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series("event", ["2024-01-31 14:30", None]).str.to_datetime(time_unit="us")
+        >>> frame = source.to_frame()
+        >>> expr = pl.col("event").pldt.add(months=1)
+        >>> dates = frame.lazy().select(expr).collect()["event"]
+        >>> print(dates.dt.strftime("%Y-%m-%dT%H:%M:%S").to_list())
+        ['2024-02-29T14:30:00', None]
+
         >>> import polars as pl
         >>> import rstimes.pldt
         >>> frame = pl.DataFrame([pl.Series('event', [1, None], dtype=pl.Datetime('us'))])
