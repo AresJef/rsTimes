@@ -49,7 +49,7 @@ def for_website(node, module):
     content = "\n".join(rendered)
     if module == "parser" and getattr(node, "name", None) in ("parse", "parse_str", "parse_to_epoch"):
         headings = list(re.finditer(r"(?m)^Notes\n-----$", content))
-        boolean = content.index("Boolean options accept")
+        boolean = content.find("Boolean options accept")
         if len(headings) != 1 or boolean < headings[0].end():
             raise ValueError(f"Place Boolean options in one Notes section for {node.name}.")
     node.body[0].value.value = content
