@@ -21,6 +21,28 @@ target raises `TypeError`. An unknown month name raises `ValueError`.
 Integer calendar queries can return nullable integers when dates are
 missing. Inherited pandas fields retain their pandas result contracts.
 
+## Read the year a week belongs to
+
+(pddt-iso-week-year)=
+```python
+from rstimes import Pddt
+
+dates = Pddt(["0000-01-01", None], unit="us", name="event")
+print(dates.isocalendar()["year"].tolist())
+```
+
+**Output**
+
+```text
+[-1, <NA>]
+```
+
+January 1 of year 0 falls in week 52 of ISO year −1, on Saturday.
+The table keeps your date index and its name. The `year` column uses
+nullable `Int64`. The `week` and `day` columns use nullable `UInt32`.
+A missing date leaves all three cells missing. Use `isoyear()` when
+you only need the year.
+
 ## Round to a fixed frequency
 
 `floor(freq)` chooses the earlier boundary or the same value.

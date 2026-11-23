@@ -45,19 +45,24 @@
 ```{doctest} pldt-iso-struct-query
 >>> for owner in (source, pl.Series(source).pldt):
 ...     result = owner.isocalendar()
-...     assert type(result) is pl.Series and result.dtype == pl.Struct({'year': pl.UInt32, 'week': pl.UInt32, 'day': pl.UInt32})
+...     assert type(result) is pl.Series and result.dtype == pl.Struct({'year': pl.Int64, 'week': pl.UInt32, 'day': pl.UInt32})
 ...     assert result.to_list() == [{'year': 2024, 'week': 9, 'day': 4}, None]
 ...     assert result.is_null().to_list() == [False, True]
 >>> Pldt(['0000-01-04'], unit='us').isocalendar().struct.field('year').to_list()
 [0]
->>> signed = Pldt(['0000-01-01'], unit='us')
+>>> signed = Pldt(['0000-01-01', None], unit='us')
 >>> (signed.year.to_list(), signed.isoyear().to_list())
-([0], [-1])
->>> try:
-...     signed.isocalendar()
-... except OverflowError as error:
-...     print(type(error).__name__)
-OverflowError
+([0, None], [-1, None])
+>>> for owner in (signed, pl.Series(signed).pldt):
+...     assert owner.isocalendar().to_list() == [{'year': -1, 'week': 52, 'day': 6}, None]
+>>> regional = pl.Series('event', [253416686400000, None], dtype=pl.Datetime('ms', 'America/New_York'))
+>>> for owner in (Pldt(regional), regional.pldt):
+...     try:
+...         owner.isocalendar()
+...     except OverflowError as error:
+...         assert 'data[0]' in str(error) and 'regional timestamp exceeds' in str(error)
+...     else:
+...         raise AssertionError('a date outside the regional range was accepted')
 ```
 
 ```{doctest} pldt-timezone-and-now-queries

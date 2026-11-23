@@ -3611,15 +3611,13 @@
         "pandas2",
         "windows-full"
       ],
-      "expectation_basis": "2024leapday60ISO9/4;nullableInt64/UInt32andzero-yearISO-1",
+      "expectation_basis": "Leap-day and ISO checks include year -1 and year 4294967296. The ISO table keeps nullable field dtypes.",
       "scenarios": [
         "all-integer-query-methods",
         "all-condition-methods",
         "nullable-types",
         "NaT",
         "nonmatch",
-        "wide-signed-ISO",
-        "UInt32-error",
         "row-error",
         "type-error"
       ],
@@ -5543,13 +5541,13 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "nativeUInt32children;year0validbutISO-1cannotUInt32",
+      "expectation_basis": "ISO year -1 fits Int64. The named time-zone example exceeds the supported local date range.",
       "scenarios": [
         "Struct",
         "outer-null",
         "fixed-child-schema",
         "signed-year",
-        "capacity-error"
+        "named-time-zone-range"
       ],
       "reviewed": true,
       "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
@@ -6683,7 +6681,7 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "leapday60ISO9/4;23literalqueries;fixedUInt32Struct",
+      "expectation_basis": "February 29, 2024 falls in ISO week 9. The ISO Struct has an Int64 year.",
       "scenarios": [
         "all-integer-queries",
         "all-condition-queries",
@@ -6719,7 +6717,7 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "1970Jan/Febrowtargets;ISO-1cannotUInt32",
+      "expectation_basis": "The January and February rows retain positional query rules. ISO year -1 succeeds. The named time-zone example fails in the executing batch.",
       "scenarios": [
         "row-Expr",
         "scalar-aggregate",
@@ -6728,7 +6726,7 @@
         "strict-type",
         "invalid-name",
         "signed-year",
-        "capacity-error"
+        "named-time-zone-range"
       ],
       "reviewed": true,
       "execution_modes": [
@@ -11020,6 +11018,38 @@
       "page": "guides/pddt-boundaries.md"
     },
     {
+      "id": "pddt-iso-week-year",
+      "covers": [
+        "rstimes.Pddt.isocalendar"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "January 1 of year 0 falls on Saturday in week 52 of ISO year -1.",
+      "checks": [
+        "import pandas as pd",
+        "iso = dates.isocalendar()",
+        "assert type(iso) is pd.DataFrame and iso.index.equals(dates)",
+        "assert iso.index.name == 'event' and list(iso.columns) == ['year', 'week', 'day']",
+        "assert [str(dtype) for dtype in iso.dtypes] == ['Int64', 'UInt32', 'UInt32']",
+        "assert list(iso.itertuples(index=False, name=None)) == [(-1, 52, 6), (pd.NA, pd.NA, pd.NA)]"
+      ],
+      "scenarios": [
+        "ISO-calendar",
+        "signed-ISO-year",
+        "nullable-types",
+        "NaT"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-boundaries.md"
+    },
+    {
       "id": "pddt-count-midnights-with-missing-date",
       "covers": [
         "rstimes.Pddt.diff"
@@ -11947,9 +11977,7 @@
     {
       "id": "pldt-extract-iso-week-struct",
       "covers": [
-        "rstimes.Pldt.isocalendar",
-        "polars.Series.pldt.isocalendar",
-        "rstimes.Pldt.isoyear"
+        "rstimes.Pldt.isocalendar"
       ],
       "format": "python",
       "profiles": [
@@ -11958,13 +11986,12 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "February 29, 2024 is Thursday of ISO week 9.",
+      "expectation_basis": "January 1 of year 0 falls on Saturday in week 52 of ISO year -1.",
       "checks": [
         "import polars as pl",
         "assert type(weeks) is pl.Series and weeks.name == 'event'",
-        "assert weeks.dtype == pl.Struct({'year':pl.UInt32,'week':pl.UInt32,'day':pl.UInt32})",
-        "assert pl.Series(events).pldt.isocalendar().to_list() == [{'year':2024,'week':9,'day':4},None]",
-        "assert Pldt(['0000-01-01']).isoyear().to_list() == [-1]"
+        "assert weeks.dtype == pl.Struct({'year': pl.Int64, 'week': pl.UInt32, 'day': pl.UInt32})",
+        "assert weeks.is_null().to_list() == [False, True]"
       ],
       "scenarios": [
         "ISO-calendar",
@@ -12810,12 +12837,12 @@
         "nogil314",
         "nogil315"
       ],
-      "expectation_basis": "February 29 is Thursday of ISO week 9.",
+      "expectation_basis": "January 1, 2021 falls on Friday in week 53 of ISO year 2020.",
       "checks": [
         "assert type(expr) is pl.Expr",
         "query = frame.lazy().select(expr)",
-        "assert query.collect_schema() == {'event': pl.Struct({'year':pl.UInt32,'week':pl.UInt32,'day':pl.UInt32})}",
-        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Struct({'year':pl.UInt32,'week':pl.UInt32,'day':pl.UInt32})}\n    assert column.to_list() == [{'year':2024,'week':9,'day':4},None]"
+        "assert query.collect_schema() == {'event': pl.Struct({'year': pl.Int64, 'week': pl.UInt32, 'day': pl.UInt32})}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and column.dtype == pl.Struct({'year': pl.Int64, 'week': pl.UInt32, 'day': pl.UInt32})\n    assert column.to_list() == [{'year': 2020, 'week': 53, 'day': 5}, None]\n    assert column.is_null().to_list() == [False, True]"
       ],
       "scenarios": [
         "ISO-calendar",
@@ -12825,7 +12852,12 @@
         "collect"
       ],
       "reviewed": true,
-      "page": "guides/expressions-queries.md"
+      "page": "guides/expressions-queries.md",
+      "execution_modes": [
+        "select",
+        "collect",
+        "streaming"
+      ]
     },
     {
       "id": "expr-localize-then-convert",
@@ -14468,10 +14500,13 @@
       "expectation_basis": "January 1, 2021 was the fifth day of ISO week 53 of 2020.",
       "scenarios": [
         "native-receiver",
-        "eager"
+        "eager",
+        "fixed-child-schema",
+        "outer-null"
       ],
       "checks": [
-        "assert dates.dtype == pl.Struct({'year': pl.UInt32, 'week': pl.UInt32, 'day': pl.UInt32}) and dates.name == 'event'"
+        "assert dates.dtype == pl.Struct({'year': pl.Int64, 'week': pl.UInt32, 'day': pl.UInt32}) and dates.name == 'event'",
+        "assert dates.is_null().to_list() == [False, True]"
       ]
     },
     {

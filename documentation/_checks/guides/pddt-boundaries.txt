@@ -87,17 +87,17 @@
 ([False, False], [False, False], [False, False])
 >>> iso = leap.isocalendar()
 >>> (type(iso) is pd.DataFrame, iso.columns.tolist(), [str(dtype) for dtype in iso.dtypes], iso['year'].tolist(), iso['week'].tolist(), iso['day'].tolist())
-(True, ['year', 'week', 'day'], ['UInt32', 'UInt32', 'UInt32'], [2024, <NA>], [9, <NA>], [4, <NA>])
+(True, ['year', 'week', 'day'], ['Int64', 'UInt32', 'UInt32'], [2024, <NA>], [9, <NA>], [4, <NA>])
 >>> iso.index.equals(leap)
 True
->>> signed = Pddt(['0000-01-01'], unit='us')
+>>> signed = Pddt(['0000-01-01', None], unit='us')
 >>> signed.isoyear().tolist()
-[-1]
->>> try:
-...     signed.isocalendar()
-... except OverflowError as error:
-...     print(type(error).__name__)
-OverflowError
+[-1, <NA>]
+>>> list(signed.isocalendar().itertuples(index=False, name=None))
+[(-1, 52, 6), (<NA>, <NA>, <NA>)]
+>>> wide = Pddt(np.array(['4294967296-01-04'], dtype='datetime64[s]'))
+>>> list(wide.isocalendar().itertuples(index=False, name=None))
+[(4294967296, 1, 3)]
 >>> for call, exception in ((lambda: leap.is_month(''), ValueError), (lambda: leap.is_weekday('unknown'), ValueError), (lambda: leap.is_day([29]), ValueError), (lambda: leap.is_year([2024, None]), TypeError), (lambda: leap.is_quarter(True), TypeError)):
 ...     try:
 ...         call()

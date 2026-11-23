@@ -40,10 +40,10 @@ READER_GUIDES = [
     "guides/pldt-factories.html", "guides/pldt-boundaries.html",
     "guides/expressions-boundaries.html", "guides/expressions-calendar.html",
     "guides/pydt-boundaries.html", "guides/pldt-calendar.html",
-    "guides/pddt.html", "guides/pldt.html",
+    "guides/pddt.html", "guides/pddt-boundaries.html", "guides/pldt.html",
     "guides/pddt-ranges.html", "guides/pldt-ranges.html",
     "guides/pldt-queries.html", "guides/pldt-output.html", "guides/expressions-queries.html",
-    "compatibility/free-threaded.html", "compatibility/known-issues.html",
+    "compatibility/free-threaded.html", "compatibility/known-issues.html", "compatibility/migration.html",
     "getting-started/index.html", "development/contributing.html",
 ]
 TIMEDF_FIELDS = {
@@ -92,6 +92,7 @@ def check(html):
     problems, fields, notes_seen, page_records = [], [], [], {}
     query_fields, dict_fields = {}, {}
     regional_raises = []
+    guide_contracts = {}
     root = html / "api/reference/rstimes"
 
     def fail(path, entry, field, reason):
@@ -177,18 +178,30 @@ def check(html):
                 fail(path, entry, "time fields", "Expected nine named fields with tm_sec as a whole second")
             else:
                 query_fields[entry] = text
-            entry = namespace + ".isocalendar"
-            description = method_description(main, entry)
-            text = visible(description) if description else ""
-            error = "ComputeError" if namespace == "polars.Expr.pldt" else "OverflowError"
-            if not all(word in text for word in (error, "UInt32", "isoyear()")):
-                fail(path, entry, "Raises", f"Explain {error} for the UInt32 ISO year and how to use isoyear()")
+        relative = path.relative_to(html).as_posix()
+        for receiver, route in REGIONAL["ISO_GUIDES"].items():
+            page, anchor = route.split("#")
+            if page != relative:
+                continue
+            example = main.find(id=anchor)
+            expected = {"year": {"Int64"}, "week": {"UInt32"}, "day": {"UInt32"}}
+            if example is None or REGIONAL["iso_fields"](visible(main)) != expected:
+                fail(path, REGIONAL["NAMESPACES"][receiver] + ".isocalendar", "guide",
+                     "Show the example and describe the signed year and the unsigned week and day")
             else:
-                query_fields[entry] = text
+                guide_contracts[receiver] = route
+        if relative == "compatibility/migration.html":
+            note = next((visible(p) for p in main.find_all("p")
+                         if "result schema yourself" in visible(p) and "isocalendar()" in visible(p)), "")
+            if (REGIONAL["iso_fields"](note) != {"year": {"Int64"}, "week": {"UInt32"}, "day": {"UInt32"}}
+                    or "change year to Int64" not in note):
+                fail(path, "isocalendar", "upgrade", "Explain changing only the year field to Int64")
+            else:
+                guide_contracts["upgrade"] = note
         for row in REGIONAL["check_api_page"](main, path.relative_to(html).as_posix()):
             regional_raises.append(row)
             for reason in row["problems"]:
-                fail(path, row["entry"], "Raises", reason)
+                fail(path, row["entry"], "Returns" if reason.startswith("Returns ") else "description", reason)
                 problems[-1].update(receiver=row["receiver"], carrier=row["carrier"], line=row["line"])
         page_records[path.relative_to(html).as_posix()] = {
             "signatures": len(signatures),
@@ -197,7 +210,7 @@ def check(html):
     return dict(status="fail" if problems else "pass", pages=page_records,
                 api_pages=len(pages), literal_fields=fields, parser_notes=notes_seen,
                 timedf_and_iso_fields=query_fields, config_index_fields=dict_fields,
-                regional_year_raises=regional_raises, problems=problems)
+                regional_year_raises=regional_raises, iso_guides=guide_contracts, problems=problems)
 
 
 def main():

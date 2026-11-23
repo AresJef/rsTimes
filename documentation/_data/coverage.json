@@ -2347,8 +2347,8 @@
       "scenarios": [
         "all-condition-queries",
         "all-integer-queries",
-        "capacity-error",
         "invalid-name",
+        "named-time-zone-range",
         "native-Boolean",
         "native-Int64",
         "native-Struct",
@@ -2886,10 +2886,10 @@
         "all-condition-queries",
         "all-integer-queries",
         "boolean-output",
-        "capacity-error",
         "collect",
         "integer-output",
         "invalid-name",
+        "named-time-zone-range",
         "native-Boolean",
         "native-Int64",
         "native-Struct",
@@ -3027,8 +3027,8 @@
       "scenarios": [
         "all-condition-queries",
         "all-integer-queries",
-        "capacity-error",
         "invalid-name",
+        "named-time-zone-range",
         "native-Boolean",
         "native-Int64",
         "native-Struct",
@@ -3167,8 +3167,8 @@
       "scenarios": [
         "all-condition-queries",
         "all-integer-queries",
-        "capacity-error",
         "invalid-name",
+        "named-time-zone-range",
         "native-Boolean",
         "native-Int64",
         "native-Struct",
@@ -3307,9 +3307,9 @@
         "Struct",
         "all-condition-queries",
         "all-integer-queries",
-        "capacity-error",
         "collect",
         "invalid-name",
+        "named-time-zone-range",
         "native-Boolean",
         "native-Int64",
         "native-Struct",
@@ -3582,8 +3582,8 @@
       "scenarios": [
         "all-condition-queries",
         "all-integer-queries",
-        "capacity-error",
         "invalid-name",
+        "named-time-zone-range",
         "native-Boolean",
         "native-Int64",
         "native-Struct",
@@ -11533,7 +11533,6 @@
       },
       "examples": [
         "pldt-iso-struct-query",
-        "pldt-extract-iso-week-struct",
         "pldt-series-isocalendar"
       ],
       "profiles": [
@@ -11559,17 +11558,13 @@
         "polars-only"
       ],
       "scenarios": [
-        "ISO-calendar",
         "Struct",
-        "capacity-error",
         "eager",
         "fixed-child-schema",
+        "named-time-zone-range",
         "native-receiver",
-        "null",
         "outer-null",
-        "signed-ISO-year",
-        "signed-year",
-        "structured-output"
+        "signed-year"
       ]
     },
     {
@@ -28576,14 +28571,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -28638,14 +28631,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -28920,14 +28911,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -28982,14 +28971,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -29044,14 +29031,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -29161,14 +29146,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -29223,14 +29206,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -32262,7 +32243,6 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "exact-year-float64",
@@ -32275,8 +32255,7 @@
         "pdNA-error",
         "row-error",
         "row-pairing",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -32906,14 +32885,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -33080,7 +33057,6 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "invalid-target",
@@ -33089,8 +33065,7 @@
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -33468,14 +33443,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -33821,14 +33794,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -33883,14 +33854,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -34216,10 +34185,14 @@
         }
       },
       "examples": [
-        "pddt-calendar-query-forms"
+        "pddt-calendar-query-forms",
+        "pddt-iso-week-year"
       ],
       "profiles": [
         "full",
+        "nogil314",
+        "nogil315",
+        "pandas-current",
         "pandas2",
         "windows-full"
       ],
@@ -34227,15 +34200,15 @@
       "description_reviewed": true,
       "owner": "rstimes.Pddt",
       "scenarios": [
+        "ISO-calendar",
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "signed-ISO-year",
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -34367,14 +34340,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -34429,14 +34400,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -34491,14 +34460,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -34663,14 +34630,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -35000,14 +34965,12 @@
       "owner": "rstimes.Pddt",
       "scenarios": [
         "NaT",
-        "UInt32-error",
         "all-condition-methods",
         "all-integer-query-methods",
         "nonmatch",
         "nullable-types",
         "row-error",
-        "type-error",
-        "wide-signed-ISO"
+        "type-error"
       ],
       "dependency_profiles_available": [
         "full",
@@ -58770,8 +58733,8 @@
       "scenarios": [
         "ISO-calendar",
         "Struct",
-        "capacity-error",
         "fixed-child-schema",
+        "named-time-zone-range",
         "null",
         "outer-null",
         "signed-ISO-year",
@@ -59015,8 +58978,7 @@
       },
       "examples": [
         "pldt-integer-calendar-queries",
-        "pldt-iso-struct-query",
-        "pldt-extract-iso-week-struct"
+        "pldt-iso-struct-query"
       ],
       "profiles": [
         "full",
@@ -59039,22 +59001,18 @@
         "polars-only"
       ],
       "scenarios": [
-        "ISO-calendar",
         "Int64",
         "Struct",
         "all23integer-queries",
-        "capacity-error",
         "fixed-child-schema",
         "full-valid-MIN",
+        "named-time-zone-range",
         "native-null",
         "ns-tail",
-        "null",
         "original-name",
         "outer-null",
-        "signed-ISO-year",
         "signed-dates",
-        "signed-year",
-        "structured-output"
+        "signed-year"
       ]
     },
     {

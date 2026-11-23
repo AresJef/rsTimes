@@ -124,7 +124,8 @@ tick and validity.
 ```python
 import polars as pl
 import rstimes.pldt
-source = pl.Series('event', ['2021-01-01']).str.to_datetime(time_unit='us')
+
+source = pl.Series("event", ["2021-01-01", None]).str.to_datetime(time_unit="us")
 dates = source.pldt.isocalendar()
 print(dates.to_list())
 ```
@@ -132,12 +133,13 @@ print(dates.to_list())
 **Output**
 
 ```text
-[{'year': 2020, 'week': 53, 'day': 5}]
+[{'year': 2020, 'week': 53, 'day': 5}, None]
 ```
 
-The output uses UInt32 for all three fields. An out-of-range ISO year
-raises `OverflowError` here. Call `source.pldt.isoyear()` to read ISO
-years as signed integers.
+January 1, 2021 falls in the last ISO week of 2020. The `year` field
+uses `Int64` and can be negative. The `week` and `day` fields use
+`UInt32`. A missing date gives a null Struct. A date outside the range
+supported for its named time zone raises `OverflowError`.
 
 ## Read local-clock seconds from dates
 

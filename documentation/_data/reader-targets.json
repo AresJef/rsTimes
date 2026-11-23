@@ -144,5 +144,7 @@
   "polars.Series.pldt.sub_delta": "reader-series-subtract-delta",
   "polars.Expr.pldt.sub_delta": "reader-expr-subtract-delta",
   "rstimes.Pldt.strptime": "reader-pldt-formatted-text",
-  "rstimes.Pldt.__array_ufunc__": "reader-pldt-numpy-temporal-arithmetic"
+  "rstimes.Pldt.__array_ufunc__": "reader-pldt-numpy-temporal-arithmetic",
+  "rstimes.Pddt.isocalendar": "pddt-iso-week-year",
+  "rstimes.Pldt.isocalendar": "pldt-extract-iso-week-struct"
 }

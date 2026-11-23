@@ -8,6 +8,13 @@ file to 1.1.1.
 python -m pip install --upgrade "rsTimes[pandas,polars]==1.1.1"
 ```
 
+In the pandas table and Polars Struct returned by `isocalendar()`, the
+`year` field now uses `Int64` and can be negative. If you declare the
+result schema yourself, change `year` to `Int64`. The `week` and
+`day` fields still use `UInt32`. See the
+{ref}`Pddt example <pddt-iso-week-year>` and the
+{ref}`Polars example <pldt-extract-iso-week-struct>`.
+
 With 1.1.1, semi-month-start ranges require an anchor from day 2 through 27.
 Semi-month-end still accepts days 1 through 27. See the
 {ref}`Polars range guide <pldt-choose-range-frequency>` to choose the right
