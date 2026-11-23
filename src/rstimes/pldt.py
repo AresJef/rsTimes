@@ -1689,6 +1689,8 @@ class _OutputMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -1712,6 +1714,12 @@ class _OutputMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        ValueError
+            The process local timezone is unavailable, or a naive time is repeated
+            or nonexistent. Use tz_localize with an explicit ambiguous or nonexistent
+            policy before calling timestamp().
+        OverflowError
+            A naive date's local time is outside the supported regional timezone range.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -1763,6 +1771,9 @@ class _OutputMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            The local wall time exceeds the current tick unit's capacity,
+            or the date is outside the supported regional timezone range.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -1787,6 +1798,9 @@ class _OutputMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            The local date exceeds the native Date type's signed 32-bit day range,
+            or the date is outside the supported regional timezone range.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -1811,6 +1825,8 @@ class _OutputMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -1928,6 +1944,8 @@ class _OutputMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2015,6 +2033,8 @@ class _OutputMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2042,6 +2062,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2066,6 +2088,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2090,6 +2114,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2114,6 +2140,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2138,6 +2166,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2162,6 +2192,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2234,6 +2266,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2258,6 +2292,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2282,6 +2318,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2306,6 +2344,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2354,6 +2394,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2377,6 +2419,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2400,6 +2444,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2423,6 +2469,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2446,6 +2494,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2469,6 +2519,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2492,6 +2544,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2515,6 +2569,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2538,6 +2594,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2561,6 +2619,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2584,6 +2644,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2777,6 +2839,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2834,6 +2898,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2857,6 +2923,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -2929,7 +2997,8 @@ class _QueryMethods:
         TypeError
             An unsupported source dtype cannot be read as a date column.
         OverflowError
-            An eager input has an ISO year outside the UInt32 range.
+            An eager input has an ISO year outside the UInt32 range, or the date
+            is outside the supported regional timezone range.
         polars.exceptions.ComputeError
             An expression can fail during planning or evaluation. An ISO year
             outside the UInt32 range fails during select or collect.
@@ -2984,6 +3053,8 @@ class _QueryMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            A date is outside the supported year range for regional timezone rules.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 

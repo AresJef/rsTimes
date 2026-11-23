@@ -2461,9 +2461,11 @@ class Pldt(pl.Series):
         TypeError
             A supplied type, integer/bool protocol or parameter role is unsupported.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The process local timezone is unavailable, or a naive time is repeated
+            or nonexistent. Use tz_localize with an explicit ambiguous or nonexistent
+            policy before calling timestamp().
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A naive date's local time is outside the supported regional timezone range.
 
         Examples
         --------
@@ -2490,7 +2492,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The local wall time exceeds the current tick unit's capacity,
+            or the date is outside the supported regional timezone range."""
         ...
 
     @property
@@ -2510,7 +2513,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The local date exceeds the native Date type's signed 32-bit day range,
+            or the date is outside the supported regional timezone range."""
         ...
 
     @property
@@ -6841,9 +6845,11 @@ class _SeriesNamespace(Generic[_PldtT]):
         TypeError
             A supplied type, integer/bool protocol or parameter role is unsupported.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The process local timezone is unavailable, or a naive time is repeated
+            or nonexistent. Use tz_localize with an explicit ambiguous or nonexistent
+            policy before calling timestamp().
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A naive date's local time is outside the supported regional timezone range.
 
         Examples
         --------
@@ -6873,7 +6879,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The local wall time exceeds the current tick unit's capacity,
+            or the date is outside the supported regional timezone range."""
         ...
 
     @property
@@ -6893,7 +6900,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The local date exceeds the native Date type's signed 32-bit day range,
+            or the date is outside the supported regional timezone range."""
         ...
 
     @property
@@ -10839,6 +10847,7 @@ class _ExprNamespace:
         -----
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+        An unresolved local time or a date beyond the local zone's range fails during evaluation.
 
         Examples
         --------
@@ -10871,6 +10880,7 @@ class _ExprNamespace:
         -----
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+        A local wall time beyond the tick unit's range fails during evaluation.
         """
         ...
 
@@ -10893,6 +10903,7 @@ class _ExprNamespace:
         -----
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
+        A local date beyond the native Date range fails during evaluation.
         """
         ...
 
