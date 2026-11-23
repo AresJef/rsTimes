@@ -2419,9 +2419,13 @@ class _QueryMethods:
         TypeError
             An unsupported source dtype cannot be read as a date column.
         OverflowError
-            A date is outside the supported year range for regional timezone rules.
+            On a Pldt or Series.pldt, a date can fall outside the supported
+            range for its named time zone.
         polars.exceptions.ComputeError
-            A Polars expression can fail during planning or evaluation.
+            An Expr can be created and infer Int64. If a date falls outside
+            the supported range for its named time zone, select or collect
+            raises this error when it evaluates that row. Unsupported input
+            types can fail during planning.
 
         Notes
         -----
