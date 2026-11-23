@@ -43,6 +43,9 @@ print(weeks.to_list())
 The Struct has UInt32 `year`, `week` and `day` fields. Pldt and
 Series.pldt raise `OverflowError` when the ISO year falls outside
 the unsigned range. Use `isoyear()` to read a signed ISO year.
+Calendar queries that use named timezone rules also check the year range
+of those rules. A date outside that range raises `OverflowError` in eager
+calls even if it fits in the Datetime column.
 
 (pldt-query-now-and-zone)=
 ## Inspect a timezone and compare with now

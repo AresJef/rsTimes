@@ -27,6 +27,14 @@ validity for exact interchange across the full int64 range.
 `values_naive` gives an ordinary native Datetime Series with local
 clock fields.
 
+Use `tz_localize` with an explicit ambiguous or nonexistent policy before
+`timestamp()` if a naive time is repeated or skipped in the system-local
+zone. Without that choice the eager call raises `ValueError`.
+
+Converting to `date` checks the signed 32-bit day range of Polars Date.
+`values_naive` checks that the local wall time fits the stored tick unit.
+An eager call raises `OverflowError` when either output exceeds its range.
+
 ## Format a timestamp with nine fractional digits
 
 (pldt-format-exact-fraction)=
