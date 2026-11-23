@@ -1,19 +1,19 @@
 {
   "schema": 3,
-  "version": "1.1.0",
-  "source_commit": "f356fa83f1afcb1ea518cd4d655b7c3e67f3ce1c",
+  "version": "1.1.1",
+  "source_commit": "5039f6cdba69baae96f284c0d55538517e86de16",
   "stubs": {
-    "pldt.pyi": "5b68f97038e737804ebf0c3e911a8e7df965885f6e15642b0b8423a0aaa9b11b",
-    "delta.pyi": "21aaad39690d04c15ee7ecf38e1a36b4e181f70bde8ac901a5e6e0d169aaf518",
-    "__init__.pyi": "49f4794bf8bbbe1b5627a51b81c58bf12997a1b25c12ca7424d8d7574778625c",
-    "parser.pyi": "992977f5e1609b07cced798b34dfaac56bd68a1d6d500411b78aeba68e12ba57",
+    "__init__.pyi": "67f10b3e51a85f7abb5e48d0e46f658cdbb1541a961adae282cd6bc4477f3270",
     "_backend_types.pyi": "2e6089944b380143301df49dea0b56767c73138211ebce7b643e99513c025882",
-    "errors.pyi": "6356a1602e18d9756016ac2d5601fe87e2fcd39c65c23c03407af1b3fb01bc52",
-    "pddt.pyi": "2a3f57668fb166bb5c7b5ecf26b2ccf107d69f21973efccc884e58e4a300d0b7",
-    "pydt.pyi": "7f6fc81594b564af6f0843413d6a9e605bfb76f7e130d4847ebc3ce0419b8f7d",
-    "_native.pyi": "2a6a37cd9324700c23505930d6064fad0e74f24d25f72b7d13c91cf8f5295e49"
+    "_native.pyi": "2a6a37cd9324700c23505930d6064fad0e74f24d25f72b7d13c91cf8f5295e49",
+    "delta.pyi": "d1ba06f3cefa235a949205d342e366844561d226cb0d0df5e5d735e366853f0c",
+    "errors.pyi": "891e1bc5d8c8f656e1cfd706e0e37287b8aad59a543d24750847cba69d4cd88f",
+    "parser.pyi": "e06492dd9d4007f261ccb36b5ca3588204811865eec81d6e89fe880ec4b47fa4",
+    "pddt.pyi": "fc8782202605a318fd7ec4b57d42495dc6321bf356491e44c406b2cb833a41d0",
+    "pldt.pyi": "beed6277127f2e0ef25e3c014b419307ed5479efe0428a284d4c6235fcf26fef",
+    "pydt.pyi": "06206b37a7417e1d25517189753e25308d24f59066c464806de0ea2b9adc3f74"
   },
-  "origin": "Installed rsTimes 1.1.0 declarations and runtime descriptors, checked per documentation profile.",
+  "origin": "Installed rsTimes 1.1.1 declarations and runtime descriptors, checked per documentation profile.",
   "scope_note": "Inherited datetime/pandas/Polars public members and usable Datetime and Extension/Plot namespaces included, together with meaningful value, array-dispatch and exception-chain protocols. Dtype-specific non-Datetime namespaces are recorded at their accessors; their unrelated dtype API is not an rsTimes datetime API. Private helpers and generic Python object/class-authoring infrastructure (attribute lookup, dictionaries, annotations, layout, weak references, subclass hooks and size introspection) are excluded. Overloads are signatures of one entry, not extra entries.",
   "root_exports": [
     "Pddt",
