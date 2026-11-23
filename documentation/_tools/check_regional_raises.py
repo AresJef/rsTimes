@@ -6,6 +6,7 @@ import inspect
 import json
 from pathlib import Path
 import re
+import runpy
 
 
 MOVES = frozenset({
@@ -35,6 +36,12 @@ ISO_GUIDES = {
     "Series.pldt": "guides/pldt-output.html#pldt-series-isocalendar",
     "Expr.pldt": "guides/expressions-queries.html#expr-iso-field-structure",
 }
+ISO_EXAMPLE_RECEIVERS = {
+    "Pddt": ("rstimes.Pddt.isocalendar", "rstimes.pddt.Pddt"),
+    "Pldt": ("rstimes.Pldt.isocalendar", "rstimes.pldt.Pldt"),
+    "Series.pldt": ("polars.Series.pldt.isocalendar", "polars.series.series.Series"),
+    "Expr.pldt": ("polars.Expr.pldt.isocalendar", "polars.expr.expr.Expr"),
+}
 SHARED_LABELS = {
     "Pldt": "On a Pldt",
     "Series.pldt": "On a native Polars Series",
@@ -56,7 +63,7 @@ ZONE = re.compile(
     re.I,
 )
 LIMIT = re.compile(r"\b(?:ranges?|bounds?|limits?|supported\s+(?:dates?|years?))\b", re.I)
-OUTSIDE = re.compile(r"\b(?:outside|beyond|out of|exceeds?)\b", re.I)
+OUTSIDE = re.compile(r"\b(?:outside|beyond|out of|exceeds?|too early or too late)\b", re.I)
 OUTPUT_LIMIT = re.compile(
     r"\b(?:u?int\d+|storage|unit(?:'s)?|output integer)\s+(?:capacity|range|bounds?|limits?)\b",
     re.I,
@@ -107,7 +114,7 @@ def eager_problems(name, raises):
 
 
 def runtime_problems(name, raises):
-    if name not in MOVES and name != "isocalendar":
+    if name not in MOVES | {"isocalendar", "isoyear"}:
         return []
     eager = raises.get("OverflowError", "")
     expression = raises.get("polars.exceptions.ComputeError", "")
@@ -171,7 +178,26 @@ def doc_section(text, name):
         if index + 1 < len(lines) and re.fullmatch(r"-{3,}", lines[index + 1]):
             break
         body.append(lines[index])
-    return " ".join(" ".join(body).split())
+    return "\n".join(body).strip("\n")
+
+
+def installed_iso_example(receiver, doc, file, observer):
+    """Execute the installed example and observe the receiver and materialization."""
+    inventory = [entry for entry, _ in ISO_EXAMPLE_RECEIVERS.values()]
+    entry, actor = ISO_EXAMPLE_RECEIVERS[receiver]
+    label = str(file) + "::" + entry
+    example = doc_section(doc, "Examples")
+    result = observer["contracts"]({entry: example}, observer["Observer"](inventory), label)[entry]
+    actual = {event["effect"] for event in result["uses"]
+              if (event["entry"], event["receiver"]) == (entry, actor)}
+    problems = []
+    if not result["attempted"] or result["failures"]:
+        problems.append("Run the installed isocalendar example and match its documented output")
+    if "called" not in actual:
+        problems.append(f"The installed example must call {entry} on {actor}")
+    elif receiver == "Expr.pldt" and not actual.intersection({"select", "collect"}):
+        problems.append("The installed Expr example must evaluate its isocalendar result in select or collect")
+    return result, problems
 
 
 def html_section(description, name):
@@ -247,6 +273,7 @@ def check_install(stub, pddt_stub):
         for file in (stub, pddt_stub)
         for node in ast.parse(file.read_bytes()).body if isinstance(node, ast.ClassDef)
     }
+    observer = runpy.run_path(str(Path(__file__).with_name("observe_receivers.py")))
     rows = []
     for receiver, owner in owners.items():
         namespace = NAMESPACES[receiver]
@@ -265,15 +292,20 @@ def check_install(stub, pddt_stub):
                 method, = [node for node in cls.body if isinstance(node, ast.FunctionDef) and node.name == name]
                 carriers.append(("installed stub", str(file), method.lineno, ast.get_docstring(method) or ""))
             for carrier, location, line, copy in carriers:
-                raises, returns = doc_raises(copy), doc_section(copy, "Returns")
+                raises = doc_raises(copy)
+                returns = " ".join(doc_section(copy, "Returns").split())
                 shared = carrier == "runtime help" and receiver != "Pddt"
                 problems = eager_problems(name, raises) if shared or receiver in EAGER else []
                 if shared:
                     problems.extend(runtime_problems(name, raises))
                 if name in ("isocalendar", "isoyear"):
                     problems.extend(iso_problems(name, receiver, returns, raises, copy, carrier))
-                rows.append({"entry": entry, "receiver": receiver, "carrier": carrier, "file": location,
-                             "line": line, "returns": returns, "raises": raises, "problems": problems})
+                row = {"entry": entry, "receiver": receiver, "carrier": carrier, "file": location,
+                       "line": line, "returns": returns, "raises": raises, "problems": problems}
+                if carrier == "installed stub" and name == "isocalendar":
+                    row["example"], example_problems = installed_iso_example(receiver, copy, file, observer)
+                    problems.extend(example_problems)
+                rows.append(row)
     return rows
 
 
