@@ -26,7 +26,10 @@ const expr = "polars.Expr.pldt.as_unit";
 const series = "polars.Series.pldt.as_unit";
 const scatter = "rstimes.Pldt.scatter";
 const ctime = "rstimes.Pydt.ctime";
-const desktop = Object.keys(plan).filter(entry => entry !== warning);
+const retainedDesktop = [
+  expr, series, "rstimes.Pldt.__sub__", "rstimes.Pldt.diff", "rstimes.Pldt.name", scatter, ctime,
+];
+const currentDesktop = Object.keys(plan).filter(entry => entry !== warning);
 const mobile = [scatter, expr, ctime];
 const outputs = {
   [warning]: "DependencyWarning True",
@@ -238,6 +241,7 @@ async function main() {
     for (const version of versions) {
       const exact = part => new URL(version + "/" + part, base).href;
       const runtime = runtimes[version].full;
+      const desktop = version === current ? currentDesktop : retainedDesktop;
       report.runtimes[version] = { full: runtimeIdentity(runtime, version, work, false) };
       for (const width of [1440, 390]) {
         await withPage(browser, base, width, async page => {
