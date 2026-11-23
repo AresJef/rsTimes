@@ -71,16 +71,37 @@ OUTPUT_LIMIT = re.compile(
 CLAUSE_BREAK = re.compile(
     r"(?<=[.!?])\s+|;\s*|,?\s+or\s+(?=(?:the|an?)\s+(?:result|date)\b|outside\b)",
 )
+QUERY_ACTION = r"(?:select(?:\(\))? or collect(?:\(\))?|collect(?:\(\))? or select(?:\(\))?)"
+EXPR_EXECUTION = re.compile(
+    rf"\b(?:during|in)\s+{QUERY_ACTION}(?!\w)"
+    rf"|\b{QUERY_ACTION}\s+(?:(?:will|can|may)\s+)?(?:raises?|fails?|evaluates?|process(?:es)?)\b",
+    re.I,
+)
+EARLY_FAILURE = re.compile(
+    r"\bbefore\s+(?:(?:the|actual)\s+)*(?:select|collect|execution|evaluation)\b"
+    r"|\b(?:during|at)\s+(?:expression\s+)?(?:creation|construction|planning|schema inference)\b",
+    re.I,
+)
+EXCEPTION_NAME = re.compile(r"\b[A-Za-z_][\w]*Error\b")
+
+
+def regional_clauses(text):
+    """Find clauses that describe the named time-zone date range."""
+    text = " ".join(text.replace("-", " ").split())
+    return [clause for clause in CLAUSE_BREAK.split(text)
+            if ZONE.search(clause) and LIMIT.search(clause) and OUTSIDE.search(clause)
+            and not OUTPUT_LIMIT.search(clause)]
 
 
 def regional_reason(text):
-    """Recognize the actual cause within one error clause, with flexible wording."""
-    text = " ".join(text.replace("-", " ").split())
-    return any(
-        ZONE.search(clause) and LIMIT.search(clause) and OUTSIDE.search(clause)
-        and not OUTPUT_LIMIT.search(clause)
-        for clause in CLAUSE_BREAK.split(text)
-    )
+    return bool(regional_clauses(text))
+
+
+def expr_regional_reason(text):
+    clauses = regional_clauses(text)
+    return (any(EXPR_EXECUTION.search(clause) for clause in clauses)
+            and not any(EARLY_FAILURE.search(clause) or set(EXCEPTION_NAME.findall(clause)) - {"ComputeError"}
+                        for clause in clauses))
 
 
 def doc_raises(doc):
@@ -118,11 +139,12 @@ def runtime_problems(name, raises):
         return []
     eager = raises.get("OverflowError", "")
     expression = raises.get("polars.exceptions.ComputeError", "")
-    if (not all(receiver in eager for receiver in ("Pldt", "Series.pldt"))
-            or not regional_reason(expression)
-            or not all(word in expression for word in ("select", "collect"))):
-        return ["Identify the eager OverflowError and the Expr range error during select or collect"]
-    return []
+    problems = []
+    if not regional_reason(eager) or not all(receiver in eager for receiver in ("Pldt", "Series.pldt")):
+        problems.append("Explain OverflowError for the named time zone date range on eager Pldt and Series.pldt")
+    if not expr_regional_reason(expression):
+        problems.append("Explain the Expr named time zone date range under ComputeError during select or collect")
+    return problems
 
 
 def iso_fields(text):
@@ -162,8 +184,7 @@ def iso_problems(name, receiver, returns, raises, text, carrier):
 
     if receiver == "Expr.pldt" and not shared:
         reason = raises.get("polars.exceptions.ComputeError", "")
-        if ("OverflowError" in raises or not regional_reason(reason)
-                or not all(stage in reason for stage in ("select", "collect"))):
+        if "OverflowError" in raises or not expr_regional_reason(reason):
             problems.append("Explain the named time zone date range under ComputeError during select or collect")
     return problems
 
@@ -181,13 +202,66 @@ def doc_section(text, name):
     return "\n".join(body).strip("\n")
 
 
+def iso_expression_observer(observer, inventory, entry, actor):
+    from polars import Expr, Struct
+
+    class IsoExpressionObserver(observer["Observer"]):
+        def __init__(self, names):
+            super().__init__(names)
+            self.iso_outputs = {}
+            self.materializations = []
+
+        def wrapped(self, function, receiver, name, path, receiver_type, line):
+            observed = super().wrapped(function, receiver, name, path, receiver_type, line)
+            is_alias = name == "alias" and id(receiver) in self.iso_outputs
+            if (path, receiver_type) != (entry, actor) and not is_alias:
+                return observed
+
+            def track_output(*args, **kwargs):
+                result = observed(*args, **kwargs)
+                if type(result) is Expr:
+                    self.iso_outputs[id(result)] = result
+                return result
+
+            return track_output
+
+        def projection_origins(self, source, expr, roots):
+            # An alias or direct re-selection preserves a value column. Operations
+            # such as len() can retain its root name while dropping its computation.
+            if id(expr) in self.iso_outputs:
+                return self.flow(expr)
+            is_direct_column = type(expr) is str or (
+                type(expr) is Expr and expr.meta.undo_aliases().meta.is_column()
+            )
+            if len(roots) == 1 and is_direct_column:
+                return source.get(roots[0], set())
+            return set()
+
+        def materialized_column(self, frame, column, origin, action):
+            super().materialized_column(frame, column, origin, action)
+            if origin[:2] == (entry, actor):
+                series = frame.get_column(column)
+                dtype = series.dtype
+                self.materializations.append({
+                    "entry": entry, "receiver": actor, "column": column, "effect": action,
+                    "dtype": str(dtype),
+                    "fields": [[field.name, str(field.dtype)] for field in dtype.fields] if isinstance(dtype, Struct) else [],
+                    "values": series.to_list(), "outer_nulls": series.is_null().to_list(),
+                })
+
+    return IsoExpressionObserver(inventory)
+
+
 def installed_iso_example(receiver, doc, file, observer):
     """Execute the installed example and observe the receiver and materialization."""
     inventory = [entry for entry, _ in ISO_EXAMPLE_RECEIVERS.values()]
     entry, actor = ISO_EXAMPLE_RECEIVERS[receiver]
     label = str(file) + "::" + entry
     example = doc_section(doc, "Examples")
-    result = observer["contracts"]({entry: example}, observer["Observer"](inventory), label)[entry]
+    watches_values = receiver == "Expr.pldt"
+    trace = (iso_expression_observer(observer, inventory, entry, actor)
+             if watches_values else observer["Observer"](inventory))
+    result = observer["contracts"]({entry: example}, trace, label)[entry]
     actual = {event["effect"] for event in result["uses"]
               if (event["entry"], event["receiver"]) == (entry, actor)}
     problems = []
@@ -195,8 +269,12 @@ def installed_iso_example(receiver, doc, file, observer):
         problems.append("Run the installed isocalendar example and match its documented output")
     if "called" not in actual:
         problems.append(f"The installed example must call {entry} on {actor}")
-    elif receiver == "Expr.pldt" and not actual.intersection({"select", "collect"}):
-        problems.append("The installed Expr example must evaluate its isocalendar result in select or collect")
+    if watches_values:
+        result["materializations"] = trace.materializations
+        if not any(item["fields"] == [["year", "Int64"], ["week", "UInt32"], ["day", "UInt32"]]
+                   and item["values"] == [{"year": 2020, "week": 53, "day": 5}, None]
+                   and item["outer_nulls"] == [False, True] for item in trace.materializations):
+            problems.append("The installed Expr example must materialize its ISO year, week and day and the outer null in select or collect")
     return result, problems
 
 
