@@ -58,7 +58,13 @@ class ConfigError(RstimesError, ValueError):
 
 
 class DependencyWarning(UserWarning):
-    """An adapter is using an optional dependency below its supported version."""
+    """An adapter is using an optional dependency below its supported version.
+
+    Examples
+    --------
+    See the warning filter example at
+    https://aresjef.github.io/rsTimes/1.1.1/api/errors.html#dependency-warning-filter
+    """
 
 
 __all__ = ["RstimesError", "ParseError", "ConfigError", "DependencyWarning"]

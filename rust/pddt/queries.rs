@@ -199,35 +199,32 @@ fn iso_table<'py>(
                 continue;
             }
             let result = (|| {
-            let value = i128::from(tick) * unit.nanos();
-            let wall = if let Some(offset) = fixed {
-                value + i128::from(offset) * 1000
-            } else {
-                super::zones::utc_wall(
-                    value,
-                    zone.ok_or_else(|| crate::error_context::runtime("missing ISO region"))?,
-                    None,
-                )?
-            };
-            let day = i64::try_from(wall.div_euclid(NS_DAY) + 719_163)
-                .map_err(|_| crate::error_context::overflow("calendar day overflow"))?;
-            if let Some((previous, fields)) = cached
-                && previous == day
-            {
-                return Ok(fields);
-            }
-            let [year, _, _] = crate::calendar::from_ordinal(day)
-                .map_err(crate::error_context::overflow)?;
-            let result = iso_at(year, day)?;
-            if !(0..=i64::from(u32::MAX)).contains(&result[0]) {
-                return Err(crate::error_context::overflow(
-                    "ISO year is outside the UInt32 range; use isoyear() for signed calendar years",
-                ));
-            }
-            cached = Some((day, result));
-            Ok(result)
-        })()
-        .map_err(|error| crate::error_context::item(py, error, entry, "result", i, None, false))?;
+                let value = i128::from(tick) * unit.nanos();
+                let wall = if let Some(offset) = fixed {
+                    value + i128::from(offset) * 1000
+                } else {
+                    super::zones::utc_wall(
+                        value,
+                        zone.ok_or_else(|| crate::error_context::runtime("missing ISO region"))?,
+                        None,
+                    )?
+                };
+                let day = i64::try_from(wall.div_euclid(NS_DAY) + 719_163)
+                    .map_err(|_| crate::error_context::overflow("calendar day overflow"))?;
+                if let Some((previous, fields)) = cached
+                    && previous == day
+                {
+                    return Ok(fields);
+                }
+                let [year, _, _] =
+                    crate::calendar::from_ordinal(day).map_err(crate::error_context::overflow)?;
+                let result = iso_at(year, day)?;
+                cached = Some((day, result));
+                Ok(result)
+            })()
+            .map_err(|error| {
+                crate::error_context::item(py, error, entry, "result", i, None, false)
+            })?;
             for (cell, value) in row.as_chunks_mut::<8>().0.iter_mut().zip(result) {
                 cell.copy_from_slice(&value.to_ne_bytes());
             }

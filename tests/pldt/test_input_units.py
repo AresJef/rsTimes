@@ -63,24 +63,27 @@ def test_wide_unsigned_owned_ticks_do_not_alias_numpy_input():
     assert (copied.name, ticks(copied)) == ("event", [1, 2, 2**63 - 1])
 
 
+@pytest.mark.parametrize("dtype,type_code", [
+    (pl.Int8, "b"), (pl.Int16, "h"), (pl.Int32, "i"), (pl.UInt64, "Q"),
+])
 @pytest.mark.parametrize("layout", ["unsliced", "bit_offset", "two_chunks"])
-def test_wide_owned_ticks_keep_the_validity_used_during_conversion(layout):
+def test_owned_integer_ticks_keep_the_validity_used_during_conversion(layout, dtype, type_code):
     pa = pytest.importorskip("pyarrow")
     bitmap = bytearray([0b1101])
-    values = array("Q", [81, 17, 53, 24])
+    values = array(type_code, [81, 17, 53, 24])
     arrow = pa.Array.from_buffers(
-        pa.uint64(), 4, [pa.py_buffer(bitmap), pa.py_buffer(values)], null_count=1
+        pa.type_for_alias(str(dtype).lower()), 4, [pa.py_buffer(bitmap), pa.py_buffer(values)], null_count=1
     )
     raw = pl.from_arrow(arrow, rechunk=False).rename("raw")
     source = raw
     before = [81, None, 53, 24]
-    after = [81, 17, None, 24]
+    after = [81, 97, None, 24]
     if layout == "bit_offset":
         source = raw.slice(1, 3)
         before, after = before[1:], after[1:]
     elif layout == "two_chunks":
         prefix = [99, None]
-        source = pl.concat([pl.Series("raw", prefix, dtype=pl.UInt64), raw], rechunk=False)
+        source = pl.concat([pl.Series("raw", prefix, dtype=dtype), raw], rechunk=False)
         assert source.n_chunks() == 2
         before, after = prefix + before, prefix + after
 
@@ -97,6 +100,10 @@ def test_wide_owned_ticks_keep_the_validity_used_during_conversion(layout):
         "select": frame.select(expr)["raw"],
         "collect": lazy.collect()["raw"],
     }
+    assert source.to_list() == before
+    assert all(ticks(result) == before for result in results.values())
+
+    values[1] = 97
     assert source.to_list() == before
     assert all(ticks(result) == before for result in results.values())
 

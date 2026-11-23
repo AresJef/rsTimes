@@ -85,21 +85,23 @@ def test_leap_year_targets_support_scalar_and_row_values_in_both_directions():
     with pytest.raises(TypeError):x.leap_bt_year([2030,None,2024])
 
 
-def test_standard_iso_table_has_unsigned_capacity_and_real_missing_values():
-    x=Pddt(["2021-01-01",None],name="date")
-    result=x.isocalendar()
-    assert list(result.columns)==["year","week","day"]
-    assert result.iloc[0].tolist()==[2020,53,5]
-    assert result.iloc[1].isna().all()
-    assert all(str(d)=="UInt32" for d in result.dtypes)
-    assert result.index.equals(x) and result.index.name=="date"
-    assert Pddt(["0000-01-03"]).isocalendar()["year"].tolist()==[0]
-    with pytest.raises(OverflowError,match="UInt32"):
-        Pddt(["0000-01-01"]).isocalendar()
-    with pytest.raises(OverflowError,match="UInt32"):
-        Pddt(np.array(["4294967296-01-04"],dtype="datetime64[s]")).isocalendar()
-    empty=Pddt([]).isocalendar()
-    assert empty.empty and all(str(d)=="UInt32" for d in empty.dtypes)
+@pytest.mark.parametrize("values, expected", [
+    (["2021-01-01"], [(2020, 53, 5)]),
+    (["0000-01-01", None, "0000-01-04", "2021-01-01"], [(-1, 52, 6), None, (0, 1, 2), (2020, 53, 5)]),
+    (np.array(["4294967296-01-04"], dtype="datetime64[s]"), [(4294967296, 1, 3)]),
+    (np.array([], dtype="datetime64[us]"), []),
+    ([None, None], [None, None]),
+])
+def test_iso_table_has_signed_year_and_real_missing_values(values, expected):
+    dates = Pddt(values, name="event")
+    result = dates.isocalendar()
+    assert type(result) is pd.DataFrame
+    assert list(result.columns) == ["year", "week", "day"]
+    assert [str(dtype) for dtype in result.dtypes] == ["Int64", "UInt32", "UInt32"]
+    assert result.index.equals(dates) and result.index.name == "event"
+    assert list(result.itertuples(index=False, name=None)) == [
+        (pd.NA, pd.NA, pd.NA) if row is None else row for row in expected
+    ]
 
 
 def test_dst_and_offsets_use_each_actual_occurrence_and_negative_dst():

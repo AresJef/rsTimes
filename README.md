@@ -15,12 +15,12 @@ The package is named `rsTimes` on PyPI. Import it as `rstimes`.
 An invoice dated January 31 renews on the last valid day of February when you add one calendar month. A fixed 30-day duration takes it into March.
 
 ```python
-from datetime import datetime
+from datetime import date
 from rstimes import Delta
 
-invoice = datetime(2024, 1, 31)
+invoice = date(2024, 1, 31)
 renewal = invoice + Delta(months=1)
-print(renewal.date())
+print(renewal)
 # 2024-02-29
 ```
 
@@ -29,6 +29,8 @@ print(renewal.date())
 - Use `Delta` for calendar arithmetic on Python dates. Use `Pydt` for a single datetime or `parse_str` to read a date from text.
 - Use `Pddt` for date columns or indexes in pandas. Install it with `python -m pip install "rsTimes[pandas]"`.
 - Use `Pldt` for date columns in Polars or `.pldt` expressions in DataFrames and LazyFrames. Install it with `python -m pip install "rsTimes[polars]"`.
+
+**Upgrading to 1.1.1?** When you declare an `isocalendar()` result schema for `Pddt`, `Pldt` or the Polars `.pldt` namespace, change `year` to `Int64`. `week` and `day` remain `UInt32`.
 
 Wheels are available for 64-bit CPython 3.12–3.15 on macOS, Windows, and Linux. Free-threaded 3.14 and 3.15 wheels require compatible dependencies. rsTimes is MIT-licensed.
 

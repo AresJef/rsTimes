@@ -559,9 +559,20 @@ impl RuleLookup for NativeView<'_> {
         Ok(self.get(rule, token))
     }
 }
-/// Token-recognition rules and ambiguous calendar-order preferences for parse.
-/// Configs cannot be subclassed; customize its rules with add/del/set.
+/// Edit the vocabulary and date-order defaults used by the parsing functions.
 ///
+/// Examples
+/// --------
+/// >>> from rstimes import Configs, parse_str
+/// >>> cfg = Configs()
+/// >>> cfg.add_month("harvest", 10)
+/// True
+/// >>> parse_str("7 harvest 2024", cfg=cfg).isoformat()
+/// '2024-10-07T00:00:00'
+///
+/// Notes
+/// -----
+/// Configs is a final class. Edit its vocabulary through the add, delete and set methods.
 /// Configs(yearfirst=True, dayfirst=False) starts with multilingual default rules.
 /// Word tokens are stored in lowercase and recognized in lowercase, uppercase,
 /// and titlecase. Jump tokens may overlap other word tables. Other word-table
@@ -2116,7 +2127,9 @@ impl Configs {
         result.map_err(|error| edit_error(slf, "Configs.del_weekday", error))
     }
 
-    /// Return an independent dict of time-unit aliases and flags: 0 for hours, 1 for minutes, 2 for seconds.
+    /// Return a copy of the vocabulary for clock units.
+    ///
+    /// Values are 0 for hours, 1 for minutes and 2 for seconds.
     ///
     /// Keys are stored in lowercase. Mutating the returned container does not change this Configs.
     /// Use add_hms, del_hms, or set_hms to edit its rules.
@@ -2156,7 +2169,9 @@ impl Configs {
         result.map_err(|error| edit_error(slf, "Configs.del_hms", error))
     }
 
-    /// Return an independent dict of AM/PM aliases and flags: 0 for AM, 1 for PM.
+    /// Return a copy of the vocabulary for AM and PM.
+    ///
+    /// Values are 0 for AM and 1 for PM.
     ///
     /// Keys are stored in lowercase. Mutating the returned container does not change this Configs.
     /// Use add_ampm, del_ampm, or set_ampm to edit its rules.

@@ -371,6 +371,18 @@ fn construct<'py>(
 ///     A numeric scalar is NaN or a date input is missing; output constructor errors retain their original type.
 /// OverflowError
 ///     An integer conversion or result exceeds the supported range.
+///
+///
+/// Notes
+/// -----
+/// Boolean options accept Python bool and numpy.bool_. yearfirst and dayfirst
+/// also accept None to use the Configs or library default for that option.
+///
+/// Examples
+/// --------
+/// >>> from rstimes import parse_str
+/// >>> parse_str("2024-05-07T15:30+08:00", ignoretz=False).isoformat()
+/// '2024-05-07T15:30:00+08:00'
 // Parameter order includes the approved strict position before cfg.
 #[allow(clippy::too_many_arguments)]
 #[pyfunction]
@@ -491,6 +503,18 @@ fn parse_string<'py>(
 ///     A numeric scalar is NaN or a date input is missing; output constructor errors retain their original type.
 /// OverflowError
 ///     An integer conversion or result exceeds the supported range.
+///
+///
+/// Notes
+/// -----
+/// Boolean options accept Python bool and numpy.bool_. yearfirst and dayfirst
+/// also accept None to use the Configs or library default for that option.
+///
+/// Examples
+/// --------
+/// >>> from rstimes import parse
+/// >>> parse(1.1).isoformat()
+/// '1970-01-01T00:00:01.100000'
 #[allow(clippy::too_many_arguments)]
 #[pyfunction]
 #[pyo3(signature=(dtobj,default=None,yearfirst=None,dayfirst=None,ignoretz=Truth(true),isoformat=Truth(true),strict=Truth(false),cfg=None,dtclass=None),

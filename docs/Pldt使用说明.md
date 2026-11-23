@@ -354,9 +354,17 @@ period meaning rather than blindly applying a generic gap shift. Naive, UTC
 and representable fixed offsets avoid unnecessary regional checks.
 
 Field/calendar queries return nullable Int64; source-null Boolean queries are
-False. Query targets are validated even when the source is null. ISO tables
-have UInt32 children and reject a negative ISO year rather than wrap it; signed
-`isoyear()` remains available. Time tables keep their fixed nine-field schema.
+False. Query targets are validated even when the source is null.
+
+`isocalendar()` returns a native Struct Series with the input column name.
+The `year` field uses `Int64` and can be negative. The `week` and `day`
+fields use `UInt32`. Missing dates give null Structs. For example, January 1
+of year 0 falls on Saturday in week 52 of ISO year −1. A date can fit in the
+column and still fall outside the supported range of its named time zone.
+`isoyear()` reads just the ISO year using the same local date. Time tables
+keep their fixed nine-field schema.
+
+[Run the same-version example](https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-queries.html#pldt-extract-iso-week-struct).
 
 ISO/ctime/name/timezone-name outputs are native and retain actual ns. Shared
 strftime `%f` emits 9 digits for ns, 6 for ms/us; `%.1f` through `%.9f` emit a

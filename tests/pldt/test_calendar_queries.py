@@ -117,21 +117,49 @@ def test_leap_count_is_lower_inclusive_nonnegative_and_can_use_each_row():
     assert pl.DataFrame({"time": pl.Series(x), "year": [2024, 2020, 2024, 0]}).select(expr)["time"].to_list() == [1, 1, 0, None]
 
 
-def test_iso_struct_has_uint32_children_outer_null_and_signed_year_boundary():
-    x = Pldt(["2021-01-01", "2024-02-29", None], name="time")
-    got = x.isocalendar()
-    assert type(got) is pl.Series
-    assert got.dtype == pl.Struct({"year": pl.UInt32, "week": pl.UInt32, "day": pl.UInt32})
-    assert got.to_list() == [{"year": 2020, "week": 53, "day": 5}, {"year": 2024, "week": 9, "day": 4}, None]
-    assert got.is_null().to_list() == [False, False, True]
-    expr = pl.col("time").pldt.isocalendar()
-    assert pl.DataFrame({"time": pl.Series(x)}).lazy().select(expr).collect()["time"].equals(got)
-    x = Pldt(np.array(["0000-01-04"], dtype="datetime64[us]"))
-    assert x.isocalendar().struct.field("year").to_list() == [0]
-    x = Pldt(np.array(["0000-01-01"], dtype="datetime64[us]"))
-    assert x.year.to_list() == [0] and x.isoyear().to_list() == [-1]
-    with pytest.raises(OverflowError, match="UInt32|isoyear"):
-        x.isocalendar()
+@pytest.mark.parametrize("source_kind", ["positive", "wide", "empty", "missing", "date"])
+def test_iso_struct_has_signed_year_outer_null_and_the_same_query_schema(source_kind):
+    if source_kind == "date":
+        source = pl.Series("event", [date(2021, 1, 1), None], dtype=pl.Date)
+        expected = [{"year": 2020, "week": 53, "day": 5}, None]
+    elif source_kind == "wide":
+        x = Pldt([
+            "2024-02-29", "0000-01-01", None, "0000-01-04", "2021-01-01",
+        ], unit="us", name="event")
+        source = pl.concat([pl.Series(x).slice(1, 2), pl.Series(x).slice(3)], rechunk=False)
+        assert source.n_chunks() == 2
+        expected = [{"year": -1, "week": 52, "day": 6}, None,
+                    {"year": 0, "week": 1, "day": 2}, {"year": 2020, "week": 53, "day": 5}]
+    else:
+        values = {"positive": [tick("2021-01-01", "us")], "empty": [], "missing": [None, None]}
+        source = pl.Series("event", values[source_kind], dtype=pl.Datetime("us"))
+        expected = {"positive": [{"year": 2020, "week": 53, "day": 5}],
+                    "empty": [], "missing": [None, None]}[source_kind]
+
+    dtype = pl.Struct({"year": pl.Int64, "week": pl.UInt32, "day": pl.UInt32})
+    x = Pldt(source)
+    expr = pl.col("event").pldt.isocalendar().alias("iso")
+    frame = source.to_frame()
+    query = frame.lazy().select(expr)
+    assert query.collect_schema() == {"iso": dtype}
+    for owner in (x, x.pldt, source.pldt):
+        result = owner.isocalendar()
+        assert result.name == "event"
+        _check_iso_values(result, dtype, expected)
+    for result in (frame.select(expr)["iso"], query.collect()["iso"],
+                   query.collect(engine="streaming")["iso"]):
+        assert result.name == "iso"
+        _check_iso_values(result, dtype, expected)
+
+
+def _check_iso_values(result, dtype, expected):
+    assert type(result) is pl.Series and result.dtype == dtype
+    assert result.to_list() == expected
+    assert result.is_null().to_list() == [row is None for row in expected]
+    for field in dtype.fields:
+        values = result.struct.field(field.name)
+        assert values.dtype == field.dtype
+        assert values.to_list() == [None if row is None else row[field.name] for row in expected]
 
 
 @pytest.mark.parametrize("tz,dst,offset", [(None, [-1, -1], [None, None]), ("UTC", [-1, -1], [0, 0]), ("Etc/GMT-8", [0, 0], [28800, 28800]), ("America/New_York", [0, 1], [-18000, -14400]), ("Europe/Dublin", [1, 0], [0, 3600])])

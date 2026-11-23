@@ -23,7 +23,14 @@ def test_native_property_reads_stored_fields_and_keeps_its_documentation(name, y
     }[name]
     descriptor = getattr(Pydt, name)
     assert isinstance(descriptor, property)
-    assert "Returns" in descriptor.__doc__
+    expected_help = {
+        "day_of_year": ("day of the year", "1 through 365", "366"),
+        "days_in_month": ("calendar month", "28 through 31"),
+        "is_leap_year": ("gregorian calendar year", "february 29"),
+    }
+    doc = descriptor.__doc__.lower()
+    assert all(phrase in doc for phrase in expected_help[name])
+    assert "none represents" not in doc and doc != descriptor.fget.__doc__.lower()
     assert descriptor.fget(date) == expected
     value = Child(year, month, day)
     assert getattr(value, name) == expected

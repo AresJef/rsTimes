@@ -1,4 +1,4 @@
-"""Public type information for integer-backed Pddt date columns.
+"""Build and adjust a date index for pandas.
 
 Date text inputs and string defaults accept real str subclasses and read
 their native stored content, without calling __str__ or overridden sequence
@@ -45,7 +45,19 @@ _OptionalField: TypeAlias = SupportsIndex | None | Iterable[SupportsIndex | None
 _StoredSelection: TypeAlias = SupportsIndex | str | None | Iterable[SupportsIndex | str | None] | _Column
 
 class Pddt(pd.DatetimeIndex):
-    """A date index with explicit resolution and shared Rust calendar rules.
+    """A pandas DatetimeIndex with calendar operations and an explicit time resolution.
+
+    Examples
+    --------
+    >>> from rstimes import Pddt
+    >>> end = Pddt(["2024-01-31"], unit="us").to_next_month()
+    >>> end.strftime("%Y-%m-%d").tolist()
+    ['2024-02-29']
+
+    >>> Pddt([1], unit="ms").asi8.tolist()
+    [1]
+    >>> Pddt(["0000-01-01"], unit="us").year.tolist()
+    [0]
 
     Parameters
     ----------
@@ -53,8 +65,9 @@ class Pddt(pd.DatetimeIndex):
         Text, date, datetime, integer ticks or supported native temporal columns.
         Collections may mix supported date values. A scalar belongs in [value].
     unit : {'s', 'ms', 'us', 'ns'}, optional
-        Storage resolution. Text and datetime normally start at microseconds;
-        nine-digit text preserves nanoseconds. Native dates retain their unit.
+        Storage resolution. Without a unit, text uses us for up to six fractional digits
+        and ns for seven through nine, even if the additional digits are zero.
+        Python datetime starts at us. Native dates retain their unit.
         Bare numbers mean ticks in unit, or nanoseconds when unit is omitted.
         Explicit construction must preserve all source precision.
     tz : tzinfo or str, optional
@@ -90,29 +103,20 @@ class Pddt(pd.DatetimeIndex):
     -------
     Pddt
         A real DatetimeIndex subclass with original order and missing positions.
-
-    Examples
-    --------
-    >>> Pddt([1], unit="ms").asi8.tolist()
-    [1]
-    >>> Pddt(["0000-01-01"], unit="us").year.tolist()
-    [0]
     """
     @property
     def asi8(self) -> NDArray[np.int64]:
-        """Return pandas' inherited int64 date storage view.
+        """Read integer ticks in the index's current unit.
 
-        Returns
-        -------
-        numpy.ndarray
-            Integer ticks at this index's unit, using UTC coordinates for aware
-            dates and pandas' NaT sentinel for missing positions. This inherited
-            view does not convert dates or allocate a Pddt.
+        Timezone-aware dates use UTC coordinates. Missing dates are the pandas
+        NaT sentinel, -(2**63). The property comes from pandas and keeps its
+        native storage and ownership rules.
 
         Examples
         --------
-        >>> Pddt([1], unit="ms").asi8.tolist()
-        [1]
+        >>> from rstimes import Pddt
+        >>> Pddt([1, None], unit="ms").asi8.tolist()
+        [1, -9223372036854775808]
         """
         ...
 
@@ -125,8 +129,9 @@ class Pddt(pd.DatetimeIndex):
             Text, date, datetime, integer ticks or supported native temporal columns.
             Collections may mix supported date values. A scalar belongs in [value].
         unit : {'s', 'ms', 'us', 'ns'}, optional
-            Storage resolution. Text and datetime normally start at microseconds;
-            nine-digit text preserves nanoseconds. Native dates retain their unit.
+            Storage resolution. Without a unit, text uses us for up to six fractional digits
+            and ns for seven through nine, even if the additional digits are zero.
+            Python datetime starts at us. Native dates retain their unit.
             Bare numbers mean ticks in unit, or nanoseconds when unit is omitted.
             Explicit construction must preserve all source precision.
         tz : tzinfo or str, optional
@@ -165,6 +170,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt([1], unit="ms").asi8.tolist()
         [1]
         >>> Pddt(["0000-01-01"], unit="us").year.tolist()
@@ -182,8 +188,9 @@ class Pddt(pd.DatetimeIndex):
             Text, date, datetime, integer ticks or supported native temporal columns.
             Collections may mix supported date values. A scalar belongs in [value].
         unit : {'s', 'ms', 'us', 'ns'}, optional
-            Storage resolution. Text and datetime normally start at microseconds;
-            nine-digit text preserves nanoseconds. Native dates retain their unit.
+            Storage resolution. Without a unit, text uses us for up to six fractional digits
+            and ns for seven through nine, even if the additional digits are zero.
+            Python datetime starts at us. Native dates retain their unit.
             Bare numbers mean ticks in unit, or nanoseconds when unit is omitted.
             Explicit construction must preserve all source precision.
         tz : tzinfo or str, optional
@@ -222,6 +229,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt([1], unit="ms").asi8.tolist()
         [1]
         >>> Pddt(["0000-01-01"], unit="us").year.tolist()
@@ -247,6 +255,8 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> import numpy as np
+        >>> from rstimes import Pddt
         >>> Pddt(np.array([-1500], dtype='datetime64[ns]')).as_unit('us').asi8.tolist()
         [-2]
         """
@@ -317,6 +327,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt([0], unit="s", tz="UTC").tz_convert("Asia/Shanghai").hour.tolist()
         [8]
         """
@@ -351,6 +362,11 @@ class Pddt(pd.DatetimeIndex):
             A local time cannot be resolved or a result loses unit precision.
         OverflowError
             A result exceeds the current unit or dynamic timezone range.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-timezones.html#reader-pddt-timezone-choices
         """
         ...
 
@@ -377,6 +393,11 @@ class Pddt(pd.DatetimeIndex):
             A required local time cannot be resolved.
         TypeError
             A timezone or policy has an unsupported type.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-timezones.html#reader-pddt-timezone-choices
         """
         ...
 
@@ -408,13 +429,18 @@ class Pddt(pd.DatetimeIndex):
             A naive source has no base_tz or cannot be resolved by the policies.
         TypeError
             A flag, timezone or policy has an unsupported type.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-timezones.html#reader-pddt-timezone-choices
         """
         ...
 
     @classmethod
     def now(cls, size: SupportsIndex, *, tz: _dt.tzinfo | str | None = None, unit: str | None = None, name: Hashable | None = None) -> Self:
         """Repeat one current system time in this column's chosen resolution.
-        
+
         Parameters
         ----------
         size : integer
@@ -427,14 +453,15 @@ class Pddt(pd.DatetimeIndex):
             retain actual system precision, without inventing finer digits.
         name : hashable, optional
             Name of the index.
-        
+
         Returns
         -------
         Pddt
             size copies of one current value, constructed once as this class.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.now(0, unit="ns").unit
         'ns'
         """
@@ -484,7 +511,7 @@ class Pddt(pd.DatetimeIndex):
     @classmethod
     def fromseconds(cls, seconds: _NumericInput, *, size: SupportsIndex | None = None, tz: _dt.tzinfo | str | None = None, unit: str | None = None, name: Hashable | None = None, ambiguous: _Ambiguous = 'raise', nonexistent: _Nonexistent = 'raise') -> Self:
         """Build dates from seconds on the naive epoch clock, optionally attaching tz.
-        
+
         Parameters
         ----------
         seconds : numeric scalar or one-dimensional collection
@@ -505,14 +532,15 @@ class Pddt(pd.DatetimeIndex):
             Repeated-local-time strategy, if attaching a region needs it.
         nonexistent : str or timedelta, default 'raise'
             Missing-local-time strategy for that region.
-        
+
         Returns
         -------
         Pddt
             Dates on the requested clock, unit and timezone.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.fromseconds(0, size=1, tz="Asia/Shanghai").hour.tolist()
         [0]
         >>> Pddt.fromseconds([1.5], unit="ms").asi8.tolist()
@@ -523,7 +551,7 @@ class Pddt(pd.DatetimeIndex):
     @classmethod
     def frommicroseconds(cls, us: _IntegerInput, *, size: SupportsIndex | None = None, tz: _dt.tzinfo | str | None = None, unit: str | None = None, name: Hashable | None = None, ambiguous: _Ambiguous = 'raise', nonexistent: _Nonexistent = 'raise') -> Self:
         """Build dates from integer microseconds on the naive epoch clock.
-        
+
         Parameters
         ----------
         us : integer scalar or one-dimensional collection
@@ -541,14 +569,15 @@ class Pddt(pd.DatetimeIndex):
             Strategy when the attached region repeats a local time.
         nonexistent : str or timedelta, default 'raise'
             Strategy when that local time does not exist.
-        
+
         Returns
         -------
         Pddt
             Dates of this class, preserving missing input positions.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.frommicroseconds(0, size=1, tz="Asia/Shanghai").hour.tolist()
         [0]
         """
@@ -557,7 +586,7 @@ class Pddt(pd.DatetimeIndex):
     @classmethod
     def fromtimestamp(cls, ts: _NumericInput, *, size: SupportsIndex | None = None, tz: _dt.tzinfo | str | None = None, unit: str | None = None, name: Hashable | None = None) -> Self:
         """Build from real UTC epoch seconds, converting to a zone or local naive time.
-        
+
         Parameters
         ----------
         ts : numeric scalar or one-dimensional collection
@@ -571,14 +600,15 @@ class Pddt(pd.DatetimeIndex):
             Output resolution. Defaults to us, or ns for a real nanosecond tail.
         name : hashable, optional
             Name of the result, otherwise inherited from a source column.
-        
+
         Returns
         -------
         Pddt
             Same actual instants in the requested display coordinates.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.fromtimestamp(0, size=1, tz="Asia/Shanghai").hour.tolist()
         [8]
         """
@@ -638,7 +668,7 @@ class Pddt(pd.DatetimeIndex):
     @classmethod
     def fromdatetime(cls, dt: _DatetimeInput, *, size: SupportsIndex | None = None, tz: _dt.tzinfo | str | None = None, unit: str | None = None, name: Hashable | None = None, ambiguous: _Ambiguous = 'raise', nonexistent: _Nonexistent = 'raise') -> Self:
         """Keep local fields from real datetime values.
-        
+
         Parameters
         ----------
         dt : datetime, Pydt, pandas Timestamp or native Datetime column
@@ -656,18 +686,23 @@ class Pddt(pd.DatetimeIndex):
             Candidate policy when interpreting a regional local clock.
         nonexistent : str or timedelta, default 'raise'
             Policy for a regional local clock that does not exist.
-        
+
         Returns
         -------
         Pddt
             Dates of this class, in original order and with missing positions.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-factories.html#reader-pddt-datetime-source-zone
         """
         ...
 
     @classmethod
     def fromdatetime64(cls, dt64: _NumpyInput, *, size: SupportsIndex | None = None, tz: _dt.tzinfo | str | None = None, unit: str | None = None, name: Hashable | None = None, ambiguous: _Ambiguous = 'raise', nonexistent: _Nonexistent = 'raise') -> Self:
         """Decode real NumPy datetime64 values and their native units.
-        
+
         Parameters
         ----------
         dt64 : NumPy datetime64 scalar or one-dimensional collection
@@ -685,11 +720,16 @@ class Pddt(pd.DatetimeIndex):
             Candidate policy when interpreting a regional local clock.
         nonexistent : str or timedelta, default 'raise'
             Policy for a regional local clock that does not exist.
-        
+
         Returns
         -------
         Pddt
             Dates of this class, in original order and with missing positions.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-factories.html#reader-pddt-numpy-date-input
         """
         ...
 
@@ -809,8 +849,9 @@ class Pddt(pd.DatetimeIndex):
             aware values retain their instant and convert to it. None preserves
             a common source zone and rejects incompatible mixed sources.
         unit : {'s', 'ms', 'us', 'ns'}, optional
-            Output resolution. Defaults to us, or ns for text beyond six digits;
-            an explicitly selected resolution must retain the parsed value.
+            Output resolution. Without a unit, text uses us for up to six fractional digits
+            and ns for seven through nine, even if the additional digits are zero.
+            An explicit unit must preserve all source precision.
         name : hashable, optional
             Name of the resulting date column.
 
@@ -826,6 +867,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.fromisoformat("2024-002", size=1).day.tolist()
         [2]
         >>> Pddt.fromisoformat("2024-01-02x12:30.5", size=1).microsecond.tolist()
@@ -838,7 +880,7 @@ class Pddt(pd.DatetimeIndex):
     @classmethod
     def combine(cls, date: _CombineDate = None, time: _CombineTime = None, *, size: SupportsIndex | None = None, tz: _dt.tzinfo | str | None = None, unit: str | None = None, name: Hashable | None = None, ambiguous: _Ambiguous = 'raise', nonexistent: _Nonexistent = 'raise') -> Self:
         """Combine date fields with clocks, preserving real clock precision.
-        
+
         Parameters
         ----------
         date : date-like scalar or one-dimensional collection, optional
@@ -863,14 +905,15 @@ class Pddt(pd.DatetimeIndex):
             Candidate selection for repeated local clocks, independent of fold.
         nonexistent : str or timedelta, default 'raise'
             Missing-local-time policy for the newly combined date and clock.
-        
+
         Returns
         -------
         Pddt
             One combined date column with original row order and missing values.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.combine(["2024-01-02", "2024-01-03"], "12:30").hour.tolist()
         [12, 12]
         """
@@ -915,6 +958,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.strptime("2024-05-07", "%Y-%m-%d", size=1).day.tolist()
         [7]
         >>> Pddt.strptime("1970-01-01 00:00:00.123456789", "%Y-%m-%d %H:%M:%S.%f", size=1, unit="us").asi8.tolist()
@@ -927,7 +971,7 @@ class Pddt(pd.DatetimeIndex):
     @classmethod
     def date_range(cls, start: _DateValue = None, *, end: _DateValue = None, periods: SupportsIndex | None = None, freq: object = None, tz: _dt.tzinfo | str | None = None, normalize: _Boolean = False, inclusive: Literal["both", "left", "right", "neither"] = "both", unit: str | None = None, name: Hashable | None = None, default: _DateValue = None, yearfirst: _Boolean | None = None, dayfirst: _Boolean | None = None, isoformat: _Boolean = True, strict: _Boolean = False, cfg: Configs | None = None, ambiguous: _Ambiguous = "raise", nonexistent: _Nonexistent = "raise") -> Self:
         """Generate dates at a fixed duration or calendar frequency.
-        
+
         Parameters
         ----------
         start, end : date-like scalar, optional
@@ -944,7 +988,7 @@ class Pddt(pd.DatetimeIndex):
         normalize : bool, default False
             Set local endpoint clock fields to midnight before generation.
         inclusive : {'both', 'left', 'right', 'neither'}, default 'both'
-            Which explicitly supplied endpoints can occur in the result.
+            Keep both endpoints, only start (left), only end (right), or neither.
         unit : {'s', 'ms', 'us', 'ns'}, optional
             Storage resolution. Endpoints and frequency must fit without loss.
         name : hashable, optional
@@ -954,14 +998,15 @@ class Pddt(pd.DatetimeIndex):
         ambiguous, nonexistent : policy, default 'raise'
             Regional local-time policies. A boolean collection corresponds to
             the full generated sequence before inclusive endpoints are removed.
-        
+
         Returns
         -------
         Pddt
             The generated date index at the requested resolution.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt.date_range("2024-01-01", periods=3).day.tolist()
         [1, 2, 3]
         """
@@ -969,22 +1014,24 @@ class Pddt(pd.DatetimeIndex):
 
     @property
     def pddt(self) -> _PddtNamespace[Self]:
-        """Return date-field operations separately from native whole-value replacement.
+        """Access date-field operations on this Pddt.
 
-        Native value replace, when provided by the installed pandas version,
-        keeps pandas' complete interface and result types. The .pddt.replace
-        method instead replaces date fields and preserves the owning Pddt class.
+        Use index.pddt.replace to set date and clock fields. Direct
+        index.replace, when pandas provides it, uses pandas' whole-value
+        replacement rules.
 
-        Returns
-        -------
-        _PddtNamespace[Self]
-            Date-field replace preserves the corresponding owning Pddt class.
+        Examples
+        --------
+        >>> from rstimes import Pddt
+        >>> dates = Pddt(["2024-02-29"])
+        >>> dates.pddt.replace(day=15).day.tolist()
+        [15]
         """
         ...
 
     def to_datetime(self, year: _OptionalField = None, month: _OptionalField = None, day: _OptionalField = None, hour: _OptionalField = None, minute: _OptionalField = None, second: _OptionalField = None, microsecond: _OptionalField = None, nanosecond: _OptionalField = None) -> Self:
         """Select date and clock fields, fitting a legal day intent to month end.
-        
+
         Parameters
         ----------
         year, month, day, hour, minute, second, microsecond, nanosecond : integer or equal-length integer collection, optional
@@ -992,14 +1039,15 @@ class Pddt(pd.DatetimeIndex):
             day intent is adjusted to its target month's last day; invalid
             numbers such as month=13 or hour=25 are rejected. Regional dates
             use the automatic calendar rule and must remain in the target day.
-        
+
         Returns
         -------
         Pddt
             Selected dates with original unit, name and missing positions.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-31"]).to_datetime(month=2).day.tolist()
         [29]
         """
@@ -1007,20 +1055,21 @@ class Pddt(pd.DatetimeIndex):
 
     def to_date(self, year: _OptionalField = None, month: _OptionalField = None, day: _OptionalField = None) -> Self:
         """Select calendar fields while retaining the clock and subsecond tail.
-        
+
         Parameters
         ----------
         year, month, day : integer or equal-length integer collection, optional
             None retains the original field. Month is 1–12 and day is 1–31;
             a legal day intent is fitted to the destination month's last day.
-        
+
         Returns
         -------
         Pddt
             New dates, or the original object if no value changes.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-31 12:00"]).to_date(month=2).day.tolist()
         [29]
         """
@@ -1028,20 +1077,21 @@ class Pddt(pd.DatetimeIndex):
 
     def to_time(self, hour: _OptionalField = None, minute: _OptionalField = None, second: _OptionalField = None, microsecond: _OptionalField = None, nanosecond: _OptionalField = None) -> Self:
         """Select clock fields while retaining each calendar date.
-        
+
         Parameters
         ----------
         hour, minute, second, microsecond, nanosecond : integer or equal-length integer collection, optional
             None retains the field. Ranges are 0–23, 0–59, 0–59, 0–999999
             and 0–999. Replacing microsecond clears an omitted nanosecond tail.
-        
+
         Returns
         -------
         Pddt
             Dates with selected clocks at the existing storage resolution.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-01"]).to_time(hour=9).hour.tolist()
         [9]
         """
@@ -1049,7 +1099,7 @@ class Pddt(pd.DatetimeIndex):
 
     def add(self, years: _IntegerArgument = 0, quarters: _IntegerArgument = 0, months: _IntegerArgument = 0, weeks: _IntegerArgument = 0, days: _IntegerArgument = 0, hours: _IntegerArgument = 0, minutes: _IntegerArgument = 0, seconds: _IntegerArgument = 0, milliseconds: _IntegerArgument = 0, microseconds: _IntegerArgument = 0, nanoseconds: _IntegerArgument = 0) -> Self:
         """Add calendar and clock increments in one operation.
-        
+
         Parameters
         ----------
         years, quarters, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds : integer or equal-length integer collection, default 0
@@ -1057,15 +1107,16 @@ class Pddt(pd.DatetimeIndex):
             the original day is fitted once, then days and clocks are applied.
             Negative increments are supported. Floats, booleans and missing
             increments are rejected. A day is a calendar move, not UTC 24 hours.
-        
+
         Returns
         -------
         Pddt
             Dates with the same unit, name and NaT positions. A finer result
             requires an explicit as_unit conversion before this operation.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-31"]).add(months=1).day.tolist()
         [29]
         """
@@ -1073,7 +1124,7 @@ class Pddt(pd.DatetimeIndex):
 
     def sub(self, years: _IntegerArgument = 0, quarters: _IntegerArgument = 0, months: _IntegerArgument = 0, weeks: _IntegerArgument = 0, days: _IntegerArgument = 0, hours: _IntegerArgument = 0, minutes: _IntegerArgument = 0, seconds: _IntegerArgument = 0, milliseconds: _IntegerArgument = 0, microseconds: _IntegerArgument = 0, nanoseconds: _IntegerArgument = 0) -> Self:
         """Subtract calendar and clock increments in one operation.
-        
+
         Parameters
         ----------
         years, quarters, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds : integer or equal-length integer collection, default 0
@@ -1081,15 +1132,16 @@ class Pddt(pd.DatetimeIndex):
             the original day is fitted once, then days and clocks are applied.
             Negative increments are supported. Floats, booleans and missing
             increments are rejected. A day is a calendar move, not UTC 24 hours.
-        
+
         Returns
         -------
         Pddt
             Dates with the same unit, name and NaT positions. A finer result
             requires an explicit as_unit conversion before this operation.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-31"]).sub(months=1).day.tolist()
         [31]
         """
@@ -1151,15 +1203,15 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_weekday(self, offset: _IntegerArgument, weekday: _StoredSelection = None) -> Self:
-        """Move by calendar weekday periods and apply the optional field choice.
-        
+        """Move by whole calendar weeks, then choose a weekday and retain the time of day.
+
         Parameters
         ----------
         offset : integer or equal-length integer collection
-            Positive moves forward, negative backward; zero selects this period.
+            Positive moves forward, negative backward; zero selects the current week.
         weekday : integer, stored weekday name or equal-length collection, optional
             Monday is 0 and Sunday is 6. None preserves each original weekday.
-        
+
         Returns
         -------
         Pddt
@@ -1183,15 +1235,15 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_curr_year(self, month: _StoredSelection = None, day: _OptionalField = None) -> Self:
-        """Select fields in the curr calendar year.
-        
+        """Select fields in the current calendar year.
+
         Parameters
         ----------
         month : integer or equal-length collection or stored name, optional
             Month 1–12, or None to keep the month.
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
@@ -1200,15 +1252,15 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_prev_year(self, month: _StoredSelection = None, day: _OptionalField = None) -> Self:
-        """Select fields in the prev calendar year.
-        
+        """Select fields in the previous calendar year.
+
         Parameters
         ----------
         month : integer or equal-length collection or stored name, optional
             Month 1–12, or None to keep the month.
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
@@ -1234,15 +1286,15 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_curr_quarter(self, month: _OptionalField = None, day: _OptionalField = None) -> Self:
-        """Select fields in the curr calendar quarter.
-        
+        """Select fields in the current calendar quarter.
+
         Parameters
         ----------
         month : integer or equal-length collection, optional
             Quarter position 1–3, or None to keep the position.
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
@@ -1251,15 +1303,15 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_prev_quarter(self, month: _OptionalField = None, day: _OptionalField = None) -> Self:
-        """Select fields in the prev calendar quarter.
-        
+        """Select fields in the previous calendar quarter.
+
         Parameters
         ----------
         month : integer or equal-length collection, optional
             Quarter position 1–3, or None to keep the position.
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
@@ -1285,13 +1337,13 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_curr_month(self, day: _OptionalField = None) -> Self:
-        """Select fields in the curr calendar month.
-        
+        """Select fields in the current calendar month.
+
         Parameters
         ----------
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
@@ -1300,13 +1352,13 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_prev_month(self, day: _OptionalField = None) -> Self:
-        """Select fields in the prev calendar month.
-        
+        """Select fields in the previous calendar month.
+
         Parameters
         ----------
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
@@ -1316,27 +1368,32 @@ class Pddt(pd.DatetimeIndex):
 
     def to_next_month(self, day: _OptionalField = None) -> Self:
         """Select fields in the next calendar month.
-        
+
         Parameters
         ----------
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
             Selected dates preserving clock, resolution, name and NaT positions.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-calendar.html#reader-pddt-month-and-fields
         """
         ...
 
     def to_curr_weekday(self, weekday: _StoredSelection = None) -> Self:
-        """Select fields in the curr calendar weekday.
-        
+        """Select a weekday in the current calendar week and keep the time of day.
+
         Parameters
         ----------
         weekday : integer, stored name or equal-length collection, optional
             Monday is 0; Sunday is 6. None retains the original weekday.
-        
+
         Returns
         -------
         Pddt
@@ -1345,13 +1402,13 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_prev_weekday(self, weekday: _StoredSelection = None) -> Self:
-        """Select fields in the prev calendar weekday.
-        
+        """Select a weekday in the previous calendar week and keep the time of day.
+
         Parameters
         ----------
         weekday : integer, stored name or equal-length collection, optional
             Monday is 0; Sunday is 6. None retains the original weekday.
-        
+
         Returns
         -------
         Pddt
@@ -1360,13 +1417,13 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_next_weekday(self, weekday: _StoredSelection = None) -> Self:
-        """Select fields in the next calendar weekday.
-        
+        """Select a weekday in the next calendar week and keep the time of day.
+
         Parameters
         ----------
         weekday : integer, stored name or equal-length collection, optional
             Monday is 0; Sunday is 6. None retains the original weekday.
-        
+
         Returns
         -------
         Pddt
@@ -1375,8 +1432,8 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_monday(self) -> Self:
-        """Select this week's monday while keeping each clock.
-        
+        """Move to Monday of the current calendar week, keeping the time of day.
+
         Returns
         -------
         Pddt
@@ -1385,8 +1442,8 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_tuesday(self) -> Self:
-        """Select this week's tuesday while keeping each clock.
-        
+        """Move to Tuesday of the current calendar week, keeping the time of day.
+
         Returns
         -------
         Pddt
@@ -1395,8 +1452,8 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_wednesday(self) -> Self:
-        """Select this week's wednesday while keeping each clock.
-        
+        """Move to Wednesday of the current calendar week, keeping the time of day.
+
         Returns
         -------
         Pddt
@@ -1405,8 +1462,8 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_thursday(self) -> Self:
-        """Select this week's thursday while keeping each clock.
-        
+        """Move to Thursday of the current calendar week, keeping the time of day.
+
         Returns
         -------
         Pddt
@@ -1415,8 +1472,8 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_friday(self) -> Self:
-        """Select this week's friday while keeping each clock.
-        
+        """Move to Friday of the current calendar week, keeping the time of day.
+
         Returns
         -------
         Pddt
@@ -1425,8 +1482,8 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_saturday(self) -> Self:
-        """Select this week's saturday while keeping each clock.
-        
+        """Move to Saturday of the current calendar week, keeping the time of day.
+
         Returns
         -------
         Pddt
@@ -1435,8 +1492,8 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_sunday(self) -> Self:
-        """Select this week's sunday while keeping each clock.
-        
+        """Move to Sunday of the current calendar week, keeping the time of day.
+
         Returns
         -------
         Pddt
@@ -1591,52 +1648,67 @@ class Pddt(pd.DatetimeIndex):
 
     def to_first_of(self, unit: str) -> Self:
         """Select a period's first day.
-        
+
         Parameters
         ----------
         unit : str
             Y, Q, M, W or a saved month name. The clock is retained.
             Unknown or empty names raise ValueError. Regional boundaries stay
             inside the selected period; a wholly missing period is invalid.
-        
+
         Returns
         -------
         Pddt
             Selected dates at the original resolution, timezone and name.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-month-boundaries
         """
         ...
 
     def is_first_of(self, unit: str) -> pd.Index:
         """Test for a period's first day.
-        
+
         Parameters
         ----------
         unit : str
             Y, Q, M, W or a saved month name. The clock is retained.
             Unknown or empty names raise ValueError. Regional boundaries stay
             inside the selected period; a wholly missing period is invalid.
-        
+
         Returns
         -------
         pandas.Index
             Boolean results; original NaT positions are False.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-month-boundaries
         """
         ...
 
     def to_last_of(self, unit: str) -> Self:
         """Select a period's last day.
-        
+
         Parameters
         ----------
         unit : str
             Y, Q, M, W or a saved month name. The clock is retained.
             Unknown or empty names raise ValueError. Regional boundaries stay
             inside the selected period; a wholly missing period is invalid.
-        
+
         Returns
         -------
         Pddt
             Selected dates at the original resolution, timezone and name.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-month-boundaries
         """
         ...
 
@@ -1659,52 +1731,67 @@ class Pddt(pd.DatetimeIndex):
 
     def to_start_of(self, unit: str) -> Self:
         """Select a period's start representable instant.
-        
+
         Parameters
         ----------
         unit : str
             Y, Q, M, W, D, h, m/min, s, ms, us, ns or a saved month/weekday name.
             Unknown or empty names raise ValueError. Regional boundaries stay
             inside the selected period; a wholly missing period is invalid.
-        
+
         Returns
         -------
         Pddt
             Selected dates at the original resolution, timezone and name.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-month-boundaries
         """
         ...
 
     def is_start_of(self, unit: str) -> pd.Index:
         """Test for a period's start representable instant.
-        
+
         Parameters
         ----------
         unit : str
             Y, Q, M, W, D, h, m/min, s, ms, us, ns or a saved month/weekday name.
             Unknown or empty names raise ValueError. Regional boundaries stay
             inside the selected period; a wholly missing period is invalid.
-        
+
         Returns
         -------
         pandas.Index
             Boolean results; original NaT positions are False.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-month-boundaries
         """
         ...
 
     def to_end_of(self, unit: str) -> Self:
         """Select a period's end representable instant.
-        
+
         Parameters
         ----------
         unit : str
             Y, Q, M, W, D, h, m/min, s, ms, us, ns or a saved month/weekday name.
             Unknown or empty names raise ValueError. Regional boundaries stay
             inside the selected period; a wholly missing period is invalid.
-        
+
         Returns
         -------
         Pddt
             Selected dates at the original resolution, timezone and name.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-month-boundaries
         """
         ...
 
@@ -1727,14 +1814,15 @@ class Pddt(pd.DatetimeIndex):
 
     def normalize(self) -> Self:
         """Select the first valid representable local instant of each day.
-        
+
         Returns
         -------
         Pddt
             Normalized dates in the same day, unit and timezone; NaT remains NaT.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-02 12:30"]).normalize().hour.tolist()
         [0]
         """
@@ -1742,20 +1830,21 @@ class Pddt(pd.DatetimeIndex):
 
     def fsp(self, precision: SupportsIndex) -> Self:
         """Truncate fractional second digits without rounding or changing unit.
-        
+
         Parameters
         ----------
         precision : integer
             Nonnegative number of decimal places, up to nine. Larger values
             retain existing precision. Booleans, floats and collections fail.
-        
+
         Returns
         -------
         Pddt
             Dates with trimmed fractional digits, or the unchanged original.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-01 00:00:00.123456789"]).fsp(3)[0].microsecond
         123000
         """
@@ -1764,64 +1853,79 @@ class Pddt(pd.DatetimeIndex):
     # P13 uses automatic DST rules without pandas per-call policy arguments.
     def round(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY014; see tests/typing/pyright_exceptions.json.
         """Round to the nearest grid, with ties to even.
-        
+
         Parameters
         ----------
         freq : str, timedelta or fixed pandas DateOffset, default 's'
             Positive fixed frequency, such as '15min', 'h', 'D' or '500ns'.
             Calendar offsets are not rounding grids. Regional times use the
             automatic valid-boundary rule while retaining the rounding meaning.
-        
+
         Returns
         -------
         Pddt
             Rounded dates at the existing unit, timezone and name, with NaT
-            positions retained. The old unit and DST policy keywords are absent.
+            positions retained.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-second-grid
         """
         ...
 
     # P13 uses automatic DST rules without pandas per-call policy arguments.
     def ceil(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY015; see tests/typing/pyright_exceptions.json.
         """Round upward without moving earlier.
-        
+
         Parameters
         ----------
         freq : str, timedelta or fixed pandas DateOffset, default 's'
             Positive fixed frequency, such as '15min', 'h', 'D' or '500ns'.
             Calendar offsets are not rounding grids. Regional times use the
             automatic valid-boundary rule while retaining the rounding meaning.
-        
+
         Returns
         -------
         Pddt
             Rounded dates at the existing unit, timezone and name, with NaT
-            positions retained. The old unit and DST policy keywords are absent.
+            positions retained.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-second-grid
         """
         ...
 
     # P13 uses automatic DST rules without pandas per-call policy arguments.
     def floor(self, freq: str | _dt.timedelta | pd.DateOffset = 's') -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY016; see tests/typing/pyright_exceptions.json.
         """Round downward without moving later.
-        
+
         Parameters
         ----------
         freq : str, timedelta or fixed pandas DateOffset, default 's'
             Positive fixed frequency, such as '15min', 'h', 'D' or '500ns'.
             Calendar offsets are not rounding grids. Regional times use the
             automatic valid-boundary rule while retaining the rounding meaning.
-        
+
         Returns
         -------
         Pddt
             Rounded dates at the existing unit, timezone and name, with NaT
-            positions retained. The old unit and DST policy keywords are absent.
+            positions retained.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#reader-pddt-second-grid
         """
         ...
 
     # P13 has the shared single-period/name interface, not arbitrary offsets.
     def snap(self, unit: str = 's') -> Self:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY017; see tests/typing/pyright_exceptions.json.
         """Select the nearest valid period start; an equal distance goes later.
-        
+
         Parameters
         ----------
         unit : str, default 's'
@@ -1830,7 +1934,7 @@ class Pddt(pd.DatetimeIndex):
             a month name repeats annually. Arbitrary multiple frequencies and
             DateOffset objects are not accepted. Names use the unchanged
             default words and are independent of an edited Configs instance.
-        
+
         Returns
         -------
         Pddt
@@ -1838,9 +1942,10 @@ class Pddt(pd.DatetimeIndex):
             or wall-clock distance for naive dates. Missing periods are skipped;
             a partly missing period uses its first valid representable start.
             Original unit, name, timezone and NaT positions are preserved.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-02 12:00"]).snap("D").day.tolist()
         [3]
         """
@@ -1980,8 +2085,8 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def is_year(self, year: _IntegerArgument) -> pd.Index:
-        """Compare each local calendar value with a scalar or row target.
-        
+        """Test whether each local year equals the supplied year.
+
         Parameters
         ----------
         year : integer or equal-length collection
@@ -1989,7 +2094,7 @@ class Pddt(pd.DatetimeIndex):
             pandas label alignment. Booleans, floats and missing targets fail.
             Every target must implement the integer protocol.
             A legal integer that does not match returns False.
-        
+
         Returns
         -------
         pandas.Index
@@ -1998,8 +2103,8 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def is_quarter(self, quarter: _IntegerArgument) -> pd.Index:
-        """Compare each local calendar value with a scalar or row target.
-        
+        """Test whether each date lies in the supplied quarter of its year.
+
         Parameters
         ----------
         quarter : integer or equal-length collection
@@ -2007,7 +2112,7 @@ class Pddt(pd.DatetimeIndex):
             pandas label alignment. Booleans, floats and missing targets fail.
             Every target must implement the integer protocol.
             A legal integer that does not match returns False.
-        
+
         Returns
         -------
         pandas.Index
@@ -2016,8 +2121,8 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def is_month(self, month: SupportsIndex | str | Iterable[SupportsIndex | str] | _Column) -> pd.Index:
-        """Compare each local calendar value with a scalar or row target.
-        
+        """Test whether each local month equals the supplied number or registered month name.
+
         Parameters
         ----------
         month : integer or stored name or equal-length collection
@@ -2025,7 +2130,7 @@ class Pddt(pd.DatetimeIndex):
             pandas label alignment. Booleans, floats and missing targets fail.
             Unknown or empty names raise ValueError.
             A legal integer that does not match returns False.
-        
+
         Returns
         -------
         pandas.Index
@@ -2034,8 +2139,8 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def is_weekday(self, weekday: SupportsIndex | str | Iterable[SupportsIndex | str] | _Column) -> pd.Index:
-        """Compare each local calendar value with a scalar or row target.
-        
+        """Test for a local weekday by name or by number, with Monday as 0.
+
         Parameters
         ----------
         weekday : integer or stored name or equal-length collection
@@ -2043,7 +2148,7 @@ class Pddt(pd.DatetimeIndex):
             pandas label alignment. Booleans, floats and missing targets fail.
             Unknown or empty names raise ValueError.
             A legal integer that does not match returns False.
-        
+
         Returns
         -------
         pandas.Index
@@ -2052,8 +2157,8 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def is_day(self, day: _IntegerArgument) -> pd.Index:
-        """Compare each local calendar value with a scalar or row target.
-        
+        """Test whether each local day of the month equals the supplied day.
+
         Parameters
         ----------
         day : integer or equal-length collection
@@ -2061,7 +2166,7 @@ class Pddt(pd.DatetimeIndex):
             pandas label alignment. Booleans, floats and missing targets fail.
             Every target must implement the integer protocol.
             A legal integer that does not match returns False.
-        
+
         Returns
         -------
         pandas.Index
@@ -2101,19 +2206,26 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def isocalendar(self) -> pd.DataFrame:
-        """Return standard ISO year, week and weekday columns.
-        
+        """Get the ISO week year, week number, and weekday for each date.
+
         Returns
         -------
         pandas.DataFrame
-            Three nullable UInt32 columns, indexed by this date index. Missing
-            dates give three missing cells. Negative ISO years, and ISO years
-            beyond UInt32, raise OverflowError; isoyear() supports signed years.
-        
+            The table keeps your date index and its name. The year column uses
+            nullable Int64 and can be negative. The week and day columns use
+            nullable UInt32. A missing date leaves all three cells missing.
+            Weekdays run from Monday (1) to Sunday (7).
+
+        Notes
+        -----
+        Read the same-version example at https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#pddt-iso-week-year
+
         Examples
         --------
-        >>> Pddt(["2021-01-01"]).isocalendar()["week"].tolist()
-        [53]
+        >>> from rstimes import Pddt
+        >>> dates = Pddt(["0000-01-01", None], unit="us", name="event")
+        >>> print(dates.isocalendar()["year"].tolist())
+        [-1, <NA>]
         """
         ...
 
@@ -2133,7 +2245,7 @@ class Pddt(pd.DatetimeIndex):
         Returns
         -------
         pandas.Index
-            A Int64 index of the same length. Naive and missing dates return pd.NA. Fractional negative offsets round toward the earlier second.
+            An Int64 index of the same length. Naive and missing dates return pd.NA. Fractional negative offsets round toward the earlier second.
         """
         ...
 
@@ -2159,7 +2271,7 @@ class Pddt(pd.DatetimeIndex):
 
     def diff(self, dtobj: _DateValue | _DateCollection, unit: str, absolute: _Boolean = False, inclusive: Literal["one", "both", "neither"] = "one") -> pd.Index:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY018; see tests/typing/pyright_exceptions.json.
         """Count unit boundaries between dates and scalar or positional targets.
-        
+
         Parameters
         ----------
         dtobj : date-like scalar or equal-length one-dimensional collection
@@ -2172,18 +2284,21 @@ class Pddt(pd.DatetimeIndex):
         absolute : bool or numpy.bool_, default False
             Take the absolute boundary difference before inclusive adjustment.
         inclusive : {'one', 'both', 'neither'}, default 'one'
-            Keep the difference, increase its magnitude by one, or decrease it
-            by one. A zero difference with 'neither' is -1.
-        
+            Use 'one' for the signed difference in unit boundaries. 'both' increases
+            its magnitude, and 'neither' decreases it (a zero difference yields -1).
+            Use date_range's separate inclusive option when generating dates.
+
         Returns
         -------
         pandas.Index
             An int64 index named 'diff'; nullable Int64 when any date is missing.
             The entire signed int64 range is valid, including -2**63.
             Results outside that range raise OverflowError.
-        
+
         Examples
         --------
+        >>> import numpy as np
+        >>> from rstimes import Pddt
         >>> Pddt([np.datetime64(2, "s")]).diff(1, "s").tolist()
         [1]
         >>> Pddt([np.datetime64(1, "ns")]).diff(1e-9, "ns").tolist()
@@ -2207,20 +2322,21 @@ class Pddt(pd.DatetimeIndex):
 
     def toseconds(self, utc: _Boolean = False) -> pd.Index:
         """Return floating seconds from the epoch in wall-clock or UTC coordinates.
-        
+
         Parameters
         ----------
         utc : bool or numpy.bool_, default False
             False measures the local wall clock from naive 1970-01-01.
             True uses actual UTC instants for aware dates; naive dates stay naive.
-        
+
         Returns
         -------
         pandas.Index
             Correctly rounded float64 seconds; missing dates give NaN.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> x=Pddt(["1970-01-01 08:00"],tz="Asia/Shanghai")
         >>> x.toseconds().tolist(), x.toseconds(utc=True).tolist()
         ([28800.0], [0.0])
@@ -2229,21 +2345,22 @@ class Pddt(pd.DatetimeIndex):
 
     def tomicroseconds(self, utc: _Boolean = False) -> pd.Index:
         """Return integer epoch microseconds from local or UTC coordinates.
-        
+
         Parameters
         ----------
         utc : bool or numpy.bool_, default False
             False uses local wall clocks; True uses UTC for aware dates.
             A naive date never gains an assumed local timezone here.
-        
+
         Returns
         -------
         pandas.Index
             Nullable Int64 microseconds. Nanoseconds are floored only at this
             explicit export, and missing dates remain pd.NA.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> x=Pddt(["1970-01-01 08:00"],tz="Asia/Shanghai")
         >>> x.tomicroseconds().tolist(), x.tomicroseconds(utc=True).tolist()
         ([28800000000], [0])
@@ -2298,7 +2415,7 @@ class Pddt(pd.DatetimeIndex):
 
     def isoformat(self, sep: str = "T", timespec: str = "auto") -> pd.Index:
         """Return ISO date strings with chosen display precision.
-        
+
         Parameters
         ----------
         sep : str, default 'T'
@@ -2307,15 +2424,16 @@ class Pddt(pd.DatetimeIndex):
             auto, hours, minutes, seconds, milliseconds, microseconds or
             nanoseconds; exact aliases h, m/min, s, ms, us and ns also work.
             Coarser display precision truncates text without changing the dates.
-        
+
         Returns
         -------
         pandas.Index
             Date strings retaining nanoseconds and complete colon-separated
             timezone offsets. Missing dates give missing strings.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-01 12:30:45.123456789"]).isoformat(timespec="ns").tolist()
         ['2024-01-01T12:30:45.123456789']
         """
@@ -2323,14 +2441,14 @@ class Pddt(pd.DatetimeIndex):
 
     def strftime(self, format: str) -> pd.Index:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY019; see tests/typing/pyright_exceptions.json.
         """Format with complete system rules and exact fractional directives.
-        
+
         Parameters
         ----------
         format : str
             An empty string is valid. %f emits nine digits for ns and six for
             s/ms/us; %.1f through %.9f emit a dot and a truncated/padded fraction,
             and %.0f emits nothing. Other system rules remain delegated.
-        
+
         Returns
         -------
         pandas.Index
@@ -2339,6 +2457,7 @@ class Pddt(pd.DatetimeIndex):
 
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt([123456789], unit="ns").strftime("%f|%.3f|%.0f").tolist()
         ['123456789|.123|']
         """
@@ -2559,7 +2678,7 @@ class _PddtNamespace(Generic[_PddtT]):
 
     Parameters
     ----------
-    index : _PddtT
+    index : Pddt
         Owning Pddt object whose date fields are replaced atomically.
     """
     def __init__(self, index: _PddtT) -> None:
@@ -2567,7 +2686,7 @@ class _PddtNamespace(Generic[_PddtT]):
 
         Parameters
         ----------
-        index : _PddtT
+        index : Pddt
             Immutable source date index.
 
         Returns
@@ -2579,7 +2698,7 @@ class _PddtNamespace(Generic[_PddtT]):
 
     def replace(self, year: _OptionalField = None, month: _OptionalField = None, day: _OptionalField = None, hour: _OptionalField = None, minute: _OptionalField = None, second: _OptionalField = None, microsecond: _OptionalField = None, nanosecond: _OptionalField = None, tzinfo: _dt.tzinfo | str | None = ..., *, ambiguous: _Ambiguous = 'raise', nonexistent: _Nonexistent = 'raise') -> _PddtT:
         """Replace selected fields exactly; every resulting date must be valid.
-        
+
         Parameters
         ----------
         year, month, day, hour, minute, second, microsecond, nanosecond : integer or equal-length integer collection, optional
@@ -2593,15 +2712,16 @@ class _PddtNamespace(Generic[_PddtT]):
             A new zone reinterprets the local fields in that zone.
         ambiguous, nonexistent : policy, default 'raise'
             Policies for repeated or missing regional local times.
-        
+
         Returns
         -------
         Pddt
             Updated dates with the same storage unit and name. Unchanged values
             retain the original object. The source is never modified.
-        
+
         Examples
         --------
+        >>> from rstimes import Pddt
         >>> Pddt(["2024-01-02"]).pddt.replace(day=3).day.tolist()
         [3]
         """

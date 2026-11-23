@@ -106,6 +106,30 @@ fn copy_numpy_ticks(values: &Int64Chunked) -> Int64Chunked {
     )
 }
 
+/// Own the validity associated with newly allocated tick values.
+fn owned_validity(validity: Option<&Bitmap>) -> Option<Bitmap> {
+    validity.map(|bitmap| bitmap.clone().make_mut().into())
+}
+
+/// Widen signed ticks directly, pairing the new values with an owned bitmap.
+fn signed_ticks<T>(values: PolarsResult<&ChunkedArray<T>>) -> Result<Int64Chunked, Failure>
+where
+    T: PolarsNumericType,
+    i64: From<T::Native>,
+{
+    let values = values.map_err(|error| Failure::new(Kind::Type, error.to_string()))?;
+    let chunks = values.downcast_iter().map(|chunk| {
+        let validity = owned_validity(chunk.validity());
+        // The conversion is infallible even at null slots, so the dense loop
+        // has no validity checks and the output needs only one values buffer.
+        let ticks: Vec<i64> = chunk.values_iter().copied().map(i64::from).collect();
+        PrimitiveArray::new(ArrowDataType::Int64, ticks.into(), validity)
+    });
+    let mut result = Int64Chunked::from_chunk_iter(values.name().clone(), chunks);
+    result.set_sorted_flag(values.is_sorted_flag());
+    Ok(result)
+}
+
 /// Narrow wide native ticks in source order, keeping null slots independent.
 fn wide_ticks<T>(values: PolarsResult<&ChunkedArray<T>>) -> Result<Int64Chunked, Failure>
 where
@@ -121,9 +145,7 @@ where
     let chunks = values.downcast_iter().map(|chunk| {
         // The new ticks must keep the validity used to produce them even if
         // an external owner later writes to the source bitmap.
-        let validity: Option<Bitmap> = chunk
-            .validity()
-            .map(|bitmap| bitmap.clone().make_mut().into());
+        let validity = owned_validity(chunk.validity());
         let mut ticks = Vec::with_capacity(chunk.len());
         if let Some(validity) = &validity {
             for (row, (&value, present)) in chunk.values_iter().zip(validity.iter()).enumerate() {
@@ -240,6 +262,9 @@ pub(super) fn column(
         dtype if dtype.is_integer() => {
             // Raw numbers are already ticks in the explicitly chosen/default unit.
             let values = match dtype {
+                DataType::Int8 => signed_ticks(source.i8())?,
+                DataType::Int16 => signed_ticks(source.i16())?,
+                DataType::Int32 => signed_ticks(source.i32())?,
                 DataType::UInt64 => wide_ticks(source.u64())?,
                 DataType::UInt128 => wide_ticks(source.u128())?,
                 DataType::Int128 => wide_ticks(source.i128())?,

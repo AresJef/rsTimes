@@ -1478,13 +1478,13 @@ def _python_output(owner, clock=False):
 class _PythonOutputMethods:
     def datetime(self) -> np.ndarray:
         """Return an object array of Pydt/None, explicitly truncating to microseconds.
-        
+
         Returns
         -------
         np.ndarray
             The stated native/Python output representation. Genuine external callback choices and
             exceptions retain their normal protocol.
-        
+
         Raises
         ------
         TypeError
@@ -1493,11 +1493,24 @@ class _PythonOutputMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Examples
         --------
+        On a native Polars Series
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series('event', [1234, None], dtype=pl.Datetime('ns'))
+        >>> dates = source.pldt.datetime()
+        >>> print(type(dates[0]).__name__, dates[0].isoformat(), dates[1])
+        Pydt 1970-01-01T00:00:00.000001 None
+
+        On a Pldt
+
+        >>> from rstimes import Pldt
         >>> type(Pldt([0], unit="ns").datetime()[0]).__name__
-        'Pydt'"""
+        'Pydt'
+        """
         return _python_output(self)
 
     @property
@@ -1545,23 +1558,18 @@ class _OutputMethods:
     def toseconds(self, utc: _Boolean=False) -> pl.Series | pl.Expr:
         """Return Float64 seconds in local coordinates, or UTC when requested.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        utc : _Boolean
+        utc : bool or numpy.bool_
             Use UTC coordinates when True; otherwise use local clock coordinates. A naive datetime remains
             timezone-naive.
-        
+
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -1570,36 +1578,60 @@ class _OutputMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
         Examples
         --------
+        On a native Polars Series
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series('event', [0, None], dtype=pl.Datetime('us', 'Asia/Shanghai'))
+        >>> dates = source.pldt.toseconds()
+        >>> print(dates.to_list())
+        [28800.0, None]
+
+        In a Polars query
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame([pl.Series('event', [0, None], dtype=pl.Datetime('us', 'Asia/Shanghai'))])
+        >>> expr = pl.col('event').pldt.toseconds()
+        >>> dates = frame.select(expr)['event']
+        >>> print(dates.to_list())
+        [28800.0, None]
+
+        On a Pldt
+
+        >>> from rstimes import Pldt
         >>> x = Pldt(["1970-01-01 08:00:00"], tz="Asia/Shanghai", unit="us")
         >>> x.toseconds().to_list()
         [28800.0]
         >>> x.toseconds(utc=True).to_list()
-        [0.0]"""
+        [0.0]
+        """
         return _output_operation(self, 0, "toseconds", utc=utc)
 
     def tomicroseconds(self, utc: _Boolean=False) -> pl.Series | pl.Expr:
         """Return Int64 microseconds, flooring only at this explicit output.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        utc : _Boolean
+        utc : bool or numpy.bool_
             Use UTC coordinates when True; otherwise use local clock coordinates. A naive datetime remains
             timezone-naive.
-        
+
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -1608,149 +1640,206 @@ class _OutputMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
         Examples
         --------
+        On a native Polars Series
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series('event', [-1500, None], dtype=pl.Datetime('ns'))
+        >>> dates = source.pldt.tomicroseconds()
+        >>> print(dates.to_list())
+        [-2, None]
+
+        In a Polars query
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame([pl.Series('event', [-1500, None], dtype=pl.Datetime('ns'))])
+        >>> expr = pl.col('event').pldt.tomicroseconds()
+        >>> dates = frame.select(expr)['event']
+        >>> print(dates.to_list())
+        [-2, None]
+
+        On a Pldt
+
+        >>> from rstimes import Pldt
         >>> Pldt(["1970-01-01 00:00:00.000001"], unit="ns").tomicroseconds().to_list()
-        [1]"""
+        [1]
+        """
         return _output_operation(self, 1, "tomicroseconds", utc=utc)
 
     def toordinal(self) -> pl.Series | pl.Expr:
         """Return Int64 proleptic Gregorian day ordinals; missing stays null.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _output_operation(self, 2, "toordinal")
 
     def timestamp(self) -> pl.Series | pl.Expr:
         """Return Float64 UTC seconds; naive dates use the process local zone.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            An unsupported source dtype cannot be read as a date column.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The process local timezone is unavailable, or a naive time is repeated
+            or nonexistent. Use tz_localize with an explicit ambiguous or nonexistent
+            policy before calling timestamp().
         OverflowError
-            The true final result exceeds the current unit/target capacity.
-        
+            A naive date's local time is outside the supported regional timezone range.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
         Examples
         --------
+        On a native Polars Series
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series('event', [0, None], dtype=pl.Datetime('us', 'Asia/Shanghai'))
+        >>> dates = source.pldt.timestamp()
+        >>> print(dates.to_list())
+        [0.0, None]
+
+        In a Polars query
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame([pl.Series('event', [0, None], dtype=pl.Datetime('us', 'Asia/Shanghai'))])
+        >>> expr = pl.col('event').pldt.timestamp()
+        >>> dates = frame.select(expr)['event']
+        >>> print(dates.to_list())
+        [0.0, None]
+
+        On a Pldt
+
+        >>> from rstimes import Pldt
         >>> Pldt(["1970-01-01 08:00:00"], tz="Asia/Shanghai").timestamp().to_list()
-        [0.0]"""
+        [0.0]
+        """
         return _output_operation(self, 3, "timestamp")
 
     @property
     def values_naive(self) -> pl.Series | pl.Expr:
         """Return a plain native Datetime column of local wall coordinates.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The local wall time exceeds the current tick unit's capacity,
+            or the date is outside the supported regional timezone range.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _output_operation(self, 4, "values_naive")
 
     @property
     def date(self) -> pl.Series | pl.Expr:
         """Return a native Date column, checked against its signed32-day range.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The local date exceeds the native Date type's signed 32-bit day range,
+            or the date is outside the supported regional timezone range.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _output_operation(self, 5, "date")
 
     @property
     def time(self) -> pl.Series | pl.Expr:
         """Return a native Time column retaining the full time-of-day nanoseconds.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _output_operation(self, 6, "time")
 
     def isoformat(self, sep: str='T', timespec: str='auto') -> pl.Series | pl.Expr:
         """Return ISO strings with explicit precision and colon-separated offsets.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
         sep : str
@@ -1758,44 +1847,13 @@ class _OutputMethods:
         timespec : str
             auto/hours/minutes/seconds/milliseconds/microseconds/nanoseconds, including the approved
             h/m/min/s/ms/us/ns aliases; uppercase H and M are not accepted.
-        
+
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _output_operation(self, 10, "isoformat", sep=sep, timespec=timespec)
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
 
-    def strftime(self, format: str) -> pl.Series | pl.Expr:
-        """Return strings using native numeric/fraction fields or an eager system adapter.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        format : str
-            Shared strftime format. %f emits 9 digits for ns and 6 for ms/us; %.1f through %.9f emit a dot
-            plus that many truncated/padded digits, and %.0f is empty. System-locale/platform directives
-            are eager-only; numeric directives remain native in Expr.
-        
-        Returns
-        -------
-        pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
         Raises
         ------
         TypeError
@@ -1804,57 +1862,115 @@ class _OutputMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
+        return _output_operation(self, 10, "isoformat", sep=sep, timespec=timespec)
+
+    def strftime(self, format: str) -> pl.Series | pl.Expr:
+        """Return strings using native numeric/fraction fields or an eager system adapter.
+
+        Parameters
+        ----------
+        format : str
+            Shared strftime format. %f emits 9 digits for ns and 6 for ms/us; %.1f through %.9f emit a dot
+            plus that many truncated/padded digits, and %.0f is empty. System-locale/platform directives
+            are eager-only; numeric directives remain native in Expr.
+
+        Returns
+        -------
+        pl.Series | pl.Expr
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
         Examples
         --------
+        On a native Polars Series
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series('event', [123_456_789, None], dtype=pl.Datetime('ns'))
+        >>> dates = source.pldt.strftime('%f|%.3f|%.0f')
+        >>> print(dates.to_list())
+        ['123456789|.123|', None]
+
+        In a Polars query
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame([pl.Series('event', [123_456_789, None], dtype=pl.Datetime('ns'))])
+        >>> expr = pl.col('event').pldt.strftime('%f|%.3f|%.0f')
+        >>> dates = frame.select(expr)['event']
+        >>> print(dates.to_list())
+        ['123456789|.123|', None]
+
+        On a Pldt
+
+        >>> from rstimes import Pldt
         >>> Pldt([123456789], unit="ns").strftime("%f|%.3f|%.0f").to_list()
-        ['123456789|.123|']"""
+        ['123456789|.123|']
+        """
         return _strftime_operation(self, format)
 
     def ctime(self) -> pl.Series | pl.Expr:
         """Return English ctime strings, independent of the process locale.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _output_operation(self, 11, "ctime")
 
     def month_name(self, locale: str | None=None) -> pl.Series | pl.Expr:
         """Return compiled CLDR month names; the default language is English.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        locale : str | None
+        locale : str or None
             Supported CLDR locale such as en_US or zh_CN; None uses English. This does not change parser
             Configs.
-        
+
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -1862,29 +1978,31 @@ class _OutputMethods:
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _output_operation(self, 12, "month_name", locale=locale)
 
     def weekday_name(self, locale: str | None=None) -> pl.Series | pl.Expr:
         """Return compiled CLDR weekday names; the default language is English.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        locale : str | None
+        locale : str or None
             Supported CLDR locale such as en_US or zh_CN; None uses English. This does not change parser
             Configs.
-        
+
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -1892,31 +2010,39 @@ class _OutputMethods:
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _output_operation(self, 13, "weekday_name", locale=locale)
 
     def tzname(self) -> pl.Series | pl.Expr:
         """Return the native zone abbreviation at each instant, or null if naive.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _output_operation(self, 14, "tzname")
 
 
@@ -1926,647 +2052,664 @@ class _QueryMethods:
     def year(self) -> pl.Series | pl.Expr:
         """Signed calendar year as a nullable Int64 column.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            The signed calendar year as a nullable Int64 Series.
+            On Expr.pldt, the expression produces that column in select or collect.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 20, "year")
 
     @property
     def month(self) -> pl.Series | pl.Expr:
         """One-based month as a nullable Int64 column.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            The month number (1 through 12) as a nullable Int64 Series.
+            On Expr.pldt, the expression produces that column in select or collect.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 21, "month")
 
     @property
     def day(self) -> pl.Series | pl.Expr:
         """One-based day as a nullable Int64 column.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            The day of the month as a nullable Int64 Series.
+            On Expr.pldt, the expression produces that column in select or collect.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 22, "day")
 
     @property
     def hour(self) -> pl.Series | pl.Expr:
         """Hour within the local day as nullable Int64.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 23, "hour")
 
     @property
     def minute(self) -> pl.Series | pl.Expr:
         """Minute within the hour as nullable Int64.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 24, "minute")
 
     @property
     def second(self) -> pl.Series | pl.Expr:
         """Second within the minute as nullable Int64.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 25, "second")
 
     @property
     def microsecond(self) -> pl.Series | pl.Expr:
         """Microsecond within the second as nullable Int64.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            An unsupported source dtype cannot be read as a date column.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 26, "microsecond")
 
     @property
     def nanosecond(self) -> pl.Series | pl.Expr:
-        """Additional nanosecond tail, 0 through999, as nullable Int64.
+        """Additional nanosecond tail, 0 through 999, as nullable Int64.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            An unsupported source dtype cannot be read as a date column.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 27, "nanosecond")
 
     @property
     def weekday(self) -> pl.Series | pl.Expr:
-        """Weekday with Monday0, as nullable Int64.
+        """Weekday with Monday 0, as nullable Int64.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            The weekday as a nullable Int64 Series, Monday=0 through Sunday=6.
+            On Expr.pldt, the expression produces that column in select or collect.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 28, "weekday")
 
     @property
     def day_of_year(self) -> pl.Series | pl.Expr:
         """One-based day within the local calendar year.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 29, "day_of_year")
 
     @property
     def days_in_month(self) -> pl.Series | pl.Expr:
         """Number of days in the local calendar month.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 30, "days_in_month")
 
     @property
     def quarter(self) -> pl.Series | pl.Expr:
         """One-based calendar quarter as nullable Int64.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 31, "quarter")
 
     @property
     def millisecond(self) -> pl.Series | pl.Expr:
-        """Millisecond within the second, from0 through999.
+        """Millisecond within the second, from 0 through 999.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            An unsupported source dtype cannot be read as a date column.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 10, "millisecond")
 
     @property
     def is_leap_year(self) -> pl.Series | pl.Expr:
         """Whether the local year is leap; source null is False.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A Boolean Series. A null source date gives False.
+            On Expr.pldt, the expression produces that column in select or collect.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 109, "is_leap_year")
 
     def isoyear(self) -> pl.Series | pl.Expr:
-        """Signed ISO week year, independently of UInt32 table capacity.
+        """Get just the ISO week year. It can be negative.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native Int64 Series with nulls for missing dates, or an expression that produces it.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            On a Pldt or Series.pldt, a date can fall outside the supported
+            range for its named time zone.
+        polars.exceptions.ComputeError
+            An Expr can be created and infer Int64. If a date falls outside
+            the supported range for its named time zone, select or collect
+            raises this error when it evaluates that row. Unsupported input
+            types can fail during planning.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 0, "isoyear")
 
     def isoweek(self) -> pl.Series | pl.Expr:
         """One-based ISO week number.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 1, "isoweek")
 
     def isoweekday(self) -> pl.Series | pl.Expr:
-        """ISO weekday with Monday1.
+        """ISO weekday with Monday 1.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 2, "isoweekday")
 
     def days_in_year(self) -> pl.Series | pl.Expr:
         """Number of days in the local calendar year.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 3, "days_in_year")
 
     def days_bf_year(self) -> pl.Series | pl.Expr:
-        """Days before this calendar year, relative to0001-01-01.
+        """Days before this calendar year, relative to 0001-01-01.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 4, "days_bf_year")
 
     def days_in_quarter(self) -> pl.Series | pl.Expr:
         """Number of calendar days in this quarter.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 5, "days_in_quarter")
 
     def days_bf_quarter(self) -> pl.Series | pl.Expr:
         """Days in this year before the current quarter.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 6, "days_bf_quarter")
 
     def day_of_quarter(self) -> pl.Series | pl.Expr:
         """One-based day in this calendar quarter.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 7, "day_of_quarter")
 
     def days_bf_month(self) -> pl.Series | pl.Expr:
         """Days in this year before the current month.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 8, "days_bf_month")
 
     def day_of_month(self) -> pl.Series | pl.Expr:
         """One-based local day of month.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 9, "day_of_month")
 
     def is_year(self, year: _ExprIntegerInput) -> pl.Series | pl.Expr:
         """Match scalar or equal-length integer year targets.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        year : _ExprIntegerInput
-            Required scalar or equal-length target; legal nonmatching numeric values return False. Missing
-            targets fail even for source null; unknown/empty saved month names fail instead of silently
-            returning False.
-        
+        year : integer or one-dimensional integer collection or polars.Expr
+            An integer year or a same-length integer column paired by position. A valid
+            integer outside the matching range yields False. Strings, booleans and missing targets are invalid.
+            Use an integer-valued expression for a target supplied by the query.
+
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            An eager Series, or an Expr producing a Boolean column. With a valid target, a null source date yields False.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            Unsupported Python arguments, including a literal None target, fail
+            when the expression is created. Eager calls also raise TypeError for a missing target.
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+        polars.exceptions.ComputeError
+            If a target expression with a valid dtype yields a null, Polars raises this
+            error while evaluating the rows in select or collect.
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        A scalar applies to each row. A target column must have the source length
+        and is paired by position. Schema planning checks the input types, and
+        a target error can report a position within the evaluated batch.
+        """
         return _query_operation(self, 100, "is_year", year, parameter="year")
 
     def is_quarter(self, quarter: _ExprIntegerInput) -> pl.Series | pl.Expr:
         """Match scalar or equal-length integer quarter targets.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        quarter : _ExprIntegerInput
+        quarter : integer or one-dimensional integer collection or polars.Expr
             Required scalar or equal-length integer quarter target. Legal nonmatches return False; missing
             targets fail even for source null.
-        
+
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -2574,95 +2717,65 @@ class _QueryMethods:
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 101, "is_quarter", quarter, parameter="quarter")
 
     def is_month(self, month: _ExprQuerySelection) -> pl.Series | pl.Expr:
         """Match integer or saved month names, by position; null is False.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        month : _ExprQuerySelection
-            Required scalar or equal-length target; legal nonmatching numeric values return False. Missing
-            targets fail even for source null; unknown/empty saved month names fail instead of silently
-            returning False.
-        
+        month : integer, name or one-dimensional collection or polars.Expr
+            Required month number or name from the default vocabulary. A column pairs by position.
+
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            An eager Series, or an Expr producing a Boolean column. With a valid target, a null source date yields False.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            Unsupported Python arguments, including a literal None target, fail
+            when the expression is created. Eager calls also raise TypeError for a missing target.
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+        polars.exceptions.ComputeError
+            If a target expression with a valid dtype yields a null, Polars raises this
+            error while evaluating the rows in select or collect.
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        A scalar applies to each row. A target column must have the source length
+        and is paired by position. Schema planning checks the input types, and
+        a target error can report a position within the evaluated batch.
+        """
         return _query_operation(self, 102, "is_month", month, 1, "month")
 
     def is_weekday(self, weekday: _ExprQuerySelection) -> pl.Series | pl.Expr:
-        """Match integer or saved weekday names, with Monday0.
+        """Test for a local weekday by name or by number, with Monday as 0.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        weekday : _ExprQuerySelection
-            Required scalar or equal-length integer/saved-name target, Monday 0. Legal nonmatching
-            integers return False; missing/unknown/empty targets fail even for source null.
-        
+        weekday : integer, name or one-dimensional collection or polars.Expr
+            Weekday number, with Monday as 0, or a weekday name in the library's default
+            vocabulary.
+
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _query_operation(self, 103, "is_weekday", weekday, 2, "weekday")
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
 
-    def is_day(self, day: _ExprIntegerInput) -> pl.Series | pl.Expr:
-        """Match scalar or equal-length integer day targets.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        day : _ExprIntegerInput
-            Required scalar or equal-length target; legal nonmatching numeric values return False. Missing
-            targets fail even for source null; unknown/empty saved month names fail instead of silently
-            returning False.
-        
-        Returns
-        -------
-        pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
         Raises
         ------
         TypeError
@@ -2671,523 +2784,339 @@ class _QueryMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
+        return _query_operation(self, 103, "is_weekday", weekday, 2, "weekday")
+
+    def is_day(self, day: _ExprIntegerInput) -> pl.Series | pl.Expr:
+        """Test whether each local day of the month equals the supplied day.
+
+        Parameters
+        ----------
+        day : integer or one-dimensional integer collection or polars.Expr
+            An integer day or a same-length integer column paired by position. A valid
+            integer outside the matching range yields False. Strings, booleans and missing targets are invalid.
+            Use an integer-valued expression for a target supplied by the query.
+
+        Returns
+        -------
+        pl.Series | pl.Expr
+            An eager Series, or an Expr producing a Boolean column. With a valid target, a null source date yields False.
+
+        Raises
+        ------
+        TypeError
+            Unsupported Python arguments, including a literal None target, fail
+            when the expression is created. Eager calls also raise TypeError for a missing target.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            If a target expression with a valid dtype yields a null, Polars raises this
+            error while evaluating the rows in select or collect.
+
+        Notes
+        -----
+        A scalar applies to each row. A target column must have the source length
+        and is paired by position. Schema planning checks the input types, and
+        a target error can report a position within the evaluated batch.
+        """
         return _query_operation(self, 104, "is_day", day, parameter="day")
 
     def is_long_year(self) -> pl.Series | pl.Expr:
         """Whether the local calendar year contains 53 ISO weeks; null is False.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 105, "is_long_year")
 
     def leap_bt_year(self, year: _ExprIntegerInput) -> pl.Series | pl.Expr:
         """Count leap years between row years and targets, lower inclusive.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        year : _ExprIntegerInput
-            Required signed integer target year or exactly equal-length targets. Count leap years between
-            the two years, lower inclusive and upper exclusive; missing targets fail even for null source
-            dates.
-        
+        year : integer or one-dimensional integer collection or polars.Expr
+            Required integer year or an equal-length column of years. Count leap years from the lower year inclusive to the upper year exclusive.
+
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            An eager Series, or an Expr producing a nullable integer count. A null source date yields null.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            Unsupported Python arguments, including a literal None target, fail
+            when the expression is created. Eager calls also raise TypeError for a missing target.
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+        polars.exceptions.ComputeError
+            If a target expression with a valid dtype yields a null, Polars raises this
+            error while evaluating the rows in select or collect.
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        A scalar applies to each row. A target column must have the source length
+        and is paired by position. Schema planning checks the input types, and
+        a target error can report a position within the evaluated batch.
+        """
         return _query_operation(self, 11, "leap_bt_year", year, parameter="year")
 
     def is_dst(self) -> pl.Series | pl.Expr:
         """Whether the native zone has nonzero DST; naive/null is False.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 106, "is_dst")
 
     def utcoffset_seconds(self) -> pl.Series | pl.Expr:
         """Actual integer UTC offset; naive and missing rows are null.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 12, "utcoffset_seconds")
 
     def is_past(self) -> pl.Series | pl.Expr:
         """Strictly before one captured reference; Expr captures on creation.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            An unsupported source dtype cannot be read as a date column.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 107, "is_past")
 
     def is_future(self) -> pl.Series | pl.Expr:
         """Strictly after one captured reference; Expr captures on creation.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            An unsupported source dtype cannot be read as a date column.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 108, "is_future")
 
     def isocalendar(self) -> pl.Series | pl.Expr:
-        """Return year/week/day as a native Struct with UInt32 fields.
+        """Get the ISO week year, week number, and weekday for each date.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            Pldt and Series.pldt return a native Struct Series with the input
+            column name. Expr.pldt builds an expression that produces the same
+            Struct. An explicit alias can set the expression's output name.
+            The year field uses Int64 and can be negative. The week and day
+            fields use UInt32, in that order after year. A missing date gives a
+            null result. Weekdays run from Monday (1) to Sunday (7).
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
-        
+            For eager Pldt and Series.pldt calls, a date can fit in the column
+            and still fall outside the supported range of its named time zone.
+        polars.exceptions.ComputeError
+            A date outside the supported range of its named time zone fails
+            during select or collect. Unsupported input types can fail during planning.
+
+        Notes
+        -----
+        A query error can report the position within its input batch.
+
         Examples
         --------
-        >>> Pldt(["2021-01-01"]).isocalendar().to_list()
-        [{'year': 2020, 'week': 53, 'day': 5}]"""
+        On a Pldt
+
+        >>> from rstimes import Pldt
+        >>> dates = Pldt(["0000-01-01", None], unit="us", name="event")
+        >>> print(dates.isocalendar().to_list())
+        [{'year': -1, 'week': 52, 'day': 6}, None]
+
+        Read the example at https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-queries.html#pldt-extract-iso-week-struct
+
+        On a native Polars Series
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series("event", ["2021-01-01", None]).str.to_datetime(time_unit="us")
+        >>> print(source.pldt.isocalendar().to_list())
+        [{'year': 2020, 'week': 53, 'day': 5}, None]
+
+        Read the example at https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-output.html#pldt-series-isocalendar
+
+        In a Polars query
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series("event", ["2021-01-01", None]).str.to_datetime(time_unit="us")
+        >>> frame = source.to_frame()
+        >>> expr = pl.col("event").pldt.isocalendar()
+        >>> print(frame.lazy().select(expr).collect()["event"].to_list())
+        [{'year': 2020, 'week': 53, 'day': 5}, None]
+
+        Read the example at https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-queries.html#expr-iso-field-structure
+        """
         return _query_operation(self, 201, "isocalendar")
 
     def timedf(self) -> pl.DataFrame | pl.Expr:
-        """Return local time fields as an eager DataFrame or native Struct Expr.
+        """Read the nine local calendar and clock fields.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
+        The fields are tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec,
+        tm_wday, tm_yday, and tm_isdst. tm_sec is the whole second of the minute.
+
         Returns
         -------
         pl.DataFrame | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            Pldt and Series.pldt return a Polars DataFrame with nine columns.
+            Expr.pldt returns an expression producing one Struct column with nine fields.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date is outside the supported year range for regional timezone rules.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 202, "timedf")
 
     def utctimedf(self) -> pl.DataFrame | pl.Expr:
         """Return UTC time fields; naive fields do not move and DST is zero.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         pl.DataFrame | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            An unsupported source dtype cannot be read as a date column.
+        polars.exceptions.ComputeError
+            A Polars expression can fail during planning or evaluation.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _query_operation(self, 203, "utctimedf")
 
 
 class _PeriodMethods:
     """Shared date boundaries and names, distinct from native numerical methods."""
     def to_first_of(self, unit: str) -> Pldt | pl.Expr:
-        """Select a calendar boundary while preserving date unit and timezone.
+        """Move to the first calendar day of the selected period, keeping the time of day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
+        The clock and subsecond digits are carried to the selected calendar day. A regional gap can require a valid clock on that day. If the entire selected day is missing, the operation raises an error.
+
         Parameters
         ----------
         unit : str
             One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _period_operation(self, "boundary", unit, 0, 0, False, "to_first_of")
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
 
-    def is_first_of(self, unit: str) -> pl.Series | pl.Expr:
-        """Query the actual calendar boundary; missing source dates are False.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        unit : str
-            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
-        
-        Returns
-        -------
-        pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _period_operation(self, "boundary", unit, 0, 0, True, "is_first_of")
-
-    def to_last_of(self, unit: str) -> Pldt | pl.Expr:
-        """Select a calendar boundary while preserving date unit and timezone.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        unit : str
-            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
-        
-        Returns
-        -------
-        Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _period_operation(self, "boundary", unit, 0, 1, False, "to_last_of")
-
-    def is_last_of(self, unit: str) -> pl.Series | pl.Expr:
-        """Query the actual calendar boundary; missing source dates are False.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        unit : str
-            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
-        
-        Returns
-        -------
-        pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _period_operation(self, "boundary", unit, 0, 1, True, "is_last_of")
-
-    def to_start_of(self, unit: str) -> Pldt | pl.Expr:
-        """Select a calendar boundary while preserving date unit and timezone.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        unit : str
-            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
-        
-        Returns
-        -------
-        Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _period_operation(self, "boundary", unit, 0, 2, False, "to_start_of")
-
-    def is_start_of(self, unit: str) -> pl.Series | pl.Expr:
-        """Query the actual calendar boundary; missing source dates are False.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        unit : str
-            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
-        
-        Returns
-        -------
-        pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _period_operation(self, "boundary", unit, 0, 2, True, "is_start_of")
-
-    def to_end_of(self, unit: str) -> Pldt | pl.Expr:
-        """Select a calendar boundary while preserving date unit and timezone.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        unit : str
-            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
-        
-        Returns
-        -------
-        Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _period_operation(self, "boundary", unit, 0, 3, False, "to_end_of")
-
-    def is_end_of(self, unit: str) -> pl.Series | pl.Expr:
-        """Query the actual calendar boundary; missing source dates are False.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        unit : str
-            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
-        
-        Returns
-        -------
-        pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _period_operation(self, "boundary", unit, 0, 3, True, "is_end_of")
-
-    def normalize(self) -> Pldt | pl.Expr:
-        """Return the real start of this local day, staying within the day.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Returns
-        -------
-        Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _period_operation(self, "boundary", "D", 0, 2, False, "normalize")
-
-    def snap(self, unit: str='s') -> Pldt | pl.Expr:
-        """Select the nearest real period start; equal distances select later.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        unit : str
-            One natural Y/Q/M/W/D/h/m/min/s/ms/us/ns period or an exact saved month/weekday name; no
-            arbitrary multi-step frequency or numeric weekday.
-        
-        Returns
-        -------
-        Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
         Raises
         ------
         TypeError
@@ -3196,33 +3125,41 @@ class _PeriodMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
         Examples
         --------
-        >>> Pldt(["1970-01-01 12:00:00"], unit="us").snap("D").to_physical().to_list()
-        [86400000000]"""
-        return _period_operation(self, "snap", unit, 0, 0, False, "snap")
 
-    def fsp(self, precision: SupportsIndex) -> Pldt | pl.Expr:
-        """Truncate the fractional second, preserving the current storage unit.
+        For Expr.pldt.to_first_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-month-boundaries
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
+        For Series.pldt.to_first_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-month-boundaries
+
+        For Pldt.to_first_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-month-boundaries
+        """
+        return _period_operation(self, "boundary", unit, 0, 0, False, "to_first_of")
+
+    def is_first_of(self, unit: str) -> pl.Series | pl.Expr:
+        """Test whether each date falls on the first calendar day of the selected period.
+
         Parameters
         ----------
-        precision : SupportsIndex
-            Single integer number of fractional-second digits. Negative values fail; 9 or more preserve
-            existing precision without inventing finer data.
-        
+        unit : str
+            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
+
         Returns
         -------
-        Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+        pl.Series | pl.Expr
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3230,61 +3167,437 @@ class _PeriodMethods:
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.is_first_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-month-boundaries
+
+        For Series.pldt.is_first_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-month-boundaries
+
+        For Pldt.is_first_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-month-boundaries
+        """
+        return _period_operation(self, "boundary", unit, 0, 0, True, "is_first_of")
+
+    def to_last_of(self, unit: str) -> Pldt | pl.Expr:
+        """Move to the last calendar day of the selected period, keeping the time of day.
+
+        The clock and subsecond digits are carried to the selected calendar day. A regional gap can require a valid clock on that day. If the entire selected day is missing, the operation raises an error.
+
+        Parameters
+        ----------
+        unit : str
+            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
+
+        Returns
+        -------
+        Pldt | pl.Expr
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.to_last_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-month-boundaries
+
+        For Series.pldt.to_last_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-month-boundaries
+
+        For Pldt.to_last_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-month-boundaries
+        """
+        return _period_operation(self, "boundary", unit, 0, 1, False, "to_last_of")
+
+    def is_last_of(self, unit: str) -> pl.Series | pl.Expr:
+        """Test whether each date falls on the last calendar day of the selected period.
+
+        Parameters
+        ----------
+        unit : str
+            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
+
+        Returns
+        -------
+        pl.Series | pl.Expr
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
+        return _period_operation(self, "boundary", unit, 0, 1, True, "is_last_of")
+
+    def to_start_of(self, unit: str) -> Pldt | pl.Expr:
+        """Move to the first valid instant of the selected period.
+
+        Use the first or last valid time in the selected period, at the source precision. For example, a millisecond day ends at 23:59:59.999.
+
+        Parameters
+        ----------
+        unit : str
+            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
+
+        Returns
+        -------
+        Pldt | pl.Expr
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.to_start_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-month-boundaries
+
+        For Series.pldt.to_start_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-month-boundaries
+
+        For Pldt.to_start_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-month-boundaries
+        """
+        return _period_operation(self, "boundary", unit, 0, 2, False, "to_start_of")
+
+    def is_start_of(self, unit: str) -> pl.Series | pl.Expr:
+        """Test whether each time equals the first valid instant of the selected period.
+
+        Parameters
+        ----------
+        unit : str
+            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
+
+        Returns
+        -------
+        pl.Series | pl.Expr
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.is_start_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-month-boundaries
+
+        For Series.pldt.is_start_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-month-boundaries
+
+        For Pldt.is_start_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-month-boundaries
+        """
+        return _period_operation(self, "boundary", unit, 0, 2, True, "is_start_of")
+
+    def to_end_of(self, unit: str) -> Pldt | pl.Expr:
+        """Move to the last valid instant of the selected period in the current unit.
+
+        Use the first or last valid time in the selected period, at the source precision. For example, a millisecond day ends at 23:59:59.999.
+
+        Parameters
+        ----------
+        unit : str
+            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
+
+        Returns
+        -------
+        Pldt | pl.Expr
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.to_end_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-month-boundaries
+
+        For Series.pldt.to_end_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-month-boundaries
+
+        For Pldt.to_end_of, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-month-boundaries
+        """
+        return _period_operation(self, "boundary", unit, 0, 3, False, "to_end_of")
+
+    def is_end_of(self, unit: str) -> pl.Series | pl.Expr:
+        """Test whether each time equals the last valid instant in the current unit.
+
+        Parameters
+        ----------
+        unit : str
+            One supported natural unit for this boundary; it is not an arbitrary multi-step frequency.
+
+        Returns
+        -------
+        pl.Series | pl.Expr
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
+        return _period_operation(self, "boundary", unit, 0, 3, True, "is_end_of")
+
+    def normalize(self) -> Pldt | pl.Expr:
+        """Return the real start of this local day, staying within the day.
+
+        Choose the first valid instant of the source's local calendar day.
+
+        Returns
+        -------
+        Pldt | pl.Expr
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
+        Raises
+        ------
+        TypeError
+            An unsupported source dtype cannot be read as a date column.
+        ValueError
+            The selected day has no valid regional datetime.
+        OverflowError
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
+        polars.exceptions.ComputeError
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
+        return _period_operation(self, "boundary", "D", 0, 2, False, "normalize")
+
+    def snap(self, unit: str='s') -> Pldt | pl.Expr:
+        """Select the nearest real period start; equal distances select later.
+
+        Parameters
+        ----------
+        unit : str
+            One natural Y/Q/M/W/D/h/m/min/s/ms/us/ns period or an exact saved month/weekday name; no
+            arbitrary multi-step frequency or numeric weekday.
+
+        Returns
+        -------
+        Pldt | pl.Expr
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+        On a native Polars Series
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series("event", ["2024-01-02 11:59", "2024-01-02 12:00", None])
+        >>> dates = source.str.to_datetime(time_unit="us").pldt.snap("D")
+        >>> print(dates.isoformat().to_list())
+        ['2024-01-02T00:00:00', '2024-01-03T00:00:00', None]
+
+        In a Polars query
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame({"event": ["2024-01-02 11:59", "2024-01-02 12:00", None]})
+        >>> expr = pl.col("event").pldt.parse(unit="us").pldt.snap("D")
+        >>> print(frame.lazy().select(expr).collect()["event"].dt.strftime("%Y-%m-%dT%H:%M:%S").to_list())
+        ['2024-01-02T00:00:00', '2024-01-03T00:00:00', None]
+
+        On a Pldt
+
+        >>> from rstimes import Pldt
+        >>> events = Pldt(["2024-01-02 11:59", "2024-01-02 12:00", None])
+        >>> print(events.snap("D").isoformat().to_list())
+        ['2024-01-02T00:00:00', '2024-01-03T00:00:00', None]
+        """
+        return _period_operation(self, "snap", unit, 0, 0, False, "snap")
+
+    def fsp(self, precision: SupportsIndex) -> Pldt | pl.Expr:
+        """Truncate the fractional second, preserving the current storage unit.
+
+        Parameters
+        ----------
+        precision : SupportsIndex
+            Single integer number of fractional-second digits. Negative values fail; 9 or more preserve
+            existing precision without inventing finer data.
+
+        Returns
+        -------
+        Pldt | pl.Expr
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.fsp, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-second-grid
+
+        For Series.pldt.fsp, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-second-grid
+
+        For Pldt.fsp, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-pldt-second-grid
+        """
         return _period_operation(self, "fsp", None, precision, 0, False, "fsp")
 
 
 class _TransformMethods:
     """Date operations shared by Pldt and the two native namespaces."""
     def to_datetime(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Merge legal fields once; fit a legal day intent to the final month.
+        """Set selected date and clock fields, fitting the day to the final month.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        year : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Year may be zero/negative/wide
-            within the native unit and regional backend capacity. Strict replace requires a real resulting
-            date; calendar conveniences keep their separate valid upper-selection/month-end rules.
-        month : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Month is 1-12. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        day : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
-            a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
-            end rules.
-        hour : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Hour is 0-23. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        minute : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Minute is 0-59. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        second : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Second is 0-59. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        microsecond : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Microsecond is 0-999999; setting it
-            clears the old ns tail unless nanosecond is supplied. Strict replace requires a real resulting
-            date; calendar conveniences keep their separate valid upper-selection/month-end rules.
-        nanosecond : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Nanosecond is the additional 0-999
-            tail; zero explicitly clears it. Strict replace requires a real resulting date; calendar
-            conveniences keep their separate valid upper-selection/month-end rules.
-        
+        year : integer or one-dimensional integer collection or None or polars.Expr
+            Set the calendar year when supplied. Zero, negative and wide years depend on the
+            date unit and chosen timezone.
+        month : integer or one-dimensional integer collection or None or polars.Expr
+            Set the month using 1 through 12. None keeps the current month.
+        day : integer or one-dimensional integer collection or None or polars.Expr
+            Set the day of the month using 1 through 31. None keeps the current day.
+        hour : integer or one-dimensional integer collection or None or polars.Expr
+            Set the local hour using 0 through 23. None keeps the current hour.
+        minute : integer or one-dimensional integer collection or None or polars.Expr
+            Set the local minute using 0 through 59. None keeps the current minute.
+        second : integer or one-dimensional integer collection or None or polars.Expr
+            Set the local second using 0 through 59. None keeps the current second.
+        microsecond : integer or one-dimensional integer collection or None or polars.Expr
+            Set the microsecond field using 0 through 999999. None keeps it. A supplied
+            microsecond clears the previous nanosecond tail unless you supply nanosecond as
+            well.
+        nanosecond : integer or one-dimensional integer collection or None or polars.Expr
+            Set the additional nanosecond tail using 0 through 999. None keeps the tail unless
+            microsecond is set.
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3293,41 +3606,50 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        None keeps an optional field. An explicit zero sets a clock field to zero.
+        A calendar day up to 31 is fitted to the final month's length.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+
+        Examples
+        --------
+
+        For Expr.pldt.to_datetime, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-calendar.html#reader-expr-month-and-fields
+
+        For Series.pldt.to_datetime, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-calendar.html#reader-series-month-and-fields
+
+        For Pldt.to_datetime, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-calendar.html#reader-pldt-month-and-fields
+        """
         return _date_operation(self, "adjust", (year, month, day, hour, minute, second, microsecond, nanosecond), "to_datetime")
 
     def to_date(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Merge legal fields once; fit a legal day intent to the final month.
+        """Set selected calendar fields and keep the time of day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        year : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Year may be zero/negative/wide
-            within the native unit and regional backend capacity. Strict replace requires a real resulting
-            date; calendar conveniences keep their separate valid upper-selection/month-end rules.
-        month : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Month is 1-12. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        day : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
-            a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
-            end rules.
-        
+        year : integer or one-dimensional integer collection or None or polars.Expr
+            Set the calendar year when supplied. Zero, negative and wide years depend on the
+            date unit and chosen timezone.
+        month : integer or one-dimensional integer collection or None or polars.Expr
+            Set the month using 1 through 12. None keeps the current month.
+        day : integer or one-dimensional integer collection or None or polars.Expr
+            Set the day of the month using 1 through 31. None keeps the current day.
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3336,49 +3658,44 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        None keeps an optional field. An explicit zero sets a clock field to zero.
+        A calendar day up to 31 is fitted to the final month's length.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "adjust", (year, month, day, None, None, None, None, None), "to_date")
 
     def to_time(self, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Merge legal fields once; fit a legal day intent to the final month.
+        """Set selected clock fields and keep the calendar date.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        hour : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Hour is 0-23. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        minute : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Minute is 0-59. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        second : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Second is 0-59. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        microsecond : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Microsecond is 0-999999; setting it
-            clears the old ns tail unless nanosecond is supplied. Strict replace requires a real resulting
-            date; calendar conveniences keep their separate valid upper-selection/month-end rules.
-        nanosecond : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Nanosecond is the additional 0-999
-            tail; zero explicitly clears it. Strict replace requires a real resulting date; calendar
-            conveniences keep their separate valid upper-selection/month-end rules.
-        
+        hour : integer or one-dimensional integer collection or None or polars.Expr
+            Set the local hour using 0 through 23. None keeps the current hour.
+        minute : integer or one-dimensional integer collection or None or polars.Expr
+            Set the local minute using 0 through 59. None keeps the current minute.
+        second : integer or one-dimensional integer collection or None or polars.Expr
+            Set the local second using 0 through 59. None keeps the current second.
+        microsecond : integer or one-dimensional integer collection or None or polars.Expr
+            Set the microsecond field using 0 through 999999. None keeps it. A supplied
+            microsecond clears the previous nanosecond tail unless you supply nanosecond as
+            well.
+        nanosecond : integer or one-dimensional integer collection or None or polars.Expr
+            Set the additional nanosecond tail using 0 through 999. None keeps the tail unless
+            microsecond is set.
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3387,40 +3704,42 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        None keeps an optional field. An explicit zero sets a clock field to zero.
+        The original calendar date stays in place.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "adjust", (None, None, None, hour, minute, second, microsecond, nanosecond), "to_time")
 
     def to_year(self, offset: _ExprIntegerInput, month: _ExprSelection=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Move local calendar periods, retaining precision and fitting month end.
+        """Move by calendar years and optionally choose a month and day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        offset : _ExprIntegerInput
+        offset : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        month : _ExprSelection
+        month : integer, name or one-dimensional collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Month is 1-12. Strict replace
             requires a real resulting date; calendar conveniences keep their separate valid upper-
             selection/month-end rules.
-        day : _ExprOptionalField
+        day : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
             a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
             end rules.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3429,40 +3748,41 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "year", (offset, month, day), "to_year")
 
     def to_quarter(self, offset: _ExprIntegerInput, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Move local calendar periods, retaining precision and fitting month end.
+        """Move by calendar quarters and optionally choose a month within the quarter and a day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        offset : _ExprIntegerInput
+        offset : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        month : _ExprOptionalField
+        month : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Month is the 1-3 position inside the
             chosen quarter; it is not a month name. Strict replace requires a real resulting date;
             calendar conveniences keep their separate valid upper-selection/month-end rules.
-        day : _ExprOptionalField
+        day : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
             a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
             end rules.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3471,36 +3791,37 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "quarter", (offset, month, day), "to_quarter")
 
     def to_month(self, offset: _ExprIntegerInput, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Move local calendar periods, retaining precision and fitting month end.
+        """Move by calendar months, fitting the day to the destination month.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        offset : _ExprIntegerInput
+        offset : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        day : _ExprOptionalField
+        day : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
             a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
             end rules.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3509,35 +3830,36 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "month", (offset, day), "to_month")
 
     def to_weekday(self, offset: _ExprIntegerInput, weekday: _ExprSelection=None) -> Pldt | pl.Expr:
-        """Move local calendar periods, retaining precision and fitting month end.
+        """Move by calendar weeks and optionally choose a weekday in the destination week.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        offset : _ExprIntegerInput
+        offset : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        weekday : _ExprSelection
+        weekday : integer, name or one-dimensional collection or None or polars.Expr
             Optional Monday-0 through Sunday-6 integer or exact saved weekday name. None retains the
             source; out-of-range selectors fail.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3546,32 +3868,33 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "weekday", (offset, weekday), "to_weekday")
 
     def to_day(self, offset: _ExprIntegerInput) -> Pldt | pl.Expr:
-        """Move local calendar periods, retaining precision and fitting month end.
+        """Move by calendar days, keeping the time of day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        offset : _ExprIntegerInput
+        offset : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3580,37 +3903,38 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Supply an integer offset. Zero keeps the same day and a negative offset moves backward.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "day", (offset, ), "to_day")
 
     def to_curr_year(self, month: _ExprSelection=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Select the calendar period directly through the shared native kernel.
+        """Select the current calendar year and optionally choose a month and day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        month : _ExprSelection
+        month : integer, name or one-dimensional collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Month is 1-12. Strict replace
             requires a real resulting date; calendar conveniences keep their separate valid upper-
             selection/month-end rules.
-        day : _ExprOptionalField
+        day : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
             a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
             end rules.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3619,37 +3943,38 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "year", (0, month, day), "to_curr_year")
 
     def to_prev_year(self, month: _ExprSelection=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Select the calendar period directly through the shared native kernel.
+        """Select the previous calendar year and optionally choose a month and day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        month : _ExprSelection
+        month : integer, name or one-dimensional collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Month is 1-12. Strict replace
             requires a real resulting date; calendar conveniences keep their separate valid upper-
             selection/month-end rules.
-        day : _ExprOptionalField
+        day : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
             a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
             end rules.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3658,37 +3983,38 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "year", (-1, month, day), "to_prev_year")
 
     def to_next_year(self, month: _ExprSelection=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Select the calendar period directly through the shared native kernel.
+        """Select the next calendar year and optionally choose a month and day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        month : _ExprSelection
+        month : integer, name or one-dimensional collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Month is 1-12. Strict replace
             requires a real resulting date; calendar conveniences keep their separate valid upper-
             selection/month-end rules.
-        day : _ExprOptionalField
+        day : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
             a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
             end rules.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3697,37 +4023,38 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "year", (1, month, day), "to_next_year")
 
     def to_curr_quarter(self, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Select the calendar period directly through the shared native kernel.
+        """Select the current calendar quarter and optionally choose a month within that quarter and a day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        month : _ExprOptionalField
+        month : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Month is the 1-3 position inside the
             chosen quarter; it is not a month name. Strict replace requires a real resulting date;
             calendar conveniences keep their separate valid upper-selection/month-end rules.
-        day : _ExprOptionalField
+        day : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
             a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
             end rules.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3736,37 +4063,38 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "quarter", (0, month, day), "to_curr_quarter")
 
     def to_prev_quarter(self, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Select the calendar period directly through the shared native kernel.
+        """Select the previous calendar quarter and optionally choose a month within that quarter and a day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        month : _ExprOptionalField
+        month : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Month is the 1-3 position inside the
             chosen quarter; it is not a month name. Strict replace requires a real resulting date;
             calendar conveniences keep their separate valid upper-selection/month-end rules.
-        day : _ExprOptionalField
+        day : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
             a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
             end rules.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3775,37 +4103,38 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "quarter", (-1, month, day), "to_prev_quarter")
 
     def to_next_quarter(self, month: _ExprOptionalField=None, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Select the calendar period directly through the shared native kernel.
+        """Select the next calendar quarter and optionally choose a month within that quarter and a day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        month : _ExprOptionalField
+        month : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Month is the 1-3 position inside the
             chosen quarter; it is not a month name. Strict replace requires a real resulting date;
             calendar conveniences keep their separate valid upper-selection/month-end rules.
-        day : _ExprOptionalField
+        day : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
             a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
             end rules.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3814,33 +4143,34 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "quarter", (1, month, day), "to_next_quarter")
 
     def to_curr_month(self, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Select the calendar period directly through the shared native kernel.
+        """Select the current calendar month and fit the day to that month.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        day : _ExprOptionalField
+        day : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
             a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
             end rules.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3849,33 +4179,34 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "month", (0, day), "to_curr_month")
 
     def to_prev_month(self, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Select the calendar period directly through the shared native kernel.
+        """Select the previous calendar month and fit the day to that month.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        day : _ExprOptionalField
+        day : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
             a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
             end rules.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3884,33 +4215,34 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "month", (-1, day), "to_prev_month")
 
     def to_next_month(self, day: _ExprOptionalField=None) -> Pldt | pl.Expr:
-        """Select the calendar period directly through the shared native kernel.
+        """Select the next calendar month and fit the day to that month.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        day : _ExprOptionalField
+        day : integer or one-dimensional integer collection or None or polars.Expr
             Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
             a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
             end rules.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3919,32 +4251,45 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Optional selectors use None to keep the source position when it fits. An offset of zero still applies any supplied selectors.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+
+        Examples
+        --------
+
+        For Expr.pldt.to_next_month, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-calendar.html#reader-expr-month-and-fields
+
+        For Series.pldt.to_next_month, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-calendar.html#reader-series-month-and-fields
+
+        For Pldt.to_next_month, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-calendar.html#reader-pldt-month-and-fields
+        """
         return _date_operation(self, "month", (1, day), "to_next_month")
 
     def to_curr_weekday(self, weekday: _ExprSelection=None) -> Pldt | pl.Expr:
-        """Select the calendar period directly through the shared native kernel.
+        """Select the current calendar week and optionally choose a weekday.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        weekday : _ExprSelection
+        weekday : integer, name or one-dimensional collection or None or polars.Expr
             Optional Monday-0 through Sunday-6 integer or exact saved weekday name. None retains the
             source; out-of-range selectors fail.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3952,29 +4297,31 @@ class _TransformMethods:
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_operation(self, "weekday", (0, weekday), "to_curr_weekday")
 
     def to_prev_weekday(self, weekday: _ExprSelection=None) -> Pldt | pl.Expr:
-        """Select the calendar period directly through the shared native kernel.
+        """Select the previous calendar week and optionally choose a weekday.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        weekday : _ExprSelection
+        weekday : integer, name or one-dimensional collection or None or polars.Expr
             Optional Monday-0 through Sunday-6 integer or exact saved weekday name. None retains the
             source; out-of-range selectors fail.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -3982,29 +4329,31 @@ class _TransformMethods:
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_operation(self, "weekday", (-1, weekday), "to_prev_weekday")
 
     def to_next_weekday(self, weekday: _ExprSelection=None) -> Pldt | pl.Expr:
-        """Select the calendar period directly through the shared native kernel.
+        """Select the next calendar week and optionally choose a weekday.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        weekday : _ExprSelection
+        weekday : integer, name or one-dimensional collection or None or polars.Expr
             Optional Monday-0 through Sunday-6 integer or exact saved weekday name. None retains the
             source; out-of-range selectors fail.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -4012,275 +4361,322 @@ class _TransformMethods:
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_operation(self, "weekday", (1, weekday), "to_next_weekday")
 
     def to_monday(self) -> Pldt | pl.Expr:
-        """Select this week's monday, using Monday as day zero.
+        """Move to Monday of the current calendar week, keeping the time of day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            An unsupported source dtype cannot be read as a date column.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The selected day has no valid regional datetime.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
+        polars.exceptions.ComputeError
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_operation(self, "weekday", (0, 0), "to_monday")
 
     def to_tuesday(self) -> Pldt | pl.Expr:
-        """Select this week's tuesday, using Monday as day zero.
+        """Move to Tuesday of the current calendar week, keeping the time of day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            An unsupported source dtype cannot be read as a date column.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The selected day has no valid regional datetime.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
+        polars.exceptions.ComputeError
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_operation(self, "weekday", (0, 1), "to_tuesday")
 
     def to_wednesday(self) -> Pldt | pl.Expr:
-        """Select this week's wednesday, using Monday as day zero.
+        """Move to Wednesday of the current calendar week, keeping the time of day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            An unsupported source dtype cannot be read as a date column.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The selected day has no valid regional datetime.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
+        polars.exceptions.ComputeError
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_operation(self, "weekday", (0, 2), "to_wednesday")
 
     def to_thursday(self) -> Pldt | pl.Expr:
-        """Select this week's thursday, using Monday as day zero.
+        """Move to Thursday of the current calendar week, keeping the time of day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            An unsupported source dtype cannot be read as a date column.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The selected day has no valid regional datetime.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
+        polars.exceptions.ComputeError
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_operation(self, "weekday", (0, 3), "to_thursday")
 
     def to_friday(self) -> Pldt | pl.Expr:
-        """Select this week's friday, using Monday as day zero.
+        """Move to Friday of the current calendar week, keeping the time of day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            An unsupported source dtype cannot be read as a date column.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The selected day has no valid regional datetime.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
+        polars.exceptions.ComputeError
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_operation(self, "weekday", (0, 4), "to_friday")
 
     def to_saturday(self) -> Pldt | pl.Expr:
-        """Select this week's saturday, using Monday as day zero.
+        """Move to Saturday of the current calendar week, keeping the time of day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            An unsupported source dtype cannot be read as a date column.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The selected day has no valid regional datetime.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
+        polars.exceptions.ComputeError
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_operation(self, "weekday", (0, 5), "to_saturday")
 
     def to_sunday(self) -> Pldt | pl.Expr:
-        """Select this week's sunday, using Monday as day zero.
+        """Move to Sunday of the current calendar week, keeping the time of day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            An unsupported source dtype cannot be read as a date column.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The selected day has no valid regional datetime.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
+        polars.exceptions.ComputeError
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_operation(self, "weekday", (0, 6), "to_sunday")
 
     def to_yesterday(self) -> Pldt | pl.Expr:
-        """Move one local calendar day, retaining clock and nanoseconds.
+        """Move to the previous local calendar day, keeping the time of day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            An unsupported source dtype cannot be read as a date column.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The selected day has no valid regional datetime.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
+        polars.exceptions.ComputeError
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_operation(self, "day", (-1,), "to_yesterday")
 
     def to_tomorrow(self) -> Pldt | pl.Expr:
-        """Move one local calendar day, retaining clock and nanoseconds.
+        """Move to the next local calendar day, keeping the time of day.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
+            An unsupported source dtype cannot be read as a date column.
         ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            The selected day has no valid regional datetime.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
+        polars.exceptions.ComputeError
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
+
+        Notes
+        -----
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_operation(self, "day", (1,), "to_tomorrow")
 
     def add(self, years: _ExprIntegerInput=0, quarters: _ExprIntegerInput=0, months: _ExprIntegerInput=0, weeks: _ExprIntegerInput=0, days: _ExprIntegerInput=0, hours: _ExprIntegerInput=0, minutes: _ExprIntegerInput=0, seconds: _ExprIntegerInput=0, milliseconds: _ExprIntegerInput=0, microseconds: _ExprIntegerInput=0, nanoseconds: _ExprIntegerInput=0) -> Pldt | pl.Expr:
-        """Combine integer calendar increments before final precision/capacity checks.
+        """Add calendar months, days and clock increments in that order.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        years : _ExprIntegerInput
+        years : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        quarters : _ExprIntegerInput
+        quarters : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        months : _ExprIntegerInput
+        months : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        weeks : _ExprIntegerInput
+        weeks : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        days : _ExprIntegerInput
+        days : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        hours : _ExprIntegerInput
+        hours : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        minutes : _ExprIntegerInput
+        minutes : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        seconds : _ExprIntegerInput
+        seconds : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        milliseconds : _ExprIntegerInput
+        milliseconds : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        microseconds : _ExprIntegerInput
+        microseconds : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        nanoseconds : _ExprIntegerInput
+        nanoseconds : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -4289,67 +4685,110 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar.
-        
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Each increment is an integer. Omitted increments are zero, and negative increments reverse direction. An explicit None is invalid. The combined month change is applied before days and clock increments, with month-end adjustment on the resulting month.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+
         Examples
         --------
+        On a native Polars Series
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series("event", ["2024-01-31 14:30", None]).str.to_datetime(time_unit="us")
+        >>> print(source.pldt.add(months=1).isoformat().to_list())
+        ['2024-02-29T14:30:00', None]
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series('event', [1, None], dtype=pl.Datetime('us'))
+        >>> dates = source.pldt.add(microseconds=1, nanoseconds=-1000)
+        >>> print(dates.to_physical().to_list())
+        [1, None]
+
+        In a Polars query
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series("event", ["2024-01-31 14:30", None]).str.to_datetime(time_unit="us")
+        >>> frame = source.to_frame()
+        >>> expr = pl.col("event").pldt.add(months=1)
+        >>> dates = frame.lazy().select(expr).collect()["event"]
+        >>> print(dates.dt.strftime("%Y-%m-%dT%H:%M:%S").to_list())
+        ['2024-02-29T14:30:00', None]
+
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame([pl.Series('event', [1, None], dtype=pl.Datetime('us'))])
+        >>> expr = pl.col('event').pldt.add(microseconds=1, nanoseconds=-1000)
+        >>> dates = frame.select(expr)['event']
+        >>> print(dates.to_physical().to_list())
+        [1, None]
+
+        On a Pldt
+
+        >>> from rstimes import Pldt
+        >>> events = Pldt(["2024-01-31 14:30", None])
+        >>> print(events.add(months=1).isoformat().to_list())
+        ['2024-02-29T14:30:00', None]
+
+        >>> from rstimes import Pldt
         >>> Pldt([1], unit="us").add(microseconds=1, nanoseconds=-1000).to_physical().to_list()
-        [1]"""
+        [1]
+        """
         return _date_operation(self, "add", (years, quarters, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds), "add")
 
     def sub(self, years: _ExprIntegerInput=0, quarters: _ExprIntegerInput=0, months: _ExprIntegerInput=0, weeks: _ExprIntegerInput=0, days: _ExprIntegerInput=0, hours: _ExprIntegerInput=0, minutes: _ExprIntegerInput=0, seconds: _ExprIntegerInput=0, milliseconds: _ExprIntegerInput=0, microseconds: _ExprIntegerInput=0, nanoseconds: _ExprIntegerInput=0) -> Pldt | pl.Expr:
-        """Combine integer calendar increments before final precision/capacity checks.
+        """Subtract calendar months, days and clock increments in that order.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        years : _ExprIntegerInput
+        years : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        quarters : _ExprIntegerInput
+        quarters : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        months : _ExprIntegerInput
+        months : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        weeks : _ExprIntegerInput
+        weeks : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        days : _ExprIntegerInput
+        days : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        hours : _ExprIntegerInput
+        hours : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        minutes : _ExprIntegerInput
+        minutes : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        seconds : _ExprIntegerInput
+        seconds : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        milliseconds : _ExprIntegerInput
+        milliseconds : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        microseconds : _ExprIntegerInput
+        microseconds : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        nanoseconds : _ExprIntegerInput
+        nanoseconds : integer or one-dimensional integer collection or polars.Expr
             Signed integer amount, scalar or exactly source-length column. Zero is real and a negative
             amount reverses direction; no float truncation.
-        
+
         Returns
         -------
         Pldt | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A date column or query result for direct calls. The Expr accessor returns
+            a native expression to evaluate inside a query.
+
         Raises
         ------
         TypeError
@@ -4358,10 +4797,16 @@ class _TransformMethods:
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Each increment is an integer. Omitted increments are zero, and negative increments reverse direction. An explicit None is invalid. The combined month change is applied before days and clock increments, with month-end adjustment on the resulting month.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+        """
         return _date_operation(self, "sub", (years, quarters, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds), "sub")
 
 
@@ -4433,8 +4878,23 @@ class _TimezoneMetadata:
 
 
 class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _PythonOutputMethods, _TimezoneMetadata, pl.Series):
-    """A real Polars Series subclass with shared native date rules.
-    
+    """A Polars Series of dates with calendar operations and nanosecond support.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> from rstimes import Pldt
+    >>> x = Pldt(["1970-01-01T00:00:00.000000001", None], name="time")
+    >>> x.dtype == pl.Datetime("ns")
+    True
+    >>> x.to_physical().to_list()
+    [1, None]
+    >>> expr = pl.col("time").pldt.add(nanoseconds=1)
+    >>> isinstance(expr, pl.Expr)
+    True
+    >>> pl.DataFrame({"time": x}).lazy().select(expr).collect()["time"].to_physical().to_list()
+    [2, None]
+
     Parameters
     ----------
     data : one-dimensional date collection
@@ -4466,36 +4926,23 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
     ambiguous, nonexistent : policy
         Full approved localization policies. Already-known instants do not need
         another ambiguity choice; naive/UTC/fixed-offset paths avoid region work.
-    
+
     Returns
     -------
     Pldt
         Independent Series shell with native Datetime(ms/us/ns) data and a separate
         validity bitmap. Valid int64 MIN is a real date, not null.
-    
+
     Notes
     -----
     Existing date operations keep their unit and fail on precision/capacity loss;
     use as_unit explicitly. Scalar arguments broadcast, collections must match the
     source length, and length-one collections do not act as scalars. Null query
     results follow their actual result role. Numeric inputs reject booleans.
-    
+
     Native replace/round/diff keep Polars meanings. Date field replacement, date
     round/ceil/floor and boundary-count diff use .pldt. Expressions remain ordinary
     pl.Expr and execute in the native plugin, without a Python row callback.
-    
-    Examples
-    --------
-    >>> x = Pldt(["1970-01-01T00:00:00.000000001", None], name="time")
-    >>> x.dtype == pl.Datetime("ns")
-    True
-    >>> x.to_physical().to_list()
-    [1, None]
-    >>> expr = pl.col("time").pldt.add(nanoseconds=1)
-    >>> isinstance(expr, pl.Expr)
-    True
-    >>> pl.DataFrame({"time": x}).lazy().select(expr).collect()["time"].to_physical().to_list()
-    [2, None]
     """
 
     def __init__(self, data: _DateCollection, *, unit: _Unit | None=None, name: str | None=None, copy: _Boolean=False, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, tz: _Zone=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> None:
@@ -4503,27 +4950,27 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
 
         Parameters
         ----------
-        data : _DateCollection
+        data : one-dimensional date collection
             Supported dates, datetimes, text, numeric ticks or native one-dimensional
             columns. Legal mixtures and missing values are accepted. Scalar inputs,
             mappings, sets, tables and nested rows are rejected, without flattening.
-        unit : _Unit or None, default None
+        unit : {"ms", "us", "ns"}, default None
             Storage resolution ms/us/ns; Polars has no Datetime(s). None selects
             the resolution using source metadata and the documented parsing rules.
             An explicit unit must preserve the input precision and capacity.
-        name : str or None, default None
+        name : str, default None
             Column name. None retains a usable source name, or uses an empty name.
         copy : bool or numpy.bool_, default False
             True physically isolates date buffers. False allows safe sharing;
             it does not promise zero-copy or a snapshot of arbitrary input objects.
-        default : _DateValue, default None
+        default : date-like value, default None
             An independently complete fallback date, used only when text needs
             missing YMD fields or a two-digit-year reference. It supplies no
             clock, timezone, fractional second or fold.
-        yearfirst : bool, numpy.bool_ or None, default None
+        yearfirst : bool, numpy.bool_, default None
             Non-None overrides Configs; otherwise use its preference, or True
             when no Configs is supplied. False is an explicit preference.
-        dayfirst : bool, numpy.bool_ or None, default None
+        dayfirst : bool, numpy.bool_, default None
             Non-None overrides Configs; otherwise use its preference, or False
             when no Configs is supplied.
         isoformat : bool or numpy.bool_, default True
@@ -4532,10 +4979,10 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         strict : bool or numpy.bool_, default False
             Validate explicit parsed fields and conflicts. Regional ambiguity
             and missing-clock policies remain separate.
-        cfg : Configs or None, default None
+        cfg : Configs, default None
             Effective word/region rules; None uses built-in rules. Text with
             a regional name must have that name registered in these rules.
-        tz : _Zone, default None
+        tz : str, datetime.tzinfo, default None
             A supported target IANA name, ZoneInfo or representable standard
             fixed offset. None retains a supported aware source zone; naive
             sources remain naive. A non-None target localizes naive clocks or
@@ -4544,11 +4991,11 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             ZoneInfo.from_file objects are not accepted as native target rules,
             even when their display key matches a standard name. Standard named
             constructors, no_cache and passive named subclasses remain supported.
-        ambiguous : _Ambiguous, default 'raise'
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask, default 'raise'
             Repeated-clock policy: 'raise', 'NaT', 'infer', a real boolean or
             an aligned boolean mask. Boolean choices follow pandas-compatible
             candidate rules, not universal earlier/later fold numbering.
-        nonexistent : _Nonexistent, default 'raise'
+        nonexistent : str or datetime.timedelta, default 'raise'
             One missing-clock policy: 'raise', 'NaT', 'shift_forward',
             'shift_backward' or a supported timedelta. Shifts select the
             nearest valid boundary; per-row policy lists are not supported.
@@ -4571,12 +5018,15 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
 
         Examples
         --------
+        >>> from datetime import datetime, timezone
+        >>> from rstimes import Pldt
         >>> x = Pldt([1, None], unit="ns", name="time")
         >>> x.to_physical().to_list()
         [1, None]
         >>> aware = datetime(2024, 1, 1, 12, tzinfo=timezone.utc)
         >>> Pldt([aware], unit="us", tz=None).dtype.time_zone
-        'UTC'"""
+        'UTC'
+        """
         try:
             unit = _unit(unit, optional=True)
             name = _name(name)
@@ -4608,50 +5058,55 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
     @classmethod
     def parse(cls, data: _DateCollection, *, unit: _Unit | None=None, name: str | None=None, copy: _Boolean=False, tz: _Zone=None, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
         """Construct a date column through the same shared native input rules.
-        
+
         Parameters
         ----------
-        data : _DateCollection
+        data : one-dimensional date collection
             Legal one-dimensional date collection; text/date/datetime/NumPy scalars/numeric ticks and
             supported native columns may mix. No scalar, mapping, set, table, nested row or automatic
             flattening.
-        unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        copy : _Boolean
+        unit : {"ms", "us", "ns"} or None
+            Without a unit, text uses us for up to six fractional digits and ns for seven
+            through nine, even if the additional digits are zero. An explicit unit must represent every date without loss.
+            Without a unit, preserve native Datetime resolution and use ns for bare ticks.
+            An untyped empty or all-null input defaults to ms.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+            A subclass copy that returns the original cannot assign it a different name.
+        copy : bool or numpy.bool_
             True isolates source date buffers; False permits safe sharing but does not promise zero-copy
             or an independent snapshot.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        default : _DateValue
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach the chosen zone to naive dates and convert aware dates to it while keeping
+            their instants. With None, use the source timezone when the input can form a single
+            zone.
+        default : date-like value or None
             An independently complete fallback date, read only when needed to fill text YMD/two-digit-year
             reference. It does not supply the column clock, zone or fold.
-        yearfirst : _Boolean | None
-            Explicit non-None boolean wins over Configs. Without either, yearfirst=True/dayfirst=False;
-            False is an explicit preference.
-        dayfirst : _Boolean | None
-            Explicit non-None boolean wins over Configs. Without either, yearfirst=True/dayfirst=False;
-            False is an explicit preference.
-        isoformat : _Boolean
+        yearfirst : bool or numpy.bool_ or None
+            Prefer the year as the first field in an ambiguous date. None uses the Configs
+            setting when present, or True otherwise.
+        dayfirst : bool or numpy.bool_ or None
+            Prefer the day before the month in an ambiguous numeric date. None uses the Configs
+            setting when present, or False otherwise.
+        isoformat : bool or numpy.bool_
             Try ISO first and then shared ordinary parsing when needed; this is not ISO-only validation.
-        strict : _Boolean
+        strict : bool or numpy.bool_
             Validate explicit parsed date/clock fields and conflicts; it does not replace the regional DST
             policies.
-        cfg : Configs | None
-            Shared Configs word/region rules. None uses the existing defaults; Expr freezes effective
-            rules when it is created.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        cfg : Configs or None
+            Parser vocabulary and timezone aliases used by this call. None uses the built-in
+            rules.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Self
@@ -4659,7 +5114,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -4668,11 +5123,13 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Examples
         --------
+        >>> from rstimes import Pldt
         >>> Pldt.parse(["1970-01-01T00:00:00.000000001"]).to_physical().to_list()
-        [1]"""
+        [1]
+        """
         try:
             return cls(data, unit=unit, name=name, copy=copy, tz=tz, default=default,
                        yearfirst=yearfirst, dayfirst=dayfirst, isoformat=isoformat,
@@ -4684,39 +5141,40 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
     @classmethod
     def strptime(cls, dtstr: _IsoInput, fmt: str, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, cfg: Configs | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
         """Match a shared explicit format; scalar text requires size.
-        
+
         Parameters
         ----------
-        dtstr : _IsoInput
+        dtstr : str, one-dimensional collection of strings or None
             Source/target in this factory's stated role. Actual dtype/unit/zone and independent validity
             are preserved; a scalar broadcasts only where the named factory permits it.
         fmt : str
             Explicit parsing format. %f reads fractional seconds through ns; excess digits and a
             deliberately requested coarser unit truncate at this format-parse exit. %Z uses explicit
             Configs rules. Expr formats with %f require unit; timezone directives require tz.
-        size : SupportsIndex | None
+        size : SupportsIndex or None
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach the chosen zone to clocks parsed without a zone and convert aware parsed
+            values to it. With None, keep a common zone from the parsed input if one is present.
+        unit : {"ms", "us", "ns"} or None
             Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
             has no Datetime(s).
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        cfg : Configs | None
-            Shared Configs word/region rules. None uses the existing defaults; Expr freezes effective
-            rules when it is created.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        cfg : Configs or None
+            Parser vocabulary and timezone aliases used by this call. None uses the built-in
+            rules.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Self
@@ -4724,7 +5182,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -4733,34 +5191,34 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Examples
         --------
+        >>> from rstimes import Pldt
         >>> Pldt.strptime(["1970-01-01 00:00:00.123456789"], "%Y-%m-%d %H:%M:%S.%f", unit="ns").nanosecond.to_list()
-        [789]"""
+        [789]
+        """
         return _strptime_eager(cls, dtstr, fmt, size=size, tz=tz, unit=unit, name=name,
                               cfg=cfg, ambiguous=ambiguous, nonexistent=nonexistent)
 
     @classmethod
     def now(cls, size: SupportsIndex, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None) -> Self:
         """Repeat one current instant, or its local naive clock when tz is None.
-        
+
         Parameters
         ----------
         size : SupportsIndex
-            Single nonnegative integer count. Named scalar factories require size; a supplied collection
-            cannot also supply size.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
+            Number of copies of the sampled time. A zero count produces an empty date column.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Display the current instant in this timezone. With None, use the local clock and
+            return naive values.
+        unit : {"ms", "us", "ns"} or None
             Requested current-time resolution ms/us/ns; None selects us. This deliberately quantizes the
             current time and does not claim nanosecond clock accuracy.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+
         Returns
         -------
         Self
@@ -4768,7 +5226,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -4776,25 +5234,24 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+        """
         return _clock_factory(cls, size, tz, unit, name, "Pldt.now", tz is None)
 
     @classmethod
     def today(cls, size: SupportsIndex, *, unit: _Unit | None=None, name: str | None=None) -> Self:
         """Repeat the current full local clock; this does not normalize midnight.
-        
+
         Parameters
         ----------
         size : SupportsIndex
-            Single nonnegative integer count. Named scalar factories require size; a supplied collection
-            cannot also supply size.
-        unit : _Unit | None
+            Number of copies of the sampled time. A zero count produces an empty date column.
+        unit : {"ms", "us", "ns"} or None
             Requested current-time resolution ms/us/ns; None selects us. This deliberately quantizes the
             current time and does not claim nanosecond clock accuracy.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+
         Returns
         -------
         Self
@@ -4802,7 +5259,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -4810,73 +5267,24 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+        """
         return _clock_factory(cls, size, None, unit, name, "Pldt.today", True)
 
     @classmethod
     def utcnow(cls, size: SupportsIndex, *, unit: _Unit | None=None, name: str | None=None) -> Self:
         """Repeat one current true instant with UTC metadata and real precision.
-        
+
         Parameters
         ----------
         size : SupportsIndex
-            Single nonnegative integer count. Named scalar factories require size; a supplied collection
-            cannot also supply size.
-        unit : _Unit | None
+            Number of copies of the sampled time. A zero count produces an empty date column.
+        unit : {"ms", "us", "ns"} or None
             Requested current-time resolution ms/us/ns; None selects us. This deliberately quantizes the
             current time and does not claim nanosecond clock accuracy.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        
-        Returns
-        -------
-        Self
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _clock_factory(cls, size, timezone.utc, unit, name, "Pldt.utcnow", False)
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
 
-    @classmethod
-    def fromseconds(cls, seconds: _NumericInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
-        """Read the fixed input quantity and construct one native date column.
-        
-        Parameters
-        ----------
-        seconds : _NumericInput
-            Numeric seconds in calendar coordinates, including supported finite fractions. Not Unix-local-
-            time inference and not raw ticks in the output unit.
-        size : SupportsIndex | None
-            Single nonnegative integer count. Named scalar factories require size; a supplied collection
-            cannot also supply size.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Eager default is at least us, selecting ns for a real nonzero tail. Expr integer seconds
-            default to us; floating seconds require explicit ms/us/ns in schema preparation. An explicit
-            output unit must be lossless.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
         Returns
         -------
         Self
@@ -4884,7 +5292,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -4893,47 +5301,99 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+        """
+        return _clock_factory(cls, size, timezone.utc, unit, name, "Pldt.utcnow", False)
+
+    @classmethod
+    def fromseconds(cls, seconds: _NumericInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
+        """Build dates from numeric seconds measured on a local clock.
+
+        Parameters
+        ----------
+        seconds : number or one-dimensional numeric collection or None
+            Numeric seconds in calendar coordinates, including supported finite fractions. Not Unix-local-
+            time inference and not raw ticks in the output unit.
+        size : SupportsIndex or None
+            Single nonnegative integer count. Named scalar factories require size; a supplied collection
+            cannot also supply size.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this zone to the local clock fields counted from midnight on 1970-01-01. With
+            None, the result is timezone-naive.
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns for the output. None selects us, or ns for a value requiring
+            nanosecond precision. Every value must fit the chosen resolution exactly.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        Self
+            Date result with the requested metadata and validity. Existing operations keep their unit
+            except explicit as_unit; source nulls remain missing and explicit localization policies may
+            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
+            their actual protocols.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar.
-        
+        A missing input value produces a null date. Other supplied fields still need to be valid. A scalar component repeats across the other supplied columns, which must have equal lengths.
+
         Examples
         --------
+        >>> from rstimes import Pldt
         >>> Pldt.fromseconds([1e-9], unit="ns").to_physical().to_list()
-        [1]"""
+        [1]
+        """
         return _numeric_eager(cls, seconds, 'seconds', size=size, tz=tz, unit=unit,
                               name=name, ambiguous=ambiguous, nonexistent=nonexistent, entry="Pldt.fromseconds")
 
     @classmethod
     def frommicroseconds(cls, us: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
-        """Read the fixed input quantity and construct one native date column.
-        
+        """Build dates from integer microseconds measured on a local clock.
+
         Parameters
         ----------
-        us : _CalendarInput
+        us : integer or one-dimensional integer collection or None
             Integer microseconds in the calendar coordinate system; floats/bools/text are rejected.
             Explicit unit conversion must be lossless.
-        size : SupportsIndex | None
+        size : SupportsIndex or None
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Output storage ms/us/ns; None selects us. Input always means integer microseconds, including
-            on Expr; explicit conversion must be lossless.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this zone to the local clock fields counted from midnight on 1970-01-01. With
+            None, the result is timezone-naive.
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns for the output. None selects us. The input is always integer
+            microseconds, and the result must fit the output unit exactly.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Self
@@ -4941,7 +5401,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -4950,38 +5410,38 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Examples
         --------
+        >>> from rstimes import Pldt
         >>> Pldt.frommicroseconds([1], unit="ns").to_physical().to_list()
-        [1000]"""
+        [1000]
+        """
         return _numeric_eager(cls, us, 'micros', size=size, tz=tz, unit=unit,
                               name=name, ambiguous=ambiguous, nonexistent=nonexistent, entry="Pldt.frommicroseconds")
 
     @classmethod
     def fromtimestamp(cls, ts: _NumericInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None) -> Self:
-        """Read the fixed input quantity and construct one native date column.
-        
+        """Convert POSIX seconds to clock fields in the target timezone.
+
         Parameters
         ----------
-        ts : _NumericInput
+        ts : number or one-dimensional numeric collection or None
             Numeric Unix seconds representing real UTC instants, including supported finite fractions. Not
             raw ticks in the output unit.
-        size : SupportsIndex | None
+        size : SupportsIndex or None
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Eager default is at least us, selecting ns for a real nonzero tail. Expr integer seconds
-            default to us; floating seconds require explicit ms/us/ns in schema preparation. An explicit
-            output unit must be lossless.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Display each POSIX instant in this timezone. With None, use the system's local clock
+            and return a timezone-naive column.
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns for the output. None selects us, or ns for a value requiring
+            nanosecond precision. Every value must fit the chosen resolution exactly.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+
         Returns
         -------
         Self
@@ -4989,7 +5449,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -4998,34 +5458,34 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Examples
         --------
+        >>> from rstimes import Pldt
         >>> Pldt.fromtimestamp([0], tz="UTC", unit="us").to_physical().to_list()
-        [0]"""
+        [0]
+        """
         return _numeric_eager(cls, ts, ("local_timestamp" if tz is None else "timestamp"), size=size, tz=tz, unit=unit,
                               name=name, entry="Pldt.fromtimestamp")
 
     @classmethod
     def utcfromtimestamp(cls, ts: _NumericInput, *, size: SupportsIndex | None=None, unit: _Unit | None=None, name: str | None=None) -> Self:
-        """Read the fixed input quantity and construct one native date column.
-        
+        """Convert POSIX seconds to timezone-aware UTC dates.
+
         Parameters
         ----------
-        ts : _NumericInput
+        ts : number or one-dimensional numeric collection or None
             Numeric Unix seconds representing real UTC instants, including supported finite fractions. Not
             raw ticks in the output unit.
-        size : SupportsIndex | None
+        size : SupportsIndex or None
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
-        unit : _Unit | None
-            Eager default is at least us, selecting ns for a real nonzero tail. Expr integer seconds
-            default to us; floating seconds require explicit ms/us/ns in schema preparation. An explicit
-            output unit must be lossless.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns for the output. None selects us, or ns for a value requiring
+            nanosecond precision. Every value must fit the chosen resolution exactly.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+
         Returns
         -------
         Self
@@ -5033,7 +5493,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -5041,39 +5501,41 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+        """
         return _numeric_eager(cls, ts, 'utc_timestamp', size=size, tz=timezone.utc, unit=unit,
                               name=name, entry="Pldt.utcfromtimestamp")
 
     @classmethod
     def fromdate(cls, dt: _ActualDateInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
-        """Read the named actual date source, keeping its local/instant role.
-        
+        """Take each source's local calendar date at midnight.
+
         Parameters
         ----------
-        dt : _ActualDateInput
+        dt : date, datetime or one-dimensional date collection or None
             Actual Python date/datetime or native Date/Datetime column. Take local YMD, clear
             clock/fraction/source zone; strings, numbers and NumPy dates do not enter this specialized
             factory.
-        size : SupportsIndex | None
+        size : SupportsIndex or None
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Use the source's local
             date. With None the result is naive at midnight. An explicit zone attaches at that midnight.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"} or None
             Storage resolution ms/us/ns. Date inputs default to milliseconds. Datetime columns keep
             their declared unit. A Python datetime defaults to microseconds.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Self
@@ -5081,7 +5543,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -5089,40 +5551,42 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+        """
         return _date_factory(cls, dt, "date", size=size, tz=tz, unit=unit, name=name,
                              ambiguous=ambiguous, nonexistent=nonexistent)
 
     @classmethod
     def fromdatetime(cls, dt: _DatetimeInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
-        """Read the named actual date source, keeping its local/instant role.
-        
+        """Read the complete source clock fields and keep the source zone by default.
+
         Parameters
         ----------
-        dt : _DatetimeInput
+        dt : datetime or one-dimensional datetime collection or None
             Actual datetime/Pydt/Timestamp or native Datetime column. None target preserves source
             instants/zone; an explicit non-None target replaces the zone while retaining wall fields. Pure
             date, text, numbers and NumPy dates are rejected.
-        size : SupportsIndex | None
+        size : SupportsIndex or None
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Omit tz or pass None to
             keep the source timezone and instant. An explicit zone reinterprets the source's local clock
             fields in that zone.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"} or None
             Storage resolution ms/us/ns. Datetime columns keep their declared unit. A Python datetime
             defaults to microseconds.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Self
@@ -5130,7 +5594,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -5138,40 +5602,47 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-factories.html#reader-pldt-datetime-source-zone
+        """
         return _date_factory(cls, dt, "datetime", size=size, tz=tz, unit=unit, name=name,
                              ambiguous=ambiguous, nonexistent=nonexistent)
 
     @classmethod
     def fromdatetime64(cls, dt64: _NumpyDateInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
-        """Read the named actual date source, keeping its local/instant role.
-        
+        """Decode dates from the unit and multiplier of NumPy datetime64 values.
+
         Parameters
         ----------
-        dt64 : _NumpyDateInput
+        dt64 : numpy.datetime64 or one-dimensional NumPy date collection or None
             Actual NumPy datetime64 scalar/one-dimensional date source. Decode unit/multiplier directly;
             do not accept ordinary datetime or pandas/Polars date columns. An explicit zone localizes
             decoded clocks.
-        size : SupportsIndex | None
+        size : SupportsIndex or None
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this timezone to the clock read from NumPy. With None, leave the decoded
+            clock timezone-naive.
+        unit : {"ms", "us", "ns"} or None
             Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
             has no Datetime(s).
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Self
@@ -5179,7 +5650,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -5187,39 +5658,45 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-factories.html#reader-pldt-numpy-date-input
+        """
         return _date_factory(cls, dt64, "numpy", size=size, tz=tz, unit=unit, name=name,
                              ambiguous=ambiguous, nonexistent=nonexistent)
 
     @classmethod
     def fromordinal(cls, ordinal: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
-        """Resolve real integer calendar components into one checked date column.
-        
+        """Build dates from Gregorian day numbers, with 1 for January 1 of year 1.
+
         Parameters
         ----------
-        ordinal : _CalendarInput
+        ordinal : integer or one-dimensional integer collection or None
             Gregorian ordinal with 0001-01-01 equal to 1. Zero and negative ordinals are real dates in the
             native target's capacity, not missing or skip sentinels.
-        size : SupportsIndex | None
+        size : SupportsIndex or None
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this timezone at the computed local midnight. With None, return naive dates.
         unit : {"ms", "us", "ns"}, default "us"
             Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
             final date; no automatic fallback. Explicit None is not accepted.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Self
@@ -5227,7 +5704,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -5235,47 +5712,48 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+        """
         return _calendar_factory(cls, "ordinal", (ordinal,), size=size, tz=tz, unit=unit,
                                   name=name, ambiguous=ambiguous, nonexistent=nonexistent)
 
     @classmethod
     def fromisocalendar(cls, year: _CalendarInput, week: _CalendarInput, weekday: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
-        """Resolve real integer calendar components into one checked date column.
-        
+        """Build dates from ISO week-years, week numbers and weekdays.
+
         Parameters
         ----------
-        year : _CalendarInput
+        year : integer or one-dimensional integer collection or None
             Integer calendar/ISO year, including zero and negative years when the unit/backend can
             represent the result. An explicit missing component makes a missing row; it is not a preserve
             sentinel.
-        week : _CalendarInput
+        week : integer or one-dimensional integer collection or None
             Integer day-of-year/ISO-week component, scalar or equal-length column. Values below 1 fail;
             approved upper convenience selection is retained. An explicit missing component makes a
             missing row.
-        weekday : _CalendarInput
+        weekday : integer or one-dimensional integer collection or None
             ISO weekday: Monday 1 through Sunday 7. Values below 1 fail, values above 7 select Sunday; an
             explicit missing component makes a missing row.
-        size : SupportsIndex | None
+        size : SupportsIndex or None
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this timezone at the computed local midnight. With None, return naive dates.
         unit : {"ms", "us", "ns"}, default "us"
             Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
             final date; no automatic fallback. Explicit None is not accepted.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Self
@@ -5283,7 +5761,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -5292,47 +5770,48 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        A missing input value produces a null date. Other supplied fields still need to be valid. A scalar component repeats across the other supplied columns, which must have equal lengths.
+        """
         return _calendar_factory(cls, "iso", (year, week, weekday), size=size, tz=tz, unit=unit,
                                   name=name, ambiguous=ambiguous, nonexistent=nonexistent)
 
     @classmethod
     def fromdayofyear(cls, year: _CalendarInput, doy: _CalendarInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
-        """Resolve real integer calendar components into one checked date column.
-        
+        """Build dates from years and their one-based day numbers.
+
         Parameters
         ----------
-        year : _CalendarInput
+        year : integer or one-dimensional integer collection or None
             Integer calendar/ISO year, including zero and negative years when the unit/backend can
             represent the result. An explicit missing component makes a missing row; it is not a preserve
             sentinel.
-        doy : _CalendarInput
+        doy : integer or one-dimensional integer collection or None
             Integer day-of-year/ISO-week component, scalar or equal-length column. Values below 1 fail;
             approved upper convenience selection is retained. An explicit missing component makes a
             missing row.
-        size : SupportsIndex | None
+        size : SupportsIndex or None
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this timezone at the computed local midnight. With None, return naive dates.
         unit : {"ms", "us", "ns"}, default "us"
             Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
             final date; no automatic fallback. Explicit None is not accepted.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Self
@@ -5340,7 +5819,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -5349,93 +5828,48 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar."""
+        A missing input value produces a null date. Other supplied fields still need to be valid. A scalar component repeats across the other supplied columns, which must have equal lengths.
+        """
         return _calendar_factory(cls, "doy", (year, doy), size=size, tz=tz, unit=unit,
                                   name=name, ambiguous=ambiguous, nonexistent=nonexistent)
 
     @classmethod
     def combine(cls, date: _DateInput=None, time: _CombineTime=None, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
         """Combine local YMD and clock fields; only the final result is a Pldt.
-        
+
         Parameters
         ----------
-        date : _DateInput
-            Source/target in this factory's stated role. Actual dtype/unit/zone and independent validity
-            are preserved; a scalar broadcasts only where the named factory permits it.
-        time : _CombineTime
-            Source/target in this factory's stated role. Actual dtype/unit/zone and independent validity
-            are preserved; a scalar broadcasts only where the named factory permits it.
-        size : SupportsIndex | None
+        date : date-like value or one-dimensional date collection
+            Local calendar date to combine with the supplied clock. None uses today's local
+            calendar date. A missing row remains null.
+        time : time, date-like value, clock column or None
+            Clock fields and an optional source zone. A Python time can supply a timezone. A
+            Polars Time column supplies native nanosecond fields. A scalar None means midnight.
+            Null positions in a clock column remain null.
+        size : SupportsIndex or None
             Single nonnegative integer count. Named scalar factories require size; a supplied collection
             cannot also supply size.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        Self
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _combine_factory(cls, date, time, size=size, tz=tz, unit=unit, name=name,
-                                 ambiguous=ambiguous, nonexistent=nonexistent)
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this timezone to the assembled local fields. With None, keep the clock's zone
+            when it supplies one. A Polars Time column supplies clock fields and no zone.
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns. None selects us, or ns when the clock supplies a nonzero
+            nanosecond tail. The result must fit the output unit exactly.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
 
-    @classmethod
-    def fromisoformat(cls, dtstr: _IsoInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
-        """Read complete strict ISO dates, retaining source fraction width.
-        
-        Parameters
-        ----------
-        dtstr : _IsoInput
-            Source/target in this factory's stated role. Actual dtype/unit/zone and independent validity
-            are preserved; a scalar broadcasts only where the named factory permits it.
-        size : SupportsIndex | None
-            Single nonnegative integer count. Named scalar factories require size; a supplied collection
-            cannot also supply size.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
         Returns
         -------
         Self
@@ -5443,85 +5877,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _iso_factory(cls, dtstr, size=size, tz=tz, unit=unit, name=name,
-                             ambiguous=ambiguous, nonexistent=nonexistent)
 
-    @classmethod
-    def date_range(cls, start: _DateInput=None, *, end: _DateInput=None, periods: SupportsIndex | None=None, freq: object=None, tz: _Zone=None, normalize: _Boolean=False, inclusive: str='both', unit: _Unit | None=None, name: str | None=None, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
-        """Generate native calendar/elapsed dates; only special rules use optional pandas.
-        
-        Parameters
-        ----------
-        start : _DateInput
-            Source/target in this factory's stated role. Actual dtype/unit/zone and independent validity
-            are preserved; a scalar broadcasts only where the named factory permits it.
-        end : _DateInput
-            Source/target in this factory's stated role. Actual dtype/unit/zone and independent validity
-            are preserved; a scalar broadcasts only where the named factory permits it.
-        periods : SupportsIndex | None
-            Number of periods as a nonnegative integer.
-        freq : object
-            A frequency string, timedelta, or supported pandas DateOffset. The step can be positive
-            (forward) or negative (backward). Semi-month starts (SMS) accept day anchors 2 through 27,
-            and semi-month ends (SME) accept 1 through 27. With start, end, and periods supplied,
-            freq=None spaces the values evenly between the endpoints. Otherwise None defaults to days.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        normalize : _Boolean
-            Move prepared endpoints to their local day boundary before range validation/generation when
-            True.
-        inclusive : str
-            For diff: 'one' (ordinary signed difference), 'both' or 'neither'. For date_range: 'both',
-            'left', 'right' or 'neither' endpoint inclusion.
-        unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        default : _DateValue
-            An independently complete fallback date, read only when needed to fill text YMD/two-digit-year
-            reference. It does not supply the column clock, zone or fold.
-        yearfirst : _Boolean | None
-            Explicit non-None boolean wins over Configs. Without either, yearfirst=True/dayfirst=False;
-            False is an explicit preference.
-        dayfirst : _Boolean | None
-            Explicit non-None boolean wins over Configs. Without either, yearfirst=True/dayfirst=False;
-            False is an explicit preference.
-        isoformat : _Boolean
-            Try ISO first and then shared ordinary parsing when needed; this is not ISO-only validation.
-        strict : _Boolean
-            Validate explicit parsed date/clock fields and conflicts; it does not replace the regional DST
-            policies.
-        cfg : Configs | None
-            Shared Configs word/region rules. None uses the existing defaults; Expr freezes effective
-            rules when it is created.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        Self
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
-        
         Raises
         ------
         TypeError
@@ -5530,11 +5886,155 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Examples
         --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-factories.html#pldt-combine-precise-clock
+        """
+        return _combine_factory(cls, date, time, size=size, tz=tz, unit=unit, name=name,
+                                 ambiguous=ambiguous, nonexistent=nonexistent)
+
+    @classmethod
+    def fromisoformat(cls, dtstr: _IsoInput, *, size: SupportsIndex | None=None, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
+        """Read complete strict ISO dates, retaining source fraction width.
+
+        Parameters
+        ----------
+        dtstr : str, one-dimensional collection of strings or None
+            Source/target in this factory's stated role. Actual dtype/unit/zone and independent validity
+            are preserved; a scalar broadcasts only where the named factory permits it.
+        size : SupportsIndex or None
+            Single nonnegative integer count. Named scalar factories require size; a supplied collection
+            cannot also supply size.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach the chosen zone to naive ISO dates and convert ISO values with a zone to it.
+            With None, keep a common zone from the input if one is present.
+        unit : {"ms", "us", "ns"} or None
+            Without a unit, text uses us for up to six fractional digits and ns for seven
+            through nine, even if the additional digits are zero. An explicit unit must represent every date without loss.
+            An empty or all-null text input without a declared resolution uses ms.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        Self
+            Date result with the requested metadata and validity. Existing operations keep their unit
+            except explicit as_unit; source nulls remain missing and explicit localization policies may
+            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
+            their actual protocols.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-factories.html#reader-pldt-iso-text
+        """
+        return _iso_factory(cls, dtstr, size=size, tz=tz, unit=unit, name=name,
+                             ambiguous=ambiguous, nonexistent=nonexistent)
+
+    @classmethod
+    def date_range(cls, start: _DateInput=None, *, end: _DateInput=None, periods: SupportsIndex | None=None, freq: object=None, tz: _Zone=None, normalize: _Boolean=False, inclusive: str='both', unit: _Unit | None=None, name: str | None=None, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
+        """Generate native calendar/elapsed dates; only special rules use optional pandas.
+
+        Parameters
+        ----------
+        start : date-like value or one-dimensional date collection
+            First boundary of the range. Supply a scalar date or a value the parser can read. A
+            number is a tick of the specified unit, or of ns by default. None leaves the
+            boundary unspecified.
+        end : date-like value or one-dimensional date collection
+            Last boundary of the range. Supply a scalar date or a value the parser can read. A
+            number is a tick of the specified unit, or of ns by default. None leaves the
+            boundary unspecified.
+        periods : SupportsIndex or None
+            Number of periods as a nonnegative integer.
+        freq : object
+            A frequency string, timedelta, or supported pandas DateOffset. The step can be positive
+            (forward) or negative (backward). Semi-month starts (SMS) accept day anchors 2 through 27,
+            and semi-month ends (SME) accept 1 through 27. With start, end, and periods supplied,
+            freq=None spaces the values evenly between the endpoints. Otherwise None defaults to days.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Interpret naive endpoints in this timezone and convert aware endpoints into it. With
+            None, use a common timezone from the endpoints if present.
+        normalize : bool or numpy.bool_
+            Move prepared endpoints to their local day boundary before range validation/generation when
+            True.
+        inclusive : str
+            Keep both endpoints, only start (left), only end (right), or neither.
+        unit : {"ms", "us", "ns"} or None
+            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
+            has no Datetime(s).
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        default : date-like value or None
+            An independently complete fallback date, read only when needed to fill text YMD/two-digit-year
+            reference. It does not supply the column clock, zone or fold.
+        yearfirst : bool or numpy.bool_ or None
+            Prefer the year as the first field in an ambiguous date. None uses the Configs
+            setting when present, or True otherwise.
+        dayfirst : bool or numpy.bool_ or None
+            Prefer the day before the month in an ambiguous numeric date. None uses the Configs
+            setting when present, or False otherwise.
+        isoformat : bool or numpy.bool_
+            Try ISO first and then shared ordinary parsing when needed; this is not ISO-only validation.
+        strict : bool or numpy.bool_
+            Validate explicit parsed date/clock fields and conflicts; it does not replace the regional DST
+            policies.
+        cfg : Configs or None
+            Parser vocabulary and timezone aliases used by this call. None uses the built-in
+            rules.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        Self
+            Date result with the requested metadata and validity. Existing operations keep their unit
+            except explicit as_unit; source nulls remain missing and explicit localization policies may
+            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
+            their actual protocols.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+        >>> from rstimes import Pldt
         >>> Pldt.date_range("1970-01-01", periods=3, freq="s", unit="us").to_physical().to_list()
-        [0, 1000000, 2000000]"""
+        [0, 1000000, 2000000]
+        """
         return _range_factory(cls, start, end=end, periods=periods, freq=freq, tz=tz,
                               normalize=normalize, inclusive=inclusive, unit=unit, name=name,
                               default=default, yearfirst=yearfirst, dayfirst=dayfirst,
@@ -5543,20 +6043,20 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
 
     def as_unit(self, unit: _Unit, round_ok: _Boolean=True) -> Self:
         """Return the chosen ms/us/ns resolution; round_ok=True floors precision loss.
-        
+
         Parameters
         ----------
-        unit : _Unit
+        unit : {"ms", "us", "ns"}
             Required target storage unit. Choose ms, us or ns.
-        round_ok : _Boolean
+        round_ok : bool or numpy.bool_
             True allows this explicit rescale to floor discarded precision toward earlier ticks; False
             requires an exact conversion.
-        
+
         Returns
         -------
         Self
             Date column with the target unit. The column name, timezone and nulls are retained.
-        
+
         Raises
         ------
         TypeError
@@ -5565,28 +6065,32 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             The unit is unsupported, or an exact conversion would lose precision.
         OverflowError
             A value exceeds the target unit's capacity, even when rounding is allowed.
-        
+
         Examples
         --------
+        >>> from rstimes import Pldt
         >>> Pldt([-1500], unit="ns").as_unit("us").to_physical().to_list()
-        [-2]"""
+        [-2]
+        """
         return _as_unit(self, unit, round_ok, entry="Pldt.as_unit")
 
     def tz_localize(self, tz: _Zone, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
         """Interpret naive clocks, or remove a timezone while keeping clocks.
-        
+
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Attach the zone to
             naive local clocks. Pass None to remove the zone while keeping the local clock.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Self
@@ -5594,7 +6098,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -5602,19 +6106,25 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-timezones.html#reader-pldt-timezone-choices
+        """
         return _tz_eager(self, "localize", tz, ambiguous=ambiguous, nonexistent=nonexistent)
 
     def tz_convert(self, tz: _Zone) -> Self:
         """Preserve actual instants; None removes the UTC timezone metadata.
-        
+
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. The source must be
             timezone-aware. Pass None to convert to UTC and then remove the zone. A target zone
             preserves the instant.
-        
+
         Returns
         -------
         Self
@@ -5622,7 +6132,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -5630,24 +6140,32 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-timezones.html#reader-pldt-timezone-choices
+        """
         return _tz_eager(self, "convert", tz)
 
     def astimezone(self, tz: _Zone=None, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
         """Convert to the target; naive input uses the process-local timezone.
-        
+
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Omit tz or pass None to
             use the system local timezone. A naive source is interpreted in the local timezone.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Self
@@ -5655,7 +6173,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -5663,30 +6181,38 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-timezones.html#reader-pldt-timezone-choices
+        """
         return _tz_eager(self, "astimezone", tz, ambiguous=ambiguous, nonexistent=nonexistent)
 
     def tz_switch(self, targ_tz: _Zone, base_tz: _Zone=None, naive: _Boolean=False, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Self:
         """Convert with an explicit naive source zone, optionally removing target metadata.
-        
+
         Parameters
         ----------
-        targ_tz : _Zone
+        targ_tz : str, datetime.tzinfo or None
             Required target timezone. Use an IANA name, ZoneInfo or a representable standard fixed
             offset. Pass None to remove the timezone and keep local clocks. A non-None target converts
             the instant. naive=True removes a target timezone after conversion.
-        base_tz : _Zone
+        base_tz : str, datetime.tzinfo or None
             Source timezone for a naive date when converting to a non-None target. It is required for
             that conversion. An aware source uses its own timezone.
-        naive : _Boolean
+        naive : bool or numpy.bool_
             Remove target timezone metadata after the requested conversion when True.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Self
@@ -5694,7 +6220,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -5702,7 +6228,13 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-timezones.html#reader-pldt-timezone-choices
+        """
         return _tz_eager(self, "switch", targ_tz, base_tz, naive, ambiguous, nonexistent)
 
     def __copy__(self) -> Self:
@@ -5728,15 +6260,15 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
 
     def copy(self, name: str | None=None, deep: _Boolean=False) -> Self:
         """Copy dates and business state without rerunning business initialization.
-        
+
         Parameters
         ----------
-        name : str or None, default None
+        name : str, default None
             Replacement column name. None retains the current name.
         deep : bool or numpy.bool_, default False
             Physically isolate date buffers and copy business state with one
             shared memo when True; otherwise share safe buffers/references.
-        
+
         Returns
         -------
         Pldt
@@ -5750,7 +6282,8 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         as in Python's copy module. Real descriptors, return choices and exceptions
         are preserved. Actual reducers follow copyreg and __reduce_ex__/__reduce__ fallback, including
         absent/None descriptors and dynamic lookup. Default date copying keeps
-        its native buffer path; genuine state hooks retain their own behavior."""
+        its native buffer path; genuine state hooks retain their own behavior.
+        """
         try:
             return _state_copy(self, _bool_option(deep, 'Pldt.copy', 'deep'),  # pyright: ignore[reportReturnType] -- TY027; see tests/typing/pyright_exceptions.json.
                                name=_name(name), honor_copy=True)
@@ -5876,25 +6409,25 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
 
     def to_numpy(self, *, writable: _Boolean=False, allow_copy: _Boolean=True, allow_nat_collision: _Boolean=False) -> np.ndarray:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY030; see tests/typing/pyright_exceptions.json.
         """Use Polars' NumPy export, rejecting valid ticks that collide with NaT.
-        
+
         Parameters
         ----------
-        writable : _Boolean
+        writable : bool or numpy.bool_
             Original Polars/NumPy export option, passed to the mature implementation. Requested
             conversions must preserve values/precision/validity unless the collision opt-in applies.
-        allow_copy : _Boolean
+        allow_copy : bool or numpy.bool_
             Original Polars/NumPy export option, passed to the mature implementation. Requested
             conversions must preserve values/precision/validity unless the collision opt-in applies.
-        allow_nat_collision : _Boolean
+        allow_nat_collision : bool or numpy.bool_
             False rejects a valid int64 MIN that the target would turn into NaT. True explicitly permits
             only that representation collision.
-        
+
         Returns
         -------
         np.ndarray
             The stated native/Python output representation. Genuine external callback choices and
             exceptions retain their normal protocol.
-        
+
         Raises
         ------
         TypeError
@@ -5902,31 +6435,37 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-output.html#pldt-numpy-explicit-nat-collision
+        """
         allow = _bool_option(allow_nat_collision, "Pldt.to_numpy", "allow_nat_collision")
         source = _plain_series(self)
         return _numpy_export(source, writable, allow_copy, allow)
 
     def to_pandas(self, *, use_pyarrow_extension_array: _Boolean=False, allow_nat_collision: _Boolean=False, **kwargs: Any) -> object:  # pyright: ignore[reportIncompatibleMethodOverride] -- TY032; see tests/typing/pyright_exceptions.json.
         """Use the complete Polars pandas export and check its actual date result.
-        
+
         Parameters
         ----------
-        use_pyarrow_extension_array : _Boolean
+        use_pyarrow_extension_array : bool or numpy.bool_
             Original Polars/NumPy export option, passed to the mature implementation. Requested
             conversions must preserve values/precision/validity unless the collision opt-in applies.
-        allow_nat_collision : _Boolean
+        allow_nat_collision : bool or numpy.bool_
             False rejects a valid int64 MIN that the target would turn into NaT. True explicitly permits
             only that representation collision.
         kwargs : Any
             Original protocol argument, forwarded without inventing another interpretation.
-        
+
         Returns
         -------
         object
             The stated native/Python output representation. Genuine external callback choices and
             exceptions retain their normal protocol.
-        
+
         Raises
         ------
         TypeError
@@ -5934,7 +6473,13 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-pandas-arrow.html#pldt-arrow-valid-endpoint-roundtrip
+        """
         allow = _bool_option(allow_nat_collision, "Pldt.to_pandas", "allow_nat_collision")
         source = _plain_series(self)
         result = pl.Series.to_pandas(self, use_pyarrow_extension_array=use_pyarrow_extension_array, **kwargs)  # pyright: ignore[reportArgumentType] -- TY033; see tests/typing/pyright_exceptions.json.
@@ -6028,7 +6573,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
 
     def __array_ufunc__(self, ufunc: Any, method: Any, *inputs: Any, **kwargs: Any) -> Any:
         """Preserve NumPy temporal operands for the approved arithmetic routes.
-        
+
         Parameters
         ----------
         ufunc : Any
@@ -6039,13 +6584,13 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             Original protocol argument, forwarded without inventing another interpretation.
         kwargs : Any
             Original protocol argument, forwarded without inventing another interpretation.
-        
+
         Returns
         -------
         Any
             The stated native/Python output representation. Genuine external callback choices and
             exceptions retain their normal protocol.
-        
+
         Raises
         ------
         TypeError
@@ -6053,7 +6598,13 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+        See the complete example at
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-interop.html#reader-pldt-numpy-temporal-arithmetic
+        """
         if method == "__call__" and len(inputs) == 2 and not kwargs and ufunc in (np.add, np.subtract):
             left, right = inputs
             other = right if left is self else left
@@ -6142,28 +6693,45 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
 
 
 class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _PythonOutputMethods, _TimezoneMetadata):
+    """Run rsTimes date operations on a native Polars Series.
+
+    Import rstimes.pldt to register the accessor. Date operations produce a
+    Pldt, and queries retain their native Polars result types.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> import rstimes.pldt
+    >>> source = pl.Series("day", ["2024-02-29", None])
+    >>> source.pldt.parse(unit="us").isoformat().to_list()
+    ['2024-02-29T00:00:00', None]
+
+    For Pldt(...).pldt, see
+    https://aresjef.github.io/rsTimes/1.1.1/api/inherited-pldt-accessors.html#ref-pldt-native-registered-accessor
+    """
+
     def diff(self, dtobj: _DiffInput, unit: str, absolute: _Boolean=False, inclusive: str='one') -> pl.Series | pl.Expr:
         """Count date-unit boundaries; numeric targets are seconds, not ticks.
-        
+
         Parameters
         ----------
-        dtobj : _DiffInput
+        dtobj : date-like value or one-dimensional date collection
             Source/target in this factory's stated role. Actual dtype/unit/zone and independent validity
             are preserved; a scalar broadcasts only where the named factory permits it.
         unit : str
             Boundary bucket Y/Q/M/W/D/h/m/min/s/ms/us/ns; it is not a storage-unit conversion.
-        absolute : _Boolean
+        absolute : bool or numpy.bool_
             Original protocol argument, forwarded without inventing another interpretation.
         inclusive : str
-            For diff: 'one' (ordinary signed difference), 'both' or 'neither'. For date_range: 'both',
-            'left', 'right' or 'neither' endpoint inclusion.
-        
+            Use 'one' for the signed difference in unit boundaries, 'both' to include
+            both endpoints, or 'neither' to exclude both. The native Series.diff
+            compares rows with their predecessors by default.
+
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            The result column, computed from the supplied Series.
+
         Raises
         ------
         TypeError
@@ -6172,23 +6740,34 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Examples
         --------
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series('event', ['2024-01-03', None]).str.to_datetime(time_unit='us')
+        >>> dates = source.pldt.diff('2024-01-01', 'D')
+        >>> print(dates.to_list())
+        [2, None]
+
+        Using the accessor on a Pldt
+
+        >>> from rstimes import Pldt
         >>> Pldt(["2024-01-03"]).pldt.diff("2024-01-01", "D").to_list()
-        [2]"""
+        [2]
+        """
         return _boundary_difference(self, dtobj, unit, absolute, inclusive)
 
     def round(self, freq: _FixedFrequency='s') -> Pldt:
-        """Date rounding on a positive fixed grid; preserves current storage unit.
-        
+        """Round to the nearest point on a fixed time grid, breaking ties toward an even tick.
+
         Parameters
         ----------
         freq : str | datetime.timedelta | pandas fixed offset
             Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
             installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
             offsets. A single value applied to the entire column.
-        
+
         Returns
         -------
         Pldt
@@ -6196,7 +6775,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -6204,19 +6783,26 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.round, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-second-grid
+        """
         return _period_operation(self, "round", None, freq, 0, False, "pldt.round")
 
     def ceil(self, freq: _FixedFrequency='s') -> Pldt:
-        """Date rounding on a positive fixed grid; preserves current storage unit.
-        
+        """Round up to the first point on a fixed time grid at or after each date.
+
         Parameters
         ----------
         freq : str | datetime.timedelta | pandas fixed offset
             Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
             installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
             offsets. A single value applied to the entire column.
-        
+
         Returns
         -------
         Pldt
@@ -6224,7 +6810,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -6232,19 +6818,26 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.ceil, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-second-grid
+        """
         return _period_operation(self, "round", None, freq, 1, False, "pldt.ceil")
 
     def floor(self, freq: _FixedFrequency='s') -> Pldt:
-        """Date rounding on a positive fixed grid; preserves current storage unit.
-        
+        """Round down to the last point on a fixed time grid at or before each date.
+
         Parameters
         ----------
         freq : str | datetime.timedelta | pandas fixed offset
             Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
             installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
             offsets. A single value applied to the entire column.
-        
+
         Returns
         -------
         Pldt
@@ -6252,7 +6845,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -6260,18 +6853,25 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.floor, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-boundaries.html#reader-series-second-grid
+        """
         return _period_operation(self, "round", None, freq, 2, False, "pldt.floor")
 
     def add_delta(self, delta: _DeltaInput) -> Pldt:
         """Apply actual Delta rules and return one final Pldt column.
-        
+
         Parameters
         ----------
-        delta : _DeltaInput
+        delta : Delta or one-dimensional Delta collection
             Actual Delta scalar or equal-length Delta values. All absolute fields and relative nanoseconds
             remain intact; source data is not modified.
-        
+
         Returns
         -------
         Pldt
@@ -6280,9 +6880,19 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             values and validity, including values at formerly null source positions; every returned
             value is checked for awareness, exact precision and final capacity. Its date collection
             must have the complete source length. A business subclass is constructed once.
-        
+
         Examples
         --------
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> from rstimes import Delta
+        >>> source = pl.Series('event', ['2024-01-31', None]).str.to_datetime(time_unit='us')
+        >>> dates = source.pldt.add_delta(Delta(months=1))
+        >>> print(dates.dt.date().cast(pl.String).to_list())
+        ['2024-02-29', None]
+
+        Using the accessor on a Pldt
+
         >>> from rstimes import Delta, Pldt
         >>> class Fill(Delta):
         ...     def __radd__(self, column):
@@ -6297,18 +6907,19 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+        """
         return _binary_eager(self, delta, named=True)
 
     def sub_delta(self, delta: _DeltaInput) -> Pldt:
         """Reverse relative Delta quantities while retaining absolute fields.
-        
+
         Parameters
         ----------
-        delta : _DeltaInput
+        delta : Delta or one-dimensional Delta collection
             Actual Delta scalar or equal-length Delta values. All absolute fields and relative nanoseconds
             remain intact; source data is not modified.
-        
+
         Returns
         -------
         Pldt
@@ -6317,73 +6928,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             values and validity, including values at formerly null source positions; every returned
             value is checked for awareness, exact precision and final capacity. Its date collection
             must have the complete source length. A business subclass is constructed once.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _binary_eager(self, delta, subtract=True, named=True)
 
-    def replace(self, year: _OptionalField=None, month: _OptionalField=None, day: _OptionalField=None, hour: _OptionalField=None, minute: _OptionalField=None, second: _OptionalField=None, microsecond: _OptionalField=None, nanosecond: _OptionalField=None, tzinfo: _Zone=_UNCHANGED_ZONE, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:  # pyright: ignore[reportArgumentType] -- TY035; see tests/typing/pyright_exceptions.json.
-        """Strictly merge date fields; omitted tzinfo retains, None removes the zone.
-        
-        Parameters
-        ----------
-        year : _OptionalField
-            Optional integer field/selector. None retains the source. Year may be zero/negative/wide
-            within the native unit and regional backend capacity. Strict replace requires a real resulting
-            date; calendar conveniences keep their separate valid upper-selection/month-end rules.
-        month : _OptionalField
-            Optional integer field/selector. None retains the source. Month is 1-12. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        day : _OptionalField
-            Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
-            a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
-            end rules.
-        hour : _OptionalField
-            Optional integer field/selector. None retains the source. Hour is 0-23. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        minute : _OptionalField
-            Optional integer field/selector. None retains the source. Minute is 0-59. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        second : _OptionalField
-            Optional integer field/selector. None retains the source. Second is 0-59. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        microsecond : _OptionalField
-            Optional integer field/selector. None retains the source. Microsecond is 0-999999; setting it
-            clears the old ns tail unless nanosecond is supplied. Strict replace requires a real resulting
-            date; calendar conveniences keep their separate valid upper-selection/month-end rules.
-        nanosecond : _OptionalField
-            Optional integer field/selector. None retains the source. Nanosecond is the additional 0-999
-            tail; zero explicitly clears it. Strict replace requires a real resulting date; calendar
-            conveniences keep their separate valid upper-selection/month-end rules.
-        tzinfo : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        Pldt
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
-        
         Raises
         ------
         TypeError
@@ -6392,15 +6937,90 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
-        Notes
-        -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar.
-        
+
         Examples
         --------
+
+        For Series.pldt.sub_delta, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-arithmetic.html#reader-series-subtract-delta
+        """
+        return _binary_eager(self, delta, subtract=True, named=True)
+
+    def replace(self, year: _OptionalField=None, month: _OptionalField=None, day: _OptionalField=None, hour: _OptionalField=None, minute: _OptionalField=None, second: _OptionalField=None, microsecond: _OptionalField=None, nanosecond: _OptionalField=None, tzinfo: _Zone=_UNCHANGED_ZONE, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:  # pyright: ignore[reportArgumentType] -- TY035; see tests/typing/pyright_exceptions.json.
+        """Strictly merge date fields; omitted tzinfo retains, None removes the zone.
+
+        Parameters
+        ----------
+        year : integer or one-dimensional integer collection or None
+            Set the calendar year when supplied. Zero, negative and wide years depend on the
+            date unit and chosen timezone.
+        month : integer or one-dimensional integer collection or None
+            Set the month using 1 through 12. None keeps the current month.
+        day : integer or one-dimensional integer collection or None
+            Set the day of the month using 1 through 31. None keeps the current day.
+        hour : integer or one-dimensional integer collection or None
+            Set the local hour using 0 through 23. None keeps the current hour.
+        minute : integer or one-dimensional integer collection or None
+            Set the local minute using 0 through 59. None keeps the current minute.
+        second : integer or one-dimensional integer collection or None
+            Set the local second using 0 through 59. None keeps the current second.
+        microsecond : integer or one-dimensional integer collection or None
+            Set the microsecond field using 0 through 999999. None keeps it. A supplied
+            microsecond clears the previous nanosecond tail unless you supply nanosecond as
+            well.
+        nanosecond : integer or one-dimensional integer collection or None
+            Set the additional nanosecond tail using 0 through 999. None keeps the tail unless
+            microsecond is set.
+        tzinfo : str, datetime.tzinfo or None
+            Omit tzinfo to keep the current zone. Pass None to remove the zone while keeping the
+            local clock. A supplied timezone assigns that zone to the edited clock fields.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        Pldt
+            Date result with the requested metadata and validity. Existing operations keep their unit
+            except explicit as_unit; source nulls remain missing and explicit localization policies may
+            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
+            their actual protocols.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        None keeps an optional field. An explicit zero sets a clock field to zero.
+        A supplied year, month or day must form a real date.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+
+        Examples
+        --------
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series('event', ['2024-01-31', None]).str.to_datetime(time_unit='us')
+        >>> dates = source.pldt.replace(day=28, month=2)
+        >>> print(dates.dt.date().cast(pl.String).to_list())
+        ['2024-02-28', None]
+
+        Using the accessor on a Pldt
+
+        >>> from rstimes import Pldt
         >>> Pldt(["2024-01-31"]).pldt.replace(day=28, month=2).day.to_list()
-        [28]"""
+        [28]
+        """
         return _date_operation(self, "replace", (year, month, day, hour, minute, second, microsecond, nanosecond),
                                "pldt.replace", tzinfo=tzinfo, ambiguous=ambiguous, nonexistent=nonexistent)
 
@@ -6430,113 +7050,28 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
 
     def fromisoformat(self, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
         """Parse complete ISO text into one native date column.
-        
-        Parameters
-        ----------
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        Pldt
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
-        return _iso_factory(cls, self._series, tz=tz, unit=unit, name=name,
-                             ambiguous=ambiguous, nonexistent=nonexistent)
 
-    def combine(self, time: _CombineTime=None, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
-        """Use this Series for dates and compose one final native Pldt.
-        
         Parameters
         ----------
-        time : _CombineTime
-            Source/target in this factory's stated role. Actual dtype/unit/zone and independent validity
-            are preserved; a scalar broadcasts only where the named factory permits it.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        Pldt
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
-        return _combine_factory(cls, self._series, time, tz=tz, unit=unit, name=name,
-                                 ambiguous=ambiguous, nonexistent=nonexistent)
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach the chosen zone to naive ISO dates and convert ISO values with a zone to it.
+            With None, keep a common zone from the input if one is present.
+        unit : {"ms", "us", "ns"} or None
+            Without a unit, text uses us for up to six fractional digits and ns for seven
+            through nine, even if the additional digits are zero. An explicit unit must represent every date without loss.
+            An empty or all-null text input without a declared resolution uses ms.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
 
-    def fromordinal(self, *, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
-        """Resolve positional calendar components with a fixed output schema.
-        
-        Parameters
-        ----------
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : {"ms", "us", "ns"}, default "us"
-            Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback. Explicit None is not accepted.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
         Returns
         -------
         Pldt
@@ -6544,164 +7079,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
-        return _calendar_factory(cls, "ordinal", (self._series,), tz=tz, unit=unit, name=name,
-                                 ambiguous=ambiguous, nonexistent=nonexistent)
 
-    def fromisocalendar(self, week: _CalendarInput, weekday: _CalendarInput, *, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
-        """Resolve positional calendar components with a fixed output schema.
-        
-        Parameters
-        ----------
-        week : _CalendarInput
-            Integer day-of-year/ISO-week component, scalar or equal-length column. Values below 1 fail;
-            approved upper convenience selection is retained. An explicit missing component makes a
-            missing row.
-        weekday : _CalendarInput
-            ISO weekday: Monday 1 through Sunday 7. Values below 1 fail, values above 7 select Sunday; an
-            explicit missing component makes a missing row.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : {"ms", "us", "ns"}, default "us"
-            Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback. Explicit None is not accepted.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        Pldt
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
-        return _calendar_factory(cls, "iso", (self._series, week, weekday), tz=tz, unit=unit, name=name,
-                                 ambiguous=ambiguous, nonexistent=nonexistent)
-
-    def fromdayofyear(self, doy: _CalendarInput, *, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
-        """Resolve positional calendar components with a fixed output schema.
-        
-        Parameters
-        ----------
-        doy : _CalendarInput
-            Integer day-of-year/ISO-week component, scalar or equal-length column. Values below 1 fail;
-            approved upper convenience selection is retained. An explicit missing component makes a
-            missing row.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : {"ms", "us", "ns"}, default "us"
-            Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback. Explicit None is not accepted.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        Pldt
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
-        return _calendar_factory(cls, "doy", (self._series, doy), tz=tz, unit=unit, name=name,
-                                 ambiguous=ambiguous, nonexistent=nonexistent)
-
-    def parse(self, *, unit: _Unit | None=None, name: str | None=None, copy: _Boolean=False, tz: _Zone=None, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
-        """Parse supported native data into a Pldt without a Python row UDF.
-        
-        Parameters
-        ----------
-        unit : _Unit | None
-            Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
-            has no Datetime(s).
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        copy : _Boolean
-            True isolates source date buffers; False permits safe sharing but does not promise zero-copy
-            or an independent snapshot.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        default : _DateValue
-            An independently complete fallback date, read only when needed to fill text YMD/two-digit-year
-            reference. It does not supply the column clock, zone or fold.
-        yearfirst : _Boolean | None
-            Explicit non-None boolean wins over Configs. Without either, yearfirst=True/dayfirst=False;
-            False is an explicit preference.
-        dayfirst : _Boolean | None
-            Explicit non-None boolean wins over Configs. Without either, yearfirst=True/dayfirst=False;
-            False is an explicit preference.
-        isoformat : _Boolean
-            Try ISO first and then shared ordinary parsing when needed; this is not ISO-only validation.
-        strict : _Boolean
-            Validate explicit parsed date/clock fields and conflicts; it does not replace the regional DST
-            policies.
-        cfg : Configs | None
-            Shared Configs word/region rules. None uses the existing defaults; Expr freezes effective
-            rules when it is created.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        Pldt
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
-        
         Raises
         ------
         TypeError
@@ -6710,11 +7088,284 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Examples
         --------
-        >>> Pldt.parse(["1970-01-01T00:00:00.000000001"]).to_physical().to_list()
-        [1]"""
+
+        For Series.pldt.fromisoformat, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-factories.html#reader-series-iso-text
+        """
+        cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
+        return _iso_factory(cls, self._series, tz=tz, unit=unit, name=name,
+                             ambiguous=ambiguous, nonexistent=nonexistent)
+
+    def combine(self, time: _CombineTime=None, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
+        """Use this Series for dates and compose one final native Pldt.
+
+        Parameters
+        ----------
+        time : time, date-like value, clock column or None
+            Clock fields and an optional source zone. A Python time can supply a timezone. A
+            Polars Time column supplies native nanosecond fields. A scalar None means midnight.
+            Null positions in a clock column remain null.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this timezone to the assembled local fields. With None, keep the clock's zone
+            when it supplies one. A Polars Time column supplies clock fields and no zone.
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns. None selects us, or ns when the clock supplies a nonzero
+            nanosecond tail. The result must fit the output unit exactly.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        Pldt
+            Date result with the requested metadata and validity. Existing operations keep their unit
+            except explicit as_unit; source nulls remain missing and explicit localization policies may
+            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
+            their actual protocols.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.combine, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-factories.html#reader-series-combine-clock
+        """
+        cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
+        return _combine_factory(cls, self._series, time, tz=tz, unit=unit, name=name,
+                                 ambiguous=ambiguous, nonexistent=nonexistent)
+
+    def fromordinal(self, *, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
+        """Build dates from Gregorian day numbers, with 1 for January 1 of year 1.
+
+        Parameters
+        ----------
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this timezone at the computed local midnight. With None, return naive dates.
+        unit : {"ms", "us", "ns"}, default "us"
+            Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
+            final date; no automatic fallback. Explicit None is not accepted.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        Pldt
+            Date result with the requested metadata and validity. Existing operations keep their unit
+            except explicit as_unit; source nulls remain missing and explicit localization policies may
+            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
+            their actual protocols.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+        """
+        cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
+        return _calendar_factory(cls, "ordinal", (self._series,), tz=tz, unit=unit, name=name,
+                                 ambiguous=ambiguous, nonexistent=nonexistent)
+
+    def fromisocalendar(self, week: _CalendarInput, weekday: _CalendarInput, *, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
+        """Build dates from ISO week-years, week numbers and weekdays.
+
+        Parameters
+        ----------
+        week : integer or one-dimensional integer collection or None
+            Integer day-of-year/ISO-week component, scalar or equal-length column. Values below 1 fail;
+            approved upper convenience selection is retained. An explicit missing component makes a
+            missing row.
+        weekday : integer or one-dimensional integer collection or None
+            ISO weekday: Monday 1 through Sunday 7. Values below 1 fail, values above 7 select Sunday; an
+            explicit missing component makes a missing row.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this timezone at the computed local midnight. With None, return naive dates.
+        unit : {"ms", "us", "ns"}, default "us"
+            Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
+            final date; no automatic fallback. Explicit None is not accepted.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        Pldt
+            Date result with the requested metadata and validity. Existing operations keep their unit
+            except explicit as_unit; source nulls remain missing and explicit localization policies may
+            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
+            their actual protocols.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+        """
+        cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
+        return _calendar_factory(cls, "iso", (self._series, week, weekday), tz=tz, unit=unit, name=name,
+                                 ambiguous=ambiguous, nonexistent=nonexistent)
+
+    def fromdayofyear(self, doy: _CalendarInput, *, tz: _Zone=None, unit: _Unit='us', name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
+        """Build dates from years and their one-based day numbers.
+
+        Parameters
+        ----------
+        doy : integer or one-dimensional integer collection or None
+            Integer day-of-year/ISO-week component, scalar or equal-length column. Values below 1 fail;
+            approved upper convenience selection is retained. An explicit missing component makes a
+            missing row.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this timezone at the computed local midnight. With None, return naive dates.
+        unit : {"ms", "us", "ns"}, default "us"
+            Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
+            final date; no automatic fallback. Explicit None is not accepted.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        Pldt
+            Date result with the requested metadata and validity. Existing operations keep their unit
+            except explicit as_unit; source nulls remain missing and explicit localization policies may
+            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
+            their actual protocols.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+        """
+        cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
+        return _calendar_factory(cls, "doy", (self._series, doy), tz=tz, unit=unit, name=name,
+                                 ambiguous=ambiguous, nonexistent=nonexistent)
+
+    def parse(self, *, unit: _Unit | None=None, name: str | None=None, copy: _Boolean=False, tz: _Zone=None, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
+        """Parse supported native data into a Pldt without a Python row UDF.
+
+        Parameters
+        ----------
+        unit : {"ms", "us", "ns"} or None
+            Without a unit, text uses us for up to six fractional digits and ns for seven
+            through nine, even if the additional digits are zero. An explicit unit must represent every date without loss.
+            Without a unit, preserve native Datetime resolution and use ns for bare ticks.
+            An untyped empty or all-null input defaults to ms.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+            A subclass copy that returns the original cannot assign it a different name.
+        copy : bool or numpy.bool_
+            True isolates source date buffers; False permits safe sharing but does not promise zero-copy
+            or an independent snapshot.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach the chosen zone to naive dates and convert aware dates to it while keeping
+            their instants. With None, use the source timezone when the input can form a single
+            zone.
+        default : date-like value or None
+            An independently complete fallback date, read only when needed to fill text YMD/two-digit-year
+            reference. It does not supply the column clock, zone or fold.
+        yearfirst : bool or numpy.bool_ or None
+            Prefer the year as the first field in an ambiguous date. None uses the Configs
+            setting when present, or True otherwise.
+        dayfirst : bool or numpy.bool_ or None
+            Prefer the day before the month in an ambiguous numeric date. None uses the Configs
+            setting when present, or False otherwise.
+        isoformat : bool or numpy.bool_
+            Try ISO first and then shared ordinary parsing when needed; this is not ISO-only validation.
+        strict : bool or numpy.bool_
+            Validate explicit parsed date/clock fields and conflicts; it does not replace the regional DST
+            policies.
+        cfg : Configs or None
+            Parser vocabulary and timezone aliases used by this call. None uses the built-in
+            rules.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        Pldt
+            Date result with the requested metadata and validity. Existing operations keep their unit
+            except explicit as_unit; source nulls remain missing and explicit localization policies may
+            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
+            their actual protocols.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series('event', ['1970-01-01T00:00:00.000000001', None])
+        >>> dates = source.pldt.parse(unit='ns')
+        >>> print(dates.to_physical().to_list())
+        [1, None]
+        """
         cls = type(self._series) if isinstance(self._series, Pldt) else Pldt
         try:
             return cls(self._series, unit=unit, name=name, copy=copy, tz=tz,
@@ -6727,33 +7378,34 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
 
     def strptime(self, fmt: str, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, cfg: Configs | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
         """Match text using the shared format language and final output unit.
-        
+
         Parameters
         ----------
         fmt : str
             Explicit parsing format. %f reads fractional seconds through ns; excess digits and a
             deliberately requested coarser unit truncate at this format-parse exit. %Z uses explicit
             Configs rules. Expr formats with %f require unit; timezone directives require tz.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach the chosen zone to clocks parsed without a zone and convert aware parsed
+            values to it. With None, keep a common zone from the parsed input if one is present.
+        unit : {"ms", "us", "ns"} or None
             Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
             has no Datetime(s).
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        cfg : Configs | None
-            Shared Configs word/region rules. None uses the existing defaults; Expr freezes effective
-            rules when it is created.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        cfg : Configs or None
+            Parser vocabulary and timezone aliases used by this call. None uses the built-in
+            rules.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Pldt
@@ -6761,7 +7413,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -6770,82 +7422,84 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Examples
         --------
-        >>> Pldt.strptime(["1970-01-01 00:00:00.123456789"], "%Y-%m-%d %H:%M:%S.%f", unit="ns").nanosecond.to_list()
-        [789]"""
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series('event', ['1970-01-01 00:00:00.123456789', None])
+        >>> dates = source.pldt.strptime('%Y-%m-%d %H:%M:%S.%f', unit='ns')
+        >>> print(dates.to_physical().to_list())
+        [123456789, None]
+        """
         return Pldt.strptime(self._series, fmt, tz=tz, unit=unit, name=name, cfg=cfg,
                              ambiguous=ambiguous, nonexistent=nonexistent)
 
     def fromseconds(self, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
-        """Read the numeric column using fixed quantity and timezone semantics.
-        
+        """Build dates from a Series of seconds measured on a local clock.
+
         Parameters
         ----------
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Eager default is at least us, selecting ns for a real nonzero tail. Expr integer seconds
-            default to us; floating seconds require explicit ms/us/ns in schema preparation. An explicit
-            output unit must be lossless.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        tz : str, tzinfo or None
+            Attach this zone to the clock fields counted from midnight on 1970-01-01.
+            With None, the clock fields remain timezone-naive.
+        unit : {"ms", "us", "ns"} or None
+            Store the result at this resolution. The default is "us" or "ns" if
+            any value needs nanosecond precision.
+        name : str or None
+            Use this column name. None keeps the source name.
+        ambiguous : str, bool or boolean column
+            Choose how to handle a repeated local time. The default raises an error.
+            Use "NaT", "infer", a boolean, or a mask aligned by position.
+        nonexistent : str or datetime.timedelta
+            Choose how to handle a missing local time. The default raises an error.
+            Use "NaT", "shift_forward", "shift_backward", or one timedelta.
+
         Returns
         -------
         Pldt
-            Date result with the requested metadata and validity. Existing operations keep their unit
-            except explicit as_unit; source nulls remain missing and explicit localization policies may
-            add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
-            their actual protocols.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
-        
+            A date column with the source nulls in the same positions.
+
+        Notes
+        -----
+        A requested unit must represent every result exactly. Use a finer unit
+        when seconds carry additional fractional digits. Use fromtimestamp to
+        convert POSIX instants into a target timezone.
+
         Examples
         --------
-        >>> Pldt.fromseconds([1e-9], unit="ns").to_physical().to_list()
-        [1]"""
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> seconds = pl.Series("seconds", [1, None, -1])
+        >>> dates = seconds.pldt.fromseconds(unit="ms")
+        >>> dates.to_physical().to_list()
+        [1000, None, -1000]
+        """
         return _numeric_eager((type(self._series) if isinstance(self._series, Pldt) else Pldt), self._series, 'seconds', tz=tz, unit=unit, name=name, ambiguous=ambiguous, nonexistent=nonexistent, entry="Pldt.fromseconds")
 
     def frommicroseconds(self, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
-        """Read the numeric column using fixed quantity and timezone semantics.
-        
+        """Build dates from integer microseconds measured on a local clock.
+
         Parameters
         ----------
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Output storage ms/us/ns; None selects us. Input always means integer microseconds, including
-            on Expr; explicit conversion must be lossless.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this zone to the local clock fields counted from midnight on 1970-01-01. With
+            None, the result is timezone-naive.
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns for the output. None selects us. The input is always integer
+            microseconds, and the result must fit the output unit exactly.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Pldt
@@ -6853,7 +7507,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -6862,30 +7516,33 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Examples
         --------
-        >>> Pldt.frommicroseconds([1], unit="ns").to_physical().to_list()
-        [1000]"""
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series('event', [1, None, -1])
+        >>> dates = source.pldt.frommicroseconds(unit='ns')
+        >>> print(dates.to_physical().to_list())
+        [1000, None, -1000]
+        """
         return _numeric_eager((type(self._series) if isinstance(self._series, Pldt) else Pldt), self._series, 'micros', tz=tz, unit=unit, name=name, ambiguous=ambiguous, nonexistent=nonexistent, entry="Pldt.frommicroseconds")
 
     def fromtimestamp(self, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None) -> Pldt:
-        """Read the numeric column using fixed quantity and timezone semantics.
-        
+        """Convert POSIX seconds to clock fields in the target timezone.
+
         Parameters
         ----------
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Eager default is at least us, selecting ns for a real nonzero tail. Expr integer seconds
-            default to us; floating seconds require explicit ms/us/ns in schema preparation. An explicit
-            output unit must be lossless.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Display each POSIX instant in this timezone. With None, use the system's local clock
+            and return a timezone-naive column.
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns for the output. None selects us, or ns for a value requiring
+            nanosecond precision. Every value must fit the chosen resolution exactly.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+
         Returns
         -------
         Pldt
@@ -6893,7 +7550,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -6902,26 +7559,29 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Examples
         --------
-        >>> Pldt.fromtimestamp([0], tz="UTC", unit="us").to_physical().to_list()
-        [0]"""
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> source = pl.Series('event', [0, None])
+        >>> dates = source.pldt.fromtimestamp(tz='Asia/Tokyo', unit='us')
+        >>> print(dates.dt.strftime('%Y-%m-%d %H:%M %z').to_list())
+        ['1970-01-01 09:00 +0900', None]
+        """
         return _numeric_eager((type(self._series) if isinstance(self._series, Pldt) else Pldt), self._series, ("local_timestamp" if tz is None else "timestamp"), tz=tz, unit=unit, name=name, entry="Pldt.fromtimestamp")
 
     def utcfromtimestamp(self, *, unit: _Unit | None=None, name: str | None=None) -> Pldt:
-        """Read the numeric column using fixed quantity and timezone semantics.
-        
+        """Convert POSIX seconds to timezone-aware UTC dates.
+
         Parameters
         ----------
-        unit : _Unit | None
-            Eager default is at least us, selecting ns for a real nonzero tail. Expr integer seconds
-            default to us; floating seconds require explicit ms/us/ns in schema preparation. An explicit
-            output unit must be lossless.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns for the output. None selects us, or ns for a value requiring
+            nanosecond precision. Every value must fit the chosen resolution exactly.
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+
         Returns
         -------
         Pldt
@@ -6929,7 +7589,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -6937,30 +7597,32 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+        """
         return _numeric_eager((type(self._series) if isinstance(self._series, Pldt) else Pldt), self._series, 'utc_timestamp', tz=timezone.utc, unit=unit, name=name, entry="Pldt.utcfromtimestamp")
 
     def fromdate(self, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
-        """Use the real native date schema, without parsing text or numeric data.
-        
+        """Take each source's local calendar date at midnight.
+
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Use the source's local
             date. With None the result is naive at midnight. An explicit zone attaches at that midnight.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"} or None
             Storage resolution ms/us/ns. Date inputs default to milliseconds. Datetime columns keep
             their declared unit.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Pldt
@@ -6968,7 +7630,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -6976,31 +7638,33 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+        """
         return _date_factory((type(self._series) if isinstance(self._series, Pldt) else Pldt), self._series, "date", tz=tz, unit=unit, name=name,
                                   ambiguous=ambiguous, nonexistent=nonexistent)
 
     def fromdatetime(self, *, tz: _Zone=None, unit: _Unit | None=None, name: str | None=None, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
-        """Use the real native date schema, without parsing text or numeric data.
-        
+        """Read the complete source clock fields and keep the source zone by default.
+
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Omit tz or pass None to
             keep the source timezone and instant. An explicit zone reinterprets the source's local clock
             fields in that zone.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"} or None
             Storage resolution ms/us/ns. Datetime columns keep their declared unit.
-        name : str | None
-            Optional string column name. None preserves a usable source/current name; a custom copy
-            returning the original cannot rename it to a different name.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        name : str or None
+            Set the result's column name. None keeps the source name when present.
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Pldt
@@ -7008,7 +7672,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -7016,26 +7680,33 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.fromdatetime, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-factories.html#reader-series-datetime-source-zone
+        """
         return _date_factory((type(self._series) if isinstance(self._series, Pldt) else Pldt), self._series, "datetime", tz=tz, unit=unit, name=name,
                                   ambiguous=ambiguous, nonexistent=nonexistent)
 
     def as_unit(self, unit: _Unit, round_ok: _Boolean=True) -> Pldt:
         """Convert Date/Datetime storage with explicit loss permission.
-        
+
         Parameters
         ----------
-        unit : _Unit
+        unit : {"ms", "us", "ns"}
             Required target storage unit. Choose ms, us or ns.
-        round_ok : _Boolean
+        round_ok : bool or numpy.bool_
             True allows this explicit rescale to floor discarded precision toward earlier ticks; False
             requires an exact conversion.
-        
+
         Returns
         -------
         Pldt
             Date column with the target unit. The column name, timezone and nulls are retained.
-        
+
         Raises
         ------
         TypeError
@@ -7044,31 +7715,34 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             The unit is unsupported, or an exact conversion would lose precision.
         OverflowError
             A value exceeds the target unit's capacity, even when rounding is allowed.
-        
+
         Examples
         --------
         >>> import polars as pl
         >>> import rstimes.pldt
         >>> values = pl.Series("event", [-1500, None], dtype=pl.Datetime("ns", "UTC"))
         >>> values.pldt.as_unit("us").to_physical().to_list()
-        [-2, None]"""
+        [-2, None]
+        """
         return _as_unit(self._series, unit, round_ok, entry="Series.pldt.as_unit")
 
     def tz_localize(self, tz: _Zone, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
         """Interpret naive clocks, or remove a timezone while keeping clocks.
-        
+
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Attach the zone to
             naive local clocks. Pass None to remove the zone while keeping the local clock.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Pldt
@@ -7076,7 +7750,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -7084,19 +7758,26 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.tz_localize, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-timezones.html#reader-series-timezone-choices
+        """
         return _tz_eager(self._series, "localize", tz, ambiguous=ambiguous, nonexistent=nonexistent)
 
     def tz_convert(self, tz: _Zone) -> Pldt:
         """Preserve actual instants; None removes the UTC timezone metadata.
-        
+
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. The source must be
             timezone-aware. Pass None to convert to UTC and then remove the zone. A target zone
             preserves the instant.
-        
+
         Returns
         -------
         Pldt
@@ -7104,7 +7785,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -7112,24 +7793,33 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.tz_convert, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-timezones.html#reader-series-timezone-choices
+        """
         return _tz_eager(self._series, "convert", tz)
 
     def astimezone(self, tz: _Zone=None, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
         """Convert to the target; naive input uses the process-local timezone.
-        
+
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Omit tz or pass None to
             use the system local timezone. A naive source is interpreted in the local timezone.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Pldt
@@ -7137,7 +7827,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -7145,30 +7835,39 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.astimezone, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-timezones.html#reader-series-timezone-choices
+        """
         return _tz_eager(self._series, "astimezone", tz, ambiguous=ambiguous, nonexistent=nonexistent)
 
     def tz_switch(self, targ_tz: _Zone, base_tz: _Zone=None, naive: _Boolean=False, *, ambiguous: _Ambiguous='raise', nonexistent: _Nonexistent='raise') -> Pldt:
         """Convert with an explicit naive source zone, optionally removing target metadata.
-        
+
         Parameters
         ----------
-        targ_tz : _Zone
+        targ_tz : str, datetime.tzinfo or None
             Required target timezone. Use an IANA name, ZoneInfo or a representable standard fixed
             offset. Pass None to remove the timezone and keep local clocks. A non-None target converts
             the instant. naive=True removes a target timezone after conversion.
-        base_tz : _Zone
+        base_tz : str, datetime.tzinfo or None
             Source timezone for a naive date when converting to a non-None target. It is required for
             that conversion. An aware source uses its own timezone.
-        naive : _Boolean
+        naive : bool or numpy.bool_
             Remove target timezone metadata after the requested conversion when True.
-        ambiguous : _Ambiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         Pldt
@@ -7176,7 +7875,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             except explicit as_unit; source nulls remain missing and explicit localization policies may
             add nulls. Normal business subclasses follow one whole-column constructor; copy/state use
             their actual protocols.
-        
+
         Raises
         ------
         TypeError
@@ -7184,39 +7883,56 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Examples
+        --------
+
+        For Series.pldt.tz_switch, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-timezones.html#reader-series-timezone-choices
+        """
         return _tz_eager(self._series, "switch", targ_tz, base_tz, naive, ambiguous, nonexistent)
 
 
 
 class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods):
+    """Build native Polars expressions for rsTimes date operations.
+
+    Import rstimes.pldt to register the accessor. Use the result in select
+    or with_columns. Lazy queries evaluate it when you call collect.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> import rstimes.pldt
+    >>> frame = pl.DataFrame({"day": ["2024-02-29", None]})
+    >>> expr = pl.col("day").pldt.parse(unit="us")
+    >>> frame.lazy().select(expr.pldt.isoformat()).collect()["day"].to_list()
+    ['2024-02-29T00:00:00', None]
+    """
+
     def diff(self, dtobj: _DiffInput | pl.Expr, unit: str, absolute: _Boolean=False, inclusive: str='one') -> pl.Series | pl.Expr:
         """Return native Int64 boundary counts in the logical row domain.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        dtobj : _DiffInput | pl.Expr
+        dtobj : date-like value or one-dimensional date collection or polars.Expr
             Source/target in this factory's stated role. Actual dtype/unit/zone and independent validity
             are preserved; a scalar broadcasts only where the named factory permits it.
         unit : str
             Boundary bucket Y/Q/M/W/D/h/m/min/s/ms/us/ns; it is not a storage-unit conversion.
-        absolute : _Boolean
+        absolute : bool or numpy.bool_
             Original protocol argument, forwarded without inventing another interpretation.
         inclusive : str
-            For diff: 'one' (ordinary signed difference), 'both' or 'neither'. For date_range: 'both',
-            'left', 'right' or 'neither' endpoint inclusion.
-        
+            Use 'one' for the signed difference in unit boundaries, 'both' to include
+            both endpoints, or 'neither' to exclude both. The native Series.diff
+            compares rows with their predecessors by default.
+
         Returns
         -------
         pl.Series | pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -7225,34 +7941,40 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
         Examples
         --------
-        >>> Pldt(["2024-01-03"]).pldt.diff("2024-01-01", "D").to_list()
-        [2]"""
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame([pl.Series('event', ['2024-01-03', None]).str.to_datetime(time_unit='us')])
+        >>> expr = pl.col('event').pldt.diff('2024-01-01', 'D')
+        >>> dates = frame.select(expr)['event']
+        >>> print(dates.to_list())
+        [2, None]
+        """
         return _boundary_difference(self, dtobj, unit, absolute, inclusive)
 
     def round(self, freq: _FixedFrequency='s') -> pl.Expr:
-        """Date rounding on a positive fixed grid; preserves current storage unit.
+        """Round to the nearest point on a fixed time grid, breaking ties toward an even tick.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
         freq : str | datetime.timedelta | pandas fixed offset
             Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
             installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
             offsets. A single value applied to the entire column.
-        
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -7260,30 +7982,37 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.round, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-second-grid
+        """
         return _period_operation(self, "round", None, freq, 0, False, "pldt.round")
 
     def ceil(self, freq: _FixedFrequency='s') -> pl.Expr:
-        """Date rounding on a positive fixed grid; preserves current storage unit.
+        """Round up to the first point on a fixed time grid at or after each date.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
         freq : str | datetime.timedelta | pandas fixed offset
             Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
             installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
             offsets. A single value applied to the entire column.
-        
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -7291,30 +8020,37 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.ceil, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-second-grid
+        """
         return _period_operation(self, "round", None, freq, 1, False, "pldt.ceil")
 
     def floor(self, freq: _FixedFrequency='s') -> pl.Expr:
-        """Date rounding on a positive fixed grid; preserves current storage unit.
+        """Round down to the last point on a fixed time grid at or before each date.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
         freq : str | datetime.timedelta | pandas fixed offset
             Positive fixed grid, for example '15min' or timedelta(minutes=15). With pandas
             installed, accept Timedelta and exact Nano, Micro, Milli, Second, Minute, Hour or Day
             offsets. A single value applied to the entire column.
-        
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -7322,128 +8058,36 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.floor, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-boundaries.html#reader-expr-second-grid
+        """
         return _period_operation(self, "round", None, freq, 2, False, "pldt.floor")
 
     def add_delta(self, delta: _DeltaInput) -> pl.Expr:
         """Build a native Expr from concrete ordinary Delta snapshots.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        delta : _DeltaInput
+        delta : Delta or one-dimensional Delta collection
             Actual Delta scalar or equal-length Delta values. All absolute fields and relative nanoseconds
             remain intact; source data is not modified.
-        
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _delta_expression(self._expr, delta, False)
+            A native expression evaluated by Polars in select or collect.
 
-    def sub_delta(self, delta: _DeltaInput) -> pl.Expr:
-        """Build a native Expr reversing only relative Delta quantities.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        delta : _DeltaInput
-            Actual Delta scalar or equal-length Delta values. All absolute fields and relative nanoseconds
-            remain intact; source data is not modified.
-        
-        Returns
-        -------
-        pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _delta_expression(self._expr, delta, True)
-
-    def replace(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None, tzinfo: _Zone=_UNCHANGED_ZONE, *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:  # pyright: ignore[reportArgumentType] -- TY036; see tests/typing/pyright_exceptions.json.
-        """Strictly merge date fields; omitted tzinfo retains, None removes the zone.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        year : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Year may be zero/negative/wide
-            within the native unit and regional backend capacity. Strict replace requires a real resulting
-            date; calendar conveniences keep their separate valid upper-selection/month-end rules.
-        month : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Month is 1-12. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        day : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Day is 1-31. Strict replace requires
-            a real resulting date; calendar conveniences keep their separate valid upper-selection/month-
-            end rules.
-        hour : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Hour is 0-23. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        minute : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Minute is 0-59. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        second : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Second is 0-59. Strict replace
-            requires a real resulting date; calendar conveniences keep their separate valid upper-
-            selection/month-end rules.
-        microsecond : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Microsecond is 0-999999; setting it
-            clears the old ns tail unless nanosecond is supplied. Strict replace requires a real resulting
-            date; calendar conveniences keep their separate valid upper-selection/month-end rules.
-        nanosecond : _ExprOptionalField
-            Optional integer field/selector. None retains the source. Nanosecond is the additional 0-999
-            tail; zero explicitly clears it. Strict replace requires a real resulting date; calendar
-            conveniences keep their separate valid upper-selection/month-end rules.
-        tzinfo : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
         Raises
         ------
         TypeError
@@ -7452,15 +8096,130 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
         Notes
         -----
-        None retains an optional field; zero is real. Integer fields reject bool and floats. A scalar broadcasts; a collection must have exactly the source length, including null rows. A length-one collection is not a scalar.
-        
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
         Examples
         --------
-        >>> Pldt(["2024-01-31"]).pldt.replace(day=28, month=2).day.to_list()
-        [28]"""
+
+        For Expr.pldt.add_delta, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-calendar.html#expr-apply-concrete-delta
+        """
+        return _delta_expression(self._expr, delta, False)
+
+    def sub_delta(self, delta: _DeltaInput) -> pl.Expr:
+        """Build a native Expr reversing only relative Delta quantities.
+
+        Parameters
+        ----------
+        delta : Delta or one-dimensional Delta collection
+            Actual Delta scalar or equal-length Delta values. All absolute fields and relative nanoseconds
+            remain intact; source data is not modified.
+
+        Returns
+        -------
+        pl.Expr
+            A native expression evaluated by Polars in select or collect.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.sub_delta, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-calendar.html#reader-expr-subtract-delta
+        """
+        return _delta_expression(self._expr, delta, True)
+
+    def replace(self, year: _ExprOptionalField=None, month: _ExprOptionalField=None, day: _ExprOptionalField=None, hour: _ExprOptionalField=None, minute: _ExprOptionalField=None, second: _ExprOptionalField=None, microsecond: _ExprOptionalField=None, nanosecond: _ExprOptionalField=None, tzinfo: _Zone=_UNCHANGED_ZONE, *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:  # pyright: ignore[reportArgumentType] -- TY036; see tests/typing/pyright_exceptions.json.
+        """Strictly merge date fields; omitted tzinfo retains, None removes the zone.
+
+        Parameters
+        ----------
+        year : integer or one-dimensional integer collection or None or polars.Expr
+            Set the calendar year when supplied. Zero, negative and wide years depend on the
+            date unit and chosen timezone.
+        month : integer or one-dimensional integer collection or None or polars.Expr
+            Set the month using 1 through 12. None keeps the current month.
+        day : integer or one-dimensional integer collection or None or polars.Expr
+            Set the day of the month using 1 through 31. None keeps the current day.
+        hour : integer or one-dimensional integer collection or None or polars.Expr
+            Set the local hour using 0 through 23. None keeps the current hour.
+        minute : integer or one-dimensional integer collection or None or polars.Expr
+            Set the local minute using 0 through 59. None keeps the current minute.
+        second : integer or one-dimensional integer collection or None or polars.Expr
+            Set the local second using 0 through 59. None keeps the current second.
+        microsecond : integer or one-dimensional integer collection or None or polars.Expr
+            Set the microsecond field using 0 through 999999. None keeps it. A supplied
+            microsecond clears the previous nanosecond tail unless you supply nanosecond as
+            well.
+        nanosecond : integer or one-dimensional integer collection or None or polars.Expr
+            Set the additional nanosecond tail using 0 through 999. None keeps the tail unless
+            microsecond is set.
+        tzinfo : str, datetime.tzinfo or None
+            Omit tzinfo to keep the current zone. Pass None to remove the zone while keeping the
+            local clock. A supplied timezone assigns that zone to the edited clock fields.
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        pl.Expr
+            A native expression evaluated by Polars in select or collect.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        None keeps an optional field. An explicit zero sets a clock field to zero.
+        A supplied year, month or day must form a real date.
+        A scalar applies to each row. One-dimensional inputs pair by position and must match the source length, including missing rows.
+
+        Examples
+        --------
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame([pl.Series('event', ['2024-01-31', None]).str.to_datetime(time_unit='us')])
+        >>> expr = pl.col('event').pldt.replace(day=28, month=2)
+        >>> dates = frame.select(expr)['event']
+        >>> print(dates.dt.date().cast(pl.String).to_list())
+        ['2024-02-28', None]
+        """
         return _date_operation(self, "replace", (year, month, day, hour, minute, second, microsecond, nanosecond),
                                "pldt.replace", tzinfo=tzinfo, ambiguous=ambiguous, nonexistent=nonexistent)
 
@@ -7491,268 +8250,30 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
     def fromisoformat(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Parse a strict ISO String Expr with a fixed unit/timezone schema.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Give an explicit output
             timezone if ISO text contains a timezone. This is checked when reading the values.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"} or None
             Use ms/us/ns for String input, including whole-second text and String columns containing
             only nulls. This is checked when the schema is resolved. A Null input uses milliseconds if
             no unit is given.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _iso_expression(self._expr, tz=tz, unit=unit, ambiguous=ambiguous, nonexistent=nonexistent)
+            A native expression evaluated by Polars in select or collect.
 
-    def combine(self, time: _CombineTime | pl.Expr=None, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
-        """Compose a date Expr with a native clock, keeping a fixed schema.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        time : _CombineTime | pl.Expr
-            Clock value or expression. None uses midnight. The precision of a Python datetime.time value
-            is known when the expression is created.
-        tz : _Zone
-            Use an IANA name, ZoneInfo or a representable standard fixed offset. An explicit timezone
-            attaches to the combined local clock. A typed Datetime clock can supply its timezone. If a
-            String clock contains a timezone, give an explicit target.
-        unit : _Unit | None
-            Use ms/us/ns. Time, Datetime(ns), String and floating-point clock expressions require a
-            unit. A Python datetime.time value can supply its precision.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _combine_expression(self._expr, time, tz=tz, unit=unit,
-                                    ambiguous=ambiguous, nonexistent=nonexistent)
-
-    def fromordinal(self, *, tz: _Zone=None, unit: _Unit='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
-        """Resolve positional calendar components with a fixed output schema.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : {"ms", "us", "ns"}, default "us"
-            Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback. Explicit None is not accepted.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _calendar_expression("ordinal", (self._expr,), tz=tz, unit=unit,
-                                    ambiguous=ambiguous, nonexistent=nonexistent)
-
-    def fromisocalendar(self, week: _ExprCalendarInput, weekday: _ExprCalendarInput, *, tz: _Zone=None, unit: _Unit='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
-        """Resolve positional calendar components with a fixed output schema.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        week : _ExprCalendarInput
-            Integer day-of-year/ISO-week component, scalar or equal-length column. Values below 1 fail;
-            approved upper convenience selection is retained. An explicit missing component makes a
-            missing row.
-        weekday : _ExprCalendarInput
-            ISO weekday: Monday 1 through Sunday 7. Values below 1 fail, values above 7 select Sunday; an
-            explicit missing component makes a missing row.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : {"ms", "us", "ns"}, default "us"
-            Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback. Explicit None is not accepted.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _calendar_expression("iso", (self._expr, week, weekday), tz=tz, unit=unit,
-                                    ambiguous=ambiguous, nonexistent=nonexistent)
-
-    def fromdayofyear(self, doy: _ExprCalendarInput, *, tz: _Zone=None, unit: _Unit='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
-        """Resolve positional calendar components with a fixed output schema.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        doy : _ExprCalendarInput
-            Integer day-of-year/ISO-week component, scalar or equal-length column. Values below 1 fail;
-            approved upper convenience selection is retained. An explicit missing component makes a
-            missing row.
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : {"ms", "us", "ns"}, default "us"
-            Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
-            final date; no automatic fallback. Explicit None is not accepted.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity."""
-        return _calendar_expression("doy", (self._expr, doy), tz=tz, unit=unit,
-                                    ambiguous=ambiguous, nonexistent=nonexistent)
-
-    def parse(self, *, unit: _Unit | None=None, tz: _Zone=None, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
-        """Freeze shared String parsing rules and a static output schema.
-
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
-        Parameters
-        ----------
-        unit : _Unit | None
-            Use ms/us/ns for String input, even for a String column containing only nulls. Without a
-            unit, Datetime keeps its declared unit, Date and Null use milliseconds, and numeric ticks
-            use nanoseconds. A missing unit for String is rejected when the schema is resolved.
-        tz : _Zone
-            Use an IANA name, ZoneInfo or a representable standard fixed offset. Give an explicit output
-            timezone if text contains a timezone. This is checked when reading the values.
-        default : _DateValue
-            An independently complete fallback date, read only when needed to fill text YMD/two-digit-year
-            reference. It does not supply the column clock, zone or fold.
-        yearfirst : _Boolean | None
-            Explicit non-None boolean wins over Configs. Without either, yearfirst=True/dayfirst=False;
-            False is an explicit preference.
-        dayfirst : _Boolean | None
-            Explicit non-None boolean wins over Configs. Without either, yearfirst=True/dayfirst=False;
-            False is an explicit preference.
-        isoformat : _Boolean
-            Try ISO first and then shared ordinary parsing when needed; this is not ISO-only validation.
-        strict : _Boolean
-            Validate explicit parsed date/clock fields and conflicts; it does not replace the regional DST
-            policies.
-        cfg : Configs | None
-            Shared Configs word/region rules. None uses the existing defaults; Expr freezes effective
-            rules when it is created.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
-        Returns
-        -------
-        pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
         Raises
         ------
         TypeError
@@ -7761,11 +8282,289 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
         Examples
         --------
-        >>> Pldt.parse(["1970-01-01T00:00:00.000000001"]).to_physical().to_list()
-        [1]"""
+
+        For Expr.pldt.fromisoformat, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-inputs.html#reader-expr-iso-text
+        """
+        return _iso_expression(self._expr, tz=tz, unit=unit, ambiguous=ambiguous, nonexistent=nonexistent)
+
+    def combine(self, time: _CombineTime | pl.Expr=None, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
+        """Compose a date Expr with a native clock, keeping a fixed schema.
+
+        Parameters
+        ----------
+        time : time, date-like value, clock column or None or polars.Expr
+            Clock fields and an optional source zone. A Python time can supply a timezone. A
+            Polars Time column supplies native nanosecond fields. A scalar None means midnight.
+            Null positions in a clock column remain null.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. An explicit timezone
+            attaches to the combined local clock. A typed Datetime clock can supply its timezone. If a
+            String clock contains a timezone, give an explicit target.
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns. A future clock column of Time, Datetime(ns), String or
+            floating-point seconds requires an explicit unit. A Python time commonly defaults to
+            us. The result must fit the output unit exactly.
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        pl.Expr
+            A native expression evaluated by Polars in select or collect.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.combine, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-inputs.html#reader-expr-combine-clock
+        """
+        return _combine_expression(self._expr, time, tz=tz, unit=unit,
+                                    ambiguous=ambiguous, nonexistent=nonexistent)
+
+    def fromordinal(self, *, tz: _Zone=None, unit: _Unit='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
+        """Build dates from Gregorian day numbers, with 1 for January 1 of year 1.
+
+        Parameters
+        ----------
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this timezone at the computed local midnight. With None, return naive dates.
+        unit : {"ms", "us", "ns"}, default "us"
+            Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
+            final date; no automatic fallback. Explicit None is not accepted.
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        pl.Expr
+            A native expression evaluated by Polars in select or collect.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
+        return _calendar_expression("ordinal", (self._expr,), tz=tz, unit=unit,
+                                    ambiguous=ambiguous, nonexistent=nonexistent)
+
+    def fromisocalendar(self, week: _ExprCalendarInput, weekday: _ExprCalendarInput, *, tz: _Zone=None, unit: _Unit='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
+        """Build dates from ISO week-years, week numbers and weekdays.
+
+        Parameters
+        ----------
+        week : integer or one-dimensional integer collection or None or polars.Expr
+            Integer day-of-year/ISO-week component, scalar or equal-length column. Values below 1 fail;
+            approved upper convenience selection is retained. An explicit missing component makes a
+            missing row.
+        weekday : integer or one-dimensional integer collection or None or polars.Expr
+            ISO weekday: Monday 1 through Sunday 7. Values below 1 fail, values above 7 select Sunday; an
+            explicit missing component makes a missing row.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this timezone at the computed local midnight. With None, return naive dates.
+        unit : {"ms", "us", "ns"}, default "us"
+            Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
+            final date; no automatic fallback. Explicit None is not accepted.
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        pl.Expr
+            A native expression evaluated by Polars in select or collect.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
+        return _calendar_expression("iso", (self._expr, week, weekday), tz=tz, unit=unit,
+                                    ambiguous=ambiguous, nonexistent=nonexistent)
+
+    def fromdayofyear(self, doy: _ExprCalendarInput, *, tz: _Zone=None, unit: _Unit='us', ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
+        """Build dates from years and their one-based day numbers.
+
+        Parameters
+        ----------
+        doy : integer or one-dimensional integer collection or None or polars.Expr
+            Integer day-of-year/ISO-week component, scalar or equal-length column. Values below 1 fail;
+            approved upper convenience selection is retained. An explicit missing component makes a
+            missing row.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this timezone at the computed local midnight. With None, return naive dates.
+        unit : {"ms", "us", "ns"}, default "us"
+            Output ms/us/ns, normally the us default shown in the signature. Unit capacity limits the true
+            final date; no automatic fallback. Explicit None is not accepted.
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        pl.Expr
+            A native expression evaluated by Polars in select or collect.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
+        return _calendar_expression("doy", (self._expr, doy), tz=tz, unit=unit,
+                                    ambiguous=ambiguous, nonexistent=nonexistent)
+
+    def parse(self, *, unit: _Unit | None=None, tz: _Zone=None, default: _DateValue=None, yearfirst: _Boolean | None=None, dayfirst: _Boolean | None=None, isoformat: _Boolean=True, strict: _Boolean=False, cfg: Configs | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
+        """Freeze shared String parsing rules and a static output schema.
+
+        Parameters
+        ----------
+        unit : {"ms", "us", "ns"} or None
+            Use ms/us/ns for String input, even for a String column containing only nulls. Without a
+            unit, Datetime keeps its declared unit, Date and Null use milliseconds, and numeric ticks
+            use nanoseconds. A missing unit for String is rejected when the schema is resolved.
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, ZoneInfo or a representable standard fixed offset. Give an explicit output
+            timezone if text contains a timezone. This is checked when reading the values.
+        default : date-like value or None
+            Supply a complete fallback date. The expression prepares it at creation and uses it
+            for missing calendar fields or a two-digit year. Clock, timezone and fold come from the input.
+        yearfirst : bool or numpy.bool_ or None
+            Prefer the year as the first field in an ambiguous date. None uses the Configs
+            setting when present, or True otherwise.
+        dayfirst : bool or numpy.bool_ or None
+            Prefer the day before the month in an ambiguous numeric date. None uses the Configs
+            setting when present, or False otherwise.
+        isoformat : bool or numpy.bool_
+            Try ISO first and then shared ordinary parsing when needed; this is not ISO-only validation.
+        strict : bool or numpy.bool_
+            Validate explicit parsed date/clock fields and conflicts; it does not replace the regional DST
+            policies.
+        cfg : Configs or None
+            Shared Configs word/region rules. None uses the existing defaults; Expr freezes effective
+            rules when it is created.
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
+        Returns
+        -------
+        pl.Expr
+            A native expression evaluated by Polars in select or collect.
+
+        Raises
+        ------
+        TypeError
+            A supplied type, integer/bool protocol or parameter role is unsupported.
+        ValueError
+            A field, shape, precision reduction or localization rule is invalid.
+        OverflowError
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame([pl.Series('event', ['1970-01-01T00:00:00.000000001', None])])
+        >>> expr = pl.col('event').pldt.parse(unit='ns')
+        >>> dates = frame.select(expr)['event']
+        >>> print(dates.to_physical().to_list())
+        [1, None]
+        """
         return _text_expression(self._expr, unit=unit, tz=tz, default=default,
                                 yearfirst=yearfirst, dayfirst=dayfirst,
                                 isoformat=isoformat, strict=strict, cfg=cfg,
@@ -7774,39 +8573,36 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
     def strptime(self, fmt: str, *, tz: _Zone=None, unit: _Unit | None=None, cfg: Configs | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Parse text with a format and a known output unit.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
         fmt : str
             Parsing format. An active %f reads fractional seconds through nanoseconds. A literal %%f
             matches text. %Z uses the explicit Configs rules.
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Formats with an active
             timezone directive require an explicit output timezone when creating the expression.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"} or None
             Use ms/us/ns. An active %f fractional-second directive requires a unit when creating the
             expression. Formats without that directive default to microseconds, including a literal %%f.
             Choosing a coarser unit truncates fractional digits at output.
-        cfg : Configs | None
+        cfg : Configs or None
             Shared Configs word/region rules. None uses the existing defaults; Expr freezes effective
             rules when it is created.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -7815,90 +8611,97 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
         Examples
         --------
-        >>> Pldt.strptime(["1970-01-01 00:00:00.123456789"], "%Y-%m-%d %H:%M:%S.%f", unit="ns").nanosecond.to_list()
-        [789]"""
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame([pl.Series('event', ['1970-01-01 00:00:00.123456789', None])])
+        >>> expr = pl.col('event').pldt.strptime('%Y-%m-%d %H:%M:%S.%f', unit='ns')
+        >>> dates = frame.select(expr)['event']
+        >>> print(dates.to_physical().to_list())
+        [123456789, None]
+        """
         return _text_expression(self._expr, fmt=fmt, unit=unit, tz=tz, cfg=cfg,
                                 ambiguous=ambiguous, nonexistent=nonexistent)
 
     def fromseconds(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
-        """Read the numeric column using fixed quantity and timezone semantics.
+        """Build a date expression from a column of seconds measured on a local clock.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Eager default is at least us, selecting ns for a real nonzero tail. Expr integer seconds
-            default to us; floating seconds require explicit ms/us/ns in schema preparation. An explicit
-            output unit must be lossless.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        tz : str, tzinfo or None
+            Attach this zone to the clock fields counted from midnight on 1970-01-01.
+            With None, the clock fields remain timezone-naive.
+        unit : {"ms", "us", "ns"} or None
+            Store the result at this resolution. An integer column defaults to
+            "us". Give a unit for a floating-point column so Polars can plan its dtype.
+        ambiguous : str, bool or boolean column
+            Choose how to handle a repeated local time. The default raises an error.
+            Use "NaT", "infer", a boolean, or a same-length boolean mask, including a Boolean expression.
+        nonexistent : str or datetime.timedelta
+            Choose how to handle a missing local time. The default raises an error.
+            Use "NaT", "shift_forward", "shift_backward", or one timedelta.
+
         Returns
         -------
-        pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
-        Raises
-        ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
-        
+        polars.Expr
+            A native expression that evaluates to dates with the source column name
+            and null positions.
+
+        Notes
+        -----
+        A requested unit must represent every result exactly. Use a finer unit
+        when seconds carry additional fractional digits. Python option errors can
+        occur when the expression is created. Polars reports schema and row errors
+        when it plans or evaluates the expression. Use fromtimestamp to convert
+        POSIX instants into a target timezone.
+
         Examples
         --------
-        >>> Pldt.fromseconds([1e-9], unit="ns").to_physical().to_list()
-        [1]"""
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame({"seconds": [1, None, -1]})
+        >>> expr = pl.col("seconds").pldt.fromseconds(unit="ms")
+        >>> dates = frame.select(expr)["seconds"]
+        >>> dates.to_physical().to_list()
+        [1000, None, -1000]
+        """
         return _numeric_expression(self._expr, 'seconds', tz=tz, unit=unit, ambiguous=ambiguous, nonexistent=nonexistent, entry="Pldt.fromseconds")
 
     def frommicroseconds(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
-        """Read the numeric column using fixed quantity and timezone semantics.
+        """Build dates from integer microseconds measured on a local clock.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Output storage ms/us/ns; None selects us. Input always means integer microseconds, including
-            on Expr; explicit conversion must be lossless.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Attach this zone to the local clock fields counted from midnight on 1970-01-01. With
+            None, the result is timezone-naive.
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns for the output. None selects us. The input is an integer
+            microsecond column, and the result must fit the output unit exactly.
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -7907,38 +8710,44 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
         Examples
         --------
-        >>> Pldt.frommicroseconds([1], unit="ns").to_physical().to_list()
-        [1000]"""
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame([pl.Series('event', [1, None, -1])])
+        >>> expr = pl.col('event').pldt.frommicroseconds(unit='ns')
+        >>> dates = frame.select(expr)['event']
+        >>> print(dates.to_physical().to_list())
+        [1000, None, -1000]
+        """
         return _numeric_expression(self._expr, 'micros', tz=tz, unit=unit, ambiguous=ambiguous, nonexistent=nonexistent, entry="Pldt.frommicroseconds")
 
     def fromtimestamp(self, *, tz: _Zone=None, unit: _Unit | None=None) -> pl.Expr:
-        """Read the numeric column using fixed quantity and timezone semantics.
+        """Convert POSIX seconds to clock fields in the target timezone.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        tz : _Zone
-            Supported IANA name, ZoneInfo or representable standard fixed offset. UTC aliases normalize to
-            UTC. Omitted replace tzinfo retains the zone; explicit None removes it. Other None meanings
-            follow this operation.
-        unit : _Unit | None
-            Eager default is at least us, selecting ns for a real nonzero tail. Expr integer seconds
-            default to us; floating seconds require explicit ms/us/ns in schema preparation. An explicit
-            output unit must be lossless.
-        
+        tz : str, datetime.tzinfo or None
+            Use an IANA name, a ZoneInfo object or a fixed offset that Polars can represent.
+            Display each POSIX instant in this timezone. With None, use the system's local clock
+            and return a timezone-naive column.
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns for the output. An integer source defaults to us. Give an
+            explicit unit for floating-point seconds. Every value must fit the chosen resolution
+            exactly.
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -7947,34 +8756,40 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
             The true final result exceeds the current unit/target capacity.
-        
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
         Examples
         --------
-        >>> Pldt.fromtimestamp([0], tz="UTC", unit="us").to_physical().to_list()
-        [0]"""
+        >>> import polars as pl
+        >>> import rstimes.pldt
+        >>> frame = pl.DataFrame([pl.Series('event', [0, None])])
+        >>> expr = pl.col('event').pldt.fromtimestamp(tz='Asia/Tokyo', unit='us')
+        >>> dates = frame.select(expr)['event']
+        >>> print(dates.dt.strftime('%Y-%m-%d %H:%M %z').to_list())
+        ['1970-01-01 09:00 +0900', None]
+        """
         return _numeric_expression(self._expr, ("local_timestamp" if tz is None else "timestamp"), tz=tz, unit=unit, entry="Pldt.fromtimestamp")
 
     def utcfromtimestamp(self, *, unit: _Unit | None=None) -> pl.Expr:
-        """Read the numeric column using fixed quantity and timezone semantics.
+        """Convert POSIX seconds to timezone-aware UTC dates.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        unit : _Unit | None
-            Eager default is at least us, selecting ns for a real nonzero tail. Expr integer seconds
-            default to us; floating seconds require explicit ms/us/ns in schema preparation. An explicit
-            output unit must be lossless.
-        
+        unit : {"ms", "us", "ns"} or None
+            Choose ms, us or ns for the output. An integer source defaults to us. Give an
+            explicit unit for floating-point seconds. Every value must fit the chosen resolution
+            exactly.
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -7982,38 +8797,42 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _numeric_expression(self._expr, 'utc_timestamp', tz=timezone.utc, unit=unit, entry="Pldt.utcfromtimestamp")
 
     def fromdate(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
-        """Use the real native date schema, without parsing text or numeric data.
+        """Take each source's local calendar date at midnight.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Use the source's local
             date. With None the result is naive at midnight. An explicit zone attaches at that midnight.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"} or None
             Storage resolution ms/us/ns. Date inputs default to milliseconds. Datetime columns keep
             their declared unit.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -8021,39 +8840,43 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+        """
         return _date_expression(self._expr, "date", tz=tz, unit=unit,
                                   ambiguous=ambiguous, nonexistent=nonexistent)
 
     def fromdatetime(self, *, tz: _Zone=None, unit: _Unit | None=None, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
-        """Use the real native date schema, without parsing text or numeric data.
+        """Read the complete source clock fields and keep the source zone by default.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Omit tz or pass None to
             keep the source timezone and instant. An explicit zone reinterprets the source's local clock
             fields in that zone.
-        unit : _Unit | None
+        unit : {"ms", "us", "ns"} or None
             Storage resolution ms/us/ns. Datetime columns keep their declared unit.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -8061,41 +8884,56 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.fromdatetime, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-inputs.html#reader-expr-datetime-source-zone
+        """
         return _date_expression(self._expr, "datetime", tz=tz, unit=unit,
                                   ambiguous=ambiguous, nonexistent=nonexistent)
 
     def as_unit(self, unit: _Unit, round_ok: _Boolean=True) -> pl.Expr:
         """Return an Expr with statically selected ms/us/ns resolution.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        unit : _Unit
+        unit : {"ms", "us", "ns"}
             Required target storage unit. Choose ms, us or ns.
-        round_ok : _Boolean
+        round_ok : bool or numpy.bool_
             True allows this explicit rescale to floor discarded precision toward earlier ticks; False
             requires an exact conversion.
-        
+
         Returns
         -------
         pl.Expr
             Native Polars expression. Evaluate it to obtain a Polars Series with the target unit. The
             column name, timezone and nulls are retained.
-        
+
         Raises
         ------
         TypeError
-            The unit or round_ok argument has an unsupported type.
+            Creating the expression rejects an unsupported type for unit or round_ok.
         ValueError
-            The unit is unsupported, or an exact conversion would lose precision.
-        OverflowError
-            A value exceeds the target unit's capacity, even when rounding is allowed.
-        
+            Creating the expression rejects any unit string outside ms, us and ns.
+        polars.exceptions.ComputeError
+            During select or collect, a value would lose precision with round_ok=False,
+            or would exceed the target unit's capacity even when rounding is allowed.
+
+        Notes
+        -----
+        Schema planning for a Datetime input exposes the target unit and preserves
+        the timezone without converting any row values. A conversion error can
+        report the position within the batch being evaluated.
+
         Examples
         --------
         >>> import polars as pl
@@ -8106,7 +8944,8 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         >>> frame.select(converted)["event"].to_physical().to_list()
         [-2, None]
         >>> frame.lazy().select(converted).collect()["event"].to_physical().to_list()
-        [-2, None]"""
+        [-2, None]
+        """
         unit = _unit(unit)
         round_ok = _bool_option(round_ok, "Expr.pldt.as_unit", "round_ok")
         return register_plugin_function(plugin_path=_PLUGIN_PATH, function_name="pldt_as_unit",
@@ -8115,29 +8954,26 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
     def tz_localize(self, tz: _Zone, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Interpret naive clocks, or remove a timezone while keeping clocks.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Attach the zone to
             naive local clocks. Pass None to remove the zone while keeping the local clock.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -8145,30 +8981,37 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.tz_localize, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-timezones.html#reader-expr-timezone-choices
+        """
         return _tz_expr(self._expr, "localize", tz, ambiguous=ambiguous, nonexistent=nonexistent)
 
     def tz_convert(self, tz: _Zone) -> pl.Expr:
         """Preserve actual instants; None removes the UTC timezone metadata.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. The source must be
             timezone-aware. Pass None to convert to UTC and then remove the zone. A target zone
             preserves the instant.
-        
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -8176,35 +9019,45 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.tz_convert, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-timezones.html#reader-expr-timezone-choices
+        """
         return _tz_expr(self._expr, "convert", tz)
 
     def astimezone(self, tz: _Zone=None, *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Convert to the target; naive input uses the process-local timezone.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        tz : _Zone
+        tz : str, datetime.tzinfo or None
             Use an IANA name, ZoneInfo or a representable standard fixed offset. Omit tz or pass None to
             use the system local timezone. A naive source is interpreted in the local timezone.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -8212,42 +9065,52 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.astimezone, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-timezones.html#reader-expr-timezone-choices
+        """
         return _tz_expr(self._expr, "astimezone", tz, ambiguous=ambiguous, nonexistent=nonexistent)
 
     def tz_switch(self, targ_tz: _Zone, base_tz: _Zone=None, naive: _Boolean=False, *, ambiguous: _ExprAmbiguous='raise', nonexistent: _Nonexistent='raise') -> pl.Expr:
         """Convert with an explicit naive source zone, optionally removing target metadata.
 
-        For Expr receivers, errors depending on schema or row values are deferred
-        to select/collect and use Polars exception classes (usually ComputeError).
-        The builtin errors below describe Python option preparation and eager
-        equivalents; deferred errors retain the entry and cause in their message.
-        
         Parameters
         ----------
-        targ_tz : _Zone
+        targ_tz : str, datetime.tzinfo or None
             Required target timezone. Use an IANA name, ZoneInfo or a representable standard fixed
             offset. Pass None to remove the timezone and keep local clocks. A non-None target converts
             the instant. naive=True removes a target timezone after conversion.
-        base_tz : _Zone
+        base_tz : str, datetime.tzinfo or None
             Source timezone for a naive date when converting to a non-None target. It is required for
             that conversion. An aware source uses its own timezone. A supplied base_tz is validated
             before the input schema is known.
-        naive : _Boolean
+        naive : bool or numpy.bool_
             Remove target timezone metadata after the requested conversion when True.
-        ambiguous : _ExprAmbiguous
-            Repeated-local-time policy: 'raise', 'NaT', 'infer', a true boolean or an equal-length boolean
-            mask. True/False select the actual ordered candidates; infer preserves logical row order.
-        nonexistent : _Nonexistent
-            One missing-local-time policy: 'raise', 'NaT', 'shift_forward', 'shift_backward' or a
-            timedelta. Nearest-boundary shifts use the current unit; no per-row strategy list.
-        
+        ambiguous : str, bool, numpy.bool_, one-dimensional boolean mask or polars.Expr
+            Choose 'raise' (default), 'NaT', 'infer', a boolean or a same-length boolean mask.
+            True chooses the daylight-saving side according to the zone's transition rules, and
+            False chooses the other side. Infer uses the order of the input rows. A Boolean
+            expression can supply the mask.
+        nonexistent : str or datetime.timedelta
+            Choose 'raise' (default), 'NaT', 'shift_forward', 'shift_backward', or a single
+            timedelta. The shift choices use the closest valid boundary at the current
+            precision.
+
         Returns
         -------
         pl.Expr
-            Native expression for Expr receivers, evaluated by Polars at select/collect; eager calls
-            return the documented column/table role.
-        
+            A native expression evaluated by Polars in select or collect.
+
         Raises
         ------
         TypeError
@@ -8255,7 +9118,20 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            The true final result exceeds the current unit/target capacity.
+
+        Notes
+        -----
+        In a Polars query, invalid Python options can fail when the expression is created.
+        Polars checks its input types when planning and evaluates values in select or collect.
+        An execution error can report a position within its input batch.
+
+        Examples
+        --------
+
+        For Expr.pldt.tz_switch, see
+        https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-timezones.html#reader-expr-timezone-choices
+        """
         return _tz_expr(self._expr, "switch", targ_tz, base_tz, naive, ambiguous, nonexistent)
 
 

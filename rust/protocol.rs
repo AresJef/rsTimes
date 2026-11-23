@@ -1742,7 +1742,7 @@ static GETTERS: Getters = Getters([
     ),
     property::<7>(
         c"nanoseconds",
-        c"int: Normalized relative nanosecond tail, in0..999.",
+        c"int: Normalized relative nanosecond tail, from 0 through 999.",
     ),
     property::<8>(
         c"year",

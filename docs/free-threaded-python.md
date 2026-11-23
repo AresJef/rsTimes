@@ -1,9 +1,9 @@
 # Free-threaded Python
 
-rsTimes 1.0.0 ships wheels for ordinary CPython
+rsTimes 1.1.1 ships wheels for ordinary CPython
 3.12–3.15 and free-threaded CPython 3.14t / 3.15t. `Delta`, Parser / `Configs`,
 `Pydt`, `Pddt`, and `Pldt` keep the same date semantics and public interfaces.
-See the [release notes](releases/v1.0.0.md) for the platform matrix. Use the
+See the [release notes](releases/v1.1.1.md) for the platform matrix. Use the
 matching interpreter ABI and compatible versions of the optional runtimes.
 
 ## Interpreter and dependencies
@@ -13,12 +13,13 @@ or `cp315t` ABI is distinct from the corresponding ordinary ABI. Installing an
 ordinary wheel or changing its filename does not provide free-threaded support.
 Only 64-bit interpreters are in this project's supported matrix.
 
-NumPy remains required, with a minimum of 2.5.3. Windows also requires the
-declared tzdata dependency. The container libraries remain optional:
+The core installs NumPy 2.5.3 or newer and `packaging>=22.0`. Windows also
+requires the declared tzdata dependency. The container libraries are optional:
 
 - `Delta`, Parser / `Configs`, and `Pydt` do not require pandas or Polars.
 - `Pddt` requires pandas. Its free-threaded qualification uses pandas 3.0.6;
-  pandas 2 compatibility remains an ordinary-GIL profile.
+  the install floor is pandas 3.0.6 on Python 3.15 or Windows ARM64 and
+  2.3.3 elsewhere. The pandas 2 tests use an ordinary interpreter.
 - `Pldt` requires a compatible upstream Polars runtime for that free-threaded
   interpreter. The qualification version is Polars 2.1.0, official source
   commit `7f902bd3ffd27ff82d14278a09a295ff2f7aed92`. The ordinary Polars 2.0.0
@@ -60,13 +61,28 @@ and representative work:
 import sys
 import sysconfig
 
-assert sysconfig.get_config_var("Py_GIL_DISABLED") == 1
-assert sys._is_gil_enabled() is False
+if sysconfig.get_config_var("Py_GIL_DISABLED") != 1 or sys.version_info[:2] not in {(3, 14), (3, 15)}:
+    raise SystemExit("Use free-threaded CPython 3.14t or 3.15t.")
+before_import = sys._is_gil_enabled()
+if before_import:
+    raise SystemExit("The GIL is enabled at startup. Start without -X gil=1 or PYTHON_GIL=1.")
 
 from rstimes import Delta, Pydt
 
-assert Pydt(2024, 1, 31) + Delta(months=1) == Pydt(2024, 2, 29)
-assert sys._is_gil_enabled() is False
+after_import = sys._is_gil_enabled()
+renewal = Pydt(2024, 1, 31) + Delta(months=1)
+after_calculation = sys._is_gil_enabled()
+if after_import or after_calculation:
+    raise SystemExit("A loaded extension enabled the GIL. Check the installed wheel and dependencies.")
+print(renewal.date())
+print(before_import, after_import, after_calculation)
+```
+
+The example prints the renewal date and the GIL state at each check:
+
+```text
+2024-02-29
+False False False
 ```
 
 If using pandas or Polars, repeat the final state check after importing them

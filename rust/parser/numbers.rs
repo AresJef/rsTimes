@@ -541,6 +541,7 @@ fn text<'a, 'py>(
 ///
 /// Examples
 /// --------
+/// >>> from rstimes import parse_to_integer
 /// >>> parse_to_integer("9223372036854775808")
 /// 9223372036854775808
 /// >>> parse_to_integer("quantity 1.234 items", strict=False, allow_grouping=True)
@@ -600,6 +601,7 @@ fn parse_to_integer<'py>(
 ///
 /// Examples
 /// --------
+/// >>> from rstimes import parse_to_float
 /// >>> parse_to_float("0.3")
 /// 0.3
 /// >>> parse_to_float("price 1.234,56 EUR", strict=False, allow_grouping=True)
