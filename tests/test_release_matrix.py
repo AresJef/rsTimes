@@ -5,7 +5,6 @@ from pathlib import Path
 import sys
 import tomllib
 
-from packaging.markers import default_environment
 from packaging.requirements import Requirement
 import pytest
 
@@ -123,23 +122,7 @@ def dependency_warning_matrix(requirements, minimum):
     rows = []
     for row in manifest.release_matrix()["include"]:
         platform = row["platform"]
-        system = platform["id"].split("-", 1)[0]
-        architecture = platform["arch"]
-        if system == "windows":
-            architecture = "ARM64" if architecture == "arm64" else "AMD64"
-        elif architecture == "x64":
-            architecture = "x86_64"
-        elif system == "linux" and architecture == "arm64":
-            architecture = "aarch64"
-        environment = default_environment()
-        environment.update(
-            python_version=row["python"]["minor"],
-            python_full_version=row["python"]["version"],
-            sys_platform={"windows": "win32", "macos": "darwin", "linux": "linux"}[system],
-            platform_machine=architecture,
-            platform_system={"windows": "Windows", "macos": "Darwin", "linux": "Linux"}[system],
-            extra="",
-        )
+        environment = manifest.marker_environment(row)
         default_dependencies = {
             rule.name: str(rule.specifier) for rule in requirements
             if rule.marker is None or rule.marker.evaluate(environment)
@@ -187,3 +170,52 @@ def test_normalized_markers_are_compared_by_meaning_and_not_text():
     metadata["Requires-Dist"] = "pandas>=3.0.6"
     with pytest.raises(AssertionError):
         manifest.validate_requirements(project, metadata)
+
+
+@pytest.mark.parametrize("machine,should_reject", [("aarch64", True), ("arm64", False)])
+def test_release_checker_uses_linux_arm64_marker_spelling(machine, should_reject):
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    metadata = Message()
+    for extra in project["optional-dependencies"]:
+        metadata["Provides-Extra"] = extra
+    for rule in manifest.declared_requirements(project):
+        metadata["Requires-Dist"] = str(rule)
+    manifest.validate_requirements(project, metadata)
+    metadata["Requires-Dist"] = (
+        'polars>=2.0.0; sys_platform == "linux" and '
+        f'platform_machine == "{machine}" and extra == ""'
+    )
+    if should_reject:
+        with pytest.raises(AssertionError):
+            manifest.validate_requirements(project, metadata)
+    else:
+        manifest.validate_requirements(project, metadata)
+
+
+def test_release_marker_environment_covers_approved_platform_identities():
+    expected = {
+        "linux-arm64": ("linux", "aarch64"),
+        "linux-musl-arm64": ("linux", "aarch64"),
+        "linux-x86_64": ("linux", "x86_64"),
+        "linux-musl-x86_64": ("linux", "x86_64"),
+        "macos-arm64": ("darwin", "arm64"),
+        "macos-x86_64": ("darwin", "x86_64"),
+        "windows-arm64": ("win32", "ARM64"),
+        "windows-x86_64": ("win32", "AMD64"),
+    }
+    positions = {}
+    for row in manifest.release_matrix()["include"]:
+        label = row["platform"]["id"], row["python"]["abi_tag"]
+        environment = manifest.marker_environment(row)
+        assert label not in positions
+        positions[label] = environment["sys_platform"], environment["platform_machine"]
+    abis = ("cp312", "cp313", "cp314", "cp314t", "cp315", "cp315t")
+    assert positions == {(platform, abi): identity for platform, identity in expected.items() for abi in abis}
+
+
+def test_1_1_1_release_note_limits_the_fsp_no_scan_path():
+    notes = (ROOT / "docs/releases/v1.1.1.md").read_text(encoding="utf-8")
+    bullet, = (line for line in notes.splitlines() if line.startswith("- `Pddt.fsp`"))
+    for phrase in ("exact, timezone-naive `Pddt`", "without scanning", "storage unit",
+                   "Subclasses and timezone-aware indexes", "`precision >= 9`"):
+        assert phrase in bullet, phrase

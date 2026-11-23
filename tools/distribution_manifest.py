@@ -73,6 +73,28 @@ def declared_requirements(project):
     return requirements
 
 
+def marker_environment(row, extra=""):
+    """Return the Python and PEP 508 platform identity of a matrix position."""
+    platform = row["platform"]
+    system = platform["id"].split("-", 1)[0]
+    machine = {
+        "macos": {"arm64": "arm64", "x64": "x86_64"},
+        "linux": {"arm64": "aarch64", "x64": "x86_64"},
+        "windows": {"arm64": "ARM64", "x64": "AMD64"},
+    }[system][platform["arch"]]
+    # The explicit extra is outside packaging's default-environment TypedDict.
+    environment = cast(dict[str, str], default_environment())
+    environment.update(
+        python_version=row["python"]["minor"],
+        python_full_version=row["python"]["version"],
+        sys_platform={"macos": "darwin", "windows": "win32", "linux": "linux"}[system],
+        platform_system={"macos": "Darwin", "windows": "Windows", "linux": "Linux"}[system],
+        platform_machine=machine,
+        extra=extra,
+    )
+    return environment
+
+
 def validate_requirements(project, metadata):
     """Compare actual dependency meaning across every supported install environment.
 
@@ -91,20 +113,7 @@ def validate_requirements(project, metadata):
     extras = set(project.get("optional-dependencies", {}))
     assert set(metadata.get_all("Provides-Extra", [])) == extras
     for row, extra in itertools.product(release_matrix()["include"], ["", *sorted(extras), "unknown"]):
-        position = row["platform"]
-        system = position["id"].split("-", 1)[0]
-        # Marker evaluation also supplies the explicit extra, beyond packaging's
-        # closed default-environment TypedDict. Keep one ordinary string map.
-        environment = cast(dict[str, str], default_environment())
-        environment.update(
-            python_version=row["python"]["minor"],
-            python_full_version=row["python"]["version"],
-            sys_platform={"macos": "darwin", "windows": "win32", "linux": "linux"}[system],
-            platform_system={"macos": "Darwin", "windows": "Windows", "linux": "Linux"}[system],
-            platform_machine=("ARM64" if system == "windows" else "arm64") if position["arch"] == "arm64"
-                             else ("AMD64" if system == "windows" else "x86_64"),
-            extra=extra,
-        )
+        environment = marker_environment(row, extra)
         selected = lambda values: {key(item) for item in values
                                    if item.marker is None or item.marker.evaluate(environment)}
         assert selected(actual) == selected(expected), (row, extra, actual, expected)
