@@ -48,15 +48,21 @@ fn temporal(source: &Field) -> Result<Option<&TimeZone>, Failure> {
 const TIME_NAMES: [&str; 9] = [
     "tm_year", "tm_mon", "tm_mday", "tm_hour", "tm_min", "tm_sec", "tm_wday", "tm_yday", "tm_isdst",
 ];
+const ISO_FIELDS: [(&str, DataType); 3] = [
+    ("year", DataType::Int64),
+    ("week", DataType::UInt32),
+    ("day", DataType::UInt32),
+];
+
 fn meta(source: &Field, options: &Options) -> Result<Field, Failure> {
     temporal(source)?;
     let dtype = match options.code {
         0..=12 | 20..=31 => DataType::Int64,
         100..=109 => DataType::Boolean,
         201 => DataType::Struct(
-            ["year", "week", "day"]
+            ISO_FIELDS
                 .into_iter()
-                .map(|name| Field::new(name.into(), DataType::UInt32))
+                .map(|(name, dtype)| Field::new(name.into(), dtype))
                 .collect(),
         ),
         202 | 203 => DataType::Struct(
@@ -247,7 +253,7 @@ fn table(source: &Series, options: &Options) -> Result<Series, Failure> {
             .map_err(|e| Failure::new(Kind::Value, e))?
     };
     let names: Vec<&str> = if iso {
-        vec!["year", "week", "day"]
+        ISO_FIELDS.into_iter().map(|(name, _)| name).collect()
     } else {
         TIME_NAMES.to_vec()
     };
@@ -277,14 +283,7 @@ fn table(source: &Series, options: &Options) -> Result<Series, Failure> {
                     let date = crate::calendar::from_ordinal(ordinal)
                         .map_err(|e| Failure::new(Kind::Capacity, e))?;
                     let (fields, first) = if iso {
-                        let values = crate::calendar_query::iso_at(date[0], ordinal)?;
-                        if !(0..=i64::from(u32::MAX)).contains(&values[0]) {
-                            return Err(Failure::new(
-                                Kind::Capacity,
-                                "ISO year is outside the UInt32 range; use isoyear() for signed calendar years",
-                            ));
-                        }
-                        (values, 0)
+                        (crate::calendar_query::iso_at(date[0], ordinal)?, 0)
                     } else {
                         let first = crate::calendar::checked_ordinal(date[0], 1, 1)
                             .map_err(|e| Failure::new(Kind::Capacity, e))?;
@@ -334,7 +333,7 @@ fn table(source: &Series, options: &Options) -> Result<Series, Failure> {
     for (index, builder) in builders.into_iter().enumerate() {
         let column = builder.finish().into_series();
         let dtype = if iso {
-            DataType::UInt32
+            ISO_FIELDS[index].1.clone()
         } else {
             match index {
                 0 => DataType::Int64,

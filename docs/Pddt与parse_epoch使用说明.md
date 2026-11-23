@@ -163,7 +163,9 @@ Delta／timedelta 的真实子类如果覆盖相应算术协议，整列调用�
 
 `round(freq)` 中点取偶，ceil 不更早，floor 不更晚，支持 `"15min"`、`"500ns"` 等正固定频率。Snap 使用 `snap(unit="s")`，取最近有效周期起点、等距取较晚；支持单倍年／季度／月／周／日、原生时钟精度及已保存月份／星期名，不支持任意多倍频率或业务日历。`fsp(precision)` 明确截去更细小数秒。
 
-日历整数查询和 isoyear／isoweek／isoweekday 返回可空整数 Index；NaT 变为 pd.NA。自有布尔查询在来源 NaT 处为 False。标准 pandas 日期属性保标准结果形式；year 对宽年份避免32位回绕。`isocalendar()` 保 year／week／day 三列 UInt32，真实 ISO 年超出此表容量会报 OverflowError，可改用 signed `isoyear()`。
+日历整数查询和 isoyear／isoweek／isoweekday 返回可空整数 Index，NaT 变为 pd.NA。自有布尔查询在来源 NaT 处为 False。标准 pandas 日期属性保标准结果形式，year 对宽年份避免 32 位回绕。
+
+`isocalendar()` 返回 `year`、`week`、`day` 三列，保留原日期索引。ISO 年表示这一周属于哪一年，也可以为负数。`0000-01-01` 属于 ISO 年 −1 的第 52 周、星期六。`2021-01-01` 属于 ISO 年 2020 的第 53 周。`year` 用可空 `Int64`，`week` 和 `day` 用可空 `UInt32`。缺失日期的三个单元格均为 `pd.NA`。
 
 ```python
 x = Pddt([np.datetime64(2, "s")])

@@ -1838,14 +1838,13 @@ class Pldt(pl.Series):
         ...
 
     def isoyear(self) -> pl.Series:
-        """Signed ISO week year, independently of UInt32 table capacity.
-        
+        """Get just the ISO week year. It can be negative.
+
         Returns
         -------
         pl.Series
-            Native result Series with the operation's dtype and original row order/null role; it is not
-            wrapped as Pldt.
-        
+            A native Int64 Series with the input column name and nulls for missing dates.
+
         Raises
         ------
         TypeError
@@ -1853,7 +1852,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            A date falls outside the supported range of its named time zone."""
+            A date falls outside the supported range of its named time zone.
+        """
         ...
 
     def isoweek(self) -> pl.Series:
@@ -2305,32 +2305,33 @@ class Pldt(pl.Series):
         ...
 
     def isocalendar(self) -> pl.Series:
-        """Return the ISO year, week, and weekday in a Struct with UInt32 fields.
-
-        For a negative ISO year, use isoyear() to read a signed integer.
-        The same named time zone date range applies to isoyear().
+        """Get the ISO week year, week number, and weekday for each date in this column.
 
         Returns
         -------
         pl.Series
-            Native result Series with the operation's dtype and original row order/null role; it is not
-            wrapped as Pldt.
+            A native Struct Series that keeps the input column name.
+            The year field uses Int64 and can be negative. The week and day
+            fields use UInt32, in that order after year. A missing date gives a
+            null result. Weekdays run from Monday (1) to Sunday (7).
 
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The ISO year falls outside the UInt32 range.
             A date falls outside the supported range of its named time zone.
+
+        Notes
+        -----
+        Read the Pldt example at https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-queries.html#pldt-extract-iso-week-struct
 
         Examples
         --------
         >>> from rstimes import Pldt
-        >>> Pldt(["2021-01-01"]).isocalendar().to_list()
-        [{'year': 2020, 'week': 53, 'day': 5}]
+        >>> dates = Pldt(["0000-01-01", None], unit="us", name="event")
+        >>> print(dates.isocalendar().to_list())
+        [{'year': -1, 'week': 52, 'day': 6}, None]
         """
         ...
 
@@ -6228,14 +6229,13 @@ class _SeriesNamespace(Generic[_PldtT]):
         ...
 
     def isoyear(self) -> pl.Series:
-        """Signed ISO week year, independently of UInt32 table capacity.
-        
+        """Get just the ISO week year. It can be negative.
+
         Returns
         -------
         pl.Series
-            Native result Series with the operation's dtype and original row order/null role; it is not
-            wrapped as Pldt.
-        
+            A native Int64 Series with the input column name and nulls for missing dates.
+
         Raises
         ------
         TypeError
@@ -6243,7 +6243,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            A date falls outside the supported range of its named time zone."""
+            A date falls outside the supported range of its named time zone.
+        """
         ...
 
     def isoweek(self) -> pl.Series:
@@ -6695,35 +6696,34 @@ class _SeriesNamespace(Generic[_PldtT]):
         ...
 
     def isocalendar(self) -> pl.Series:
-        """Return the ISO year, week, and weekday in a Struct with UInt32 fields.
-
-        For a negative ISO year, use isoyear() to read a signed integer.
-        The same named time zone date range applies to isoyear().
+        """Read the ISO week fields from a Polars date Series.
 
         Returns
         -------
         pl.Series
-            Native result Series with the operation's dtype and original row order/null role; it is not
-            wrapped as Pldt.
+            A native Struct Series that keeps the input column name.
+            The year field uses Int64 and can be negative. The week and day
+            fields use UInt32, in that order after year. A missing date gives a
+            null result. Weekdays run from Monday (1) to Sunday (7).
 
         Raises
         ------
         TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
+            An unsupported source dtype cannot be read as a date column.
         OverflowError
-            The ISO year falls outside the UInt32 range.
             A date falls outside the supported range of its named time zone.
+
+        Notes
+        -----
+        Read the Series example at https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-output.html#pldt-series-isocalendar
 
         Examples
         --------
         >>> import polars as pl
         >>> import rstimes.pldt
-        >>> source = pl.Series('event', ['2021-01-01']).str.to_datetime(time_unit='us')
-        >>> dates = source.pldt.isocalendar()
-        >>> print(dates.to_list())
-        [{'year': 2020, 'week': 53, 'day': 5}]
+        >>> source = pl.Series("event", ["2021-01-01", None]).str.to_datetime(time_unit="us")
+        >>> print(source.pldt.isocalendar().to_list())
+        [{'year': 2020, 'week': 53, 'day': 5}, None]
         """
         ...
 
@@ -10156,18 +10156,18 @@ class _ExprNamespace:
         ...
 
     def isoyear(self) -> pl.Expr:
-        """Signed ISO week year, independently of UInt32 table capacity.
+        """Get just the ISO week year. It can be negative.
 
         Returns
         -------
         pl.Expr
-            A native expression evaluated by Polars in select or collect.
+            An expression that produces an Int64 Series with nulls for missing dates.
 
         Raises
         ------
         polars.exceptions.ComputeError
-            An expression with unsupported input or an invalid value can fail during
-            planning or evaluation.
+            A date outside the supported range of its named time zone fails
+            during select or collect. Unsupported input types can fail during planning.
 
         Notes
         -----
@@ -10673,35 +10673,36 @@ class _ExprNamespace:
         ...
 
     def isocalendar(self) -> pl.Expr:
-        """Return the ISO year, week, and weekday in a Struct with UInt32 fields.
-
-        Use isoyear() to read ISO years as signed integers.
+        """Build an expression that returns the ISO week fields for each date.
 
         Returns
         -------
         pl.Expr
-            A native expression evaluated by Polars in select or collect.
+            An expression that produces a Struct Series. It keeps the input
+            column name unless you set an alias.
+            The year field uses Int64 and can be negative. The week and day
+            fields use UInt32, in that order after year. A missing date gives a
+            null result. Weekdays run from Monday (1) to Sunday (7).
 
         Raises
         ------
         polars.exceptions.ComputeError
-            An expression can fail during planning or evaluation. An ISO year
-            outside the UInt32 range fails during select or collect.
+            A date outside the supported range of its named time zone fails
+            during select or collect. Unsupported input types can fail during planning.
 
         Notes
         -----
-        Polars checks its input types when planning and evaluates values in select or collect.
-        An execution error can report a position within its input batch.
+        Read the query example at https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-queries.html#expr-iso-field-structure
 
         Examples
         --------
         >>> import polars as pl
         >>> import rstimes.pldt
-        >>> frame = pl.DataFrame([pl.Series('event', ['2021-01-01']).str.to_datetime(time_unit='us')])
-        >>> expr = pl.col('event').pldt.isocalendar()
-        >>> dates = frame.select(expr)['event']
-        >>> print(dates.to_list())
-        [{'year': 2020, 'week': 53, 'day': 5}]
+        >>> source = pl.Series("event", ["2021-01-01", None]).str.to_datetime(time_unit="us")
+        >>> frame = source.to_frame()
+        >>> expr = pl.col("event").pldt.isocalendar()
+        >>> print(frame.lazy().select(expr).collect()["event"].to_list())
+        [{'year': 2020, 'week': 53, 'day': 5}, None]
         """
         ...
 

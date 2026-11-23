@@ -2206,20 +2206,26 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def isocalendar(self) -> pd.DataFrame:
-        """Return standard ISO year, week and weekday columns.
+        """Get the ISO week year, week number, and weekday for each date.
 
         Returns
         -------
         pandas.DataFrame
-            Three nullable UInt32 columns, indexed by this date index. Missing
-            dates give three missing cells. Negative ISO years, and ISO years
-            beyond UInt32, raise OverflowError; isoyear() supports signed years.
+            The table keeps your date index and its name. The year column uses
+            nullable Int64 and can be negative. The week and day columns use
+            nullable UInt32. A missing date leaves all three cells missing.
+            Weekdays run from Monday (1) to Sunday (7).
+
+        Notes
+        -----
+        Read the same-version example at https://aresjef.github.io/rsTimes/1.1.1/guides/pddt-boundaries.html#pddt-iso-week-year
 
         Examples
         --------
         >>> from rstimes import Pddt
-        >>> Pddt(["2021-01-01"]).isocalendar()["week"].tolist()
-        [53]
+        >>> dates = Pddt(["0000-01-01", None], unit="us", name="event")
+        >>> print(dates.isocalendar()["year"].tolist())
+        [-1, <NA>]
         """
         ...
 

@@ -219,11 +219,6 @@ fn iso_table<'py>(
             let [year, _, _] = crate::calendar::from_ordinal(day)
                 .map_err(crate::error_context::overflow)?;
             let result = iso_at(year, day)?;
-            if !(0..=i64::from(u32::MAX)).contains(&result[0]) {
-                return Err(crate::error_context::overflow(
-                    "ISO year is outside the UInt32 range; use isoyear() for signed calendar years",
-                ));
-            }
             cached = Some((day, result));
             Ok(result)
         })()

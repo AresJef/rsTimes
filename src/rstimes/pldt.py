@@ -2407,13 +2407,12 @@ class _QueryMethods:
         return _query_operation(self, 109, "is_leap_year")
 
     def isoyear(self) -> pl.Series | pl.Expr:
-        """Signed ISO week year, independently of UInt32 table capacity.
+        """Get just the ISO week year. It can be negative.
 
         Returns
         -------
         pl.Series | pl.Expr
-            A date column or query result for direct calls. The Expr accessor returns
-            a native expression to evaluate inside a query.
+            A native Int64 Series with nulls for missing dates, or an expression that produces it.
 
         Raises
         ------
@@ -2982,60 +2981,65 @@ class _QueryMethods:
         return _query_operation(self, 108, "is_future")
 
     def isocalendar(self) -> pl.Series | pl.Expr:
-        """Return the ISO year, week, and weekday in a Struct with UInt32 fields.
-
-        For a negative ISO year, use isoyear() to read a signed integer.
-        The same named time zone date range applies to isoyear().
+        """Get the ISO week year, week number, and weekday for each date.
 
         Returns
         -------
         pl.Series | pl.Expr
-            Pldt and Series.pldt return a native Struct Series.
-            Expr.pldt returns an expression that produces the same Struct.
+            Pldt and Series.pldt return a native Struct Series with the input
+            column name. Expr.pldt builds an expression that produces the same
+            Struct. An explicit alias can set the expression's output name.
+            The year field uses Int64 and can be negative. The week and day
+            fields use UInt32, in that order after year. A missing date gives a
+            null result. Weekdays run from Monday (1) to Sunday (7).
 
         Raises
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
         OverflowError
-            For eager Pldt and Series.pldt calls, the ISO year falls outside the UInt32 range.
-            A date falls outside the supported range of its named time zone.
+            For eager Pldt and Series.pldt calls, a date can fit in the column
+            and still fall outside the supported range of its named time zone.
         polars.exceptions.ComputeError
-            An expression can fail during planning. An ISO year outside the UInt32
-            range or a date outside the supported range of a named time zone
-            fails during select or collect.
+            A date outside the supported range of its named time zone fails
+            during select or collect. Unsupported input types can fail during planning.
 
         Notes
         -----
-        Polars checks its input types when planning and evaluates values in select or collect.
-        An execution error can report a position within its input batch.
+        A query error can report the position within its input batch.
 
         Examples
         --------
+        On a Pldt
+
+        >>> from rstimes import Pldt
+        >>> dates = Pldt(["0000-01-01", None], unit="us", name="event")
+        >>> print(dates.isocalendar().to_list())
+        [{'year': -1, 'week': 52, 'day': 6}, None]
+
+        Read the example at https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-queries.html#pldt-extract-iso-week-struct
+
         On a native Polars Series
 
         >>> import polars as pl
         >>> import rstimes.pldt
-        >>> source = pl.Series('event', ['2021-01-01']).str.to_datetime(time_unit='us')
-        >>> dates = source.pldt.isocalendar()
-        >>> print(dates.to_list())
-        [{'year': 2020, 'week': 53, 'day': 5}]
+        >>> source = pl.Series("event", ["2021-01-01", None]).str.to_datetime(time_unit="us")
+        >>> print(source.pldt.isocalendar().to_list())
+        [{'year': 2020, 'week': 53, 'day': 5}, None]
+
+        Read the example at https://aresjef.github.io/rsTimes/1.1.1/guides/pldt-output.html#pldt-series-isocalendar
 
         In a Polars query
 
         >>> import polars as pl
         >>> import rstimes.pldt
-        >>> frame = pl.DataFrame([pl.Series('event', ['2021-01-01']).str.to_datetime(time_unit='us')])
-        >>> expr = pl.col('event').pldt.isocalendar()
-        >>> dates = frame.select(expr)['event']
-        >>> print(dates.to_list())
-        [{'year': 2020, 'week': 53, 'day': 5}]
+        >>> source = pl.Series("event", ["2021-01-01", None]).str.to_datetime(time_unit="us")
+        >>> frame = source.to_frame()
+        >>> expr = pl.col("event").pldt.isocalendar()
+        >>> print(frame.lazy().select(expr).collect()["event"].to_list())
+        [{'year': 2020, 'week': 53, 'day': 5}, None]
 
-        On a Pldt
-
-        >>> from rstimes import Pldt
-        >>> Pldt(["2021-01-01"]).isocalendar().to_list()
-        [{'year': 2020, 'week': 53, 'day': 5}]
+        Read the example at https://aresjef.github.io/rsTimes/1.1.1/guides/expressions-queries.html#expr-iso-field-structure
         """
         return _query_operation(self, 201, "isocalendar")
 
