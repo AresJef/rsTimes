@@ -2295,7 +2295,9 @@ class Pldt(pl.Series):
         ...
 
     def isocalendar(self) -> pl.Series:
-        """Return year/week/day as a native Struct with UInt32 fields.
+        """Return the ISO year, week, and weekday in a Struct with UInt32 fields.
+
+        Use isoyear() to read ISO years as signed integers.
 
         Returns
         -------
@@ -2310,7 +2312,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            An input date has an ISO year outside the UInt32 range.
 
         Examples
         --------
@@ -2321,7 +2323,10 @@ class Pldt(pl.Series):
         ...
 
     def timedf(self) -> pl.DataFrame:
-        """Read nine local time fields, including fractional seconds and fold.
+        """Read the nine local calendar and clock fields.
+
+        The fields are tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec,
+        tm_wday, tm_yday, and tm_isdst. tm_sec is the whole second of the minute.
 
         Returns
         -------
@@ -6664,7 +6669,9 @@ class _SeriesNamespace(Generic[_PldtT]):
         ...
 
     def isocalendar(self) -> pl.Series:
-        """Return year/week/day as a native Struct with UInt32 fields.
+        """Return the ISO year, week, and weekday in a Struct with UInt32 fields.
+
+        Use isoyear() to read ISO years as signed integers.
 
         Returns
         -------
@@ -6679,7 +6686,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            An input date has an ISO year outside the UInt32 range.
 
         Examples
         --------
@@ -6693,7 +6700,10 @@ class _SeriesNamespace(Generic[_PldtT]):
         ...
 
     def timedf(self) -> pl.DataFrame:
-        """Read nine local time fields, including fractional seconds and fold.
+        """Read the nine local calendar and clock fields.
+
+        The fields are tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec,
+        tm_wday, tm_yday, and tm_isdst. tm_sec is the whole second of the minute.
 
         Returns
         -------
@@ -10631,7 +10641,9 @@ class _ExprNamespace:
         ...
 
     def isocalendar(self) -> pl.Expr:
-        """Return year/week/day as a native Struct with UInt32 fields.
+        """Return the ISO year, week, and weekday in a Struct with UInt32 fields.
+
+        Use isoyear() to read ISO years as signed integers.
 
         Returns
         -------
@@ -10641,8 +10653,8 @@ class _ExprNamespace:
         Raises
         ------
         polars.exceptions.ComputeError
-            An expression with unsupported input or an invalid value can fail during
-            planning or evaluation.
+            An expression can fail during planning or evaluation. An ISO year
+            outside the UInt32 range fails during select or collect.
 
         Notes
         -----
@@ -10662,7 +10674,10 @@ class _ExprNamespace:
         ...
 
     def timedf(self) -> pl.Expr:
-        """Read nine local time fields, including fractional seconds and fold.
+        """Read the nine local calendar and clock fields.
+
+        The fields are tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec,
+        tm_wday, tm_yday, and tm_isdst. tm_sec is the whole second of the minute.
 
         Returns
         -------

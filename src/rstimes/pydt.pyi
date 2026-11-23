@@ -1627,9 +1627,11 @@ OverflowError
         Examples
         --------
         >>> from rstimes import Pydt
-        >>> value = Pydt(2024, 5, 7, 9, 30, fold=1)
-        >>> value.to_start_of("us") is value
-        True
+        >>> value = Pydt(2024, 3, 18, 14, 30)
+        >>> print(value.to_first_of("M").isoformat())
+        2024-03-01T14:30:00
+        >>> print(value.to_start_of("M").isoformat())
+        2024-03-01T00:00:00
         """
         ...
 

@@ -624,11 +624,12 @@ dict[str, int]
         
         Parameters
         ----------
-        mapping : dict[str, SupportsIndex] | None, default None
-            Replacement dictionary from words to this namespace's integer values. None
-            restores its defaults; an empty dictionary clears it. Values follow the same
-            bounds as add_*. Python and NumPy integers and valid __index__ objects
-            are accepted; bool, numpy.bool_, floats and numeric text are rejected.
+        mapping : dict | None, default None
+            A dictionary with string keys and integer values. Values can be Python
+            or NumPy integers or objects implementing __index__. Boolean values,
+            floats, and numeric text raise TypeError. Values follow the same bounds
+            as the corresponding add method. None restores the defaults. An empty
+            dictionary clears these rules.
         
         Returns
         -------
@@ -798,11 +799,12 @@ dict[str, int]
         
         Parameters
         ----------
-        mapping : dict[str, SupportsIndex] | None, default None
-            Replacement dictionary from words to this namespace's integer values. None
-            restores its defaults; an empty dictionary clears it. Values follow the same
-            bounds as add_*. Python and NumPy integers and valid __index__ objects
-            are accepted; bool, numpy.bool_, floats and numeric text are rejected.
+        mapping : dict | None, default None
+            A dictionary with string keys and integer values. Values can be Python
+            or NumPy integers or objects implementing __index__. Boolean values,
+            floats, and numeric text raise TypeError. Values follow the same bounds
+            as the corresponding add method. None restores the defaults. An empty
+            dictionary clears these rules.
         
         Returns
         -------
@@ -889,11 +891,12 @@ dict[str, int]
         
         Parameters
         ----------
-        mapping : dict[str, SupportsIndex] | None, default None
-            Replacement dictionary from words to this namespace's integer values. None
-            restores its defaults; an empty dictionary clears it. Values follow the same
-            bounds as add_*. Python and NumPy integers and valid __index__ objects
-            are accepted; bool, numpy.bool_, floats and numeric text are rejected.
+        mapping : dict | None, default None
+            A dictionary with string keys and integer values. Values can be Python
+            or NumPy integers or objects implementing __index__. Boolean values,
+            floats, and numeric text raise TypeError. Values follow the same bounds
+            as the corresponding add method. None restores the defaults. An empty
+            dictionary clears these rules.
         
         Returns
         -------
@@ -978,11 +981,12 @@ dict[str, int]
         
         Parameters
         ----------
-        mapping : dict[str, SupportsIndex] | None, default None
-            Replacement dictionary from words to this namespace's integer values. None
-            restores its defaults; an empty dictionary clears it. Values follow the same
-            bounds as add_*. Python and NumPy integers and valid __index__ objects
-            are accepted; bool, numpy.bool_, floats and numeric text are rejected.
+        mapping : dict | None, default None
+            A dictionary with string keys and integer values. Values can be Python
+            or NumPy integers or objects implementing __index__. Boolean values,
+            floats, and numeric text raise TypeError. Values follow the same bounds
+            as the corresponding add method. None restores the defaults. An empty
+            dictionary clears these rules.
         
         Returns
         -------
@@ -1067,11 +1071,12 @@ dict[str, int]
         
         Parameters
         ----------
-        mapping : dict[str, SupportsIndex] | None, default None
-            Replacement dictionary from words to this namespace's integer values. None
-            restores its defaults; an empty dictionary clears it. Values follow the same
-            bounds as add_*. Python and NumPy integers and valid __index__ objects
-            are accepted; bool, numpy.bool_, floats and numeric text are rejected.
+        mapping : dict | None, default None
+            A dictionary with string keys and integer values. Values can be Python
+            or NumPy integers or objects implementing __index__. Boolean values,
+            floats, and numeric text raise TypeError. Values follow the same bounds
+            as the corresponding add method. None restores the defaults. An empty
+            dictionary clears these rules.
         
         Returns
         -------

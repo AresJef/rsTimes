@@ -372,6 +372,12 @@ fn construct<'py>(
 /// OverflowError
 ///     An integer conversion or result exceeds the supported range.
 ///
+///
+/// Notes
+/// -----
+/// Boolean options accept Python bool and numpy.bool_. yearfirst and dayfirst
+/// also accept None to use the Configs or library default for that option.
+///
 /// Examples
 /// --------
 /// >>> from rstimes import parse_str
@@ -497,6 +503,12 @@ fn parse_string<'py>(
 ///     A numeric scalar is NaN or a date input is missing; output constructor errors retain their original type.
 /// OverflowError
 ///     An integer conversion or result exceeds the supported range.
+///
+///
+/// Notes
+/// -----
+/// Boolean options accept Python bool and numpy.bool_. yearfirst and dayfirst
+/// also accept None to use the Configs or library default for that option.
 ///
 /// Examples
 /// --------

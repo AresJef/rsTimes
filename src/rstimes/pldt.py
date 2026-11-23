@@ -2914,20 +2914,25 @@ class _QueryMethods:
         return _query_operation(self, 108, "is_future")
 
     def isocalendar(self) -> pl.Series | pl.Expr:
-        """Return year/week/day as a native Struct with UInt32 fields.
+        """Return the ISO year, week, and weekday in a Struct with UInt32 fields.
+
+        Use isoyear() to read ISO years as signed integers.
 
         Returns
         -------
         pl.Series | pl.Expr
-            A date column or query result for direct calls. The Expr accessor returns
-            a native expression to evaluate inside a query.
+            Pldt and Series.pldt return a native Struct Series.
+            Expr.pldt returns an expression that produces the same Struct.
 
         Raises
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        OverflowError
+            An eager input has an ISO year outside the UInt32 range.
         polars.exceptions.ComputeError
-            A Polars expression can fail during planning or evaluation.
+            An expression can fail during planning or evaluation. An ISO year
+            outside the UInt32 range fails during select or collect.
 
         Notes
         -----
@@ -2964,7 +2969,10 @@ class _QueryMethods:
         return _query_operation(self, 201, "isocalendar")
 
     def timedf(self) -> pl.DataFrame | pl.Expr:
-        """Read nine local time fields, including fractional seconds and fold.
+        """Read the nine local calendar and clock fields.
+
+        The fields are tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec,
+        tm_wday, tm_yday, and tm_isdst. tm_sec is the whole second of the minute.
 
         Returns
         -------
