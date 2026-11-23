@@ -25,7 +25,9 @@ print(schedule.isoformat().to_list())
 ```
 
 Use `24h` for elapsed days. The same start then reaches 13:00 on
-March 10. Set `inclusive` to choose boundary inclusion.
+March 10. Range `inclusive` accepts `both`, `left`, `right`, and `neither`.
+Date `Series.pldt.diff` and `Expr.pldt.diff` use `one`, `both`, or `neither`
+to count crossed date boundaries. Polars' `Series.diff` compares adjacent rows.
 For generated regional clocks, ambiguous masks use the full sequence
 before endpoint filtering. Every supplied endpoint must fit its unit
 even if it is excluded or `periods=0`. `normalize=True` clears the

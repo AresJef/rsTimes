@@ -1,8 +1,8 @@
 # Work with timezone, copy, and error protocols
 
-Version 1.0.0 corrects three beta behaviors below. Each example
-uses the published release. The external Pydt timezone protocol
-boundary still applies.
+The first sections explain changes to timezone and object protocols
+since the beta. The final section shows how to recover from an inexact
+Polars unit conversion in this release.
 
 ## Choose a representable target timezone
 
@@ -125,9 +125,8 @@ event = pl.Series("event", [1000, -1500, None], dtype=pl.Datetime("ns"))
 try:
     event.pldt.as_unit("us", round_ok=False)
 except ValueError as error:
-    message = str(error)
-    print(message.split(":", 1)[0])
-    print("data[1]" in message, "round_ok=True" in message)
+    diagnostic = str(error)
+    print(diagnostic)
 
 rounded = event.pldt.as_unit("us", round_ok=True)
 print(rounded.to_physical().to_list())
@@ -136,8 +135,7 @@ print(rounded.to_physical().to_list())
 **Output**
 
 ```text
-Series.pldt.as_unit()
-True True
+Series.pldt.as_unit(): data[1]: precision cannot be preserved in 'us'; keep the source unit or pass round_ok=True to round toward the earlier tick
 [1, -2, None]
 ```
 

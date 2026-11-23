@@ -8,6 +8,7 @@ import hashlib
 import importlib.metadata
 import json
 import re
+import runpy
 from pathlib import Path
 import rstimes
 
@@ -17,6 +18,7 @@ args = parser.parse_args()
 args.output = args.output / 'rstimes'
 args.output.mkdir(parents=True, exist_ok=True)
 package = Path(rstimes.__file__).resolve().parent
+present_public_types = runpy.run_path(str(Path(__file__).with_name("public_types.py")))["present"]
 public_classes = {"Delta", "Configs", "Pydt", "Pddt", "Pldt", "RstimesError", "ParseError", "ConfigError", "DependencyWarning"}
 public_functions = {"parse", "parse_str", "parse_to_epoch", "parse_to_integer", "parse_to_float",
                     "to_unix_ms", "from_unix_ms"}
@@ -45,15 +47,21 @@ def for_website(node, module):
         else:
             rendered.append(re.sub(r"(?<![`\w])numpy\.bool_(?![`\w])", "``numpy.bool_``", line))
     content = "\n".join(rendered)
-    content = re.sub(r"(?m)^Boolean options accept", "Notes\n-----\nBoolean options accept", content)
+    if module == "parser" and getattr(node, "name", None) in ("parse", "parse_str", "parse_to_epoch"):
+        headings = list(re.finditer(r"(?m)^Notes\n-----$", content))
+        boolean = content.index("Boolean options accept")
+        if len(headings) != 1 or boolean < headings[0].end():
+            raise ValueError(f"Place Boolean options in one Notes section for {node.name}.")
     node.body[0].value.value = content
 
 
+type_definitions = {}
 for name in ("__init__", "delta", "parser", "pydt", "pddt", "pldt", "errors"):
     tree = ast.parse((package / (name + ".pyi")).read_text())
     for node in ast.walk(tree):
         if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef)):
             for_website(node, name)
+    type_definitions[name] = present_public_types(tree)
     if name == 'pldt':
         namespaces = []
         for cls in (n for n in tree.body if isinstance(n, ast.ClassDef) and n.name in ('_SeriesNamespace', '_ExprNamespace')):
@@ -74,6 +82,7 @@ for name in ("__init__", "delta", "parser", "pydt", "pddt", "pldt", "errors"):
     tree.body = [n for n in tree.body if not isinstance(n, ast.ClassDef) or n.name in public_classes]
     tree.body = [n for n in tree.body if not isinstance(n, ast.FunctionDef) or n.name in public_functions]
     (args.output / (name + ".pyi")).write_text(ast.unparse(tree) + "\n")
+(args.output / "public-types.json").write_text(json.dumps(type_definitions, indent=2) + "\n")
 provenance = {
     'product_version': importlib.metadata.version('rstimes'),
     'native': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in package.iterdir() if p.suffix in ('.so', '.pyd')},

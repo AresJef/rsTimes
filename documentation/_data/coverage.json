@@ -45946,7 +45946,8 @@
       "examples": [
         "pldt-calendar-row-arguments",
         "pldt-calendar-relative-components",
-        "pldt-add-cancelling-fine-amounts"
+        "pldt-add-cancelling-fine-amounts",
+        "pldt-add-calendar-month"
       ],
       "profiles": [
         "full",
@@ -45971,8 +45972,10 @@
       "scenarios": [
         "all11components",
         "all4arithmetic-directions",
+        "calendar-month",
         "calendar-offset",
         "calendar-vs-elapsed",
+        "end-of-month",
         "exact-final-precision",
         "exact-length",
         "fixed-unit",
@@ -78087,7 +78090,8 @@
       "examples": [
         "pydt-first-last-days",
         "pydt-boundary-invalid-inputs",
-        "reader-pydt-month-boundaries"
+        "reader-pydt-month-boundaries",
+        "pydt-start-of-month"
       ],
       "profiles": [
         "core",
@@ -78107,7 +78111,9 @@
         "eager",
         "empty-name",
         "invalid-name",
+        "microsecond-scalar",
         "month-boundaries",
+        "month-boundary",
         "named-month",
         "query-false",
         "query-true",

@@ -6,17 +6,23 @@
 ```python
 from rstimes import Pydt
 
-value = Pydt(2024, 2, 15, 12)
+value = Pydt(2024, 2, 15, 14, 30)
+print(value.to_first_of("M").isoformat())
 print(value.to_start_of("M").isoformat())
+print(value.to_start_of("h").isoformat())
 ```
 
 **Output**
 
 ```text
+2024-02-01T14:30:00
 2024-02-01T00:00:00
+2024-02-15T14:00:00
 ```
 
-`to_start_of` moves to the first available instant within the period.
+`to_first_of("M")` chooses February 1 and keeps 14:30.
+`to_start_of("M")` gives the first valid instant of February, at midnight here.
+For an hour, `to_start_of("h")` moves 14:30 to 14:00.
 `to_end_of` moves to its last available instant. A microsecond is the
 smallest step. Use `to_first_of` and `to_last_of` to choose the first or
 last day while keeping the original clock where possible. `normalize()`
@@ -64,7 +70,8 @@ print(value.fsp(3).isoformat())
 
 `fsp` truncates the value's fraction to the requested decimal places.
 Zero clears the fractional part. Six or more retain its available
-microseconds. A negative precision raises `ValueError`.
+microseconds. A negative precision raises `ValueError`. Pddt and Pldt can
+also store nanoseconds.
 
 ## Count the midnight boundaries between two datetimes
 

@@ -36,7 +36,7 @@ parser can fit recognized fields to their valid ranges.
 | --- | --- |
 | Native Polars Datetime | The declared ms, us or ns unit. |
 | Native Date, supported dates coarser than milliseconds, empty or all-missing untyped input | Milliseconds. |
-| Ordinary date strings and Python datetimes | Microseconds. Seven to nine fractional text digits declare ns. |
+| Ordinary date strings and Python datetimes | Microseconds. Up to six fractional text digits use us. Seven through nine declare ns, including trailing zeros. |
 | Bare ticks | Nanoseconds. |
 
 An explicit `unit` is checked for both precision and int64 capacity.

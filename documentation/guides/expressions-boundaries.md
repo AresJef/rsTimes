@@ -64,16 +64,18 @@ Fixed grids can also promote a native Date.
 ```python
 import polars as pl
 import rstimes.pldt
-frame = pl.DataFrame([pl.Series('event', [43_200_000_000, None], dtype=pl.Datetime('us'))])
-expr = pl.col('event').pldt.snap('D')
-dates = frame.select(expr)['event']
-print(dates.to_physical().to_list())
+
+source = pl.Series("event", ["2024-01-02 11:59", "2024-01-02 12:00", None])
+frame = pl.DataFrame([source.str.to_datetime(time_unit="us")])
+expr = pl.col("event").pldt.snap("D")
+dates = frame.select(expr)["event"]
+print(dates.dt.strftime("%Y-%m-%dT%H:%M:%S").to_list())
 ```
 
 **Output**
 
 ```text
-[86400000000, None]
+['2024-01-02T00:00:00', '2024-01-03T00:00:00', None]
 ```
 
 ## Compare a month’s calendar days and exact boundaries

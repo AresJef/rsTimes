@@ -108,6 +108,10 @@ exact conversion. Select or collect the expression to get the new column.
 
 ## Move to the next month or set calendar fields
 
+`to_next_month()` fits January 31 to February 29 and keeps the 14:30 input clock.
+`to_datetime(month=2, day=31, hour=9)` also fits to February 29 and sets the hour to 9.
+The minute stays at 30, so the second result is 09:30.
+
 (reader-expr-month-and-fields)=
 ```python
 import polars as pl
@@ -130,6 +134,9 @@ print(frame.select(edited.pldt.strftime('%Y-%m-%d %H:%M'))['event'].to_list()[0]
 
 
 ## Subtract a calendar month through Delta
+
+Subtracting a one-month Delta from January 31 lands on December 31 of the
+previous year. December has a 31st, and the clock stays at 14:30.
 
 (reader-expr-subtract-delta)=
 ```python

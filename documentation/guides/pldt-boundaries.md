@@ -82,15 +82,17 @@ second within the existing date unit.
 ```python
 import polars as pl
 import rstimes.pldt
-source = pl.Series('event', [43_200_000_000, None], dtype=pl.Datetime('us'))
-dates = source.pldt.snap('D')
-print(dates.to_physical().to_list())
+
+source = pl.Series("event", ["2024-01-02 11:59", "2024-01-02 12:00", None])
+source = source.str.to_datetime(time_unit="us")
+dates = source.pldt.snap("D")
+print(dates.isoformat().to_list())
 ```
 
 **Output**
 
 ```text
-[86400000000, None]
+['2024-01-02T00:00:00', '2024-01-03T00:00:00', None]
 ```
 
 ## Compare a month’s calendar days and exact boundaries
@@ -125,6 +127,9 @@ First and last choose calendar days. Start and end choose the first and last val
 
 
 ## Compare a month’s calendar days and exact boundaries on a Series
+
+Start with a native Polars Series to call its registered accessor. The
+Pldt example above starts with a concrete date column instead.
 
 (reader-series-month-boundaries)=
 ```python

@@ -77,6 +77,25 @@ print(adjusted.isoformat().to_list())
 ['2024-02-28T00:00:00', None]
 ```
 
+## Add one calendar month
+
+(pldt-add-calendar-month)=
+```python
+from rstimes import Pldt
+
+events = Pldt(["2024-01-31 14:30", None], unit="us")
+print(events.add(months=1).isoformat().to_list())
+```
+
+**Output**
+
+```text
+['2024-02-29T14:30:00', None]
+```
+
+The original day is past the end of February. The result keeps 14:30 and
+the missing row.
+
 ## Add a calendar offset at the existing unit
 
 (pldt-add-cancelling-fine-amounts)=
@@ -104,15 +123,16 @@ day intent. For elapsed-duration arithmetic, see [use Delta and duration](pldt-a
 ```python
 import polars as pl
 import rstimes.pldt
-source = pl.Series('event', [1, None], dtype=pl.Datetime('us'))
-dates = source.pldt.add(microseconds=1, nanoseconds=-1000)
-print(dates.to_physical().to_list())
+
+source = pl.Series("event", ["2024-01-31 14:30", None]).str.to_datetime(time_unit="us")
+dates = source.pldt.add(months=1)
+print(dates.isoformat().to_list())
 ```
 
 **Output**
 
 ```text
-[1, None]
+['2024-02-29T14:30:00', None]
 ```
 
 ## Move to the next month or set calendar fields

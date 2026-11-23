@@ -89,6 +89,8 @@ def setup(app):
     examples = runpy.run_path(str(HERE / '_tools/link_examples.py'))
     app.connect('builder-inited', examples['load_links'])
     app.connect('doctree-read', examples['link_examples'])
+    public_types = runpy.run_path(str(HERE / '_tools/public_types.py'))
+    app.connect('doctree-read', public_types['link_types'])
     integrity = runpy.run_path(str(HERE / '_tools/build_integrity.py'))
     app.connect('builder-inited', integrity['build_started'], priority=900)
     app.connect('build-finished', integrity['build_finished'], priority=900)

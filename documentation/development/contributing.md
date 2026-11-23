@@ -25,9 +25,10 @@ optional static types. The repository's
 [installed-package type gate](https://github.com/AresJef/rsTimes/blob/v1.1.1/docs/type-checking.md)
 covers typed interfaces and retained negative tests.
 
-Official comparison demos use a separate oracle environment.
-See the [demo guide](https://github.com/AresJef/rsTimes/blob/v1.1.1/demo/README.md)
-for launcher and interpreter selection.
+Use the [1.1.1 demo guide](https://github.com/AresJef/rsTimes/blob/v1.1.1/demo/README.md)
+from the v1.1.1 tag. With that release's wheel and manifest, the launcher
+runs Delta, Parser and Pydt in the oracle environment and Pddt in the
+main environment. The guide lists both environments and all four commands.
 
 ## Make a behavior change reviewable
 

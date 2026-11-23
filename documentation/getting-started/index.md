@@ -37,8 +37,10 @@ February, which is February 29 in 2024. The result is a Python `date`.
   [Parse dates in a Polars query](polars-query.md) to see how a missing value is handled.
 
 [Choose a date API for your data](choose.md) to compare return types.
-[Installation](install.md) covers the optional extras and supported interpreters. If you used the beta, read
-[what changed in 1.1.1](../compatibility/migration.md).
+[Installation](install.md) covers the optional extras and supported interpreters.
+Upgrading from a stable release or a beta? Start with the
+[1.1.1 migration guide](../compatibility/migration.md). It also links to
+the original beta-to-1.0.0 instructions.
 
 ```{toctree}
 :hidden:

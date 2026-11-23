@@ -10368,7 +10368,8 @@
     {
       "id": "pydt-start-of-month",
       "covers": [
-        "rstimes.Pydt.to_start_of"
+        "rstimes.Pydt.to_start_of",
+        "rstimes.Pydt.to_first_of"
       ],
       "format": "python",
       "profiles": [
@@ -10376,10 +10377,12 @@
         "full",
         "windows-full"
       ],
-      "expectation_basis": "The February boundary is February 1 at midnight.",
+      "expectation_basis": "The first day keeps 14:30. The month and hour start at midnight and 14:00 respectively.",
       "checks": [
         "assert type(value.to_start_of('M')) is Pydt",
-        "assert value.to_start_of('M') == Pydt(2024, 2, 1)"
+        "assert value.to_start_of('M') == Pydt(2024, 2, 1)",
+        "assert value.to_first_of('M') == Pydt(2024, 2, 1, 14, 30)",
+        "assert value.to_start_of('h') == Pydt(2024, 2, 15, 14)"
       ],
       "scenarios": [
         "month-boundary",
@@ -13836,13 +13839,13 @@
         "nogil314",
         "nogil315"
       ],
-      "expectation_basis": "The actual compiled free-threaded runtime adds one ns and leaves the GIL disabled.",
+      "expectation_basis": "January 31 plus a month is February 29. The GIL stays disabled at startup, after imports, and after the actual eager and lazy queries.",
       "checks": [
         "import os",
-        "assert before is sys._is_gil_enabled() is False",
+        "assert before is after_import is after_query is False",
         "assert os.environ.get('PYTHON_GIL') is None and 'gil' not in sys._xoptions",
-        "assert type(expr) is pl.Expr and type(events) is pl.Series and events.dtype == pl.Datetime('ns')",
-        "assert frame.select(expr)['event'].to_physical().to_list() == [124,None]"
+        "assert type(expr) is pl.Expr and type(events) is pl.Series and events.dtype == pl.Datetime('us')",
+        "assert selected.equals(events) and events.is_null().to_list() == [False, True]"
       ],
       "scenarios": [
         "free-threaded",
@@ -14276,7 +14279,9 @@
       "reviewed": true,
       "checks": [
         "assert rounded.name == \"event\" and rounded.dtype == pl.Datetime(\"us\")",
-        "assert rounded.is_null().to_list() == [False, False, True]"
+        "assert rounded.is_null().to_list() == [False, False, True]",
+        "assert diagnostic.startswith('Series.pldt.as_unit(): data[1]:')",
+        "assert \"in 'us'\" in diagnostic and 'round_ok=True' in diagnostic"
       ]
     },
     {
@@ -14410,7 +14415,7 @@
         "nogil314",
         "nogil315"
       ],
-      "expectation_basis": "One microsecond cancels minus 1000 nanoseconds. A null remains null.",
+      "expectation_basis": "January 31 becomes February 29 at the same time of day. The missing row stays null.",
       "scenarios": [
         "native-receiver",
         "eager"
@@ -14435,7 +14440,7 @@
         "nogil314",
         "nogil315"
       ],
-      "expectation_basis": "Midday is equally distant from neighboring midnights. The later start is 86400000000 microseconds from the epoch.",
+      "expectation_basis": "11:59 is closer to the same day's start. Noon ties and goes to the next day; null remains null.",
       "scenarios": [
         "native-receiver",
         "eager"
@@ -14686,7 +14691,7 @@
         "nogil314",
         "nogil315"
       ],
-      "expectation_basis": "Midday is equally distant from neighboring midnights. The later start is 86400000000 microseconds from the epoch.",
+      "expectation_basis": "11:59 is closer to the same day's start. Noon ties and goes to the next day; null remains null.",
       "scenarios": [
         "native-receiver",
         "select",
@@ -15977,6 +15982,28 @@
         "assert all(dates.isna().tolist() == [False, True] for dates in choices)",
         "assert [dates[0].day for dates in choices] == [11, 4, 18, 18]"
       ]
+    },
+    {
+      "id": "pldt-add-calendar-month",
+      "page": "guides/pldt-calendar.md",
+      "format": "python",
+      "covers": [
+        "rstimes.Pldt.add"
+      ],
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "scenarios": [
+        "calendar-month",
+        "end-of-month",
+        "null"
+      ],
+      "expectation_basis": "February 2024 ends on the 29th, and a calendar month preserves the time of day.",
+      "checks": []
     }
   ]
 }

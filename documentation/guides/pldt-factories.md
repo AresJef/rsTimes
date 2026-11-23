@@ -143,6 +143,8 @@ does not describe the precision of the system clock.
 
 ## Parse a fractional second using a format
 
+Use the Series accessor when the raw text is already in a Polars column.
+
 (pldt-series-strptime)=
 ```python
 import polars as pl
@@ -195,6 +197,9 @@ print(dates.dt.strftime('%Y-%m-%d %H:%M %z').to_list())
 ```
 
 ## Choose clock coordinates or POSIX instants
+
+The three factories below start with the same numeric value. Compare how
+each interprets it before choosing a timezone.
 
 (reader-pldt-three-epoch-inputs)=
 ```python
@@ -341,6 +346,8 @@ print(dates.isoformat().to_list())
 
 
 ## Decode nanoseconds with a supplied format
+
+Use the Pldt factory when a Python list supplies the input.
 
 (reader-pldt-formatted-text)=
 ```python
