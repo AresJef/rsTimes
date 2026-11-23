@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 
 TYPES = runpy.run_path(str(Path(__file__).with_name("public_types.py")))
+REGIONAL = runpy.run_path(str(Path(__file__).with_name("check_regional_raises.py")))
 PRIVATE_TYPES = set(TYPES["LABELS"]) | TYPES["INLINE"] | set(TYPES["EXTERNAL"])
 PRIVATE_TYPE = re.compile(r"\b(?:" + "|".join(map(re.escape, sorted(PRIVATE_TYPES))) + r")\b")
 KNOWN_BAD_COPY = re.compile(
@@ -86,9 +87,11 @@ def method_description(main, entry):
 
 
 def check(html):
-    pages = list((html / "api").rglob("*.html"))
+    pages = set((html / "api").rglob("*.html"))
+    pages.update(html / path for path in REGIONAL["API_PAGES"])
     problems, fields, notes_seen, page_records = [], [], [], {}
     query_fields, dict_fields = {}, {}
+    regional_raises = []
     root = html / "api/reference/rstimes"
 
     def fail(path, entry, field, reason):
@@ -182,13 +185,19 @@ def check(html):
                 fail(path, entry, "Raises", f"Explain {error} for the UInt32 ISO year and how to use isoyear()")
             else:
                 query_fields[entry] = text
+        for row in REGIONAL["check_api_page"](main, path.relative_to(html).as_posix()):
+            regional_raises.append(row)
+            for reason in row["problems"]:
+                fail(path, row["entry"], "Raises", reason)
+                problems[-1].update(receiver=row["receiver"], carrier=row["carrier"], line=row["line"])
         page_records[path.relative_to(html).as_posix()] = {
             "signatures": len(signatures),
             "type_links": len(main.select('a[href^="#type-"]')),
         }
     return dict(status="fail" if problems else "pass", pages=page_records,
                 api_pages=len(pages), literal_fields=fields, parser_notes=notes_seen,
-                timedf_and_iso_fields=query_fields, config_index_fields=dict_fields, problems=problems)
+                timedf_and_iso_fields=query_fields, config_index_fields=dict_fields,
+                regional_year_raises=regional_raises, problems=problems)
 
 
 def main():
