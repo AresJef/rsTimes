@@ -3404,8 +3404,9 @@ class Pddt(pd.DatetimeIndex):
         absolute : bool or numpy.bool_, default False
             Take the absolute boundary difference before inclusive adjustment.
         inclusive : {'one', 'both', 'neither'}, default 'one'
-            How to count boundaries between two dates: one, both or neither.
-            This option is independent of date_range endpoint inclusion.
+            Use 'one' for the signed difference in unit boundaries. 'both' increases
+            its magnitude, and 'neither' decreases it (a zero difference yields -1).
+            Use date_range's separate inclusive option when generating dates.
 
         Returns
         -------

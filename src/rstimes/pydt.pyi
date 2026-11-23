@@ -1963,12 +1963,7 @@ OverflowError
         ...
 
     def isoyear(self) -> int:
-        """Return the ISO week-numbering year.
-
-Returns
--------
-int
-    the ISO week-numbering year."""
+        """ISO week-numbering year. It can differ from the calendar year near New Year."""
         ...
 
     def isoweek(self) -> int:
@@ -2016,13 +2011,7 @@ OverflowError
 
     @property
     def is_leap_year(self) -> bool:
-        """Return whether this Gregorian year is a leap year.
-
-Returns
--------
-bool
-    Whether the stated condition holds. A legitimate nonmatch returns False;
-    invalid inputs raise the documented error."""
+        """Whether the Gregorian calendar year has February 29."""
         ...
 
     def is_long_year(self) -> bool:
@@ -2089,12 +2078,7 @@ int
 
     @property
     def day_of_year(self) -> int:
-        """Return the day number within this year, starting at 1.
-
-Returns
--------
-int
-    the day number within this year, starting at 1."""
+        """Day of the year as an integer from 1 through 365, or 366 in a leap year."""
         ...
 
     @property
@@ -2186,12 +2170,7 @@ OverflowError
 
     @property
     def days_in_month(self) -> int:
-        """Return the number of days in this month.
-
-Returns
--------
-int
-    the number of days in this month."""
+        """The length of this calendar month in days, from 28 through 31."""
         ...
 
     def days_bf_month(self) -> int:

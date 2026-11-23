@@ -1170,13 +1170,7 @@ class Pydt(_PydtBase):
             _raise_argument_context(error, "Pydt.toseconds", "arguments", None)
 
     def isoyear(self):
-        """Return the ISO week-numbering year.
-
-        Returns
-        -------
-        int
-            the ISO week-numbering year.
-        """
+        """ISO week-numbering year. It can differ from the calendar year near New Year."""
         try:
             return _pydt_iso(self, True)
         except Exception as error:
@@ -1454,14 +1448,7 @@ class Pydt(_PydtBase):
 
     is_leap_year = property(
         _pydt_is_leap_year,
-        doc="""Return whether this Gregorian year is a leap year.
-
-        Returns
-        -------
-        bool
-            Whether the stated condition holds. A legitimate nonmatch returns False;
-            invalid inputs raise the documented error.
-        """,
+        doc="""Whether the Gregorian calendar year has February 29.""",
     )
 
     def is_long_year(self):
@@ -1516,14 +1503,7 @@ class Pydt(_PydtBase):
 
     day_of_year = property(
         _pydt_day_of_year,
-        doc="""Return the day number within this year, starting at 1.
-
-        Returns
-        -------
-        int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
-        """,
+        doc="""Day of the year as an integer from 1 through 365, or 366 in a leap year.""",
     )
 
     def days_in_quarter(self):
@@ -1567,14 +1547,7 @@ class Pydt(_PydtBase):
 
     days_in_month = property(
         _pydt_days_in_month,
-        doc="""Return the number of days in this month.
-
-        Returns
-        -------
-        int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
-        """,
+        doc="""The length of this calendar month in days, from 28 through 31.""",
     )
 
     def days_bf_month(self):

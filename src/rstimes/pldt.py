@@ -3355,6 +3355,10 @@ class _PeriodMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        ValueError
+            The selected day has no valid regional datetime.
+        OverflowError
+            The result exceeds the storage unit's capacity.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -4289,6 +4293,10 @@ class _TransformMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        ValueError
+            The selected day has no valid regional datetime.
+        OverflowError
+            The result exceeds the storage unit's capacity.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -4312,6 +4320,10 @@ class _TransformMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        ValueError
+            The selected day has no valid regional datetime.
+        OverflowError
+            The result exceeds the storage unit's capacity.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -4335,6 +4347,10 @@ class _TransformMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        ValueError
+            The selected day has no valid regional datetime.
+        OverflowError
+            The result exceeds the storage unit's capacity.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -4358,6 +4374,10 @@ class _TransformMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        ValueError
+            The selected day has no valid regional datetime.
+        OverflowError
+            The result exceeds the storage unit's capacity.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -4381,6 +4401,10 @@ class _TransformMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        ValueError
+            The selected day has no valid regional datetime.
+        OverflowError
+            The result exceeds the storage unit's capacity.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -4404,6 +4428,10 @@ class _TransformMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        ValueError
+            The selected day has no valid regional datetime.
+        OverflowError
+            The result exceeds the storage unit's capacity.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -4427,6 +4455,10 @@ class _TransformMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        ValueError
+            The selected day has no valid regional datetime.
+        OverflowError
+            The result exceeds the storage unit's capacity.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -4450,6 +4482,10 @@ class _TransformMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        ValueError
+            The selected day has no valid regional datetime.
+        OverflowError
+            The result exceeds the storage unit's capacity.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -4473,6 +4509,10 @@ class _TransformMethods:
         ------
         TypeError
             An unsupported source dtype cannot be read as a date column.
+        ValueError
+            The selected day has no valid regional datetime.
+        OverflowError
+            The result exceeds the storage unit's capacity.
         polars.exceptions.ComputeError
             A Polars expression can fail during planning or evaluation.
 
@@ -4918,7 +4958,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             flattening.
         unit : {"ms", "us", "ns"} or None
             Without a unit, text uses us for up to six fractional digits and ns for seven
-            through nine, even if the additional digits are zero. An explicit unit is lossless.
+            through nine, even if the additional digits are zero. An explicit unit must represent every date without loss.
             Without a unit, preserve native Datetime resolution and use ns for bare ticks.
             An untyped empty or all-null input defaults to ms.
         name : str or None
@@ -5764,7 +5804,7 @@ class Pldt(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMethods, _Py
             With None, keep a common zone from the input if one is present.
         unit : {"ms", "us", "ns"} or None
             Without a unit, text uses us for up to six fractional digits and ns for seven
-            through nine, even if the additional digits are zero. An explicit unit is lossless.
+            through nine, even if the additional digits are zero. An explicit unit must represent every date without loss.
             An empty or all-null text input without a declared resolution uses ms.
         name : str or None
             Set the result's column name. None keeps the source name when present.
@@ -6574,8 +6614,9 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         absolute : bool or numpy.bool_
             Original protocol argument, forwarded without inventing another interpretation.
         inclusive : str
-            Count boundaries with one, both or neither endpoint. Use this method on
-            Series.pldt or Expr.pldt. Polars Series.diff compares adjacent rows.
+            Use 'one' for the signed difference in unit boundaries, 'both' to include
+            both endpoints, or 'neither' to exclude both. The native Series.diff
+            compares rows with their predecessors by default.
 
         Returns
         -------
@@ -6909,7 +6950,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
             With None, keep a common zone from the input if one is present.
         unit : {"ms", "us", "ns"} or None
             Without a unit, text uses us for up to six fractional digits and ns for seven
-            through nine, even if the additional digits are zero. An explicit unit is lossless.
+            through nine, even if the additional digits are zero. An explicit unit must represent every date without loss.
             An empty or all-null text input without a declared resolution uses ms.
         name : str or None
             Set the result's column name. None keeps the source name when present.
@@ -7150,7 +7191,7 @@ class _SeriesNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _Output
         ----------
         unit : {"ms", "us", "ns"} or None
             Without a unit, text uses us for up to six fractional digits and ns for seven
-            through nine, even if the additional digits are zero. An explicit unit is lossless.
+            through nine, even if the additional digits are zero. An explicit unit must represent every date without loss.
             Without a unit, preserve native Datetime resolution and use ns for bare ticks.
             An untyped empty or all-null input defaults to ms.
         name : str or None
@@ -7774,8 +7815,9 @@ class _ExprNamespace(_TransformMethods, _PeriodMethods, _QueryMethods, _OutputMe
         absolute : bool or numpy.bool_
             Original protocol argument, forwarded without inventing another interpretation.
         inclusive : str
-            Count boundaries with one, both or neither endpoint. Use this method on
-            Series.pldt or Expr.pldt. Polars Series.diff compares adjacent rows.
+            Use 'one' for the signed difference in unit boundaries, 'both' to include
+            both endpoints, or 'neither' to exclude both. The native Series.diff
+            compares rows with their predecessors by default.
 
         Returns
         -------
