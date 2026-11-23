@@ -73,9 +73,10 @@ print(frame.lazy().select(expr).collect()["event"].to_list())
 [{'year': 2024, 'week': 9, 'day': 4}, None]
 ```
 
-Use `struct.field("week")` for just the ISO week.
-Use `isoyear()` when signed years are required. The
-Struct uses UInt32 and a negative ISO year raises at execution.
+Use `struct.field("week")` for just the ISO week. The Struct schema uses
+UInt32 fields. An ISO year outside that range raises `polars.exceptions.ComputeError`
+during `select` or `collect`. The message can report the position in the input
+batch. Use `isoyear()` to read a signed ISO year.
 
 (expr-clock-reference)=
 ## Compare with a captured clock

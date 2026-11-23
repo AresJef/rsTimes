@@ -40,9 +40,21 @@ READER_GUIDES = [
     "guides/expressions-boundaries.html", "guides/expressions-calendar.html",
     "guides/pydt-boundaries.html", "guides/pldt-calendar.html",
     "guides/pddt.html", "guides/pldt.html",
+    "guides/pddt-ranges.html", "guides/pldt-ranges.html",
+    "guides/pldt-queries.html", "guides/pldt-output.html", "guides/expressions-queries.html",
     "compatibility/free-threaded.html", "compatibility/known-issues.html",
     "getting-started/index.html", "development/contributing.html",
 ]
+TIMEDF_FIELDS = {
+    "tm_year", "tm_mon", "tm_mday", "tm_hour", "tm_min", "tm_sec", "tm_wday", "tm_yday", "tm_isdst",
+}
+PLDT_QUERY_PAGES = {
+    "api/reference/rstimes/pldt/index.html": "rstimes.pldt.Pldt",
+    "api/polars-series.html": "polars.Series.pldt",
+    "api/polars-expressions.html": "polars.Expr.pldt",
+}
+CONFIG_INDEX_SETTERS = ("set_tzoffset", "set_month", "set_weekday", "set_hms", "set_ampm")
+NARROW_DICT = re.compile(r"\bdict\s*\[\s*str\s*,\s*(?:typing\.)?SupportsIndex\s*\]")
 
 
 def visible(node):
@@ -68,9 +80,15 @@ def owner(node):
     return ""
 
 
+def method_description(main, entry):
+    head = main.find(id=entry)
+    return head.find_next_sibling("dd") if head else None
+
+
 def check(html):
     pages = list((html / "api").rglob("*.html"))
     problems, fields, notes_seen, page_records = [], [], [], {}
+    query_fields, dict_fields = {}, {}
     root = html / "api/reference/rstimes"
 
     def fail(path, entry, field, reason):
@@ -125,6 +143,15 @@ def check(html):
             if literal is None or literal.find("dl") or "stored text" not in visible(literal):
                 fail(path, entry, "dtstr", "Expected one plain parameter description")
         if path == root / "parser/index.html":
+            for name in CONFIG_INDEX_SETTERS:
+                entry = "rstimes.parser.Configs." + name
+                description = method_description(main, entry)
+                field = dict(parameters(description)).get("mapping") if description else None
+                text = visible(field) if field else ""
+                if NARROW_DICT.search(text) or not all(word in text for word in ("string keys", "integer values")):
+                    fail(path, entry, "mapping", "Describe string keys and integer values without narrowing the generic dict")
+                else:
+                    dict_fields[entry] = text
             for name in ("parse", "parse_str", "parse_to_epoch"):
                 entry = "rstimes.parser." + name
                 head = main.find(id=entry)
@@ -138,12 +165,30 @@ def check(html):
                     fail(path, entry, "Notes", "Expected one Boolean options paragraph under Notes")
                 else:
                     notes_seen.append(entry)
+        if namespace := PLDT_QUERY_PAGES.get(path.relative_to(html).as_posix()):
+            entry = namespace + ".timedf"
+            description = method_description(main, entry)
+            text = visible(description) if description else ""
+            if (not TIMEDF_FIELDS <= set(re.findall(r"\btm_[a-z]+\b", text))
+                    or "whole second" not in text or "including fractional seconds and fold" in text):
+                fail(path, entry, "time fields", "Expected nine named fields with tm_sec as a whole second")
+            else:
+                query_fields[entry] = text
+            entry = namespace + ".isocalendar"
+            description = method_description(main, entry)
+            text = visible(description) if description else ""
+            error = "ComputeError" if namespace == "polars.Expr.pldt" else "OverflowError"
+            if not all(word in text for word in (error, "UInt32", "isoyear()")):
+                fail(path, entry, "Raises", f"Explain {error} for the UInt32 ISO year and how to use isoyear()")
+            else:
+                query_fields[entry] = text
         page_records[path.relative_to(html).as_posix()] = {
             "signatures": len(signatures),
             "type_links": len(main.select('a[href^="#type-"]')),
         }
     return dict(status="fail" if problems else "pass", pages=page_records,
-                api_pages=len(pages), literal_fields=fields, parser_notes=notes_seen, problems=problems)
+                api_pages=len(pages), literal_fields=fields, parser_notes=notes_seen,
+                timedf_and_iso_fields=query_fields, config_index_fields=dict_fields, problems=problems)
 
 
 def main():

@@ -127,6 +127,9 @@ print(dates.to_list())
 [{'year': 2020, 'week': 53, 'day': 5}]
 ```
 
+The output uses UInt32 for all three fields. An out-of-range ISO year
+raises `OverflowError` here. Call `source.pldt.isoyear()` to read ISO
+years as signed integers.
 
 ## Read local-clock seconds from dates
 

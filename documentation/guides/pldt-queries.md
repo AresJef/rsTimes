@@ -40,9 +40,9 @@ print(weeks.to_list())
 [{'year': 2024, 'week': 9, 'day': 4}, None]
 ```
 
-The Struct has UInt32 `year`, `week` and `day` fields. Use
-`isoyear()` for a signed ISO year, since a negative year cannot
-be placed in the unsigned Struct.
+The Struct has UInt32 `year`, `week` and `day` fields. Pldt and
+Series.pldt raise `OverflowError` when the ISO year falls outside
+the unsigned range. Use `isoyear()` to read a signed ISO year.
 
 (pldt-query-now-and-zone)=
 ## Inspect a timezone and compare with now
