@@ -5543,11 +5543,7 @@
       ],
       "expectation_basis": "ISO year -1 fits Int64. The named time-zone example exceeds the supported local date range.",
       "scenarios": [
-        "Struct",
-        "outer-null",
-        "fixed-child-schema",
-        "signed-year",
-        "named-time-zone-range"
+        "signed-year"
       ],
       "reviewed": true,
       "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
@@ -6724,9 +6720,7 @@
         "scalar-broadcast",
         "required-target",
         "strict-type",
-        "invalid-name",
-        "signed-year",
-        "named-time-zone-range"
+        "invalid-name"
       ],
       "reviewed": true,
       "execution_modes": [

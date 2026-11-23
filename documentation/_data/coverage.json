@@ -2348,7 +2348,6 @@
         "all-condition-queries",
         "all-integer-queries",
         "invalid-name",
-        "named-time-zone-range",
         "native-Boolean",
         "native-Int64",
         "native-Struct",
@@ -2358,7 +2357,6 @@
         "row-Expr",
         "scalar-aggregate",
         "scalar-broadcast",
-        "signed-year",
         "strict-type"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -2889,7 +2887,6 @@
         "collect",
         "integer-output",
         "invalid-name",
-        "named-time-zone-range",
         "native-Boolean",
         "native-Int64",
         "native-Struct",
@@ -2902,7 +2899,6 @@
         "scalar-aggregate",
         "scalar-broadcast",
         "select",
-        "signed-year",
         "strict-type"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -3028,7 +3024,6 @@
         "all-condition-queries",
         "all-integer-queries",
         "invalid-name",
-        "named-time-zone-range",
         "native-Boolean",
         "native-Int64",
         "native-Struct",
@@ -3038,7 +3033,6 @@
         "row-Expr",
         "scalar-aggregate",
         "scalar-broadcast",
-        "signed-year",
         "strict-type"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -3168,7 +3162,6 @@
         "all-condition-queries",
         "all-integer-queries",
         "invalid-name",
-        "named-time-zone-range",
         "native-Boolean",
         "native-Int64",
         "native-Struct",
@@ -3178,7 +3171,6 @@
         "row-Expr",
         "scalar-aggregate",
         "scalar-broadcast",
-        "signed-year",
         "strict-type"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -3309,7 +3301,6 @@
         "all-integer-queries",
         "collect",
         "invalid-name",
-        "named-time-zone-range",
         "native-Boolean",
         "native-Int64",
         "native-Struct",
@@ -3320,7 +3311,6 @@
         "scalar-aggregate",
         "scalar-broadcast",
         "select",
-        "signed-year",
         "strict-type"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -3583,7 +3573,6 @@
         "all-condition-queries",
         "all-integer-queries",
         "invalid-name",
-        "named-time-zone-range",
         "native-Boolean",
         "native-Int64",
         "native-Struct",
@@ -3593,7 +3582,6 @@
         "row-Expr",
         "scalar-aggregate",
         "scalar-broadcast",
-        "signed-year",
         "strict-type"
       ],
       "execution_review": "Each applicable path actually evaluated in eager select and lazy collect; streaming documented where run."
@@ -11558,10 +11546,8 @@
         "polars-only"
       ],
       "scenarios": [
-        "Struct",
         "eager",
         "fixed-child-schema",
-        "named-time-zone-range",
         "native-receiver",
         "outer-null",
         "signed-year"
@@ -58732,11 +58718,7 @@
       ],
       "scenarios": [
         "ISO-calendar",
-        "Struct",
-        "fixed-child-schema",
-        "named-time-zone-range",
         "null",
-        "outer-null",
         "signed-ISO-year",
         "signed-year",
         "structured-output"
@@ -59002,15 +58984,11 @@
       ],
       "scenarios": [
         "Int64",
-        "Struct",
         "all23integer-queries",
-        "fixed-child-schema",
         "full-valid-MIN",
-        "named-time-zone-range",
         "native-null",
         "ns-tail",
         "original-name",
-        "outer-null",
         "signed-dates",
         "signed-year"
       ]
