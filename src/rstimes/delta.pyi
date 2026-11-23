@@ -1,4 +1,4 @@
-"""Type hints for rstimes.delta; executable behavior is supplied by Rust."""
+"""Add calendar and clock changes to Python dates or date columns."""
 from datetime import date, datetime, timedelta
 from typing import ClassVar, Iterable, TypeVar, overload, SupportsIndex
 import numpy as np
@@ -595,7 +595,7 @@ int | None
         Returns
         -------
         int | None
-            None when unset, otherwise0..999. An explicit zero is a setting
+            None when unset, otherwise an integer from 0 through 999. An explicit zero is a setting
             and makes Delta truthy; it is different from None.
         """
         ...
@@ -607,13 +607,12 @@ int | None
 Parameters
 ----------
 o : date subclass
-    The right-hand operand for this operation. Its accepted types and the result
-    type are given by this overload.
+    The right operand in the original expression.
 
 Returns
 -------
 date subclass
-    Add a Delta, timedelta, relativedelta, date/datetime or NumPy scalar.
+    The adjusted date or datetime, with the input's concrete type.
 
 Raises
 ------
@@ -632,13 +631,12 @@ OverflowError
 Parameters
 ----------
 o : timedelta | Delta | relativedelta | np.timedelta64
-    The right-hand operand for this operation. Its accepted types and the result
-    type are given by this overload.
+    The right operand in the original expression.
 
 Returns
 -------
 Delta
-    Add a Delta, timedelta, relativedelta, date/datetime or NumPy scalar.
+    A new Delta with the resulting relative and absolute fields.
 
 Raises
 ------
@@ -657,13 +655,12 @@ OverflowError
 Parameters
 ----------
 o : np.datetime64
-    The right-hand operand for this operation. Its accepted types and the result
-    type are given by this overload.
+    The right operand in the original expression.
 
 Returns
 -------
 datetime
-    Add a Delta, timedelta, relativedelta, date/datetime or NumPy scalar.
+    A standard datetime adjusted by this Delta.
 
 Raises
 ------
@@ -686,17 +683,12 @@ delta.__radd__(value) call.
 Parameters
 ----------
 o : date subclass
-    The right-hand operand for this operation. Its accepted types and the result
-    type are given by this overload.
+    The left operand in the original expression, with this Delta on the right.
 
 Returns
 -------
 date subclass
-    Apply reflected addition using the same date and duration rules as __add__.
-
-NumPy may convert a scalar on the left before reflected dispatch. Thus an
-expression such as value + delta may pass a different type than a direct
-delta.__radd__(value) call.
+    The adjusted date or datetime, with the input's concrete type.
 
 Raises
 ------
@@ -719,17 +711,12 @@ delta.__radd__(value) call.
 Parameters
 ----------
 o : timedelta | relativedelta | np.timedelta64
-    The right-hand operand for this operation. Its accepted types and the result
-    type are given by this overload.
+    The left operand in the original expression, with this Delta on the right.
 
 Returns
 -------
 Delta
-    Apply reflected addition using the same date and duration rules as __add__.
-
-NumPy may convert a scalar on the left before reflected dispatch. Thus an
-expression such as value + delta may pass a different type than a direct
-delta.__radd__(value) call.
+    A new Delta with the resulting relative and absolute fields.
 
 Raises
 ------
@@ -752,17 +739,12 @@ delta.__radd__(value) call.
 Parameters
 ----------
 o : np.datetime64
-    The right-hand operand for this operation. Its accepted types and the result
-    type are given by this overload.
+    The left operand in the original expression, with this Delta on the right.
 
 Returns
 -------
 datetime
-    Apply reflected addition using the same date and duration rules as __add__.
-
-NumPy may convert a scalar on the left before reflected dispatch. Thus an
-expression such as value + delta may pass a different type than a direct
-delta.__radd__(value) call.
+    A standard datetime adjusted by this Delta.
 
 Raises
 ------
@@ -780,13 +762,12 @@ OverflowError
 Parameters
 ----------
 o : timedelta | Delta | relativedelta | np.timedelta64
-    The right-hand operand for this operation. Its accepted types and the result
-    type are given by this overload.
+    The right operand in the original expression.
 
 Returns
 -------
 Delta
-    Subtract Delta, timedelta, relativedelta or NumPy timedelta64 from this Delta.
+    A new Delta with the resulting relative and absolute fields.
 
 Raises
 ------
@@ -805,13 +786,12 @@ OverflowError
 Parameters
 ----------
 o : date subclass
-    The right-hand operand for this operation. Its accepted types and the result
-    type are given by this overload.
+    The left operand in the original expression, with this Delta on the right.
 
 Returns
 -------
 date subclass
-    Subtract this Delta from a date/datetime, timedelta or supported NumPy scalar.
+    The adjusted date or datetime, with the input's concrete type.
 
 Raises
 ------
@@ -830,13 +810,12 @@ OverflowError
 Parameters
 ----------
 o : timedelta | relativedelta | np.timedelta64
-    The right-hand operand for this operation. Its accepted types and the result
-    type are given by this overload.
+    The left operand in the original expression, with this Delta on the right.
 
 Returns
 -------
 Delta
-    Subtract this Delta from a date/datetime, timedelta or supported NumPy scalar.
+    A new Delta with the resulting relative and absolute fields.
 
 Raises
 ------
@@ -855,13 +834,12 @@ OverflowError
 Parameters
 ----------
 o : np.datetime64
-    The right-hand operand for this operation. Its accepted types and the result
-    type are given by this overload.
+    The left operand in the original expression, with this Delta on the right.
 
 Returns
 -------
 datetime
-    Subtract this Delta from a date/datetime, timedelta or supported NumPy scalar.
+    A standard datetime adjusted by this Delta.
 
 Raises
 ------
@@ -879,7 +857,7 @@ OverflowError
 Returns
 -------
 Delta
-    Negate relative components and retain absolute replacements in a new Delta."""
+    A new Delta with negated relative components and the same absolute fields."""
         ...
 
     def __abs__(self) -> Delta:
@@ -984,8 +962,10 @@ int
 
 Returns
 -------
-_State
-    The version2 four-tuple ("rstimes.delta",2,core17,metadata). Derived caches are excluded; old version1 and byte formats are rejected."""
+tuple
+    Version 2 state with four items: the tag "rstimes.delta", version 2,
+    a tuple of 17 core fields, and the business attributes, if any.
+    Derived caches are excluded. Version 1 and older byte formats are rejected."""
         ...
 
     def __setstate__(self, state: object) -> None:

@@ -216,6 +216,11 @@ def test_release_marker_environment_covers_approved_platform_identities():
 def test_1_1_1_release_note_limits_the_fsp_no_scan_path():
     notes = (ROOT / "docs/releases/v1.1.1.md").read_text(encoding="utf-8")
     bullet, = (line for line in notes.splitlines() if line.startswith("- `Pddt.fsp`"))
-    for phrase in ("exact, timezone-naive `Pddt`", "without scanning", "storage unit",
-                   "Subclasses and timezone-aware indexes", "`precision >= 9`"):
-        assert phrase in bullet, phrase
+    assert bullet == (
+        "- `Pddt.fsp` can return the input without scanning when all three conditions hold: "
+        "the instance's type is `Pddt` itself, it has no time zone, "
+        "and its storage unit already satisfies the requested precision. "
+        "Subclasses and timezone-aware indexes use the existing path at lower precisions. "
+        "The separate, existing direct return for any valid `precision >= 9` also applies "
+        "to subclasses and timezone-aware indexes."
+    )

@@ -750,14 +750,16 @@ impl Delta {
     /// Returns
     /// -------
     /// tuple
-    ///     ("rstimes.delta",2,core17,metadata), with no derived caches.
+    ///     A four-item tuple: the tag "rstimes.delta", version 2, a tuple of
+    ///     17 core fields, and the business attributes, if any.
+    ///     Derived caches are excluded.
     ///
     /// Notes
     /// -----
     /// Use pickle or copy for ordinary saving and copying. Subclass dictionary
-    /// and slot attributes are included. The17 fields include relative ns and
-    /// independently present absolute ns. Version1 and old byte formats are
-    /// rejected by the new implementation; they are not automatically migrated.
+    /// and slot attributes are included. The 17 fields include relative nanoseconds
+    /// and a separately stored absolute nanosecond. Version 1 and older byte
+    /// formats are rejected. They cannot be restored automatically.
     fn __getstate__<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
         crate::state::capture(slf).map_err(|error| {
             crate::error_context::argument(

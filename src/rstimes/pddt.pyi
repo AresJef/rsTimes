@@ -1,4 +1,4 @@
-"""Public type information for integer-backed Pddt date columns.
+"""Build and adjust a date index for pandas.
 
 Date text inputs and string defaults accept real str subclasses and read
 their native stored content, without calling __str__ or overridden sequence
@@ -128,8 +128,9 @@ class Pddt(pd.DatetimeIndex):
             Text, date, datetime, integer ticks or supported native temporal columns.
             Collections may mix supported date values. A scalar belongs in [value].
         unit : {'s', 'ms', 'us', 'ns'}, optional
-            Storage resolution. Text and datetime normally start at microseconds;
-            nine-digit text preserves nanoseconds. Native dates retain their unit.
+            Storage resolution. Without a unit, text uses us for up to six fractional digits
+            and ns for seven through nine, even if the additional digits are zero.
+            Python datetime starts at us. Native dates retain their unit.
             Bare numbers mean ticks in unit, or nanoseconds when unit is omitted.
             Explicit construction must preserve all source precision.
         tz : tzinfo or str, optional
@@ -186,8 +187,9 @@ class Pddt(pd.DatetimeIndex):
             Text, date, datetime, integer ticks or supported native temporal columns.
             Collections may mix supported date values. A scalar belongs in [value].
         unit : {'s', 'ms', 'us', 'ns'}, optional
-            Storage resolution. Text and datetime normally start at microseconds;
-            nine-digit text preserves nanoseconds. Native dates retain their unit.
+            Storage resolution. Without a unit, text uses us for up to six fractional digits
+            and ns for seven through nine, even if the additional digits are zero.
+            Python datetime starts at us. Native dates retain their unit.
             Bare numbers mean ticks in unit, or nanoseconds when unit is omitted.
             Explicit construction must preserve all source precision.
         tz : tzinfo or str, optional
@@ -846,8 +848,9 @@ class Pddt(pd.DatetimeIndex):
             aware values retain their instant and convert to it. None preserves
             a common source zone and rejects incompatible mixed sources.
         unit : {'s', 'ms', 'us', 'ns'}, optional
-            Output resolution. Defaults to us, or ns for text beyond six digits;
-            an explicitly selected resolution must retain the parsed value.
+            Output resolution. Without a unit, text uses us for up to six fractional digits
+            and ns for seven through nine, even if the additional digits are zero.
+            An explicit unit must preserve all source precision.
         name : hashable, optional
             Name of the resulting date column.
 
@@ -984,7 +987,7 @@ class Pddt(pd.DatetimeIndex):
         normalize : bool, default False
             Set local endpoint clock fields to midnight before generation.
         inclusive : {'both', 'left', 'right', 'neither'}, default 'both'
-            Which explicitly supplied endpoints can occur in the result.
+            Keep both endpoints, only start (left), only end (right), or neither.
         unit : {'s', 'ms', 'us', 'ns'}, optional
             Storage resolution. Endpoints and frequency must fit without loss.
         name : hashable, optional
@@ -1199,15 +1202,15 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_weekday(self, offset: _IntegerArgument, weekday: _StoredSelection = None) -> Self:
-        """Move by calendar weekday periods and apply the optional field choice.
-        
+        """Move by whole calendar weeks, then choose a weekday and retain the time of day.
+
         Parameters
         ----------
         offset : integer or equal-length integer collection
-            Positive moves forward, negative backward; zero selects this period.
+            Positive moves forward, negative backward; zero selects the current week.
         weekday : integer, stored weekday name or equal-length collection, optional
             Monday is 0 and Sunday is 6. None preserves each original weekday.
-        
+
         Returns
         -------
         Pddt
@@ -1231,15 +1234,15 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_curr_year(self, month: _StoredSelection = None, day: _OptionalField = None) -> Self:
-        """Select fields in the curr calendar year.
-        
+        """Select fields in the current calendar year.
+
         Parameters
         ----------
         month : integer or equal-length collection or stored name, optional
             Month 1–12, or None to keep the month.
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
@@ -1248,15 +1251,15 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_prev_year(self, month: _StoredSelection = None, day: _OptionalField = None) -> Self:
-        """Select fields in the prev calendar year.
-        
+        """Select fields in the previous calendar year.
+
         Parameters
         ----------
         month : integer or equal-length collection or stored name, optional
             Month 1–12, or None to keep the month.
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
@@ -1282,15 +1285,15 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_curr_quarter(self, month: _OptionalField = None, day: _OptionalField = None) -> Self:
-        """Select fields in the curr calendar quarter.
-        
+        """Select fields in the current calendar quarter.
+
         Parameters
         ----------
         month : integer or equal-length collection, optional
             Quarter position 1–3, or None to keep the position.
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
@@ -1299,15 +1302,15 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_prev_quarter(self, month: _OptionalField = None, day: _OptionalField = None) -> Self:
-        """Select fields in the prev calendar quarter.
-        
+        """Select fields in the previous calendar quarter.
+
         Parameters
         ----------
         month : integer or equal-length collection, optional
             Quarter position 1–3, or None to keep the position.
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
@@ -1333,13 +1336,13 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_curr_month(self, day: _OptionalField = None) -> Self:
-        """Select fields in the curr calendar month.
-        
+        """Select fields in the current calendar month.
+
         Parameters
         ----------
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
@@ -1348,13 +1351,13 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_prev_month(self, day: _OptionalField = None) -> Self:
-        """Select fields in the prev calendar month.
-        
+        """Select fields in the previous calendar month.
+
         Parameters
         ----------
         day : integer or equal-length integer collection, optional
             Legal day intent 1–31, fitted to the destination month end.
-        
+
         Returns
         -------
         Pddt
@@ -1383,13 +1386,13 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_curr_weekday(self, weekday: _StoredSelection = None) -> Self:
-        """Select fields in the curr calendar weekday.
-        
+        """Select a weekday in the current calendar week and keep the time of day.
+
         Parameters
         ----------
         weekday : integer, stored name or equal-length collection, optional
             Monday is 0; Sunday is 6. None retains the original weekday.
-        
+
         Returns
         -------
         Pddt
@@ -1398,13 +1401,13 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_prev_weekday(self, weekday: _StoredSelection = None) -> Self:
-        """Select fields in the prev calendar weekday.
-        
+        """Select a weekday in the previous calendar week and keep the time of day.
+
         Parameters
         ----------
         weekday : integer, stored name or equal-length collection, optional
             Monday is 0; Sunday is 6. None retains the original weekday.
-        
+
         Returns
         -------
         Pddt
@@ -1413,13 +1416,13 @@ class Pddt(pd.DatetimeIndex):
         ...
 
     def to_next_weekday(self, weekday: _StoredSelection = None) -> Self:
-        """Select fields in the next calendar weekday.
-        
+        """Select a weekday in the next calendar week and keep the time of day.
+
         Parameters
         ----------
         weekday : integer, stored name or equal-length collection, optional
             Monday is 0; Sunday is 6. None retains the original weekday.
-        
+
         Returns
         -------
         Pddt
@@ -1861,7 +1864,7 @@ class Pddt(pd.DatetimeIndex):
         -------
         Pddt
             Rounded dates at the existing unit, timezone and name, with NaT
-            positions retained. The old unit and DST policy keywords are absent.
+            positions retained.
 
         Examples
         --------
@@ -1885,7 +1888,7 @@ class Pddt(pd.DatetimeIndex):
         -------
         Pddt
             Rounded dates at the existing unit, timezone and name, with NaT
-            positions retained. The old unit and DST policy keywords are absent.
+            positions retained.
 
         Examples
         --------
@@ -1909,7 +1912,7 @@ class Pddt(pd.DatetimeIndex):
         -------
         Pddt
             Rounded dates at the existing unit, timezone and name, with NaT
-            positions retained. The old unit and DST policy keywords are absent.
+            positions retained.
 
         Examples
         --------
@@ -2274,8 +2277,8 @@ class Pddt(pd.DatetimeIndex):
         absolute : bool or numpy.bool_, default False
             Take the absolute boundary difference before inclusive adjustment.
         inclusive : {'one', 'both', 'neither'}, default 'one'
-            Keep the difference, increase its magnitude by one, or decrease it
-            by one. A zero difference with 'neither' is -1.
+            How to count boundaries between two dates: one, both or neither.
+            This option is independent of date_range endpoint inclusion.
 
         Returns
         -------

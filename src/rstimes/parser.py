@@ -1,4 +1,4 @@
-"""Date/time parsing and standalone numeric text utilities implemented in Rust.
+"""Read date and time values, epoch ticks, and standalone numeric text.
 
 Use parse_str for text and parse for supported date/time objects or text.
 Configs provides vocabulary and date ordering for string parsing.

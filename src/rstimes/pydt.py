@@ -1,4 +1,4 @@
-"""Datetime with calendar adjustments backed by Rust.
+"""Work with a single datetime using calendar methods and standard datetime operations.
 
 Date text inputs and string defaults accept real str subclasses and read
 their native stored content, without calling __str__ or overridden sequence
@@ -1108,8 +1108,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            exact epoch microseconds; optionally subtract an aware UTC offset.
 
         Raises
         ------
@@ -1147,8 +1146,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         float
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            epoch seconds, including the microsecond fraction.
 
         Raises
         ------
@@ -1177,8 +1175,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            the ISO week-numbering year.
         """
         try:
             return _pydt_iso(self, True)
@@ -1191,8 +1188,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            the ISO week number, from 1 through 53.
         """
         try:
             return _pydt_iso(self, False)
@@ -1241,8 +1237,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            Count leap years in the half-open interval between the two years.
 
         Raises
         ------
@@ -1265,8 +1260,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            Calendar quarter, 1 through 4.
         """
         try:
             return _pydt_calendar(self, 0)
@@ -1401,8 +1395,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         str
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            the full month name, in the requested language.
 
         Raises
         ------
@@ -1429,8 +1422,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         str
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            the full weekday name, in the requested language.
 
         Raises
         ------
@@ -1453,8 +1445,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            Millisecond part of the current second, from 0 through 999.
         """
         try:
             return _pydt_millisecond(self)
@@ -1503,8 +1494,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            the number of days in this year.
         """
         try:
             return _pydt_calendar(self, 1)
@@ -1517,8 +1507,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            the number of days before this year, starting at year 1.
         """
         try:
             return _pydt_calendar(self, 2)
@@ -1543,8 +1532,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            the number of days in this quarter.
         """
         try:
             return _pydt_calendar(self, 4)
@@ -1557,8 +1545,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            the number of days in the year before this quarter.
         """
         try:
             return _pydt_calendar(self, 5)
@@ -1571,8 +1558,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            the day number within this quarter, starting at 1.
         """
         try:
             return _pydt_calendar(self, 6)
@@ -1597,8 +1583,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            the number of days in the year before this month.
         """
         try:
             return _pydt_calendar(self, 8)
@@ -1611,8 +1596,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            the day number within this month.
         """
         try:
             return _pydt_calendar(self, 9)
@@ -2425,7 +2409,7 @@ class Pydt(_PydtBase):
             _raise_argument_context(error, "Pydt.to_time", "arguments", None)
 
     def to_first_of(self, unit):
-        """Return the first of a calendar period or named month.
+        """Choose the first day of the calendar period or named month and keep the time of day.
 
         Parameters
         ----------
@@ -2560,7 +2544,7 @@ class Pydt(_PydtBase):
             _raise_argument_context(error, "Pydt.is_last_of", "arguments", None)
 
     def to_start_of(self, unit):
-        """Return the start of a calendar period or named month/weekday.
+        """Move to the first valid instant of the selected period.
 
         For 'us' and its 'ns' alias, return this same object, retaining fold
         and the represented instant.
@@ -2852,14 +2836,13 @@ class Pydt(_PydtBase):
             _raise_argument_context(error, "Pydt.snap", "unit", unit)
 
     def fsp(self, precision):
-        """Keep precision decimal places in the fractional second, without rounding.
+        """Truncate the stored microseconds to the requested number of decimal places.
 
         Parameters
         ----------
-        precision : number
-            Decimal places to retain in fractional seconds. Negative precision is
-            invalid; Pydt keeps its value unchanged at 6 or more places, while Pddt has
-            nanosecond precision.
+        precision : integer
+            Fractional-second digits to keep, without rounding. Six or more leaves
+            this Pydt unchanged. Pddt and Pldt can store nanoseconds.
 
         Returns
         -------
@@ -2907,8 +2890,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         datetime.tzinfo | None
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            The attached tzinfo object, or None for a naive datetime.
         """
         try:
             return _pydt_stored_timezone(self)
@@ -2976,8 +2958,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int | None
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            Whole seconds east of UTC, or None when the datetime has no UTC offset.
         """
         try:
             return _pydt_offset_seconds(self)
@@ -3329,8 +3310,7 @@ class Pydt(_PydtBase):
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            Count unit boundaries between this value and a supported date input.
 
         Raises
         ------

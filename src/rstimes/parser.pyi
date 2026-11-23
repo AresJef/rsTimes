@@ -1,4 +1,4 @@
-"""Type information for the public Rust parser API.
+"""Read date and time values, epoch ticks, and standalone numeric text.
 
 Date text inputs and string defaults accept real str subclasses and read
 their native stored content, without calling __str__ or overridden sequence
@@ -1110,13 +1110,7 @@ bool
         ...
 
     def __repr__(self) -> str:
-        """Return a readable summary of this configuration.
-
-Returns
--------
-str
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+        """Return a string summary of the current parser configuration."""
         ...
 
 @overload
@@ -1661,6 +1655,10 @@ def parse_to_epoch(dtobj: _EpochInput, unit: str='us', default: _Default | None=
     selects the earlier boundary. Python datetime retains its microsecond precision.
     Numeric default values keep their established microsecond conversion.
 
+    Boolean options accept only bool or numpy.bool_. Other values raise TypeError
+    without calling their truth-conversion methods. yearfirst and dayfirst also
+    accept None to use the corresponding Configs preference.
+
     Examples
     --------
     >>> from rstimes import parse_to_epoch
@@ -1678,12 +1676,6 @@ def parse_to_epoch(dtobj: _EpochInput, unit: str='us', default: _Default | None=
     1
     >>> parse_to_epoch("10000-01-02", "ns") > 2**63
     True
-
-    Notes
-    -----
-    Boolean options accept only bool or numpy.bool_. Other values raise TypeError
-    without calling their truth-conversion methods. yearfirst and dayfirst also
-    accept None to use the corresponding Configs preference.
     """
     ...
 

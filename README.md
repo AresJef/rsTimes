@@ -15,12 +15,12 @@ The package is named `rsTimes` on PyPI. Import it as `rstimes`.
 An invoice dated January 31 renews on the last valid day of February when you add one calendar month. A fixed 30-day duration takes it into March.
 
 ```python
-from datetime import datetime
+from datetime import date
 from rstimes import Delta
 
-invoice = datetime(2024, 1, 31)
+invoice = date(2024, 1, 31)
 renewal = invoice + Delta(months=1)
-print(renewal.date())
+print(renewal)
 # 2024-02-29
 ```
 

@@ -1133,6 +1133,11 @@ class Pldt(pl.Series):
         Examples
         --------
         >>> from rstimes import Pldt
+        >>> events = Pldt(["2024-01-31 14:30", None])
+        >>> print(events.add(months=1).isoformat().to_list())
+        ['2024-02-29T14:30:00', None]
+
+        >>> from rstimes import Pldt
         >>> Pldt([1], unit="us").add(microseconds=1, nanoseconds=-1000).to_physical().to_list()
         [1]
         """
@@ -1500,8 +1505,9 @@ class Pldt(pl.Series):
         Examples
         --------
         >>> from rstimes import Pldt
-        >>> Pldt(["1970-01-01 12:00:00"], unit="us").snap("D").to_physical().to_list()
-        [86400000000]
+        >>> events = Pldt(["2024-01-02 11:59", "2024-01-02 12:00", None])
+        >>> print(events.snap("D").isoformat().to_list())
+        ['2024-01-02T00:00:00', '2024-01-03T00:00:00', None]
         """
         ...
 
@@ -2019,9 +2025,8 @@ class Pldt(pl.Series):
         Parameters
         ----------
         year : integer or one-dimensional integer collection
-            Required scalar or equal-length target; legal nonmatching numeric values return False. Missing
-            targets fail even for source null; unknown/empty saved month names fail instead of silently
-            returning False.
+            An integer year or a same-length integer column paired by position. A valid
+            integer outside the matching range yields False. Strings, booleans and missing targets are invalid.
 
         Returns
         -------
@@ -2135,9 +2140,8 @@ class Pldt(pl.Series):
         Parameters
         ----------
         day : integer or one-dimensional integer collection
-            Required scalar or equal-length target; legal nonmatching numeric values return False. Missing
-            targets fail even for source null; unknown/empty saved month names fail instead of silently
-            returning False.
+            An integer day or a same-length integer column paired by position. A valid
+            integer outside the matching range yields False. Strings, booleans and missing targets are invalid.
 
         Returns
         -------
@@ -2317,13 +2321,13 @@ class Pldt(pl.Series):
         ...
 
     def timedf(self) -> pl.DataFrame:
-        """Return local time fields as an eager DataFrame or native Struct Expr.
-        
+        """Read nine local time fields, including fractional seconds and fold.
+
         Returns
         -------
-        pl.DataFrame
-            Native nine-column time table with fixed child dtypes; source nulls remain null.
-        
+        polars.DataFrame
+            A Polars DataFrame with one column for each of the nine fields.
+
         Raises
         ------
         TypeError
@@ -2859,9 +2863,10 @@ class Pldt(pl.Series):
             supported native columns may mix. No scalar, mapping, set, table, nested row or automatic
             flattening.
         unit : {"ms", "us", "ns"} or None
-            Choose ms, us or ns. With None, preserve native date resolution, use ns for bare
-            ticks, and choose from the precision in the input text. Undeclared empty or
-            all-missing data defaults to ms. Values must fit the chosen resolution exactly.
+            Without a unit, text uses us for up to six fractional digits and ns for seven
+            through nine, even if the additional digits are zero. An explicit unit is lossless.
+            Without a unit, preserve native Datetime resolution and use ns for bare ticks.
+            An untyped empty or all-null input defaults to ms.
         name : str or None
             Set the result's column name. None keeps the source name when present.
             A subclass copy that returns the original cannot assign it a different name.
@@ -3686,8 +3691,9 @@ class Pldt(pl.Series):
             Attach the chosen zone to naive ISO dates and convert ISO values with a zone to it.
             With None, keep a common zone from the input if one is present.
         unit : {"ms", "us", "ns"} or None
-            Choose ms, us or ns. With None, use us for text with at most six fractional digits,
-            ns when the text declares more, or ms when there is no date resolution to infer.
+            Without a unit, text uses us for up to six fractional digits and ns for seven
+            through nine, even if the additional digits are zero. An explicit unit is lossless.
+            An empty or all-null text input without a declared resolution uses ms.
         name : str or None
             Set the result's column name. None keeps the source name when present.
         ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
@@ -3752,8 +3758,7 @@ class Pldt(pl.Series):
             Move prepared endpoints to their local day boundary before range validation/generation when
             True.
         inclusive : str
-            For diff: 'one' (ordinary signed difference), 'both' or 'neither'. For date_range: 'both',
-            'left', 'right' or 'neither' endpoint inclusion.
+            Keep both endpoints, only start (left), only end (right), or neither.
         unit : {"ms", "us", "ns"} or None
             Storage resolution ms/us/ns. None uses this factory's documented source-driven default; Polars
             has no Datetime(s).
@@ -5862,10 +5867,10 @@ class _SeriesNamespace(Generic[_PldtT]):
         --------
         >>> import polars as pl
         >>> import rstimes.pldt
-        >>> source = pl.Series('event', [43_200_000_000, None], dtype=pl.Datetime('us'))
-        >>> dates = source.pldt.snap('D')
-        >>> print(dates.to_physical().to_list())
-        [86400000000, None]
+        >>> source = pl.Series("event", ["2024-01-02 11:59", "2024-01-02 12:00", None])
+        >>> dates = source.pldt.parse(unit="us").pldt.snap("D")
+        >>> print(dates.isoformat().to_list())
+        ['2024-01-02T00:00:00', '2024-01-03T00:00:00', None]
         """
         ...
 
@@ -6383,9 +6388,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         Parameters
         ----------
         year : integer or one-dimensional integer collection
-            Required scalar or equal-length target; legal nonmatching numeric values return False. Missing
-            targets fail even for source null; unknown/empty saved month names fail instead of silently
-            returning False.
+            An integer year or a same-length integer column paired by position. A valid
+            integer outside the matching range yields False. Strings, booleans and missing targets are invalid.
 
         Returns
         -------
@@ -6499,9 +6503,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         Parameters
         ----------
         day : integer or one-dimensional integer collection
-            Required scalar or equal-length target; legal nonmatching numeric values return False. Missing
-            targets fail even for source null; unknown/empty saved month names fail instead of silently
-            returning False.
+            An integer day or a same-length integer column paired by position. A valid
+            integer outside the matching range yields False. Strings, booleans and missing targets are invalid.
 
         Returns
         -------
@@ -6684,13 +6687,13 @@ class _SeriesNamespace(Generic[_PldtT]):
         ...
 
     def timedf(self) -> pl.DataFrame:
-        """Return local time fields as an eager DataFrame or native Struct Expr.
-        
+        """Read nine local time fields, including fractional seconds and fold.
+
         Returns
         -------
-        pl.DataFrame
-            Native nine-column time table with fixed child dtypes; source nulls remain null.
-        
+        polars.DataFrame
+            A Polars DataFrame with one column for each of the nine fields.
+
         Raises
         ------
         TypeError
@@ -7156,8 +7159,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         absolute : bool or numpy.bool_
             Original protocol argument, forwarded without inventing another interpretation.
         inclusive : str
-            For diff: 'one' (ordinary signed difference), 'both' or 'neither'. For date_range: 'both',
-            'left', 'right' or 'neither' endpoint inclusion.
+            Count boundaries with one, both or neither endpoint. Use this method on
+            Series.pldt or Expr.pldt. Polars Series.diff compares adjacent rows.
 
         Returns
         -------
@@ -7486,8 +7489,9 @@ class _SeriesNamespace(Generic[_PldtT]):
             Attach the chosen zone to naive ISO dates and convert ISO values with a zone to it.
             With None, keep a common zone from the input if one is present.
         unit : {"ms", "us", "ns"} or None
-            Choose ms, us or ns. With None, use us for text with at most six fractional digits,
-            ns when the text declares more, or ms when there is no date resolution to infer.
+            Without a unit, text uses us for up to six fractional digits and ns for seven
+            through nine, even if the additional digits are zero. An explicit unit is lossless.
+            An empty or all-null text input without a declared resolution uses ms.
         name : str or None
             Set the result's column name. None keeps the source name when present.
         ambiguous : str, bool, numpy.bool_ or one-dimensional boolean mask
@@ -7714,9 +7718,10 @@ class _SeriesNamespace(Generic[_PldtT]):
         Parameters
         ----------
         unit : {"ms", "us", "ns"} or None
-            Choose ms, us or ns. With None, preserve native date resolution, use ns for bare
-            ticks, and choose from the precision in the input text. Undeclared empty or
-            all-missing data defaults to ms. Values must fit the chosen resolution exactly.
+            Without a unit, text uses us for up to six fractional digits and ns for seven
+            through nine, even if the additional digits are zero. An explicit unit is lossless.
+            Without a unit, preserve native Datetime resolution and use ns for bare ticks.
+            An untyped empty or all-null input defaults to ms.
         name : str or None
             Set the result's column name. None keeps the source name when present.
             A subclass copy that returns the original cannot assign it a different name.
@@ -9090,16 +9095,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9115,16 +9116,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9140,16 +9137,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9165,16 +9158,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9190,16 +9179,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9215,16 +9200,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9240,16 +9221,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9265,16 +9242,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9290,16 +9263,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9733,16 +9702,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9781,11 +9746,10 @@ class _ExprNamespace:
         --------
         >>> import polars as pl
         >>> import rstimes.pldt
-        >>> frame = pl.DataFrame([pl.Series('event', [43_200_000_000, None], dtype=pl.Datetime('us'))])
-        >>> expr = pl.col('event').pldt.snap('D')
-        >>> dates = frame.select(expr)['event']
-        >>> print(dates.to_physical().to_list())
-        [86400000000, None]
+        >>> frame = pl.DataFrame({"event": ["2024-01-02 11:59", "2024-01-02 12:00", None]})
+        >>> expr = pl.col("event").pldt.parse(unit="us").pldt.snap("D")
+        >>> print(frame.lazy().select(expr).collect()["event"].dt.strftime("%Y-%m-%dT%H:%M:%S").to_list())
+        ['2024-01-02T00:00:00', '2024-01-03T00:00:00', None]
         """
         ...
 
@@ -9836,16 +9800,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9862,16 +9822,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9888,16 +9844,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9914,16 +9866,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9940,16 +9888,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9966,16 +9910,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -9992,16 +9932,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10018,16 +9954,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10044,16 +9976,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10070,16 +9998,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10096,16 +10020,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10122,16 +10042,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10148,16 +10064,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10174,16 +10086,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10199,16 +10107,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10224,16 +10128,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10249,16 +10149,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10274,16 +10170,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10299,16 +10191,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10324,16 +10212,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10349,16 +10233,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10374,16 +10254,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10399,16 +10275,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10424,16 +10296,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10445,7 +10313,9 @@ class _ExprNamespace:
         Parameters
         ----------
         year : integer or one-dimensional integer collection or polars.Expr
-            Required integer year or an equal-length column of years. A valid nonmatching year yields False.
+            An integer year or a same-length integer column paired by position. A valid
+            integer outside the matching range yields False. Strings, booleans and missing targets are invalid.
+            Use an integer-valued expression for a target supplied by the query.
 
         Returns
         -------
@@ -10575,7 +10445,9 @@ class _ExprNamespace:
         Parameters
         ----------
         day : integer or one-dimensional integer collection or polars.Expr
-            Required integer day of the month or an equal-length column of days. A valid nonmatching day yields False.
+            An integer day or a same-length integer column paired by position. A valid
+            integer outside the matching range yields False. Strings, booleans and missing targets are invalid.
+            Use an integer-valued expression for a target supplied by the query.
 
         Returns
         -------
@@ -10613,16 +10485,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10672,16 +10540,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10697,16 +10561,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10722,16 +10582,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10747,16 +10603,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10772,16 +10624,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
 
@@ -10798,25 +10646,21 @@ class _ExprNamespace:
         ...
 
     def timedf(self) -> pl.Expr:
-        """Return local time fields as an eager DataFrame or native Struct Expr.
+        """Read nine local time fields, including fractional seconds and fold.
 
         Returns
         -------
         pl.Expr
-            A native expression evaluated by Polars in select or collect.
+            A native expression. Both select and collect produce one Struct column with nine fields.
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10832,16 +10676,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10939,16 +10779,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -10964,16 +10800,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
 
@@ -11000,16 +10832,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -11026,16 +10854,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -11052,16 +10876,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -11152,16 +10972,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -11239,16 +11055,12 @@ class _ExprNamespace:
 
         Raises
         ------
-        TypeError
-            A supplied type, integer/bool protocol or parameter role is unsupported.
-        ValueError
-            A field, shape, precision reduction or localization rule is invalid.
-        OverflowError
-            The true final result exceeds the current unit/target capacity.
+        polars.exceptions.ComputeError
+            An expression with unsupported input or an invalid value can fail during
+            planning or evaluation.
 
         Notes
         -----
-        In a Polars query, invalid Python options can fail when the expression is created.
         Polars checks its input types when planning and evaluates values in select or collect.
         An execution error can report a position within its input batch.
         """
@@ -11267,8 +11079,8 @@ class _ExprNamespace:
         absolute : bool or numpy.bool_
             Original protocol argument, forwarded without inventing another interpretation.
         inclusive : str
-            For diff: 'one' (ordinary signed difference), 'both' or 'neither'. For date_range: 'both',
-            'left', 'right' or 'neither' endpoint inclusion.
+            Count boundaries with one, both or neither endpoint. Use this method on
+            Series.pldt or Expr.pldt. Polars Series.diff compares adjacent rows.
 
         Returns
         -------

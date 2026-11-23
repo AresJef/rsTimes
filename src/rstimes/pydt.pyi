@@ -1,4 +1,4 @@
-"""Type hints for Pydt's calendar conveniences and standard datetime inheritance.
+"""Work with a single datetime using calendar methods and standard datetime operations.
 
 Date text inputs and string defaults accept real str subclasses and read
 their native stored content, without calling __str__ or overridden sequence
@@ -236,8 +236,7 @@ OverflowError
 Returns
 -------
 Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes."""
+    An immutable Pydt value of the same subclass."""
         ...
 
     @classmethod
@@ -247,8 +246,7 @@ Pydt
 Returns
 -------
 Pydt
-    An immutable Pydt value of the same subclass.
-    A convenience operation may return the original value when nothing changes."""
+    An immutable Pydt value of the same subclass."""
         ...
 
     @classmethod
@@ -466,8 +464,7 @@ OverflowError
         Parameters
         ----------
         dtstr : str
-            Date/time text, including real str subclasses. Native stored content is
-                    read directly, without calling __str__.
+            Date/time text accepted by datetime.fromisoformat. A str subclass uses its stored text.
 
         Returns
         -------
@@ -763,8 +760,7 @@ dict[str, int]
         Returns
         -------
         float
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            epoch seconds, including the microsecond fraction.
 
         Raises
         ------
@@ -798,8 +794,7 @@ dict[str, int]
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            exact epoch microseconds; optionally subtract an aware UTC offset.
 
         Raises
         ------
@@ -1535,11 +1530,12 @@ OverflowError
         ...
 
     def to_first_of(self, unit: str | Literal['Y', 'Q', 'M', 'W']) -> Self:
-        """Return the first of a calendar period or named month.
+        """Choose the first day of the calendar period or named month and keep the time of day.
 
         Parameters
         ----------
-        unit : str | Literal['Y', 'Q', 'M', 'W']
+        unit : str
+            Use ``Y``, ``Q``, ``M`` or ``W``.
             Calendar period or stored month name; start/end operations also accept
             stored weekday names and clock units. Unknown or empty names raise
             ValueError.
@@ -1571,7 +1567,8 @@ OverflowError
 
         Parameters
         ----------
-        unit : str | Literal['Y', 'Q', 'M', 'W']
+        unit : str
+            Use ``Y``, ``Q``, ``M`` or ``W``.
             Calendar period or stored month name; start/end operations also accept
             stored weekday names and clock units. Unknown or empty names raise
             ValueError.
@@ -1599,14 +1596,15 @@ OverflowError
         ...
 
     def to_start_of(self, unit: str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']) -> Self:
-        """Return the start of a calendar period or named month/weekday.
+        """Move to the first valid instant of the selected period.
 
         For 'us' and its 'ns' alias, return this same object, retaining fold
         and the represented instant.
 
         Parameters
         ----------
-        unit : str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']
+        unit : str
+            Use ``Y``, ``Q``, ``M``, ``W``, ``D``, ``h``, ``m``, ``s``, ``ms`` or ``us``.
             Calendar period or stored month name; start/end operations also accept
             stored weekday names and clock units. Unknown or empty names raise
             ValueError.
@@ -1643,7 +1641,8 @@ OverflowError
 
         Parameters
         ----------
-        unit : str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']
+        unit : str
+            Use ``Y``, ``Q``, ``M``, ``W``, ``D``, ``h``, ``m``, ``s``, ``ms`` or ``us``.
             Calendar period or stored month name; start/end operations also accept
             stored weekday names and clock units. Unknown or empty names raise
             ValueError.
@@ -1675,7 +1674,8 @@ OverflowError
 
         Parameters
         ----------
-        unit : str | Literal['Y', 'Q', 'M', 'W']
+        unit : str
+            Use ``Y``, ``Q``, ``M`` or ``W``.
             Calendar period or stored month name; start/end operations also accept
             stored weekday names and clock units. Unknown or empty names raise
             ValueError.
@@ -1707,7 +1707,8 @@ OverflowError
 
 Parameters
 ----------
-unit : str | Literal['Y', 'Q', 'M', 'W']
+unit : str
+    Use ``Y``, ``Q``, ``M`` or ``W``.
     Calendar period or stored month name; start/end operations also accept
     stored weekday names and clock units. Unknown or empty names raise
     ValueError.
@@ -1735,7 +1736,8 @@ OverflowError
 
         Parameters
         ----------
-        unit : str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']
+        unit : str
+            Use ``Y``, ``Q``, ``M``, ``W``, ``D``, ``h``, ``m``, ``s``, ``ms`` or ``us``.
             Calendar period or stored month name; start/end operations also accept
             stored weekday names and clock units. Unknown or empty names raise
             ValueError.
@@ -1769,7 +1771,8 @@ Always True for the native microsecond unit 'us' and its 'ns' alias.
 
 Parameters
 ----------
-unit : str | Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms', 'us']
+unit : str
+    Use ``Y``, ``Q``, ``M``, ``W``, ``D``, ``h``, ``m``, ``s``, ``ms`` or ``us``.
     Calendar period or stored month name; start/end operations also accept
     stored weekday names and clock units. Unknown or empty names raise
     ValueError.
@@ -1797,7 +1800,8 @@ OverflowError
 
         Parameters
         ----------
-        freq : Literal['D', 'h', 'm', 'min', 's', 'ms', 'us', 'ns']
+        freq : str
+            Use ``D``, ``h``, ``m``, ``min``, ``s``, ``ms``, ``us`` or ``ns``.
             Single rounding unit: D, h, m/min, s, ms, us or the existing ns alias for
             us. Multi-frequency forms such as 15min are not supported.
 
@@ -1830,7 +1834,8 @@ OverflowError
 
         Parameters
         ----------
-        freq : Literal['D', 'h', 'm', 'min', 's', 'ms', 'us', 'ns']
+        freq : str
+            Use ``D``, ``h``, ``m``, ``min``, ``s``, ``ms``, ``us`` or ``ns``.
             Single rounding unit: D, h, m/min, s, ms, us or the existing ns alias for
             us. Multi-frequency forms such as 15min are not supported.
 
@@ -1863,7 +1868,8 @@ OverflowError
 
         Parameters
         ----------
-        freq : Literal['D', 'h', 'm', 'min', 's', 'ms', 'us', 'ns']
+        freq : str
+            Use ``D``, ``h``, ``m``, ``min``, ``s``, ``ms``, ``us`` or ``ns``.
             Single rounding unit: D, h, m/min, s, ms, us or the existing ns alias for
             us. Multi-frequency forms such as 15min are not supported.
 
@@ -1926,14 +1932,13 @@ OverflowError
         ...
 
     def fsp(self, precision: SupportsIndex) -> Self:
-        """Keep precision decimal places in the fractional second, without rounding.
+        """Truncate the stored microseconds to the requested number of decimal places.
 
         Parameters
         ----------
-        precision : number
-            Decimal places to retain in fractional seconds. Negative precision is
-            invalid; Pydt keeps its value unchanged at 6 or more places, while Pddt has
-            nanosecond precision.
+        precision : integer
+            Fractional-second digits to keep, without rounding. Six or more leaves
+            this Pydt unchanged. Pddt and Pldt can store nanoseconds.
 
         Returns
         -------
@@ -1963,8 +1968,7 @@ OverflowError
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the ISO week-numbering year."""
         ...
 
     def isoweek(self) -> int:
@@ -1973,8 +1977,7 @@ int
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the ISO week number, from 1 through 53."""
         ...
 
     def isoweekday(self) -> int:
@@ -1983,8 +1986,7 @@ int
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the ISO weekday, Monday=1 through Sunday=7."""
         ...
 
     def is_year(self, year: SupportsIndex) -> bool:
@@ -2055,8 +2057,7 @@ year : number
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated.
+    Count leap years in the half-open interval between the two years.
 
 Raises
 ------
@@ -2074,8 +2075,7 @@ OverflowError
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the number of days in this year."""
         ...
 
     def days_bf_year(self) -> int:
@@ -2084,8 +2084,7 @@ int
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the number of days before this year, starting at year 1."""
         ...
 
     @property
@@ -2095,8 +2094,7 @@ int
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the day number within this year, starting at 1."""
         ...
 
     @property
@@ -2106,8 +2104,7 @@ int
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    Calendar quarter, 1 through 4."""
         ...
 
     def is_quarter(self, quarter: SupportsIndex) -> bool:
@@ -2140,8 +2137,7 @@ OverflowError
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the number of days in this quarter."""
         ...
 
     def days_bf_quarter(self) -> int:
@@ -2150,8 +2146,7 @@ int
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the number of days in the year before this quarter."""
         ...
 
     def day_of_quarter(self) -> int:
@@ -2160,8 +2155,7 @@ int
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the day number within this quarter, starting at 1."""
         ...
 
     def is_month(self, month: SupportsIndex | str) -> bool:
@@ -2197,8 +2191,7 @@ OverflowError
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the number of days in this month."""
         ...
 
     def days_bf_month(self) -> int:
@@ -2207,8 +2200,7 @@ int
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the number of days in the year before this month."""
         ...
 
     def day_of_month(self) -> int:
@@ -2217,8 +2209,7 @@ int
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the day number within this month."""
         ...
 
     def month_name(self, locale: str | None=None) -> str:
@@ -2233,8 +2224,7 @@ locale : str | None, default None
 Returns
 -------
 str
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated.
+    the full month name in the requested language.
 
 Raises
 ------
@@ -2284,8 +2274,7 @@ locale : str | None, default None
 Returns
 -------
 str
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated.
+    the full weekday name in the requested language.
 
 Raises
 ------
@@ -2329,8 +2318,7 @@ OverflowError
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    Millisecond part of the current second, from 0 through 999."""
         ...
 
     @property
@@ -2350,8 +2338,7 @@ set[str]
 Returns
 -------
 datetime.tzinfo | None
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    The attached tzinfo object, or None for a naive datetime."""
         ...
 
     def is_local(self) -> bool:
@@ -2404,8 +2391,7 @@ bool
 Returns
 -------
 int | None
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    Whole seconds east of UTC, or None when the datetime has no UTC offset."""
         ...
 
     def astimezone(self, tz: datetime.tzinfo | str | None=None) -> Self:
@@ -2666,11 +2652,13 @@ Relative arguments use the integer index protocol. Floats, booleans, text and
             One supported date/time input: text, a Python date/datetime, numeric epoch
             seconds, or a NumPy datetime64 scalar. NaT and unsupported containers are
             rejected.
-        unit : Literal['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 'min', 's', 'ms', 'us']
+        unit : str
+            Use ``Y``, ``Q``, ``M``, ``W``, ``D``, ``h``, ``m``, ``min``, ``s``, ``ms`` or ``us``.
             Calendar or clock boundary unit: Y, Q, M, W, D, h, m/min, s, ms or us.
         absolute : bool, default False
             True returns the magnitude of the difference; False retains its sign.
-        inclusive : Literal['one', 'both', 'neither'], default 'one'
+        inclusive : str, default 'one'
+            Use ``one``, ``both`` or ``neither``.
             Boundary-count convention: one counts one endpoint, both adds one to the
             magnitude, and neither subtracts one. Equal boundaries with absolute=True
             and neither may yield -1.
@@ -2678,8 +2666,7 @@ Relative arguments use the integer index protocol. Floats, booleans, text and
         Returns
         -------
         int
-            The value described above, in the stated type and units; None represents an
-            absent optional field or offset where indicated.
+            Count unit boundaries between this value and a supported date input.
 
         Raises
         ------
@@ -2837,8 +2824,7 @@ bool
 Returns
 -------
 str
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    a readable representation of this value."""
         ...
 
     def __format__(self, fmt: str) -> str:
@@ -2853,8 +2839,7 @@ fmt : str
 Returns
 -------
 str
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated.
+    Format this datetime using a string specification; an empty string uses the usual representation.
 
 Raises
 ------
@@ -2921,8 +2906,7 @@ TypeError
 Returns
 -------
 int
-    The value described above, in the stated type and units; None represents an
-    absent optional field or offset where indicated."""
+    the day of the week, Monday=0 through Sunday=6."""
         ...
 
     def replace(self, year: SupportsIndex | None=..., month: SupportsIndex | None=..., day: SupportsIndex | None=..., hour: SupportsIndex | None=..., minute: SupportsIndex | None=..., second: SupportsIndex | None=..., microsecond: SupportsIndex | None=..., tzinfo: datetime.tzinfo | str | None=..., *, fold: SupportsIndex | np.bool_ | None=...) -> Self:

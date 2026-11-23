@@ -1,4 +1,4 @@
-"""Public home of the Rust-backed :class:`Delta` calendar increment.
+"""Add calendar and clock changes to Python dates or date columns.
 
 ``rstimes.Delta`` and ``rstimes.delta.Delta`` are the same native class.
 Delta values are immutable and compare by their fields with other Delta values.
