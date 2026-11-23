@@ -611,8 +611,8 @@ def _calendar_query(self, code, entry, target=_UNSET, parameter=None, names=0):
     if code==201:
         values=values.reshape((-1,3))
         columns={}
-        for i,(name,dtype) in enumerate((("year","Int64"),("week","UInt32"),("day","UInt32"))):
-            column=pd.array(values[:,i],dtype=dtype,copy=True)
+        for i,name in enumerate(("year","week","day")):
+            column=pd.array(values[:,i],dtype="Int64" if i == 0 else "UInt32",copy=True)
             if missing is not None:
                 column[missing]=pd.NA
             columns[name]=column
