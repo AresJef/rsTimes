@@ -889,7 +889,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -911,7 +912,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -933,7 +935,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -955,7 +958,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -977,7 +981,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -999,7 +1004,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -1021,7 +1027,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -1043,7 +1050,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -1065,7 +1073,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -1472,7 +1481,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -1561,7 +1571,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -1581,7 +1591,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -1601,7 +1611,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -1621,7 +1631,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -1641,7 +1651,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -1661,7 +1671,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -1722,7 +1732,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
         """
         ...
 
@@ -1743,7 +1753,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -1763,7 +1773,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -1783,7 +1793,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -1824,7 +1834,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def isoyear(self) -> pl.Series:
@@ -1843,7 +1853,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def isoweek(self) -> pl.Series:
@@ -1862,7 +1872,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def isoweekday(self) -> pl.Series:
@@ -1881,7 +1891,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
         """
         ...
 
@@ -1901,7 +1911,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def days_bf_year(self) -> pl.Series:
@@ -1920,7 +1930,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
         """
         ...
 
@@ -1940,7 +1950,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def days_bf_quarter(self) -> pl.Series:
@@ -1959,7 +1969,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def day_of_quarter(self) -> pl.Series:
@@ -1978,7 +1988,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def days_bf_month(self) -> pl.Series:
@@ -1997,7 +2007,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def day_of_month(self) -> pl.Series:
@@ -2016,7 +2026,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def is_year(self, year: _IntegerInput) -> pl.Series:
@@ -2182,7 +2192,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def leap_bt_year(self, year: _IntegerInput) -> pl.Series:
@@ -2234,7 +2244,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def utcoffset_seconds(self) -> pl.Series:
@@ -2253,7 +2263,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def is_past(self) -> pl.Series:
@@ -2297,7 +2307,8 @@ class Pldt(pl.Series):
     def isocalendar(self) -> pl.Series:
         """Return the ISO year, week, and weekday in a Struct with UInt32 fields.
 
-        Use isoyear() to read ISO years as signed integers.
+        For a negative ISO year, use isoyear() to read a signed integer.
+        The same named time zone date range applies to isoyear().
 
         Returns
         -------
@@ -2312,7 +2323,8 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            An input date has an ISO year outside the UInt32 range.
+            The ISO year falls outside the UInt32 range.
+            A date falls outside the supported range of its named time zone.
 
         Examples
         --------
@@ -2340,7 +2352,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def utctimedf(self) -> pl.DataFrame:
@@ -2444,7 +2456,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def timestamp(self) -> pl.Series:
@@ -2534,7 +2546,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def isoformat(self, sep: str='T', timespec: str='auto') -> pl.Series:
@@ -2613,7 +2625,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def month_name(self, locale: str | None=None) -> pl.Series:
@@ -2684,7 +2696,7 @@ class Pldt(pl.Series):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def datetime(self) -> np.ndarray:
@@ -5261,7 +5273,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -5283,7 +5296,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -5305,7 +5319,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -5327,7 +5342,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -5349,7 +5365,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -5371,7 +5388,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -5393,7 +5411,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -5415,7 +5434,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -5437,7 +5457,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -5848,7 +5869,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
+            The result may also exceed its unit's capacity.
         """
         ...
 
@@ -5939,7 +5961,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -5959,7 +5981,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -5979,7 +6001,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -5999,7 +6021,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -6019,7 +6041,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -6039,7 +6061,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -6100,7 +6122,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
         """
         ...
 
@@ -6121,7 +6143,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -6141,7 +6163,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -6161,7 +6183,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     @property
@@ -6202,7 +6224,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def isoyear(self) -> pl.Series:
@@ -6221,7 +6243,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def isoweek(self) -> pl.Series:
@@ -6240,7 +6262,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def isoweekday(self) -> pl.Series:
@@ -6259,7 +6281,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
         """
         ...
 
@@ -6279,7 +6301,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def days_bf_year(self) -> pl.Series:
@@ -6298,7 +6320,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity.
+            A date falls outside the supported range of its named time zone.
         """
         ...
 
@@ -6318,7 +6340,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def days_bf_quarter(self) -> pl.Series:
@@ -6337,7 +6359,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def day_of_quarter(self) -> pl.Series:
@@ -6356,7 +6378,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def days_bf_month(self) -> pl.Series:
@@ -6375,7 +6397,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def day_of_month(self) -> pl.Series:
@@ -6394,7 +6416,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def is_year(self, year: _IntegerInput) -> pl.Series:
@@ -6560,7 +6582,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def leap_bt_year(self, year: _IntegerInput) -> pl.Series:
@@ -6612,7 +6634,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def utcoffset_seconds(self) -> pl.Series:
@@ -6631,7 +6653,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def is_past(self) -> pl.Series:
@@ -6675,7 +6697,8 @@ class _SeriesNamespace(Generic[_PldtT]):
     def isocalendar(self) -> pl.Series:
         """Return the ISO year, week, and weekday in a Struct with UInt32 fields.
 
-        Use isoyear() to read ISO years as signed integers.
+        For a negative ISO year, use isoyear() to read a signed integer.
+        The same named time zone date range applies to isoyear().
 
         Returns
         -------
@@ -6690,7 +6713,8 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            An input date has an ISO year outside the UInt32 range.
+            The ISO year falls outside the UInt32 range.
+            A date falls outside the supported range of its named time zone.
 
         Examples
         --------
@@ -6721,7 +6745,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def utctimedf(self) -> pl.DataFrame:
@@ -6828,7 +6852,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def timestamp(self) -> pl.Series:
@@ -6921,7 +6945,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def isoformat(self, sep: str='T', timespec: str='auto') -> pl.Series:
@@ -7003,7 +7027,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def month_name(self, locale: str | None=None) -> pl.Series:
@@ -7074,7 +7098,7 @@ class _SeriesNamespace(Generic[_PldtT]):
         ValueError
             A field, shape, precision reduction or localization rule is invalid.
         OverflowError
-            The true final result exceeds the current unit/target capacity."""
+            A date falls outside the supported range of its named time zone."""
         ...
 
     def datetime(self) -> np.ndarray:

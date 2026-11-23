@@ -2984,7 +2984,8 @@ class _QueryMethods:
     def isocalendar(self) -> pl.Series | pl.Expr:
         """Return the ISO year, week, and weekday in a Struct with UInt32 fields.
 
-        Use isoyear() to read ISO years as signed integers.
+        For a negative ISO year, use isoyear() to read a signed integer.
+        The same named time zone date range applies to isoyear().
 
         Returns
         -------
@@ -2997,11 +2998,12 @@ class _QueryMethods:
         TypeError
             An unsupported source dtype cannot be read as a date column.
         OverflowError
-            An eager input has an ISO year outside the UInt32 range, or the date
-            is outside the supported regional timezone range.
+            For eager Pldt and Series.pldt calls, the ISO year falls outside the UInt32 range.
+            A date falls outside the supported range of its named time zone.
         polars.exceptions.ComputeError
-            An expression can fail during planning or evaluation. An ISO year
-            outside the UInt32 range fails during select or collect.
+            An expression can fail during planning. An ISO year outside the UInt32
+            range or a date outside the supported range of a named time zone
+            fails during select or collect.
 
         Notes
         -----
@@ -3437,9 +3439,11 @@ class _PeriodMethods:
         ValueError
             The selected day has no valid regional datetime.
         OverflowError
-            The result exceeds the storage unit's capacity.
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
         polars.exceptions.ComputeError
-            A Polars expression can fail during planning or evaluation.
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
 
         Notes
         -----
@@ -4375,9 +4379,11 @@ class _TransformMethods:
         ValueError
             The selected day has no valid regional datetime.
         OverflowError
-            The result exceeds the storage unit's capacity.
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
         polars.exceptions.ComputeError
-            A Polars expression can fail during planning or evaluation.
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
 
         Notes
         -----
@@ -4402,9 +4408,11 @@ class _TransformMethods:
         ValueError
             The selected day has no valid regional datetime.
         OverflowError
-            The result exceeds the storage unit's capacity.
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
         polars.exceptions.ComputeError
-            A Polars expression can fail during planning or evaluation.
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
 
         Notes
         -----
@@ -4429,9 +4437,11 @@ class _TransformMethods:
         ValueError
             The selected day has no valid regional datetime.
         OverflowError
-            The result exceeds the storage unit's capacity.
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
         polars.exceptions.ComputeError
-            A Polars expression can fail during planning or evaluation.
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
 
         Notes
         -----
@@ -4456,9 +4466,11 @@ class _TransformMethods:
         ValueError
             The selected day has no valid regional datetime.
         OverflowError
-            The result exceeds the storage unit's capacity.
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
         polars.exceptions.ComputeError
-            A Polars expression can fail during planning or evaluation.
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
 
         Notes
         -----
@@ -4483,9 +4495,11 @@ class _TransformMethods:
         ValueError
             The selected day has no valid regional datetime.
         OverflowError
-            The result exceeds the storage unit's capacity.
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
         polars.exceptions.ComputeError
-            A Polars expression can fail during planning or evaluation.
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
 
         Notes
         -----
@@ -4510,9 +4524,11 @@ class _TransformMethods:
         ValueError
             The selected day has no valid regional datetime.
         OverflowError
-            The result exceeds the storage unit's capacity.
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
         polars.exceptions.ComputeError
-            A Polars expression can fail during planning or evaluation.
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
 
         Notes
         -----
@@ -4537,9 +4553,11 @@ class _TransformMethods:
         ValueError
             The selected day has no valid regional datetime.
         OverflowError
-            The result exceeds the storage unit's capacity.
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
         polars.exceptions.ComputeError
-            A Polars expression can fail during planning or evaluation.
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
 
         Notes
         -----
@@ -4564,9 +4582,11 @@ class _TransformMethods:
         ValueError
             The selected day has no valid regional datetime.
         OverflowError
-            The result exceeds the storage unit's capacity.
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
         polars.exceptions.ComputeError
-            A Polars expression can fail during planning or evaluation.
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
 
         Notes
         -----
@@ -4591,9 +4611,11 @@ class _TransformMethods:
         ValueError
             The selected day has no valid regional datetime.
         OverflowError
-            The result exceeds the storage unit's capacity.
+            For eager Pldt and Series.pldt calls, a date falls outside the supported
+            range of its named time zone, or the result exceeds its unit's capacity.
         polars.exceptions.ComputeError
-            A Polars expression can fail during planning or evaluation.
+            An expression can fail during planning. A date outside the supported
+            range of a named time zone fails during select or collect.
 
         Notes
         -----
