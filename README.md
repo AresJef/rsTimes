@@ -30,6 +30,8 @@ print(renewal)
 - Use `Pddt` for date columns or indexes in pandas. Install it with `python -m pip install "rsTimes[pandas]"`.
 - Use `Pldt` for date columns in Polars or `.pldt` expressions in DataFrames and LazyFrames. Install it with `python -m pip install "rsTimes[polars]"`.
 
+**Upgrading to 1.1.1?** When you declare an `isocalendar()` result schema for `Pddt`, `Pldt` or the Polars `.pldt` namespace, change `year` to `Int64`. `week` and `day` remain `UInt32`.
+
 Wheels are available for 64-bit CPython 3.12–3.15 on macOS, Windows, and Linux. Free-threaded 3.14 and 3.15 wheels require compatible dependencies. rsTimes is MIT-licensed.
 
 [Developer documentation](https://aresjef.github.io/rsTimes/) · [Release notes and platform support](https://github.com/AresJef/rsTimes/blob/v1.1.1/docs/releases/v1.1.1.md) · [Free-threaded setup](https://github.com/AresJef/rsTimes/blob/v1.1.1/docs/free-threaded-python.md) · [Type checking](https://github.com/AresJef/rsTimes/blob/v1.1.1/docs/type-checking.md) · [Report an issue](https://github.com/AresJef/rsTimes/issues)
