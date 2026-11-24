@@ -1,15 +1,14 @@
 # Run the demos
 
-From the `v1.1.1` checkout, set up the two demo environments on macOS with ordinary CPython 3.13.
-Use the wheel and manifest for the same 1.1.1 release.
+The selected demo environments use the verified rsTimes 1.1.1 public wheel.
+The paths below match [runtime.json](runtime.json) on macOS with CPython 3.13.
 
 ```sh
-python3.13 -m venv .local/demo-1.1.1-oracle
-.local/demo-1.1.1-oracle/bin/python -m pip install -r requirements-oracle.txt "rsTimes==1.1.1"
-python3.13 -m venv .local/demo-1.1.1-main
-.local/demo-1.1.1-main/bin/python -m pip install -r requirements-test.txt "rsTimes==1.1.1"
-mkdir -p .local/demo-1.1.1
-curl -fL https://github.com/AresJef/rsTimes/releases/download/v1.1.1/release-manifest.json -o .local/demo-1.1.1/release-manifest.json
+python3.13 -m venv .local/releases/1.1.1/demo-public/oracle
+.local/releases/1.1.1/demo-public/oracle/bin/python -m pip install -r requirements-oracle.txt "rsTimes==1.1.1"
+python3.13 -m venv .local/releases/1.1.1/demo-public/main
+.local/releases/1.1.1/demo-public/main/bin/python -m pip install -r requirements-test.txt "rsTimes==1.1.1"
+curl -fL https://github.com/AresJef/rsTimes/releases/download/v1.1.1/release-manifest.json -o .local/releases/1.1.1/demo-public/release-manifest.json
 ```
 
 Delta, Parser, and Pydt use the comparison environment, which includes

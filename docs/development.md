@@ -1,6 +1,6 @@
 # 开发与本机核验
 
-当前正式基线为 rsTimes 1.1.0。[1.1.0 实物清单](releases/1.1.0/records/release-manifest.json) · [性能回执](releases/1.1.0/records/performance-receipt.json)。使用当前源码开发。复核正式发行时，在独立目录检出对应 tag，并从源码目录外检查实际安装的 wheel。[发行流程](RELEASING.md) · [发行说明](releases/v1.1.0.md)
+当前使用正式 rsTimes 1.1.1 及其通过验收的 PyPI 实物。[发行清单](releases/1.1.1/records/release-manifest.json) · [性能回执](releases/1.1.1/records/performance-receipt.json) · [发行说明](releases/v1.1.1.md)。复查历史版本时按相应 tag 和实物清单独立安装。
 
 ## 本机构建
 
@@ -19,7 +19,7 @@ python -m maturin build --release --locked --out dist
 
 ## 性能证据
 
-发行测量使用 CI 封存的实际发行 wheel 和正式 1.0.0 的对应 macOS ARM64 wheel。六个 ABI 的对照指纹、105 项比较及必要门槛在[冻结合同](../.github/release-performance-contract.json)中登记。保留各次完整调用的原始配对记录、安装身份、校准、严格判定和独立复算回执。
+发行测量使用 CI 封存的实际发行 wheel 和正式 1.1.0 的对应 macOS ARM64 wheel。六个 ABI 的对照指纹、143 项比较及必要门槛在[冻结合同](../.github/release-performance-contract.json)中登记。保留各次完整调用的原始配对记录、安装身份、校准、严格判定和独立复算回执。
 
 ## Demo 与还原
 

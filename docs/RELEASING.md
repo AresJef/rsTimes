@@ -1,8 +1,6 @@
 # rsTimes release procedure
 
-This maintainer procedure was used for rsTimes 0.2.0b3 and 1.0.0.
-Its observed records are evidence for that release, not reusable authorization
-or acceptance for another artifact.
+The current development and publication baseline is rsTimes 1.1.1. Its [manifest](releases/1.1.1/records/release-manifest.json), [performance receipt](releases/1.1.1/records/performance-receipt.json), and [development guide](development.md) identify the verified release.
 
 ## Authority and immutable inputs
 
@@ -277,6 +275,24 @@ do not repeat an entire valid matrix just to manufacture an attractive timing.
 Completion is reported separately as configuration, actual Actions success,
 GitHub publication, PyPI publication and public-package installation success.
 Save the final report, completion audit, raw identities and budget settlement.
+
+## Verified publication record for 1.1.1
+
+The annotated `v1.1.1` tag points to `5039f6cdba69baae96f284c0d55538517e86de16` (tree `d34fe1617d5f301b88d3f486758caf1dba2bf00f`).
+[The full product CI](https://github.com/AresJef/rsTimes/actions/runs/45274210873) passed all 56 required jobs on attempt 1.
+[GitHub Release](https://github.com/AresJef/rsTimes/releases/tag/v1.1.1) and
+[PyPI](https://pypi.org/project/rsTimes/1.1.1/) carry the same 48 wheels and one
+canonical sdist. All 48 native installation positions passed, including 16
+free-threaded positions. The 143 necessary performance comparisons with the
+matching 1.1.0 wheels passed on six macOS ARM64 ABIs.
+[Release manifest](releases/1.1.1/records/release-manifest.json) ·
+[SHA-256 checksums](releases/1.1.1/records/SHA256SUMS) ·
+[Performance receipt](releases/1.1.1/records/performance-receipt.json).
+
+[Pages stage A](https://github.com/AresJef/rsTimes/actions/runs/45310770710) published the 1.1.1
+exact-version pages while 1.1.0 was the default. [Pages stage B](https://github.com/AresJef/rsTimes/actions/runs/45314240252)
+made 1.1.1 the default. The exact 1.0.0 and 1.1.0 sites and the stage A archive
+remain available for verification and recovery.
 
 ## Verified publication record for 1.1.0
 
