@@ -10,6 +10,7 @@
       "sha256": "98376c5404ffb7319d73028fc3fdc278f1438413478e1e7bc045a8a1bcb01f19",
       "size": 7349581,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/38/15/7525993502b6cdcc844d3caed588d606eb1d394989d0422e50fa66d3a251/rstimes-1.1.1-cp312-cp312-macosx_11_0_arm64.whl",
       "tags": [
         "cp312-cp312-macosx_11_0_arm64"
       ],
@@ -20,6 +21,7 @@
       "sha256": "a33a2eaa165383e048d3f5ebee450b9b441c5c52946d7080fdff7548ead6c901",
       "size": 8073757,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/02/70/a8698fc452c502fd28416751048432835bda9e864d654a8faa695ccc383c/rstimes-1.1.1-cp312-cp312-macosx_11_0_x86_64.whl",
       "tags": [
         "cp312-cp312-macosx_11_0_x86_64"
       ],
@@ -30,6 +32,7 @@
       "sha256": "175c55a41c4275bdb690ae4985a402fd10e6e475b420de3a3d5c375bedeba39f",
       "size": 7706691,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/dd/c0/64b562e41d7819d057a9d76be93233e671f480222e12f6105a41493be4ba/rstimes-1.1.1-cp312-cp312-manylinux_2_28_aarch64.whl",
       "tags": [
         "cp312-cp312-manylinux_2_28_aarch64"
       ],
@@ -40,6 +43,7 @@
       "sha256": "611105af5bc37875e634963d94e7fb73317febff7246defa42d07f06478e7611",
       "size": 8174139,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/17/c0/811472264ba4e4ed42a219bc0d57ce38e4adc7ebe951cc6027100114acc6/rstimes-1.1.1-cp312-cp312-manylinux_2_28_x86_64.whl",
       "tags": [
         "cp312-cp312-manylinux_2_28_x86_64"
       ],
@@ -50,6 +54,7 @@
       "sha256": "81709707fddf5dadd4cb5d63a9c005343c89dc3d7b38bbc65452171a74a61941",
       "size": 7776796,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/6c/cc/6de5d32cbdcdc1720e5f95b6fa40b4acbfde391dcc43b504734b315d4c25/rstimes-1.1.1-cp312-cp312-musllinux_1_2_aarch64.whl",
       "tags": [
         "cp312-cp312-musllinux_1_2_aarch64"
       ],
@@ -60,6 +65,7 @@
       "sha256": "65b5d3be3984eff1ba106da1acba1ff62b19c3baf17ab673abb6cad8237bcb41",
       "size": 8368832,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/3e/ee/c91c71232b0b22327d46122b1ae1d18fc755fba847c7a0e2ddc8e6d2e15b/rstimes-1.1.1-cp312-cp312-musllinux_1_2_x86_64.whl",
       "tags": [
         "cp312-cp312-musllinux_1_2_x86_64"
       ],
@@ -70,6 +76,7 @@
       "sha256": "480a7a6816335fac7f6a75667d1c794a63d51147bbb48de85da21a461c2807e6",
       "size": 8430011,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/d7/22/9b6e01fcd196d558ef991ceea2679335c590ccf5933e13333b033bab25e2/rstimes-1.1.1-cp312-cp312-win_amd64.whl",
       "tags": [
         "cp312-cp312-win_amd64"
       ],
@@ -80,6 +87,7 @@
       "sha256": "8713d5d0b429438a56ca4119a875af3c5d51838bf361c7bfede29e470e3bfd45",
       "size": 7576543,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/f7/f9/c674f0aeb1a7856c046d221f573f08ee2a8ec0f5803d0f8407578faead1e/rstimes-1.1.1-cp312-cp312-win_arm64.whl",
       "tags": [
         "cp312-cp312-win_arm64"
       ],
@@ -90,6 +98,7 @@
       "sha256": "0da98d84cb062eed9e1556a2fd77fc40a62529bb3fdfb8b5a591bfc560af8c42",
       "size": 7348203,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/c3/14/d0a869104b3af850b7689ad56ee33e9ef44a2d523b5f0caadb5c16da026b/rstimes-1.1.1-cp313-cp313-macosx_11_0_arm64.whl",
       "tags": [
         "cp313-cp313-macosx_11_0_arm64"
       ],
@@ -100,6 +109,7 @@
       "sha256": "d78de1f495191d9188b7690b69af25455ffa7f28ef6125cd9f45223ae6e2d750",
       "size": 8073140,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/bc/6a/4b5a329323ba5ba5dbd0d1af6dea69c2bd2fc38eeae237a105d5b26e3148/rstimes-1.1.1-cp313-cp313-macosx_11_0_x86_64.whl",
       "tags": [
         "cp313-cp313-macosx_11_0_x86_64"
       ],
@@ -110,6 +120,7 @@
       "sha256": "b1cda21eca6d0c962086008de38c02641e6573ba7d382f33324b27b6932f83c9",
       "size": 7706355,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/af/41/6170e871196554d0928e35bd27044b2aa6de9742a8028ac7be5ce469e2e9/rstimes-1.1.1-cp313-cp313-manylinux_2_28_aarch64.whl",
       "tags": [
         "cp313-cp313-manylinux_2_28_aarch64"
       ],
@@ -120,6 +131,7 @@
       "sha256": "cdf4311fd9104bb3202258d2d24820805eb546a7ad0b11e2263a979fc754df74",
       "size": 8174487,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/ed/56/40f170f69db63df0f43a3f28f1b8a42544db9fed072fbed7cdab070176a5/rstimes-1.1.1-cp313-cp313-manylinux_2_28_x86_64.whl",
       "tags": [
         "cp313-cp313-manylinux_2_28_x86_64"
       ],
@@ -130,6 +142,7 @@
       "sha256": "9ebfb805a8ac5b63d71dc0a88051d65a22c87e0f33e1aefd1f8cc908227e35a7",
       "size": 7778734,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/bd/41/fce1623ed8290965296a6299d19357fad80886971008088402394d2e1790/rstimes-1.1.1-cp313-cp313-musllinux_1_2_aarch64.whl",
       "tags": [
         "cp313-cp313-musllinux_1_2_aarch64"
       ],
@@ -140,6 +153,7 @@
       "sha256": "5924cef7f968951f33f76e13c9a9f44d0897bae013de90c1af2b5cdcdb040df0",
       "size": 8369314,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/03/d5/755ea15d1b806ecab49a8e408b29b48006828e7c76278a3384560bd3d423/rstimes-1.1.1-cp313-cp313-musllinux_1_2_x86_64.whl",
       "tags": [
         "cp313-cp313-musllinux_1_2_x86_64"
       ],
@@ -150,6 +164,7 @@
       "sha256": "72786b00ec2bba92a914a5042b54a81e0b473146a7672c70262ba76ab22caa41",
       "size": 8429862,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/9b/e5/5461aab9f2b29670600c7536630da51be136b1818ba5020a03e25571f6d2/rstimes-1.1.1-cp313-cp313-win_amd64.whl",
       "tags": [
         "cp313-cp313-win_amd64"
       ],
@@ -160,6 +175,7 @@
       "sha256": "78b7824b5e7ed74f2f65a870e492ae7b960d6d4b680905346fe54ecf22c2a002",
       "size": 7577101,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/06/e9/24cd2ae6e6518da745ebaa2dfbfffbfd8f226621aa6d7e1d6ba2e4864a05/rstimes-1.1.1-cp313-cp313-win_arm64.whl",
       "tags": [
         "cp313-cp313-win_arm64"
       ],
@@ -170,6 +186,7 @@
       "sha256": "ecced246409128e73a935d2c1c3d2360a97e487203a370d9ea9e6566c089b42a",
       "size": 7349559,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/2b/c7/3baf3952592ceb1c92d0749e2c4572b31ce3ea594451dfa7030ff2db59b2/rstimes-1.1.1-cp314-cp314-macosx_11_0_arm64.whl",
       "tags": [
         "cp314-cp314-macosx_11_0_arm64"
       ],
@@ -180,6 +197,7 @@
       "sha256": "af73e10c3392e31d5a42be9ad4bdeb1bce9eff5ce25414b5ba53071fffaa21c9",
       "size": 8072115,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/bd/47/254cfe7d0c10dcfd459b78e36b698f42c826b9fc5ac1f28462a53a800a3d/rstimes-1.1.1-cp314-cp314-macosx_11_0_x86_64.whl",
       "tags": [
         "cp314-cp314-macosx_11_0_x86_64"
       ],
@@ -190,6 +208,7 @@
       "sha256": "6e3d4bf235d8f5f2e1916739360672b4128c2262e0e93544637167566a2132e8",
       "size": 7706339,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/ad/8c/f2af27109e707b16e85274fc30f80cc5f8dd3e03136b730801625596f69b/rstimes-1.1.1-cp314-cp314-manylinux_2_28_aarch64.whl",
       "tags": [
         "cp314-cp314-manylinux_2_28_aarch64"
       ],
@@ -200,6 +219,7 @@
       "sha256": "b128619223cf3a5d89d46a0c1c3f857b3d16ad5877143ca2dc6a06f3cd437d22",
       "size": 8174133,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/e3/b6/fcf95ea1a2dffc2fbe6c1618d0ab97c6fe7a47e8b445d4697d15b056a20d/rstimes-1.1.1-cp314-cp314-manylinux_2_28_x86_64.whl",
       "tags": [
         "cp314-cp314-manylinux_2_28_x86_64"
       ],
@@ -210,6 +230,7 @@
       "sha256": "d1c70c629943ca39e4b2838915f8885ac24caf93aaef2c8370fd4c9ddec49f23",
       "size": 7775421,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/0b/94/9da53784f9ae0d3ae77c0bfc8c759b4b9bcf75252aad382731c26634d9a1/rstimes-1.1.1-cp314-cp314-musllinux_1_2_aarch64.whl",
       "tags": [
         "cp314-cp314-musllinux_1_2_aarch64"
       ],
@@ -220,6 +241,7 @@
       "sha256": "70c1cd69b92c9d01276be6a00ac47de7ba64bcbe9d8c0fbcc3144188951dbbb2",
       "size": 8370035,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/87/b9/7a79ead6e91cf1f197123942a318f5e41090d49c2bdf4290047c8e1df14f/rstimes-1.1.1-cp314-cp314-musllinux_1_2_x86_64.whl",
       "tags": [
         "cp314-cp314-musllinux_1_2_x86_64"
       ],
@@ -230,6 +252,7 @@
       "sha256": "1c5e1c2cd48ef958dc35a26c397d59e6804550985d0d92b5d9777fca2416637d",
       "size": 8427372,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/fc/d4/7b6ff8b200ad38e1557cb4b72b6ff76221c233fe5515dcb4fe16af42ee3c/rstimes-1.1.1-cp314-cp314-win_amd64.whl",
       "tags": [
         "cp314-cp314-win_amd64"
       ],
@@ -240,6 +263,7 @@
       "sha256": "6364592bbf79bbf19ba42fe04e9b4a2969c81bae37cc49aba74f9ba6dd9197bf",
       "size": 7572662,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/b9/45/584d20ab9723f983af2b5e6ffbb388cf40529ddac1af3c28fbaf065ee8b5/rstimes-1.1.1-cp314-cp314-win_arm64.whl",
       "tags": [
         "cp314-cp314-win_arm64"
       ],
@@ -250,6 +274,7 @@
       "sha256": "268080992b6c348b07e98b97475d7ade9cf2c9623a15b0df3f4e66d6f31b2285",
       "size": 7324187,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/90/cd/5fa1cfa421da9bb518a0a3c28c202b03a344e7a69b62bc477434ec84d148/rstimes-1.1.1-cp314-cp314t-macosx_11_0_arm64.whl",
       "tags": [
         "cp314-cp314t-macosx_11_0_arm64"
       ],
@@ -260,6 +285,7 @@
       "sha256": "d5ef8b799ffae756ab5100455cddab678bbae6d1af4d4e88384a9f6f6abc8851",
       "size": 8041308,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/a3/c9/e69441dc23e90929cf76fcf50e013c36faa456031d56702105b2d247cb1e/rstimes-1.1.1-cp314-cp314t-macosx_14_0_x86_64.whl",
       "tags": [
         "cp314-cp314t-macosx_14_0_x86_64"
       ],
@@ -270,6 +296,7 @@
       "sha256": "56ce1bee6ef50c6fb95911e08a73e9568059bb0547bc48aa2845d2bb9345fc61",
       "size": 7684851,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/c8/ed/f7987dc3cc690a62229966c9b2ee7cf810d164ed0273a713be40c15b5277/rstimes-1.1.1-cp314-cp314t-manylinux_2_28_aarch64.whl",
       "tags": [
         "cp314-cp314t-manylinux_2_28_aarch64"
       ],
@@ -280,6 +307,7 @@
       "sha256": "46e6aeb312d304104c993bbae3632b05a1a3225d9a4e253145efb9ef5a00ec41",
       "size": 8148311,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/00/0f/e893b4bac223e5724f74ba2edf76089fd40b72d590482ee80386112da4d2/rstimes-1.1.1-cp314-cp314t-manylinux_2_28_x86_64.whl",
       "tags": [
         "cp314-cp314t-manylinux_2_28_x86_64"
       ],
@@ -290,6 +318,7 @@
       "sha256": "a7492630e6653e0e26973698fe5f4401fca8532a9f9ebd75255d14602594ee2c",
       "size": 7754987,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/2c/5f/294255cf73037cbdaced077feb0c0f62b078915ec7fc6eb888510853362d/rstimes-1.1.1-cp314-cp314t-musllinux_1_2_aarch64.whl",
       "tags": [
         "cp314-cp314t-musllinux_1_2_aarch64"
       ],
@@ -300,6 +329,7 @@
       "sha256": "93fd0989a094999c7906c61158a8f29c68c98fe280e5a012331a4ffffec7f3e9",
       "size": 8345418,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/e5/d6/ba4ef41b452f0e09ae28796d43bec19ce3b17c07b8d8fca69074f3bdc7fd/rstimes-1.1.1-cp314-cp314t-musllinux_1_2_x86_64.whl",
       "tags": [
         "cp314-cp314t-musllinux_1_2_x86_64"
       ],
@@ -310,6 +340,7 @@
       "sha256": "9fe0964f25dedfc4cf4307434c3654aff350e32e54a0000bd4c3dd00605d5941",
       "size": 8407082,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/6e/81/3304d35a41cbe679151834c38dbbe20887750b808b05d43f28e9e13e59c4/rstimes-1.1.1-cp314-cp314t-win_amd64.whl",
       "tags": [
         "cp314-cp314t-win_amd64"
       ],
@@ -320,6 +351,7 @@
       "sha256": "1dca1823c926a615d69d784e8d8266ddea3cc3b33198924c1cebddc92ec96cfd",
       "size": 7546501,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/bc/bf/60b693945326d0eab5922bece4765cbee8e3c341fea2c73a0d8a76c1e557/rstimes-1.1.1-cp314-cp314t-win_arm64.whl",
       "tags": [
         "cp314-cp314t-win_arm64"
       ],
@@ -330,6 +362,7 @@
       "sha256": "f5a1a4a303e27a96ec0df09a30410f6b04b230003b5b226ee151d3fe44b4f142",
       "size": 7350441,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/9e/6f/2d5aa474ae383799cc6c9e72552b38665b0aaec9a7596c8d91a979f8a970/rstimes-1.1.1-cp315-cp315-macosx_11_0_arm64.whl",
       "tags": [
         "cp315-cp315-macosx_11_0_arm64"
       ],
@@ -340,6 +373,7 @@
       "sha256": "0c2788f5d9b11622a50042421ef6904ea01ceccca3bbe2eb33352ee1a98bc361",
       "size": 8072234,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/d0/d8/5b24990232955d21da91021214d4e8edfdc76e5e3adfcc47bc5c657e9ec4/rstimes-1.1.1-cp315-cp315-macosx_11_0_x86_64.whl",
       "tags": [
         "cp315-cp315-macosx_11_0_x86_64"
       ],
@@ -350,6 +384,7 @@
       "sha256": "f9f596e6bdf18170afe6ff6836c81334392c0b925879873598aed214022f4ebb",
       "size": 7707785,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/43/cd/c222a4820977454b976cea16d43a47deb76ce5c53a891c6547dfc9aeb420/rstimes-1.1.1-cp315-cp315-manylinux_2_28_aarch64.whl",
       "tags": [
         "cp315-cp315-manylinux_2_28_aarch64"
       ],
@@ -360,6 +395,7 @@
       "sha256": "64d6272bcf27fcb2d2b33ee3ba7e6ab0e28408fbb4f7fa28427a583ccdaf9667",
       "size": 8173872,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/d5/dc/12e3338288e160a7d5455f68e68f69e7095a12692f5bca41ab3d82c01102/rstimes-1.1.1-cp315-cp315-manylinux_2_28_x86_64.whl",
       "tags": [
         "cp315-cp315-manylinux_2_28_x86_64"
       ],
@@ -370,6 +406,7 @@
       "sha256": "fcb24853a4e50b1389746d53dfbb343061f45a76faf70007604bc920bc7e7f9b",
       "size": 7774171,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/b9/cf/4bc580080cde31abba5fa5d5452501beda938a3eee1faebbbb0b6155fab3/rstimes-1.1.1-cp315-cp315-musllinux_1_2_aarch64.whl",
       "tags": [
         "cp315-cp315-musllinux_1_2_aarch64"
       ],
@@ -380,6 +417,7 @@
       "sha256": "a503ecbfcc9e1768b0bcecdfb7c50d31fe8cccde86edfc8af0c602586d168f3a",
       "size": 8369039,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/6c/f1/3ee16496f21fe342dd856dec708dc2d9b0075c99e2461d437c41c38cc960/rstimes-1.1.1-cp315-cp315-musllinux_1_2_x86_64.whl",
       "tags": [
         "cp315-cp315-musllinux_1_2_x86_64"
       ],
@@ -390,6 +428,7 @@
       "sha256": "d5e0570ee339cd7a9fa5a8540568bf60fbfbea7dc1a8cf48389692d1756ba752",
       "size": 8428228,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/f4/b5/b9b58ea7b352e68ab8605ac810fc492a4a41405337d07c5338906545a735/rstimes-1.1.1-cp315-cp315-win_amd64.whl",
       "tags": [
         "cp315-cp315-win_amd64"
       ],
@@ -400,6 +439,7 @@
       "sha256": "18513e9fa8d8de53b2867be65e646f85d873ef9879cf3c097ad7f7a94f222ca6",
       "size": 7572111,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/2c/13/540efa3b91cf87245df963f6c3806b3e77b9d030d87ac31a3c05c3cde522/rstimes-1.1.1-cp315-cp315-win_arm64.whl",
       "tags": [
         "cp315-cp315-win_arm64"
       ],
@@ -410,6 +450,7 @@
       "sha256": "bdae2317de73e15172da69821a8edc08c0095269e347fcaf6aadf616cf7dce1f",
       "size": 7324371,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/76/e5/f739a58fe1a46d4d85268547991eb5a27a50c413b0909ba5d62e1e871cc2/rstimes-1.1.1-cp315-cp315t-macosx_11_0_arm64.whl",
       "tags": [
         "cp315-cp315t-macosx_11_0_arm64"
       ],
@@ -420,6 +461,7 @@
       "sha256": "2b6841f43fd489e458f9b6303f80b1f8c4a689fda394ca54b2d556dc74898639",
       "size": 8041499,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/94/bc/ff9c508276de41a2d21e5d64abcaafbfae687be4b5aedebd1c08080a2057/rstimes-1.1.1-cp315-cp315t-macosx_14_0_x86_64.whl",
       "tags": [
         "cp315-cp315t-macosx_14_0_x86_64"
       ],
@@ -430,6 +472,7 @@
       "sha256": "bd87e9d8e8be171b2db474db01ea8e7911ab66e3fffa04d48cd509457c355279",
       "size": 7685645,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/5e/f4/da3ea2fe0df832e0008a2554fd489c0b75d72ff97f383f6082e2505be5c3/rstimes-1.1.1-cp315-cp315t-manylinux_2_28_aarch64.whl",
       "tags": [
         "cp315-cp315t-manylinux_2_28_aarch64"
       ],
@@ -440,6 +483,7 @@
       "sha256": "1a62c1c6fbd37acc2bc0e623c0aefb6e4fa6ce9aae8af527f0a57834591d2818",
       "size": 8149296,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/b5/10/4c5122a65d9ad344a581d725646bca905d1cecd3cfafbc09b3b4bd77971f/rstimes-1.1.1-cp315-cp315t-manylinux_2_28_x86_64.whl",
       "tags": [
         "cp315-cp315t-manylinux_2_28_x86_64"
       ],
@@ -450,6 +494,7 @@
       "sha256": "5c49b35b0ca7c87880eb771ded5b65efaf5325294d8bef6f1535ec379115ac13",
       "size": 7755367,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/ff/bd/513b711911ceaa931ca1636d49fa4b09fb25968c25c032efa7e564336270/rstimes-1.1.1-cp315-cp315t-musllinux_1_2_aarch64.whl",
       "tags": [
         "cp315-cp315t-musllinux_1_2_aarch64"
       ],
@@ -460,6 +505,7 @@
       "sha256": "278ad8cc9c17e83c2be960ce344f556abc37c5ccbc305c50f113b296dafb9fb6",
       "size": 8345440,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/2c/5c/b01cf36298f0ed62a344319eb12c38fec14a869a8b057457c42e94b7c2da/rstimes-1.1.1-cp315-cp315t-musllinux_1_2_x86_64.whl",
       "tags": [
         "cp315-cp315t-musllinux_1_2_x86_64"
       ],
@@ -470,6 +516,7 @@
       "sha256": "769dda7f01df3c31aa8273b5a33c5f04f3084068e697b78663a6f691565bc43f",
       "size": 8407130,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/fe/b7/274a64ef9408655d91ec24b69ca8516144acfe2c571a3b29ff507df7bed0/rstimes-1.1.1-cp315-cp315t-win_amd64.whl",
       "tags": [
         "cp315-cp315t-win_amd64"
       ],
@@ -480,6 +527,7 @@
       "sha256": "1339fed250a21710eab45e25dda010648fa49026379a377522a36203bbedfb89",
       "size": 7546028,
       "packagetype": "bdist_wheel",
+      "url": "https://files.pythonhosted.org/packages/c6/40/4d76af4cc2fe6c0fc8515f685ba14332dffb48d1cceb17769dd2d4788926/rstimes-1.1.1-cp315-cp315t-win_arm64.whl",
       "tags": [
         "cp315-cp315t-win_arm64"
       ],
@@ -489,7 +537,8 @@
     "rstimes-1.1.1.tar.gz": {
       "sha256": "e832cf416a807873abfc0a0417e2556ba24af539ba9a552631604a12b176d82d",
       "size": 985321,
-      "packagetype": "sdist"
+      "packagetype": "sdist",
+      "url": "https://files.pythonhosted.org/packages/14/4b/573cf404496ee4bd69376d509b16cecc5a1df223573859455d6d2aad3e25/rstimes-1.1.1.tar.gz"
     }
   },
   "common_package_files": {
