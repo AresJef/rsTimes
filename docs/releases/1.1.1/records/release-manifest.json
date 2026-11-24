@@ -1,0 +1,643 @@
+{
+  "version": "1.1.1",
+  "cargo_version": "1.1.1",
+  "is_prerelease": false,
+  "source_commit": "5039f6cdba69baae96f284c0d55538517e86de16",
+  "rust_toolchain": {
+    "channel": "1.99.0",
+    "profile": "minimal",
+    "components": [
+      "rustfmt",
+      "clippy"
+    ]
+  },
+  "sources_sha256": {
+    "Cargo.lock": "bd3591e2f102f53c982b894ae6f10cea15bc33236292804a8ed3d6582ede918b",
+    "Cargo.toml": "05ab4692e13fc3f4db73b934440cbdc27005c3f5342276f71d069d9deda641a3",
+    "LICENSE": "44e83b9b5aba1b8cbfe63eeed972996fc6ef94f25771d029d808eb933f64ba27",
+    "NOTICE": "f4fbb1f5619148280ae24d8ce35df00dca633b0f8c9392d416b6066c3e308633",
+    "NOTICE-CPYTHON.txt": "78b12c3a81360b357002334f0e70ea0e92eebf7a9b358805c03c48484945f3bb",
+    "NOTICE-IANA-TIME-ZONE.txt": "055848a29300401cdd433eb3b8e898bfd6bca215b4af91c201b5f56d33c90395",
+    "NOTICE-PLDT-DEPENDENCIES.txt": "78b1a82eda6d521b195fc19c6a8c2dd5a5e8bf8c2f169e27e85fc821a7c207e3",
+    "NOTICE-RUST-STDLIB.html": "5647be074c8edf7339fd863055923a8fc80bc5610a8d4661ec3b767b9d392c27",
+    "NOTICE-UNICODE.txt": "743308f92225393665b0722b73418b4d4061fd2163e8e9c38b3368904acf19d6",
+    "README.md": "4cbf6009e0424551640215bb6517ad488fbb8298e5f67172def76d6d6e137125",
+    "build.rs": "2ead3d2128301de6d0f516bc4fa130a4545ebfa7d4e415131f92beaafa6508ff",
+    "pyproject.toml": "14a7b96ddf3b284aa85990c0cfaa30073b1b012f8e0342215f4f169fa42e7dd7",
+    "rust/batch_shape.rs": "a20471ce6e07f62e22dd830bcc748a68de6beb3bf82849c779ad979d19e8fc32",
+    "rust/boundary_count.rs": "caf6ea2ef89f27c2fa91efc3143dfe54c441f77c9909b9c8408a167e3bccfb18",
+    "rust/bulk.rs": "4ce5dda36e203c9edeb2ad9379b30cc8502474cf9147a93b7e3f2e7e0de3bb44",
+    "rust/calendar.rs": "903b95e504f934607c7b4f610d19d6623d760bb30c80f2e693cbbc3ec4ffa6e1",
+    "rust/calendar_query.rs": "bf5b2c4625177d9f44af6b93f6ef1bd3cf1df31fb2c7a5e9c7222929c8df9549",
+    "rust/civil.rs": "a92ec79aeaee5be2aaf9f1b9ca62806f12e81d381c01ac494c600aba47878bbe",
+    "rust/clock.rs": "bfb2e1e387b3ace544f3d6648e3f453cf1a75207b5ddd25458bb69578decfba9",
+    "rust/date_input.rs": "b00b3afa5b731bb65145a62b2529fc7d143a23019bdc23cb37d5f715a05b45d7",
+    "rust/date_parts.rs": "d2eaf9e2d0bd8933ad19efcedad5ff0074d77c7ce231719dcfae23ef1d9b826f",
+    "rust/date_transform.rs": "b57b6942460ed21ec1a5fa107dfd9a28eee0d717d7a76ac0d259b2e315441d7c",
+    "rust/delta/fixed.rs": "6a62c9b7742633246ba2b471707b32184cd880a28f7608ffc921363a04b893d6",
+    "rust/delta/prepare.rs": "62e14b505a481f063fcc099fbf215f2440693551d5aec0fce09464f8272aa8b1",
+    "rust/delta/runtime.rs": "611df65f4943d972bd596160fc62078f37969ff9d09e1d0a47d86e32e2e34165",
+    "rust/delta/value.rs": "5ccfb4ba1e723f278c4c86169a42dd9e8ae5e8c4e12099901106abd53899e834",
+    "rust/delta.rs": "8ed8676a04d61e98ea7d1d305f1bf44cf5330a37678b2c87fce38c2328025cd2",
+    "rust/epoch.rs": "3a3b85dead5360f93f0e2be77bd93e93a96a7fba4fb69c2e0547be8934d9b89a",
+    "rust/error_context.rs": "77ac5c06e774adfe519f61f09c1fbb3fdaa135c00716b7771c766140acc90c8d",
+    "rust/host_zone.rs": "944f076130c9c9b13674f69c7f2399cf70131702ad0f3b87e13bdee791d9f00f",
+    "rust/interop.rs": "12ca5679bc2bd55832d9a00c85174bf3c65b1322564d2de94297a1359d6b809c",
+    "rust/lib.rs": "66ec466775f7959cadb5a09047c92db7e039ec09687768e30ec0e852ce1a43cf",
+    "rust/local_infer.rs": "856ede169b4d40c0a02993a0371ea2b28d3abe8b1da62e3bdc715e1ba3063057",
+    "rust/localization.rs": "d9b519cef9bc555e4df1c82e798149c6566c9bdb20dd932822f4800ed87b2bc0",
+    "rust/localization_data.rs": "c21494ecdbe871dfe10170248337c6c8c22fb154a408ad3ff3a34f4f15a6bd92",
+    "rust/numeric.rs": "b88db4f1d77b0594fda8acd715e57b2f54d27eb713750dc71a9929168414cf46",
+    "rust/numeric_epoch.rs": "a42a8431f095a19ca4302e41d5a15878dda326c3b8cfa4040cf7de0e4ccdbad9",
+    "rust/numpy_scalar.rs": "751551946a91af72cd9f6df3fec083797e973c0c7e2d3e952ee999ff557c6324",
+    "rust/parser/completion.rs": "0f837db589f2566820857c29706c7d8607bb7f5eeb6fb11d23f4e92080d6ef44",
+    "rust/parser/config.rs": "39b62d26f5254350ed62d39e06604eeb50b6562eef6c9e0d7758139cb308aa63",
+    "rust/parser/core.rs": "b90d03bc766ac45417fee9343d9f04bcaa140e44b9a7f7c13536d135dd4cb484",
+    "rust/parser/fields.rs": "9179c06eb0432d97d51e8d3f5e703c120f86f37ae29903a776ef26eb7288b022",
+    "rust/parser/formatted.rs": "8c42b375dbffb028e9c60a45568a73026a00b8d9baf9b9bd37ede54ff90f94d6",
+    "rust/parser/iso_factory.rs": "fc6c4739120b70b1f5449dcc2e148e2da24c7446d70d387503eee8bee402fb03",
+    "rust/parser/native.rs": "19e3aa4aef2b9444ee766c0b2a42ac177343513c7674ad345cc0daf336488334",
+    "rust/parser/numbers.rs": "f0d9686d18890d10190020ccd9565d3d1f932c60af011f117354cd26019a9d0a",
+    "rust/parser/objects.rs": "77a4a0f8ede85b80404743915fd00a0a11058465ef25d0f61fc48a001c2611fc",
+    "rust/parser/prepared.rs": "01506f7bb2512ca0f52b423c3a341d44f81f8062149a4a70edcada77eaa4ded0",
+    "rust/parser/resolve.rs": "c04d08a30a2307abf5a7730ec971f26c04b08ff0f2f410f39c9447bb5c9068e4",
+    "rust/parser/scan.rs": "18c7fc6b5d6d59bd29e0c3be840f44852da9d8b072c42eaf8c46e321befb5037",
+    "rust/parser/text.rs": "38c06cdfa92548ded4e20e582622dace7d36d26d7223fd14f2d6ccd440e90c4b",
+    "rust/parser/zones.rs": "39d75fed1c29fbacb50504be3f39dbdfb7a0256a7f4bdacbd2f1b875b2dd9d79",
+    "rust/parser.rs": "9622f9169a330bb5a88132e966974ed1f30dbb869524d0a1440e2c716670b4ee",
+    "rust/pddt/arguments.rs": "395041e7585a08af2444ea3b648d81a00b8df67370143475ed37233c4d4ef26a",
+    "rust/pddt/buffer.rs": "2df05d1c738b844865d12a03628201e1d337c5162454d6889b9387248708006d",
+    "rust/pddt/combine.rs": "71081a2026169b24d198bb3489ee1ed07e481afe262c74d6dbe58d7ba7b0b5cc",
+    "rust/pddt/common.rs": "626c5565712a06db745efe3f911c3b99797d6590da52b619fe9fe0adae33e46a",
+    "rust/pddt/dates.rs": "1ae56ab01e520b4706ab1e33c48e8007b944e884878548de8f8090a5b7cc956b",
+    "rust/pddt/difference.rs": "f3d9ef95042cb514cc018d4231866122ac5c8e63c05d0835160df953e44bde95",
+    "rust/pddt/exports.rs": "228236e74eb38fb49afbe39f8e768543eb001ad63342e0e86ee952db93ea4d7d",
+    "rust/pddt/factory.rs": "3f0a17a0063a24d3fc0aada039252f87e7c6ae524bbc7d42556d01a35fd5cf97",
+    "rust/pddt/formatted.rs": "e517088b5d71722d10cf3c720ee69218ccd20d7d109ae2e33b97b8361da649e5",
+    "rust/pddt/operands.rs": "4a32f3d01ef7e8f1c46dabd24a513577ed36f18452ca25bbe76192e8d02c8f49",
+    "rust/pddt/operations.rs": "9f50c35ab065420553970304eab09172394f382d33f92eb624227ff4aba29226",
+    "rust/pddt/periods.rs": "66090ebd42e173aac1d0b721befb1252901ec4b0321f24b9ec9bdcc7f23278a3",
+    "rust/pddt/prepare.rs": "32aac44e6d701d0b762cefabeed88351cc56e1dacd472a5e137d51b816b2fbd3",
+    "rust/pddt/queries.rs": "dd5ab369a5ac47f5255c2a63986a0d228d416ef21a65f1844cf2929e87bc8015",
+    "rust/pddt/range.rs": "ae59dec6de6659ab4422987bad7d59225209365fc03fdd4c47d8ce93249e739e",
+    "rust/pddt/validity.rs": "0e9868ef82abfa16cfa42abe7b158c1d77ebad5654921366abda6dbae3993cd1",
+    "rust/pddt/zones.rs": "48f154b3551ef3bfd129965c56f16ddc8990831235bcb8972e879a1afece84d3",
+    "rust/pddt.rs": "26e79100fe809811b89cd380cba163d856ebc5cb32f8f9d38289045003396f14",
+    "rust/period.rs": "8c06408463ad1dedb0e06851a942d53f185ff7cb1125a9c01c1717932f7f536e",
+    "rust/pldt/arithmetic.rs": "a0e34df2c5ffb299bd17e287c02a531763ec76b59a2b2eaeb2f2796dd15edd11",
+    "rust/pldt/calendar.rs": "f3fe65c516357bf76958163f5e9e32bc20d42627bc6d6dba4151c29a161b5abc",
+    "rust/pldt/combine.rs": "313753eeb4f34d28ca818b4a108a2df62e5e6a2e4804fd1d073824f270378d8a",
+    "rust/pldt/dates.rs": "d0a4c54e908d677541f95c2d7edc03b2bdb5e1508ef0a55f6c42ab2950bae9b3",
+    "rust/pldt/difference.rs": "484c68beb7d677749239cf6ca5f8e8d3a0526b661c3617a7983f6eaf4d193920",
+    "rust/pldt/factory.rs": "1a543610c95181b70b9133577542af4dd0c4dff3bc63ad7e06e4c5a868880b4b",
+    "rust/pldt/finish.rs": "563215600cd9112b0254b41c9b672bb45d4a5c89f203d208148b9bbe8d77728d",
+    "rust/pldt/format.rs": "e53ad8b63c6fa07f06a0b07ee07281e5afb8761353990dc8c307b2f0af28c086",
+    "rust/pldt/input.rs": "e565cf4bd831ae61db4ac8c16b2a011c714971d522483bded5858e1a51e922de",
+    "rust/pldt/iso.rs": "76ed7215751605d94021aca6c547a207bf96849bb5d22f1523e33c698c8024e9",
+    "rust/pldt/operations.rs": "2a7857e30f695fbc11c0900d09abd3d460f77451b2bec3ffd3deffb63d885a68",
+    "rust/pldt/output.rs": "c67e28e408645e9dfe7476d969273b2998f097d351c5e7050f03c4c18af52101",
+    "rust/pldt/periods.rs": "ac7df7e29f989606fd73a665025f4a59d3d0076ac1ed6255387dc502227e7897",
+    "rust/pldt/queries.rs": "a9f3155b07332ecdf6f2314cd31a158b80d6ed96ac7a0ba7fd9d8d530ea0c9e9",
+    "rust/pldt/range.rs": "c954a0986d1a6382474dd6ce6351ba3470d00ff96995bfaa3206bfaa9123b20f",
+    "rust/pldt/state.rs": "09dc91cad0f3057c9a9c322e8327f89ade7fcdaa9e62403a131eb385a5fb9c86",
+    "rust/pldt/text.rs": "cd5edbef8ed70b14795f4417a5bbe2bc2497c439d20f237c859321a5c1ba57b6",
+    "rust/pldt/timezone.rs": "9300dc4417e7f6d7f491eef149c255816cb0d53298be8ccdbcae4f8e7a06d977",
+    "rust/pldt/zones.rs": "08dbc94a6a3d448487e57cd2e02fdf2073de6ab9864d523d7a531d8e12030e6f",
+    "rust/pldt.rs": "00f7798dbdab9fd4d4e80c5c206eb457a9c66b8c697bfd2b97aff28a20265093",
+    "rust/precision.rs": "4d7bfb4bbbe8164997ba241258d96707346c0b8b3aa863468b5842ff5f08b6c5",
+    "rust/protocol.rs": "2c8fea3aa6a05aa38eed5718e1bccaaa701d88d593b39a86017d5d06eb28855d",
+    "rust/pydt.rs": "9aed5ef3b950b67645862995257a184db158f1ddcfe7875d2bc82c85e648670f",
+    "rust/pydt_compare.rs": "40b539e4a4b3712a2faaf6d4ff05fd4e92e66d023b2cb6646566dbc2da9fc1c0",
+    "rust/python_cache.rs": "165bbb3b24ab66d335067ec8f77d36008f7b69964301dfcb0d2c0c9cf5540655",
+    "rust/range_calendar.rs": "ed2026d14a9fe5c6f350aa4b08ba1013380fbc9771cffe0958c6efaa3740e168",
+    "rust/range_frequency.rs": "016779b4d43e3f55dee5b50b15822de928258adf5bacfbc729195a7b4421b61c",
+    "rust/range_generate.rs": "e2c95ccec0410f193b9f76b3d7e263af75d5d0bf5e1eb0a9b5e2487c5901a723",
+    "rust/serde_values.rs": "e1448b296639dfa426f6d4b1ac577830f3a73811235bd01fa1f8f3f167417976",
+    "rust/state.rs": "1fb0337e5ac6d9c043c5a88dc22ef401c6812904c74827bbb938d24b60699472",
+    "rust/strftime_output.rs": "59a78a26ceb5960fb6b1ad70bb44184627bbcd3a706a7c8a1fe191f459a04f18",
+    "rust/strftime_plan.rs": "57b880e731ac64457b09b6f1d822ab94fa259e4873db6a38210039c6df42957b",
+    "rust/temporal_operand.rs": "a81eb4ce32f519ebb45c87d253094a3115037c8275ac90b114227c59aadff2ce",
+    "rust/temporal_output.rs": "d8c6ce9a8c3ac9faff76f92c6a02d6a86c005209660942a56dd337b9e57412db",
+    "rust/temporal_target.rs": "b2bad9e58b497329600fadd7f3683a1ad07da23c87a42355272c4a40f5b7ba7c",
+    "rust/temporal_zone.rs": "27700c757b86593a44a665bf6883ea10c0b14e76f127e51eeb296197c770743a",
+    "rust-toolchain.toml": "2ad6f15416572b4836585087f1d4abc53b8fa2dbd616f8dacfaa587ed6714228",
+    "src/rstimes/__init__.py": "671f5bd706db161e64ee7542ce28478f71082edea054ef84080fe25eaa493ebc",
+    "src/rstimes/__init__.pyi": "67f10b3e51a85f7abb5e48d0e46f658cdbb1541a961adae282cd6bc4477f3270",
+    "src/rstimes/_backend_types.pyi": "2e6089944b380143301df49dea0b56767c73138211ebce7b643e99513c025882",
+    "src/rstimes/_class_protocol.py": "0b02272868e7a08aae332908418457a0e941986017af79191d9831b91f74cefd",
+    "src/rstimes/_formatting.py": "73c13565a7c57e7fa61b1ed85b14c825b840d594c780487decf1474f4b484e79",
+    "src/rstimes/_localization.py": "a0dfbcf7e6d2c0c1d4c90aa8f27c77597604d0246f159f81dd787e7a6dfe8f3f",
+    "src/rstimes/_localization_sources.json": "ee6e3b3428910ea530f385bff27fea39d0556643e5239f0d3588ba9f0ddb1738",
+    "src/rstimes/_native.pyi": "2a6a37cd9324700c23505930d6064fad0e74f24d25f72b7d13c91cf8f5295e49",
+    "src/rstimes/_optional.py": "d0f22cf6d1fed1d2a67ae47338144458b28e7354efd60aa3aa5fb376de15e65b",
+    "src/rstimes/_pddt_state.py": "e158e24dca5ca012737f55b6607e5878c00334bce01a0e9d4ec7c59f811a95ee",
+    "src/rstimes/_pldt_state.py": "21ea00fa12e88e2c77fe15dbc11d06ab6e50833f89fb1423f6d59e8674203e56",
+    "src/rstimes/_pldt_timezone.py": "a0ae73dbb555484c2d76a173fe199bfc98591d3d7b7544390ab5f148ea7e172a",
+    "src/rstimes/_polars.py": "e571ce771eed77aba3a3573a0020f0bf66710c33b45dda4d2843d44878f7cc82",
+    "src/rstimes/_range.py": "d11ee6725ec83f616ca16a71b48d34328735cee12b0920825d59a968df7a3413",
+    "src/rstimes/_state_storage.py": "7e63376c323fe2668d3fdf0de5563d2e5074389a561e6123a4d6feae187a3a6e",
+    "src/rstimes/delta.py": "7a1cedef9bb614e638a309064b68eef53c3c449bb16411f8fa04fe90962d3566",
+    "src/rstimes/delta.pyi": "d1ba06f3cefa235a949205d342e366844561d226cb0d0df5e5d735e366853f0c",
+    "src/rstimes/errors.py": "d062c9c5d1c1c4e5c79e3e6785346547dc461b9d88254b99bcea51c67cbd0066",
+    "src/rstimes/errors.pyi": "891e1bc5d8c8f656e1cfd706e0e37287b8aad59a543d24750847cba69d4cd88f",
+    "src/rstimes/parser.py": "dadb9c61f810f4350c4043b5935324d1732b6832a079e040d674ca2e26e5f653",
+    "src/rstimes/parser.pyi": "e06492dd9d4007f261ccb36b5ca3588204811865eec81d6e89fe880ec4b47fa4",
+    "src/rstimes/pddt.py": "693745dc577c23de1d1613269c787945b13651cc84a8f92a6561761c65743c35",
+    "src/rstimes/pddt.pyi": "fc8782202605a318fd7ec4b57d42495dc6321bf356491e44c406b2cb833a41d0",
+    "src/rstimes/pldt.py": "3e84acc1942209df665a0c387e0cf99f60bd5aa66f9d8b8d4fb24eec72091b8d",
+    "src/rstimes/pldt.pyi": "beed6277127f2e0ef25e3c014b419307ed5479efe0428a284d4c6235fcf26fef",
+    "src/rstimes/py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/rstimes/pydt.py": "8abd43195ab848ebb37797ee8a6e3ea09fa6f794cbf8543604063fa3c9ad85cf",
+    "src/rstimes/pydt.pyi": "06206b37a7417e1d25517189753e25308d24f59066c464806de0ea2b9adc3f74"
+  },
+  "wheels": [
+    {
+      "filename": "rstimes-1.1.1-cp312-cp312-macosx_11_0_arm64.whl",
+      "sha256": "98376c5404ffb7319d73028fc3fdc278f1438413478e1e7bc045a8a1bcb01f19",
+      "size": 7349581,
+      "tags": [
+        "cp312-cp312-macosx_11_0_arm64"
+      ],
+      "native": "rstimes/_native.cpython-312-darwin.so",
+      "native_sha256": "f999d27d1eccd5ef5431a940a2354f0c9241fd1cac2284769bac83c6f808ac0a"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp312-cp312-macosx_11_0_x86_64.whl",
+      "sha256": "a33a2eaa165383e048d3f5ebee450b9b441c5c52946d7080fdff7548ead6c901",
+      "size": 8073757,
+      "tags": [
+        "cp312-cp312-macosx_11_0_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-312-darwin.so",
+      "native_sha256": "0a9c1c8a28841fd81d41931a684f117db8808a3824e088aad8a9ece9e98787ea"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp312-cp312-manylinux_2_28_aarch64.whl",
+      "sha256": "175c55a41c4275bdb690ae4985a402fd10e6e475b420de3a3d5c375bedeba39f",
+      "size": 7706691,
+      "tags": [
+        "cp312-cp312-manylinux_2_28_aarch64"
+      ],
+      "native": "rstimes/_native.cpython-312-aarch64-linux-gnu.so",
+      "native_sha256": "2d7e71709047a1a394698cc155c0b9ec6b937aee672d6dcb26b8d59bfc8bb86e"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp312-cp312-manylinux_2_28_x86_64.whl",
+      "sha256": "611105af5bc37875e634963d94e7fb73317febff7246defa42d07f06478e7611",
+      "size": 8174139,
+      "tags": [
+        "cp312-cp312-manylinux_2_28_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-312-x86_64-linux-gnu.so",
+      "native_sha256": "fed260229fea5012ac472f5508eb5641aa00b0e9ac22f3facf403328741c3fe5"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp312-cp312-musllinux_1_2_aarch64.whl",
+      "sha256": "81709707fddf5dadd4cb5d63a9c005343c89dc3d7b38bbc65452171a74a61941",
+      "size": 7776796,
+      "tags": [
+        "cp312-cp312-musllinux_1_2_aarch64"
+      ],
+      "native": "rstimes/_native.cpython-312-aarch64-linux-musl.so",
+      "native_sha256": "47562902cb76b6464349f59004b3376e342a86ba75b495202b6c5a4a37bcdae2"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp312-cp312-musllinux_1_2_x86_64.whl",
+      "sha256": "65b5d3be3984eff1ba106da1acba1ff62b19c3baf17ab673abb6cad8237bcb41",
+      "size": 8368832,
+      "tags": [
+        "cp312-cp312-musllinux_1_2_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-312-x86_64-linux-musl.so",
+      "native_sha256": "3f14d6068680f39a3a9356ac498772c8303f37c303eb7debffc7bf6a2d5cd431"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp312-cp312-win_amd64.whl",
+      "sha256": "480a7a6816335fac7f6a75667d1c794a63d51147bbb48de85da21a461c2807e6",
+      "size": 8430011,
+      "tags": [
+        "cp312-cp312-win_amd64"
+      ],
+      "native": "rstimes/_native.cp312-win_amd64.pyd",
+      "native_sha256": "186d11d95188edd38ae9de5613c25b7ab5ffa2e2370979bac5886243fb67b7a0"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp312-cp312-win_arm64.whl",
+      "sha256": "8713d5d0b429438a56ca4119a875af3c5d51838bf361c7bfede29e470e3bfd45",
+      "size": 7576543,
+      "tags": [
+        "cp312-cp312-win_arm64"
+      ],
+      "native": "rstimes/_native.cp312-win_arm64.pyd",
+      "native_sha256": "993a86872cf8cfd2a508514b4ae85a40f81e4efce46821a36c3d19288b2dad87"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp313-cp313-macosx_11_0_arm64.whl",
+      "sha256": "0da98d84cb062eed9e1556a2fd77fc40a62529bb3fdfb8b5a591bfc560af8c42",
+      "size": 7348203,
+      "tags": [
+        "cp313-cp313-macosx_11_0_arm64"
+      ],
+      "native": "rstimes/_native.cpython-313-darwin.so",
+      "native_sha256": "630be4f08217d9bc5d2b00d7ddb28c36a82190bd8098bfe54ccd9f4f2c7d2026"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp313-cp313-macosx_11_0_x86_64.whl",
+      "sha256": "d78de1f495191d9188b7690b69af25455ffa7f28ef6125cd9f45223ae6e2d750",
+      "size": 8073140,
+      "tags": [
+        "cp313-cp313-macosx_11_0_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-313-darwin.so",
+      "native_sha256": "1ef8aad499b19c2500670aed91eff45474d5731b98672ba7bf3e4664477079aa"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp313-cp313-manylinux_2_28_aarch64.whl",
+      "sha256": "b1cda21eca6d0c962086008de38c02641e6573ba7d382f33324b27b6932f83c9",
+      "size": 7706355,
+      "tags": [
+        "cp313-cp313-manylinux_2_28_aarch64"
+      ],
+      "native": "rstimes/_native.cpython-313-aarch64-linux-gnu.so",
+      "native_sha256": "652e1d6c28be6a5ff54da61776233b4a2a313c9c1cb9f8851e380c0f5a5f48a6"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp313-cp313-manylinux_2_28_x86_64.whl",
+      "sha256": "cdf4311fd9104bb3202258d2d24820805eb546a7ad0b11e2263a979fc754df74",
+      "size": 8174487,
+      "tags": [
+        "cp313-cp313-manylinux_2_28_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-313-x86_64-linux-gnu.so",
+      "native_sha256": "27ebe8c4b608217f1a2bbc046c4063c585ccd42ce3da6f796dbfe15659c7da5d"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp313-cp313-musllinux_1_2_aarch64.whl",
+      "sha256": "9ebfb805a8ac5b63d71dc0a88051d65a22c87e0f33e1aefd1f8cc908227e35a7",
+      "size": 7778734,
+      "tags": [
+        "cp313-cp313-musllinux_1_2_aarch64"
+      ],
+      "native": "rstimes/_native.cpython-313-aarch64-linux-musl.so",
+      "native_sha256": "93283a3e6c9af6b06bcafd5a7ec010a90a5b5ccd681e12094055ac9af8581fef"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp313-cp313-musllinux_1_2_x86_64.whl",
+      "sha256": "5924cef7f968951f33f76e13c9a9f44d0897bae013de90c1af2b5cdcdb040df0",
+      "size": 8369314,
+      "tags": [
+        "cp313-cp313-musllinux_1_2_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-313-x86_64-linux-musl.so",
+      "native_sha256": "1272020ea8d7dfeea432eb1bd81c361e1a8838511102a8193c9c66c4266e4185"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp313-cp313-win_amd64.whl",
+      "sha256": "72786b00ec2bba92a914a5042b54a81e0b473146a7672c70262ba76ab22caa41",
+      "size": 8429862,
+      "tags": [
+        "cp313-cp313-win_amd64"
+      ],
+      "native": "rstimes/_native.cp313-win_amd64.pyd",
+      "native_sha256": "6d0acf28986951775d9dcbebf2aaa959d17006013a2189680fddd1aefcfd376c"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp313-cp313-win_arm64.whl",
+      "sha256": "78b7824b5e7ed74f2f65a870e492ae7b960d6d4b680905346fe54ecf22c2a002",
+      "size": 7577101,
+      "tags": [
+        "cp313-cp313-win_arm64"
+      ],
+      "native": "rstimes/_native.cp313-win_arm64.pyd",
+      "native_sha256": "c6e7152fbfbd70415d7b523e7038c4dbc86501c857181ee9456e50fb73a0c710"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314-macosx_11_0_arm64.whl",
+      "sha256": "ecced246409128e73a935d2c1c3d2360a97e487203a370d9ea9e6566c089b42a",
+      "size": 7349559,
+      "tags": [
+        "cp314-cp314-macosx_11_0_arm64"
+      ],
+      "native": "rstimes/_native.cpython-314-darwin.so",
+      "native_sha256": "90db5e10ea7077846afe0a4e353869a02ebd7e0c5276ead26195d2674c5cd553"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314-macosx_11_0_x86_64.whl",
+      "sha256": "af73e10c3392e31d5a42be9ad4bdeb1bce9eff5ce25414b5ba53071fffaa21c9",
+      "size": 8072115,
+      "tags": [
+        "cp314-cp314-macosx_11_0_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-314-darwin.so",
+      "native_sha256": "76acb3aabd0fb1c711f38d9183e86db8749b925f5b72a9f4fd8ee0c0bd9fb7d3"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314-manylinux_2_28_aarch64.whl",
+      "sha256": "6e3d4bf235d8f5f2e1916739360672b4128c2262e0e93544637167566a2132e8",
+      "size": 7706339,
+      "tags": [
+        "cp314-cp314-manylinux_2_28_aarch64"
+      ],
+      "native": "rstimes/_native.cpython-314-aarch64-linux-gnu.so",
+      "native_sha256": "ea6bd1629751fb5679496d9a6b77fc0212f17accc65997acd3e9baddd99a8021"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314-manylinux_2_28_x86_64.whl",
+      "sha256": "b128619223cf3a5d89d46a0c1c3f857b3d16ad5877143ca2dc6a06f3cd437d22",
+      "size": 8174133,
+      "tags": [
+        "cp314-cp314-manylinux_2_28_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-314-x86_64-linux-gnu.so",
+      "native_sha256": "bb49f9644e8d6f4699aad3807ed13af9e969aa1a15beef51f5e07cd6611d3218"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314-musllinux_1_2_aarch64.whl",
+      "sha256": "d1c70c629943ca39e4b2838915f8885ac24caf93aaef2c8370fd4c9ddec49f23",
+      "size": 7775421,
+      "tags": [
+        "cp314-cp314-musllinux_1_2_aarch64"
+      ],
+      "native": "rstimes/_native.cpython-314-aarch64-linux-musl.so",
+      "native_sha256": "668f3703ee35887d151ea457cc9bdb3ae66febe8115019a3c705780b78b06e32"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314-musllinux_1_2_x86_64.whl",
+      "sha256": "70c1cd69b92c9d01276be6a00ac47de7ba64bcbe9d8c0fbcc3144188951dbbb2",
+      "size": 8370035,
+      "tags": [
+        "cp314-cp314-musllinux_1_2_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-314-x86_64-linux-musl.so",
+      "native_sha256": "0630a545703de422755e3139d8d773ca375ee29ee7489ef5fbd0a4475f88dc79"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314-win_amd64.whl",
+      "sha256": "1c5e1c2cd48ef958dc35a26c397d59e6804550985d0d92b5d9777fca2416637d",
+      "size": 8427372,
+      "tags": [
+        "cp314-cp314-win_amd64"
+      ],
+      "native": "rstimes/_native.cp314-win_amd64.pyd",
+      "native_sha256": "40bd93ef969dbbb6d7e4afc695827d8a496625e58cc4a87d89912c6ff12ea2e0"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314-win_arm64.whl",
+      "sha256": "6364592bbf79bbf19ba42fe04e9b4a2969c81bae37cc49aba74f9ba6dd9197bf",
+      "size": 7572662,
+      "tags": [
+        "cp314-cp314-win_arm64"
+      ],
+      "native": "rstimes/_native.cp314-win_arm64.pyd",
+      "native_sha256": "1ce7ee58edf62a65164ecc2e70baa0e2d5fc49e7794394aa03a2792ab3a39d41"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314t-macosx_11_0_arm64.whl",
+      "sha256": "268080992b6c348b07e98b97475d7ade9cf2c9623a15b0df3f4e66d6f31b2285",
+      "size": 7324187,
+      "tags": [
+        "cp314-cp314t-macosx_11_0_arm64"
+      ],
+      "native": "rstimes/_native.cpython-314t-darwin.so",
+      "native_sha256": "c613de1fda0cf712d195c1d834e4fe294ca4f6459ac9ef14e88a11a151e4b41d"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314t-macosx_14_0_x86_64.whl",
+      "sha256": "d5ef8b799ffae756ab5100455cddab678bbae6d1af4d4e88384a9f6f6abc8851",
+      "size": 8041308,
+      "tags": [
+        "cp314-cp314t-macosx_14_0_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-314t-darwin.so",
+      "native_sha256": "6e9b5af8ae9effdaf35621c29400bf0dfe1ef71989a8eaef7c332a249e875aca"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314t-manylinux_2_28_aarch64.whl",
+      "sha256": "56ce1bee6ef50c6fb95911e08a73e9568059bb0547bc48aa2845d2bb9345fc61",
+      "size": 7684851,
+      "tags": [
+        "cp314-cp314t-manylinux_2_28_aarch64"
+      ],
+      "native": "rstimes/_native.cpython-314t-aarch64-linux-gnu.so",
+      "native_sha256": "627a959cd09c9362ff52394f2a61828ac43c58893ff678efb0b7874b3dd78e8d"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314t-manylinux_2_28_x86_64.whl",
+      "sha256": "46e6aeb312d304104c993bbae3632b05a1a3225d9a4e253145efb9ef5a00ec41",
+      "size": 8148311,
+      "tags": [
+        "cp314-cp314t-manylinux_2_28_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-314t-x86_64-linux-gnu.so",
+      "native_sha256": "873901000e4eec5b0793683be870d85a316dbd9c8df4e6c6a20b470150fd990c"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314t-musllinux_1_2_aarch64.whl",
+      "sha256": "a7492630e6653e0e26973698fe5f4401fca8532a9f9ebd75255d14602594ee2c",
+      "size": 7754987,
+      "tags": [
+        "cp314-cp314t-musllinux_1_2_aarch64"
+      ],
+      "native": "rstimes/_native.cpython-314t-aarch64-linux-musl.so",
+      "native_sha256": "c3d9564f1849c4104924bf3553732a6e489c18b8597ca44d830824585e24820d"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314t-musllinux_1_2_x86_64.whl",
+      "sha256": "93fd0989a094999c7906c61158a8f29c68c98fe280e5a012331a4ffffec7f3e9",
+      "size": 8345418,
+      "tags": [
+        "cp314-cp314t-musllinux_1_2_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-314t-x86_64-linux-musl.so",
+      "native_sha256": "83f2814b0e23c6cb61b861de95bdb9bf9c89f7dfe73aa8e7ac89dd1641af9d6c"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314t-win_amd64.whl",
+      "sha256": "9fe0964f25dedfc4cf4307434c3654aff350e32e54a0000bd4c3dd00605d5941",
+      "size": 8407082,
+      "tags": [
+        "cp314-cp314t-win_amd64"
+      ],
+      "native": "rstimes/_native.cp314t-win_amd64.pyd",
+      "native_sha256": "9fa9e23562afe84913fb3c215eba21c2c48d213ec663e7247943cbbdea275e1d"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp314-cp314t-win_arm64.whl",
+      "sha256": "1dca1823c926a615d69d784e8d8266ddea3cc3b33198924c1cebddc92ec96cfd",
+      "size": 7546501,
+      "tags": [
+        "cp314-cp314t-win_arm64"
+      ],
+      "native": "rstimes/_native.cp314t-win_arm64.pyd",
+      "native_sha256": "57e46fa3e88a67858eedc2dd8d915db2cdcc5028673904bbe9aed548ef950a6b"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315-macosx_11_0_arm64.whl",
+      "sha256": "f5a1a4a303e27a96ec0df09a30410f6b04b230003b5b226ee151d3fe44b4f142",
+      "size": 7350441,
+      "tags": [
+        "cp315-cp315-macosx_11_0_arm64"
+      ],
+      "native": "rstimes/_native.cpython-315-darwin.so",
+      "native_sha256": "dfa178023375664d10e49fb164913fbc8afbaa4e2a1f807fcde5f765a36310c7"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315-macosx_11_0_x86_64.whl",
+      "sha256": "0c2788f5d9b11622a50042421ef6904ea01ceccca3bbe2eb33352ee1a98bc361",
+      "size": 8072234,
+      "tags": [
+        "cp315-cp315-macosx_11_0_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-315-darwin.so",
+      "native_sha256": "ffe04cc3ebc393357a5d39f56bbed3ea55689d38423b246bc7eca6a46d91ff18"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315-manylinux_2_28_aarch64.whl",
+      "sha256": "f9f596e6bdf18170afe6ff6836c81334392c0b925879873598aed214022f4ebb",
+      "size": 7707785,
+      "tags": [
+        "cp315-cp315-manylinux_2_28_aarch64"
+      ],
+      "native": "rstimes/_native.cpython-315-aarch64-linux-gnu.so",
+      "native_sha256": "9233ba8cbd7d004c7f33e859e0963c74165cfc79201907ba6ca788cb8aade24a"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315-manylinux_2_28_x86_64.whl",
+      "sha256": "64d6272bcf27fcb2d2b33ee3ba7e6ab0e28408fbb4f7fa28427a583ccdaf9667",
+      "size": 8173872,
+      "tags": [
+        "cp315-cp315-manylinux_2_28_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-315-x86_64-linux-gnu.so",
+      "native_sha256": "8b5f42ee54eeecbdbe5a1a5312d580bf6b6e87acc108ac73fd1e613225529de0"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315-musllinux_1_2_aarch64.whl",
+      "sha256": "fcb24853a4e50b1389746d53dfbb343061f45a76faf70007604bc920bc7e7f9b",
+      "size": 7774171,
+      "tags": [
+        "cp315-cp315-musllinux_1_2_aarch64"
+      ],
+      "native": "rstimes/_native.cpython-315-aarch64-linux-musl.so",
+      "native_sha256": "c74d8042fa7e934c96088bbaa06b0988c021e715e603c00f3422b42d2c24a181"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315-musllinux_1_2_x86_64.whl",
+      "sha256": "a503ecbfcc9e1768b0bcecdfb7c50d31fe8cccde86edfc8af0c602586d168f3a",
+      "size": 8369039,
+      "tags": [
+        "cp315-cp315-musllinux_1_2_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-315-x86_64-linux-musl.so",
+      "native_sha256": "81c13271071ed3206f0ada36c79dc4e737358529cb75cd29d7636f651c313185"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315-win_amd64.whl",
+      "sha256": "d5e0570ee339cd7a9fa5a8540568bf60fbfbea7dc1a8cf48389692d1756ba752",
+      "size": 8428228,
+      "tags": [
+        "cp315-cp315-win_amd64"
+      ],
+      "native": "rstimes/_native.cp315-win_amd64.pyd",
+      "native_sha256": "ebdd596c2c51db6fc6952b8f56605a2019f981ef0c517fedcf38e36cc0c59cd9"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315-win_arm64.whl",
+      "sha256": "18513e9fa8d8de53b2867be65e646f85d873ef9879cf3c097ad7f7a94f222ca6",
+      "size": 7572111,
+      "tags": [
+        "cp315-cp315-win_arm64"
+      ],
+      "native": "rstimes/_native.cp315-win_arm64.pyd",
+      "native_sha256": "6bcbd26bc69c01e01d3a37a779bd9724977bb745f5b4ba55d06e688b9b7428de"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315t-macosx_11_0_arm64.whl",
+      "sha256": "bdae2317de73e15172da69821a8edc08c0095269e347fcaf6aadf616cf7dce1f",
+      "size": 7324371,
+      "tags": [
+        "cp315-cp315t-macosx_11_0_arm64"
+      ],
+      "native": "rstimes/_native.cpython-315t-darwin.so",
+      "native_sha256": "2f03c9ac7041f73061849f84dee2bad9e3d6f3e27eaca57b8ce990e01e0e1f1c"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315t-macosx_14_0_x86_64.whl",
+      "sha256": "2b6841f43fd489e458f9b6303f80b1f8c4a689fda394ca54b2d556dc74898639",
+      "size": 8041499,
+      "tags": [
+        "cp315-cp315t-macosx_14_0_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-315t-darwin.so",
+      "native_sha256": "4ea4ecb89805bd74c16e76e3ee909afec8f199ec9a1727359f15276ebc2bd7b6"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315t-manylinux_2_28_aarch64.whl",
+      "sha256": "bd87e9d8e8be171b2db474db01ea8e7911ab66e3fffa04d48cd509457c355279",
+      "size": 7685645,
+      "tags": [
+        "cp315-cp315t-manylinux_2_28_aarch64"
+      ],
+      "native": "rstimes/_native.cpython-315t-aarch64-linux-gnu.so",
+      "native_sha256": "b7964307e61618935255c62a4ecd152f1515918a353eda1540e0c10dddbe4759"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315t-manylinux_2_28_x86_64.whl",
+      "sha256": "1a62c1c6fbd37acc2bc0e623c0aefb6e4fa6ce9aae8af527f0a57834591d2818",
+      "size": 8149296,
+      "tags": [
+        "cp315-cp315t-manylinux_2_28_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-315t-x86_64-linux-gnu.so",
+      "native_sha256": "3dd579bb28f00aa65bf9870cc39441cadae2ed41ec52116b42a581149513b4b8"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315t-musllinux_1_2_aarch64.whl",
+      "sha256": "5c49b35b0ca7c87880eb771ded5b65efaf5325294d8bef6f1535ec379115ac13",
+      "size": 7755367,
+      "tags": [
+        "cp315-cp315t-musllinux_1_2_aarch64"
+      ],
+      "native": "rstimes/_native.cpython-315t-aarch64-linux-musl.so",
+      "native_sha256": "b56f4fe8ae8a82d1cbe1c9cb9d8dec346a74c303c540697f30c11685e117661b"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315t-musllinux_1_2_x86_64.whl",
+      "sha256": "278ad8cc9c17e83c2be960ce344f556abc37c5ccbc305c50f113b296dafb9fb6",
+      "size": 8345440,
+      "tags": [
+        "cp315-cp315t-musllinux_1_2_x86_64"
+      ],
+      "native": "rstimes/_native.cpython-315t-x86_64-linux-musl.so",
+      "native_sha256": "955e1c7be979ac56b9eb0ba97be7772998046c96154e8d211d18811b2511f3de"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315t-win_amd64.whl",
+      "sha256": "769dda7f01df3c31aa8273b5a33c5f04f3084068e697b78663a6f691565bc43f",
+      "size": 8407130,
+      "tags": [
+        "cp315-cp315t-win_amd64"
+      ],
+      "native": "rstimes/_native.cp315t-win_amd64.pyd",
+      "native_sha256": "78ba36036832fc4a9d1be775bd6add9ce9f10ce71c7ae6ddffd05ebf2336ca11"
+    },
+    {
+      "filename": "rstimes-1.1.1-cp315-cp315t-win_arm64.whl",
+      "sha256": "1339fed250a21710eab45e25dda010648fa49026379a377522a36203bbedfb89",
+      "size": 7546028,
+      "tags": [
+        "cp315-cp315t-win_arm64"
+      ],
+      "native": "rstimes/_native.cp315t-win_arm64.pyd",
+      "native_sha256": "a0bc5fe1a605be1016070003a1feec87faf5f7145ad130784e4db9f96041aea7"
+    }
+  ],
+  "sdists": [
+    {
+      "filename": "rstimes-1.1.1.tar.gz",
+      "sha256": "e832cf416a807873abfc0a0417e2556ba24af539ba9a552631604a12b176d82d",
+      "size": 985321,
+      "production_inputs_checked": 137
+    }
+  ]
+}

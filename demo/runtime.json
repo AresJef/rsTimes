@@ -1,8 +1,8 @@
 {
-  "environment": ".local/demo-1.1.1-oracle",
+  "environment": ".local/releases/1.1.1/demo-public/oracle",
   "version": "1.1.1",
-  "release_manifest": ".local/demo-1.1.1/release-manifest.json",
+  "release_manifest": ".local/releases/1.1.1/demo-public/release-manifest.json",
   "environments": {
-    "pddt": ".local/demo-1.1.1-main"
+    "pddt": ".local/releases/1.1.1/demo-public/main"
   }
 }

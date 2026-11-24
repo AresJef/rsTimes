@@ -4,11 +4,11 @@
 
 ## 当前开发与发行基线
 
-唯一正式基线为 rsTimes 1.1.0，Git tag 为 `v1.1.0`，发行提交为 `f356fa83f1afcb1ea518cd4d655b7c3e67f3ce1c`。现行 26 条核心断言和 77 条子条款继续适用。后续产品和性能改动以正式实物为依据。
+本机唯一开发基线和正式公开发行均为 rsTimes 1.1.1，Git tag 为 `v1.1.1`，发行提交为 `5039f6cdba69baae96f284c0d55538517e86de16`。现行 26 条核心断言和 77 条子条款继续适用。后续产品和性能改动以正式实物为依据。
 
-- 正式分发含 48 个 wheel 和 1 个 sdist。48 个真实位置从 PyPI 安装通过，16 个自由线程位置在实际运行中保持 GIL 关闭。macOS ARM64 CP313 native SHA-256 为 `1a03335075a59a91328f4fcdbbea1871e73db6c38f7c997a937a8bf542a1aff6`。[发行清单](docs/releases/1.1.0/records/release-manifest.json) · [本机选择](demo/runtime.json)
-- 六个 macOS ARM64 ABI 对正式 1.0.0 的 105 项必要比较全部严格通过。[结果](docs/releases/1.1.0/records/performance-receipt.json) · [冻结合同](docs/releases/1.1.0/records/performance-contract.json)
-- 英文文档提供 [1.1.0](https://aresjef.github.io/rsTimes/1.1.0/) 和 [1.0.0](https://aresjef.github.io/rsTimes/1.0.0/) 精确版本。当前默认页为 1.1.0。[发行程序](docs/RELEASING.md#verified-publication-record-for-110) · [本机开发](docs/development.md)
+- 正式分发含 48 个 wheel 和 1 个 sdist。48 个 PyPI 安装位置全部通过，16 个自由线程位置在实际运算中保持 GIL 关闭。macOS ARM64 CP313 native SHA-256 为 `630be4f08217d9bc5d2b00d7ddb28c36a82190bd8098bfe54ccd9f4f2c7d2026`。[发行清单](docs/releases/1.1.1/records/release-manifest.json) · [本机选择](demo/runtime.json)
+- 六个 macOS ARM64 ABI 对正式 1.1.0 的 143 项比较全部严格通过。[结果](docs/releases/1.1.1/records/performance-receipt.json) · [冻结合同](docs/releases/1.1.1/records/performance-contract.json)
+- [英文文档](https://aresjef.github.io/rsTimes/)默认显示 1.1.1。可直接打开 [1.1.1](https://aresjef.github.io/rsTimes/1.1.1/)、[1.1.0](https://aresjef.github.io/rsTimes/1.1.0/) 和 [1.0.0](https://aresjef.github.io/rsTimes/1.0.0/) 的精确版本。[发行程序](docs/RELEASING.md#verified-publication-record-for-111) · [本机开发](docs/development.md)
 
 ## 历史公开发行 rsTimes 1.0.0（2026-11-20）
 
