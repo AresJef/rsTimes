@@ -24,6 +24,24 @@ in UTC and naive dates compare in the nominal clock coordinate.
 Keep both inputs in the same awareness category. Provide a scalar or
 a strictly equal-length target column.
 
+## Compare a native Series with a reference date
+
+(pldt-series-diff)=
+```python
+import polars as pl
+import rstimes.pldt
+
+source = pl.Series("event", ["2024-01-03", None]).str.to_datetime(time_unit="us")
+days = source.pldt.diff("2024-01-01", "D")
+print(days.to_list())
+```
+
+**Output**
+
+```text
+[2, None]
+```
+
 (pldt-count-endpoint-inclusion)=
 ## Adjust the signed count
 

@@ -37,7 +37,10 @@ def main():
         (wheel,) = wheels.glob("*.whl")
         digest = sha256(wheel.read_bytes()).hexdigest()
         runtimes[version] = {}
-        for profile in ("full", "core") if version == current else ("full",):
+        receivers = args.site / version / "verification/receivers.json"
+        has_warning = (receivers.is_file()
+                       and "dependency-warning-filter" in json.loads(receivers.read_bytes())["cases"])
+        for profile in ("full", "core") if version == current or has_warning else ("full",):
             identity = identities[profile]
             if wheel.name != identity["wheel_filename"] or digest != identity["wheel_sha256"]:
                 raise ValueError(f"Reader wheel differs from the verified site identity: {version}/{profile}")

@@ -79,3 +79,52 @@ remaining relative quantities. Date results keep their current unit
 and metadata. A result too fine for that unit raises `ValueError`;
 choose a finer unit before the calculation. See the
 [Pddt reference](../api/reference/rstimes/pddt/index.rst) for each role.
+
+## Choose a weekday in this week or a neighboring week
+
+(pddt-weekday-periods)=
+```python
+from rstimes import Pddt
+
+events = Pddt(["2024-03-15 14:30", None], unit="us", name="event")
+choices = (
+    events.to_curr_weekday(0),
+    events.to_prev_weekday(0),
+    events.to_next_weekday(0),
+    events.to_weekday(1, weekday=0),
+)
+for dates in choices:
+    print(dates[0].strftime("%Y-%m-%d %H:%M"))
+```
+
+**Output**
+
+```text
+2024-03-11 14:30
+2024-03-04 14:30
+2024-03-18 14:30
+2024-03-18 14:30
+```
+
+Monday is 0. The signed offset in `to_weekday` counts calendar weeks.
+The last two calls select the same Monday and keep the source clock.
+
+## Move to the next month or set calendar fields
+
+(reader-pddt-month-and-fields)=
+```python
+from rstimes import Pddt
+
+source = Pddt.parse(['2024-01-31 14:30'], unit='us')
+moved = source.to_next_month()
+edited = source.to_datetime(month=2, day=31, hour=9)
+print(moved.strftime('%Y-%m-%d %H:%M').tolist()[0])
+print(edited.strftime('%Y-%m-%d %H:%M').tolist()[0])
+```
+
+**Output**
+
+```text
+2024-02-29 14:30
+2024-02-29 09:30
+```

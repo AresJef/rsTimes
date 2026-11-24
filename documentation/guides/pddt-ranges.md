@@ -104,7 +104,9 @@ print(grid.asi8.tolist())
 ```
 
 The evenly spaced intermediate coordinates are selected at the earlier
-whole tick. `inclusive` controls whether specified endpoints are kept.
+whole tick. Range `inclusive` selects which supplied endpoints to keep:
+`both`, `left`, `right`, or `neither`. Date `diff` has a separate counting
+option with the values `one`, `both`, and `neither`.
 Choose a frequency with the same direction as the range when generating
 a regularly stepped grid.
 

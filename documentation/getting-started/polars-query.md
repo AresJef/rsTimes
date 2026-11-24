@@ -1,6 +1,6 @@
 # Parse dates in a Polars query
 
-Install the Polars extra with `python -m pip install "rsTimes[polars]==1.1.0"`.
+Install the Polars extra with `python -m pip install "rsTimes[polars]==1.1.1"`.
 Load `rstimes.pldt` to register `.pldt` on native Polars expressions.
 
 ## Convert a text column that contains a null

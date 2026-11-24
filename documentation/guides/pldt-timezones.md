@@ -106,3 +106,68 @@ custom rule that cannot be encoded in a native dtype raises
 `ValueError` when supplied as a target. Use a standard named
 target. See [troubleshooting](../troubleshooting.md) for more
 error cases.
+
+## Attach, convert or remove a timezone
+
+(reader-pldt-timezone-choices)=
+```python
+from rstimes import Pldt
+
+source = Pldt(['2024-01-02 00:00'], unit='us')
+tokyo = source.tz_localize('Asia/Tokyo')
+utc = tokyo.tz_convert(None)
+local_clock = tokyo.tz_localize(None)
+aware_utc = tokyo.astimezone('UTC')
+switched = source.tz_switch('UTC', base_tz='Asia/Tokyo', naive=True)
+print(tokyo.isoformat().to_list()[0])
+print(utc.isoformat().to_list()[0])
+print(local_clock.isoformat().to_list()[0])
+print(aware_utc.isoformat().to_list()[0])
+print(switched.isoformat().to_list()[0])
+```
+
+**Output**
+
+```text
+2024-01-02T00:00:00+09:00
+2024-01-01T15:00:00
+2024-01-02T00:00:00
+2024-01-01T15:00:00+00:00
+2024-01-01T15:00:00
+```
+
+Removing a zone with tz_localize keeps the clock. Passing None to tz_convert keeps the instant as a UTC clock.
+
+
+## Attach, convert or remove a timezone on an existing Series
+
+(reader-series-timezone-choices)=
+```python
+import polars as pl
+import rstimes.pldt
+from rstimes import Pldt
+
+source = pl.Series('event', ['2024-01-02 00:00']).str.to_datetime(time_unit='us')
+tokyo = source.pldt.tz_localize('Asia/Tokyo')
+utc = pl.Series(tokyo).pldt.tz_convert(None)
+local_clock = pl.Series(tokyo).pldt.tz_localize(None)
+aware_utc = pl.Series(tokyo).pldt.astimezone('UTC')
+switched = source.pldt.tz_switch('UTC', base_tz='Asia/Tokyo', naive=True)
+print(tokyo.isoformat().to_list()[0])
+print(utc.isoformat().to_list()[0])
+print(local_clock.isoformat().to_list()[0])
+print(aware_utc.isoformat().to_list()[0])
+print(switched.isoformat().to_list()[0])
+```
+
+**Output**
+
+```text
+2024-01-02T00:00:00+09:00
+2024-01-01T15:00:00
+2024-01-02T00:00:00
+2024-01-01T15:00:00+00:00
+2024-01-01T15:00:00
+```
+
+Removing a zone with tz_localize keeps the clock. Passing None to tz_convert keeps the instant as a UTC clock.

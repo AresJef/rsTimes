@@ -26,7 +26,10 @@ const expr = "polars.Expr.pldt.as_unit";
 const series = "polars.Series.pldt.as_unit";
 const scatter = "rstimes.Pldt.scatter";
 const ctime = "rstimes.Pydt.ctime";
-const desktop = Object.keys(plan).filter(entry => entry !== warning);
+const retainedDesktop = [
+  expr, series, "rstimes.Pldt.__sub__", "rstimes.Pldt.diff", "rstimes.Pldt.name", scatter, ctime,
+];
+const currentDesktop = Object.keys(plan).filter(entry => entry !== warning);
 const mobile = [scatter, expr, ctime];
 const outputs = {
   [warning]: "DependencyWarning True",
@@ -234,9 +237,11 @@ async function main() {
     browser = await chromium.launch({ executablePath: chrome, headless: true });
     report.chrome = browser.version();
     report.runtimes = {};
+    report.warnings = {};
     for (const version of versions) {
       const exact = part => new URL(version + "/" + part, base).href;
       const runtime = runtimes[version].full;
+      const desktop = version === current ? currentDesktop : retainedDesktop;
       report.runtimes[version] = { full: runtimeIdentity(runtime, version, work, false) };
       for (const width of [1440, 390]) {
         await withPage(browser, base, width, async page => {
@@ -245,11 +250,16 @@ async function main() {
           }
         });
       }
+      if (runtimes[version].core) {
+        const core = runtimes[version].core;
+        report.runtimes[version].core = runtimeIdentity(core, version, work, true);
+        report.warnings[version] = await withPage(browser, base, 1440, page => reader(page, exact, warning, core, work));
+      }
     }
     const exact = part => new URL(current + "/" + part, base).href;
     const core = runtimes[current].core;
-    report.runtimes[current].core = runtimeIdentity(core, current, work, true);
-    report.warning = await withPage(browser, base, 1440, page => reader(page, exact, warning, core, work));
+    report.warning = report.warnings[current];
+    assert.ok(report.warning, "The current version must execute the core warning example");
     const wide = report.readers.filter(item => item.version === current && item.viewport.width === 1440);
     const a = wide.find(item => item.entry === expr);
     const b = wide.find(item => item.entry === series);
@@ -268,7 +278,8 @@ async function main() {
     };
     assert.deepEqual(report.page_errors, []);
     report.status = "pass";
-    console.log(report.readers.length + " exact-version reader routes and the core warning route passed");
+    console.log(report.readers.length + " exact-version reader routes and "
+      + Object.keys(report.warnings).length + " core warning routes passed");
   } catch (error) {
     report.status = "fail";
     report.error = error.stack;

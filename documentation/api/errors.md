@@ -43,8 +43,11 @@ Loading `Pddt` or `Pldt` with an installed version below the
 The message includes the installed version, the applicable minimum, and an
 upgrade command. The normal warning policy allows loading to continue.
 
-Capture or filter this category with Python's `warnings` module. This example
-emits the category explicitly so it runs with the core rsTimes package.
+Set the filter before the first import that loads Pddt or Pldt if your
+application should stop on an unsupported dependency version. An error
+filter interrupts that import. Upgrade the dependency, or adjust the filter
+and retry the import. The code below emits a demonstration warning in a
+core installation so you can try the filter without an older dependency.
 
 (dependency-warning-filter)=
 ```python

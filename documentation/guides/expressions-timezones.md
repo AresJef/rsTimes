@@ -66,3 +66,36 @@ offset. `is_dst()` returns Boolean and uses False at null dates.
 Both use the actual offset rules for the date. A logical timezone
 or source dtype error may appear during schema resolution or run
 time. Wrong static policy types can fail at expression creation.
+
+## Attach, convert or remove a timezone
+
+(reader-expr-timezone-choices)=
+```python
+import polars as pl
+import rstimes.pldt
+
+source = pl.Series('event', ['2024-01-02 00:00']).str.to_datetime(time_unit='us')
+frame = pl.DataFrame([source])
+tokyo = pl.col('event').pldt.tz_localize('Asia/Tokyo')
+utc = tokyo.pldt.tz_convert(None)
+local_clock = tokyo.pldt.tz_localize(None)
+aware_utc = tokyo.pldt.astimezone('UTC')
+switched = pl.col('event').pldt.tz_switch('UTC', base_tz='Asia/Tokyo', naive=True)
+print(frame.select(tokyo.pldt.isoformat())['event'].to_list()[0])
+print(frame.select(utc.pldt.isoformat())['event'].to_list()[0])
+print(frame.select(local_clock.pldt.isoformat())['event'].to_list()[0])
+print(frame.select(aware_utc.pldt.isoformat())['event'].to_list()[0])
+print(frame.select(switched.pldt.isoformat())['event'].to_list()[0])
+```
+
+**Output**
+
+```text
+2024-01-02T00:00:00+09:00
+2024-01-01T15:00:00
+2024-01-02T00:00:00
+2024-01-01T15:00:00+00:00
+2024-01-01T15:00:00
+```
+
+Removing a zone with tz_localize keeps the clock. Passing None to tz_convert keeps the instant as a UTC clock.

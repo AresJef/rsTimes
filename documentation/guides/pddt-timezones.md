@@ -74,3 +74,34 @@ Register region names written inside a string with `Configs.add_tzone`.
 After reading the source region, rsTimes can convert to the target zone.
 The explicit `tz` argument and the timezone metadata of native dates
 have their own roles. See [parsing settings](configs.md).
+
+## Attach, convert or remove a timezone
+
+(reader-pddt-timezone-choices)=
+```python
+from rstimes import Pddt
+
+source = Pddt(['2024-01-02 00:00'], unit='us')
+tokyo = source.tz_localize('Asia/Tokyo')
+utc = tokyo.tz_convert(None)
+local_clock = tokyo.tz_localize(None)
+aware_utc = tokyo.astimezone('UTC')
+switched = source.tz_switch('UTC', base_tz='Asia/Tokyo', naive=True)
+print(tokyo.isoformat().tolist()[0])
+print(utc.isoformat().tolist()[0])
+print(local_clock.isoformat().tolist()[0])
+print(aware_utc.isoformat().tolist()[0])
+print(switched.isoformat().tolist()[0])
+```
+
+**Output**
+
+```text
+2024-01-02T00:00:00+09:00
+2024-01-01T15:00:00
+2024-01-02T00:00:00
+2024-01-01T15:00:00+00:00
+2024-01-01T15:00:00
+```
+
+Removing a zone with tz_localize keeps the clock. Passing None to tz_convert keeps the instant as a UTC clock.

@@ -75,6 +75,17 @@ def restore_old_files(site, plan, mode):
     return sorted(selected)
 
 
+def retained_snapshots(target):
+    """Read the declared exact-version snapshots in their navigation order."""
+    snapshots = {}
+    for version, filename in target.get("retained_versions", {}).items():
+        record = json.loads((DOC / "_data" / filename).read_text(encoding="utf-8"))
+        if record["old_version"] != version or version == target["version"]:
+            raise ValueError("Archived documentation does not match the declared exact version")
+        snapshots[version] = record
+    return snapshots
+
+
 def add_legacy_site(site, plan, mode):
     restored = restore_old_files(site, plan, mode)
     if mode == "redirect":

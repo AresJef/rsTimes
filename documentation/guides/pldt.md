@@ -36,7 +36,7 @@ parser can fit recognized fields to their valid ranges.
 | --- | --- |
 | Native Polars Datetime | The declared ms, us or ns unit. |
 | Native Date, supported dates coarser than milliseconds, empty or all-missing untyped input | Milliseconds. |
-| Ordinary date strings and Python datetimes | Microseconds. Seven to nine fractional text digits declare ns. |
+| Ordinary date strings and Python datetimes | Microseconds. Up to six fractional text digits use us. Seven through nine declare ns, including trailing zeros. |
 | Bare ticks | Nanoseconds. |
 
 An explicit `unit` is checked for both precision and int64 capacity.
@@ -89,6 +89,9 @@ Pass a target unit of `"ms"`, `"us"` or `"ns"`. The default rounding
 selects the earlier tick. Set `round_ok=False` to require an exact
 conversion. If exact conversion raises `ValueError`, choose a finer
 target unit or allow rounding with `round_ok=True`.
+Eager conversion reports the first inexact row. Expressions report
+the position within a batch. An `OverflowError` means the target tick
+is outside its capacity, even if rounding is allowed.
 Ordinary date operations preserve the current unit.
 See [native input and ownership](pldt-interop.md) for source dtypes and
 [choose a factory](pldt-factories.md) for specific date roles.

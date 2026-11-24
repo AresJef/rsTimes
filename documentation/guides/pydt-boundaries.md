@@ -6,17 +6,23 @@
 ```python
 from rstimes import Pydt
 
-value = Pydt(2024, 2, 15, 12)
+value = Pydt(2024, 2, 15, 14, 30)
+print(value.to_first_of("M").isoformat())
 print(value.to_start_of("M").isoformat())
+print(value.to_start_of("h").isoformat())
 ```
 
 **Output**
 
 ```text
+2024-02-01T14:30:00
 2024-02-01T00:00:00
+2024-02-15T14:00:00
 ```
 
-`to_start_of` moves to the first available instant within the period.
+`to_first_of("M")` chooses February 1 and keeps 14:30.
+`to_start_of("M")` gives the first valid instant of February, at midnight here.
+For an hour, `to_start_of("h")` moves 14:30 to 14:00.
 `to_end_of` moves to its last available instant. A microsecond is the
 smallest step. Use `to_first_of` and `to_last_of` to choose the first or
 last day while keeping the original clock where possible. `normalize()`
@@ -64,7 +70,8 @@ print(value.fsp(3).isoformat())
 
 `fsp` truncates the value's fraction to the requested decimal places.
 Zero clears the fractional part. Six or more retain its available
-microseconds. A negative precision raises `ValueError`.
+microseconds. A negative precision raises `ValueError`. Pddt and Pldt can
+also store nanoseconds.
 
 ## Count the midnight boundaries between two datetimes
 
@@ -93,3 +100,62 @@ its magnitude and `"neither"` decreases it.
 Use the [Pydt reference](../api/reference/rstimes/pydt/index.rst) for
 supported frequency and boundary names. A valid nonmatch in a boundary
 query returns `False`, while an unknown or empty name raises `ValueError`.
+
+## Compare a month’s calendar days and exact boundaries
+
+(reader-pydt-month-boundaries)=
+```python
+from rstimes import Pydt
+
+source = Pydt.fromisoformat('2024-03-15 14:30')
+first = source.to_first_of('M')
+start = source.to_start_of('M')
+last = source.to_last_of('M')
+end = source.to_end_of('M')
+print(first.strftime('%Y-%m-%d %H:%M:%S.%f'))
+print(start.strftime('%Y-%m-%d %H:%M:%S.%f'))
+print(last.strftime('%Y-%m-%d %H:%M:%S.%f'))
+print(end.strftime('%Y-%m-%d %H:%M:%S.%f'))
+print(first.is_first_of('M'), first.is_start_of('M'))
+```
+
+**Output**
+
+```text
+2024-03-01 14:30:00.000000
+2024-03-01 00:00:00.000000
+2024-03-31 14:30:00.000000
+2024-03-31 23:59:59.999999
+True False
+```
+
+First and last choose calendar days. Start and end choose the first and last valid instants.
+
+
+## Round to seconds or keep three decimal places
+
+(reader-pydt-second-grid)=
+```python
+from rstimes import Pydt
+
+source = Pydt.fromisoformat('2024-02-29 12:00:01.567891')
+rounded = source.round('s')
+ceiling = source.ceil('s')
+below = source.floor('s')
+shortened = source.fsp(3)
+print(rounded.strftime('%H:%M:%S.%f'))
+print(ceiling.strftime('%H:%M:%S.%f'))
+print(below.strftime('%H:%M:%S.%f'))
+print(shortened.strftime('%H:%M:%S.%f'))
+```
+
+**Output**
+
+```text
+12:00:02.000000
+12:00:02.000000
+12:00:01.000000
+12:00:01.567000
+```
+
+These calls preserve the storage unit. Rounding changes the clock value and fsp discards trailing fractional digits.

@@ -118,6 +118,11 @@ def capture(profile, reports, output):
     print(f"{profile}: observed {len(observed)} registered cases")
 
 
+def observed_uses(events):
+    """Keep actual observations and discard possible operator dispatches."""
+    return [event for event in events if event["effect"] != "operator-candidate"]
+
+
 def bind_cases(source, exact, reports, identity, cases):
     observations = read(source)
     if observations.keys() != cases.keys():
@@ -140,7 +145,7 @@ def bind_cases(source, exact, reports, identity, cases):
             "example_link": link, "profile": profile, "format": case["format"],
             "report": public, "report_sha256": published_sha, "case_sha256": trace["case_sha256"],
             "wheel": runtime["wheel_filename"], "wheel_sha256": runtime["wheel_sha256"],
-            "observations": [event for event in trace["observations"] if event["effect"] != "operator-candidate"],
+            "observations": observed_uses(trace["observations"]),
         }
     return index
 

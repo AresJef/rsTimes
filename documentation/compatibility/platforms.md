@@ -1,6 +1,6 @@
 # Check Python and platform support
 
-The rsTimes 1.1.0 release provides 48 wheels and a source distribution.
+The rsTimes 1.1.1 release provides 48 wheels and a source distribution.
 Choose the wheel that matches your CPython ABI, operating system, and
 architecture.
 
@@ -12,7 +12,7 @@ architecture.
 
 The release has wheels for standard CPython 3.12, 3.13, 3.14, and 3.15,
 plus free-threaded 3.14t and 3.15t. Dependencies can raise the effective
-OS requirement. See the [release file list](https://pypi.org/project/rsTimes/1.1.0/#files).
+OS requirement. See the [release file list](https://pypi.org/project/rsTimes/1.1.1/#files).
 
 ## Match dependency requirements
 

@@ -29,20 +29,24 @@ at 1. `nanosecond` returns the 0–999 tail within the microsecond.
 ```python
 from rstimes import Pldt
 
-events = Pldt(["2024-02-29", None], name="event")
-weeks = events.isocalendar()
+dates = Pldt(["0000-01-01", None], unit="us", name="event")
+weeks = dates.isocalendar()
 print(weeks.to_list())
 ```
 
 **Output**
 
 ```text
-[{'year': 2024, 'week': 9, 'day': 4}, None]
+[{'year': -1, 'week': 52, 'day': 6}, None]
 ```
 
-The Struct has UInt32 `year`, `week` and `day` fields. Use
-`isoyear()` for a signed ISO year, since a negative year cannot
-be placed in the unsigned Struct.
+January 1 of year 0 belongs to ISO year −1. The `year` field uses `Int64`.
+The `week` and `day` fields use `UInt32`. Saturday is day 6.
+A missing date gives a null Struct.
+
+A date can fit in the column and still fall outside the supported range
+of its named time zone. Pldt and Series.pldt raise `OverflowError` in
+that case. `isoyear()` reads just the ISO year and uses the same local date.
 
 (pldt-query-now-and-zone)=
 ## Inspect a timezone and compare with now

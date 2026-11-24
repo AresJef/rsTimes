@@ -183,12 +183,13 @@ def main():
 
     mode = args.preview_mode or target["publication_stage"]
     plan = json.loads((DOC / "_data/legacy-pages.json").read_text())
-    previous_version = target.get("previous_version")
+    snapshots = migration["retained_snapshots"](target)
+    active_versions = [version, *snapshots]
     default_version = target.get("default_version", version)
-    if plan["version"] != (previous_version or version):
-        parser.error("Legacy route map targets a different version")
-    if default_version not in {version, previous_version} or previous_version == version:
-        parser.error("Invalid documentation default or previous version")
+    if plan["version"] not in active_versions:
+        parser.error("Legacy route map does not target an exact version")
+    if default_version not in active_versions:
+        parser.error("Invalid documentation default")
     exact = args.output / version
     shutil.copytree(args.html, exact)
     reports = copy_public_reports(args.reports, exact)
@@ -202,24 +203,18 @@ def main():
         "version": plan["old_version"], "archive_sha256": plan["archive"]["sha256"],
         "files": {name: plan["old_files"][name] for name in plan["retained_evidence"]},
     })
-    if mode == "redirect":
-        if not previous_version:
-            write_json(exact / "verification/legacy-redirects.json", {
-                "from_version": plan["old_version"], "to_version": version, "pages": plan["pages"],
-            })
-    active_versions = [version]
-    if previous_version:
-        previous = json.loads((DOC / "_data/previous-site.json").read_text())
-        if previous["old_version"] != previous_version:
-            parser.error("Archived documentation does not match the previous version")
-        migration["restore_old_files"](args.output, previous, "preserve")
-        archived_build = json.loads((args.output / previous_version / "_meta/build.json").read_text())
-        if (archived_build["product_version"] != previous_version
-                or archived_build["source_commit"] != previous["source_commit"]
-                or archived_build["documentation_commit"] != previous["documentation_commit"]
+    if mode == "redirect" and plan["version"] == version:
+        write_json(exact / "verification/legacy-redirects.json", {
+            "from_version": plan["old_version"], "to_version": version, "pages": plan["pages"],
+        })
+    for retained_version, record in snapshots.items():
+        migration["restore_old_files"](args.output, record, "preserve")
+        archived_build = json.loads((args.output / retained_version / "_meta/build.json").read_text())
+        if (archived_build["product_version"] != retained_version
+                or archived_build["source_commit"] != record["source_commit"]
+                or archived_build["documentation_commit"] != record["documentation_commit"]
                 or archived_build["acceptance"] != "ci" or archived_build["pending_case_profiles"]):
             parser.error("Archived documentation lacks complete installation evidence")
-        active_versions.append(previous_version)
     active_versions.sort(key=lambda item: item != default_version)
     versions = [dict(version=item, name=item, url=SITE_PREFIX + item + "/") for item in active_versions]
     if mode == "preserve":
@@ -239,7 +234,7 @@ def main():
         build_tools={name: importlib.metadata.version(name)
                      for name in ("sphinx", "myst-parser", "pydata-sphinx-theme", "sphinx-autoapi")},
     )
-    if previous_version:
+    if snapshots:
         build["default_documentation_version"] = default_version
         build["exact_versions"] = {
             item: SITE_PREFIX + item + "/_meta/build.json" for item in active_versions

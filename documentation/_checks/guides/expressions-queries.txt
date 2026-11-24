@@ -25,7 +25,8 @@
 >>> check(frame, pl.col('event').pldt.is_long_year(), pl.Boolean, [False, False])
 >>> check(frame, pl.col('event').pldt.is_month(13), pl.Boolean, [False, False])
 >>> check(frame, pl.col('event').pldt.leap_bt_year(2025), pl.Int64, [1, None])
->>> check(frame, pl.col('event').pldt.isocalendar(), pl.Struct({'year': pl.UInt32, 'week': pl.UInt32, 'day': pl.UInt32}), [{'year': 2024, 'week': 9, 'day': 4}, None])
+>>> iso_dtype = pl.Struct({'year': pl.Int64, 'week': pl.UInt32, 'day': pl.UInt32})
+>>> check(frame, pl.col('event').pldt.isocalendar(), iso_dtype, [{'year': 2024, 'week': 9, 'day': 4}, None])
 >>> dates = pl.DataFrame({'event': [date(2024, 2, 29), None]})
 >>> check(dates, pl.col('event').pldt.year, pl.Int64, [2024, None])
 ```
@@ -40,15 +41,20 @@
 ...     except error:
 ...         continue
 ...     raise AssertionError('invalid query target was accepted')
->>> signed = pl.DataFrame({'event': pl.Series([-62167219200000000], dtype=pl.Datetime('us'))})
->>> check(signed, pl.col('event').pldt.isoyear(), pl.Int64, [-1])
->>> for execute in (lambda: signed.select(pl.col('event').pldt.isocalendar()), lambda: signed.lazy().select(pl.col('event').pldt.isocalendar()).collect()):
+>>> signed = pl.Series(Pldt(['0000-01-01', None], unit='us', name='event')).to_frame()
+>>> check(signed, pl.col('event').pldt.isoyear(), pl.Int64, [-1, None])
+>>> check(signed, pl.col('event').pldt.isocalendar(), iso_dtype, [{'year': -1, 'week': 52, 'day': 6}, None])
+>>> far = pl.Series('event', [253416686400000, None], dtype=pl.Datetime('ms', 'America/New_York')).to_frame()
+>>> iso = pl.col('event').pldt.isocalendar()
+>>> lazy = far.lazy().select(iso)
+>>> assert lazy.collect_schema() == {'event': iso_dtype}
+>>> for execute in (lambda: far.select(iso), lazy.collect, lambda: lazy.collect(engine='streaming')):
 ...     try:
 ...         execute()
-...     except pl.exceptions.PolarsError as error:
-...         assert 'UInt32' in str(error)
+...     except pl.exceptions.ComputeError as error:
+...         assert 'batch item 0' in str(error) and 'regional timestamp exceeds' in str(error)
 ...     else:
-...         raise AssertionError('a negative ISO year fit UInt32')
+...         raise AssertionError('a date outside the regional range was accepted')
 ```
 
 ```{doctest} expr-all-boundary-differences

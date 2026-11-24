@@ -77,3 +77,34 @@ using its effective region name. The `local` service resolves the
 process-local region on first use and reuses the first successful
 identity. See the [Pydt reference](../api/reference/rstimes/pydt/index.rst)
 for the timezone inspection methods.
+
+## Attach, convert or remove a timezone
+
+(reader-pydt-timezone-choices)=
+```python
+from rstimes import Pydt
+
+source = Pydt.fromisoformat('2024-01-02 00:00')
+tokyo = source.tz_localize('Asia/Tokyo')
+utc = tokyo.tz_convert(None)
+local_clock = tokyo.tz_localize(None)
+aware_utc = tokyo.astimezone('UTC')
+switched = source.tz_switch('UTC', base_tz='Asia/Tokyo', naive=True)
+print(tokyo.isoformat())
+print(utc.isoformat())
+print(local_clock.isoformat())
+print(aware_utc.isoformat())
+print(switched.isoformat())
+```
+
+**Output**
+
+```text
+2024-01-02T00:00:00+09:00
+2024-01-01T15:00:00
+2024-01-02T00:00:00
+2024-01-01T15:00:00+00:00
+2024-01-01T15:00:00
+```
+
+Removing a zone with tz_localize keeps the clock. Passing None to tz_convert keeps the instant as a UTC clock.

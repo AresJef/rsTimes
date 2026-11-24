@@ -24,7 +24,7 @@ chosen read-only flags and default token tables. The initializer is a no-op.
 
 | Entry | Parameters and result |
 |---|---|
-| <span id="rstimes.Configs.__new__"></span>`Configs.__new__(Configs, *args, **kwargs)` | Allocate a usable Configs with its selected flags and default token tables. |
+| <span id="rstimes.Configs.__new__"></span>`Configs(yearfirst=True, dayfirst=False)` | Construct a configuration with its default vocabulary and the chosen date-order preferences. |
 | <span id="rstimes.Configs.__getstate__"></span>`Configs.__getstate__()` | No arguments; returns None. Pickle uses `__reduce__` / `__reduce_ex__` for the configuration snapshot. |
 | <span id="rstimes.Configs.__eq__"></span><span id="rstimes.Configs.__ne__"></span>`Configs.__eq__(other)` / `Configs.__ne__(other)` | Identity comparison with ordinary reflected negotiation; equal table contents do not define equality. |
 | <span id="rstimes.Configs.__hash__"></span>`Configs.__hash__()` | Return a builtin integer object hash. |

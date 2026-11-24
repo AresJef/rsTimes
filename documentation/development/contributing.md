@@ -12,8 +12,8 @@ Use the pinned toolchain and development requirements for the
 source commit. Build in a fresh artifact directory and install
 that wheel in the intended verification environment before
 running its installed-package checks. Use the repository's
-[release procedure](https://github.com/AresJef/rsTimes/blob/v1.1.0/docs/RELEASING.md)
-and the [developer environment guide](https://github.com/AresJef/rsTimes/blob/v1.1.0/docs/development.md)
+[release procedure](https://github.com/AresJef/rsTimes/blob/v1.1.1/docs/RELEASING.md)
+and the [developer environment guide](https://github.com/AresJef/rsTimes/blob/v1.1.1/docs/development.md)
 for reproducible commands. For a docs change, follow the
 [separate documentation workflow](documentation.md).
 
@@ -22,12 +22,13 @@ for reproducible commands. For a docs change, follow the
 Use the [type-checking guide](../compatibility/type-checking.md)
 for the pinned Pyright version, consumer applications and
 optional static types. The repository's
-[installed-package type gate](https://github.com/AresJef/rsTimes/blob/v1.1.0/docs/type-checking.md)
+[installed-package type gate](https://github.com/AresJef/rsTimes/blob/v1.1.1/docs/type-checking.md)
 covers typed interfaces and retained negative tests.
 
-Official comparison demos use a separate oracle environment.
-See the [demo guide](https://github.com/AresJef/rsTimes/blob/v1.1.0/demo/README.md)
-for launcher and interpreter selection.
+Use the [1.1.1 demo guide](https://github.com/AresJef/rsTimes/blob/v1.1.1/demo/README.md)
+from the v1.1.1 tag. With that release's wheel and manifest, the launcher
+runs Delta, Parser and Pydt in the oracle environment and Pddt in the
+main environment. The guide lists both environments and all four commands.
 
 ## Make a behavior change reviewable
 

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "target_status": "bound_rsTimes_1.1.0",
+  "target_status": "bound_rsTimes_1.1.1",
   "examples": [
     {
       "id": "install-check-distribution-version",
@@ -13,14 +13,14 @@
         "public-install",
         "windows-full"
       ],
-      "expectation_basis": "Installed distribution metadata of the bound 1.1.0 wheel.",
+      "expectation_basis": "Installed distribution metadata of the bound 1.1.1 wheel.",
       "scenarios": [
         "public-install",
         "version"
       ],
       "reviewed": true,
       "checks": [
-        "assert type(installed) is str and installed == '1.1.0'"
+        "assert type(installed) is str and installed == '1.1.1'"
       ]
     },
     {
@@ -3611,15 +3611,13 @@
         "pandas2",
         "windows-full"
       ],
-      "expectation_basis": "2024leapday60ISO9/4;nullableInt64/UInt32andzero-yearISO-1",
+      "expectation_basis": "Leap-day and ISO checks include year -1 and year 4294967296. The ISO table keeps nullable field dtypes.",
       "scenarios": [
         "all-integer-query-methods",
         "all-condition-methods",
         "nullable-types",
         "NaT",
         "nonmatch",
-        "wide-signed-ISO",
-        "UInt32-error",
         "row-error",
         "type-error"
       ],
@@ -5543,13 +5541,9 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "nativeUInt32children;year0validbutISO-1cannotUInt32",
+      "expectation_basis": "ISO year -1 fits Int64. The named time-zone example exceeds the supported local date range.",
       "scenarios": [
-        "Struct",
-        "outer-null",
-        "fixed-child-schema",
-        "signed-year",
-        "capacity-error"
+        "signed-year"
       ],
       "reviewed": true,
       "receiver_review": "Direct Pldt and actual plain-Series accessor calls manually distinguished; returned Pldt calls do not stand in for the Series path.",
@@ -6683,7 +6677,7 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "leapday60ISO9/4;23literalqueries;fixedUInt32Struct",
+      "expectation_basis": "February 29, 2024 falls in ISO week 9. The ISO Struct has an Int64 year.",
       "scenarios": [
         "all-integer-queries",
         "all-condition-queries",
@@ -6719,16 +6713,14 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "1970Jan/Febrowtargets;ISO-1cannotUInt32",
+      "expectation_basis": "The January and February rows retain positional query rules. ISO year -1 succeeds. The named time-zone example fails in the executing batch.",
       "scenarios": [
         "row-Expr",
         "scalar-aggregate",
         "scalar-broadcast",
         "required-target",
         "strict-type",
-        "invalid-name",
-        "signed-year",
-        "capacity-error"
+        "invalid-name"
       ],
       "reviewed": true,
       "execution_modes": [
@@ -10368,7 +10360,8 @@
     {
       "id": "pydt-start-of-month",
       "covers": [
-        "rstimes.Pydt.to_start_of"
+        "rstimes.Pydt.to_start_of",
+        "rstimes.Pydt.to_first_of"
       ],
       "format": "python",
       "profiles": [
@@ -10376,10 +10369,12 @@
         "full",
         "windows-full"
       ],
-      "expectation_basis": "The February boundary is February 1 at midnight.",
+      "expectation_basis": "The first day keeps 14:30. The month and hour start at midnight and 14:00 respectively.",
       "checks": [
         "assert type(value.to_start_of('M')) is Pydt",
-        "assert value.to_start_of('M') == Pydt(2024, 2, 1)"
+        "assert value.to_start_of('M') == Pydt(2024, 2, 1)",
+        "assert value.to_first_of('M') == Pydt(2024, 2, 1, 14, 30)",
+        "assert value.to_start_of('h') == Pydt(2024, 2, 15, 14)"
       ],
       "scenarios": [
         "month-boundary",
@@ -11017,6 +11012,38 @@
       "page": "guides/pddt-boundaries.md"
     },
     {
+      "id": "pddt-iso-week-year",
+      "covers": [
+        "rstimes.Pddt.isocalendar"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "pandas-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "January 1 of year 0 falls on Saturday in week 52 of ISO year -1.",
+      "checks": [
+        "import pandas as pd",
+        "iso = dates.isocalendar()",
+        "assert type(iso) is pd.DataFrame and iso.index.equals(dates)",
+        "assert iso.index.name == 'event' and list(iso.columns) == ['year', 'week', 'day']",
+        "assert [str(dtype) for dtype in iso.dtypes] == ['Int64', 'UInt32', 'UInt32']",
+        "assert list(iso.itertuples(index=False, name=None)) == [(-1, 52, 6), (pd.NA, pd.NA, pd.NA)]"
+      ],
+      "scenarios": [
+        "ISO-calendar",
+        "signed-ISO-year",
+        "nullable-types",
+        "NaT"
+      ],
+      "reviewed": true,
+      "page": "guides/pddt-boundaries.md"
+    },
+    {
       "id": "pddt-count-midnights-with-missing-date",
       "covers": [
         "rstimes.Pddt.diff"
@@ -11588,6 +11615,34 @@
       "page": "guides/pldt-calendar.md"
     },
     {
+      "id": "pldt-series-replace",
+      "page": "guides/pldt-calendar.md",
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "covers": [
+        "polars.Series.pldt.replace"
+      ],
+      "scenarios": [
+        "strict-replace",
+        "row-pairing",
+        "length-error",
+        "null"
+      ],
+      "reviewed": true,
+      "checks": [
+        "from rstimes import Pldt",
+        "assert type(source) is pl.Series and type(adjusted) is Pldt",
+        "assert adjusted.name == \"event\" and adjusted.dtype == pl.Datetime(\"us\")",
+        "assert adjusted.to_physical().to_list() == [1709078400000000, None]"
+      ],
+      "expectation_basis": "A native named Series invokes the advertised accessor, with independent calendar values and preserved missing rows."
+    },
+    {
       "id": "pldt-add-cancelling-fine-amounts",
       "covers": [
         "rstimes.Pldt.add",
@@ -11832,6 +11887,32 @@
       "page": "guides/pldt-differences.md"
     },
     {
+      "id": "pldt-series-diff",
+      "page": "guides/pldt-differences.md",
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "covers": [
+        "polars.Series.pldt.diff"
+      ],
+      "scenarios": [
+        "calendar-bucket",
+        "namespace",
+        "integer-output",
+        "null"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert type(source) is pl.Series and type(days) is pl.Series",
+        "assert days.dtype == pl.Int64 and days.name == \"event\" and days.to_list() == [2, None]"
+      ],
+      "expectation_basis": "A native named Series invokes the advertised accessor, with independent calendar values and preserved missing rows."
+    },
+    {
       "id": "pldt-measure-actual-duration",
       "covers": [
         "rstimes.Pldt.__sub__"
@@ -11890,9 +11971,7 @@
     {
       "id": "pldt-extract-iso-week-struct",
       "covers": [
-        "rstimes.Pldt.isocalendar",
-        "polars.Series.pldt.isocalendar",
-        "rstimes.Pldt.isoyear"
+        "rstimes.Pldt.isocalendar"
       ],
       "format": "python",
       "profiles": [
@@ -11901,13 +11980,12 @@
         "polars-current",
         "windows-full"
       ],
-      "expectation_basis": "February 29, 2024 is Thursday of ISO week 9.",
+      "expectation_basis": "January 1 of year 0 falls on Saturday in week 52 of ISO year -1.",
       "checks": [
         "import polars as pl",
         "assert type(weeks) is pl.Series and weeks.name == 'event'",
-        "assert weeks.dtype == pl.Struct({'year':pl.UInt32,'week':pl.UInt32,'day':pl.UInt32})",
-        "assert pl.Series(events).pldt.isocalendar().to_list() == [{'year':2024,'week':9,'day':4},None]",
-        "assert Pldt(['0000-01-01']).isoyear().to_list() == [-1]"
+        "assert weeks.dtype == pl.Struct({'year': pl.Int64, 'week': pl.UInt32, 'day': pl.UInt32})",
+        "assert weeks.is_null().to_list() == [False, True]"
       ],
       "scenarios": [
         "ISO-calendar",
@@ -12753,12 +12831,12 @@
         "nogil314",
         "nogil315"
       ],
-      "expectation_basis": "February 29 is Thursday of ISO week 9.",
+      "expectation_basis": "January 1, 2021 falls on Friday in week 53 of ISO year 2020.",
       "checks": [
         "assert type(expr) is pl.Expr",
         "query = frame.lazy().select(expr)",
-        "assert query.collect_schema() == {'event': pl.Struct({'year':pl.UInt32,'week':pl.UInt32,'day':pl.UInt32})}",
-        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Struct({'year':pl.UInt32,'week':pl.UInt32,'day':pl.UInt32})}\n    assert column.to_list() == [{'year':2024,'week':9,'day':4},None]"
+        "assert query.collect_schema() == {'event': pl.Struct({'year': pl.Int64, 'week': pl.UInt32, 'day': pl.UInt32})}",
+        "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and column.dtype == pl.Struct({'year': pl.Int64, 'week': pl.UInt32, 'day': pl.UInt32})\n    assert column.to_list() == [{'year': 2020, 'week': 53, 'day': 5}, None]\n    assert column.is_null().to_list() == [False, True]"
       ],
       "scenarios": [
         "ISO-calendar",
@@ -12768,7 +12846,12 @@
         "collect"
       ],
       "reviewed": true,
-      "page": "guides/expressions-queries.md"
+      "page": "guides/expressions-queries.md",
+      "execution_modes": [
+        "select",
+        "collect",
+        "streaming"
+      ]
     },
     {
       "id": "expr-localize-then-convert",
@@ -12956,7 +13039,8 @@
       "id": "expr-freeze-parser-default",
       "covers": [
         "polars.Expr.pldt.parse",
-        "polars.Series.pldt.parse"
+        "polars.Series.pldt.parse",
+        "rstimes.Configs.set_month"
       ],
       "format": "python",
       "profiles": [
@@ -12973,8 +13057,8 @@
         "query = frame.lazy().select(expr)",
         "assert query.collect_schema() == {'event': pl.Datetime('us')}",
         "for result in (frame.select(expr), query.collect(), query.collect(engine='streaming')):\n    column = result['event']\n    assert type(column) is pl.Series and result.schema == {'event': pl.Datetime('us')}\n    assert column.to_physical().to_list() == [1705235400000000,None]",
-        "eager = frame['raw'].pldt.parse(cfg=config,default='14 Jan 2024')",
-        "assert eager.to_physical().to_list() == [1723638600000000,None]"
+        "assert fresh.name == \"raw\" and fresh.dtype == pl.Datetime(\"us\")",
+        "assert fresh.to_physical().to_list() == [1723638600000000, None]"
       ],
       "scenarios": [
         "parser-config",
@@ -13781,13 +13865,13 @@
         "nogil314",
         "nogil315"
       ],
-      "expectation_basis": "The actual compiled free-threaded runtime adds one ns and leaves the GIL disabled.",
+      "expectation_basis": "January 31 plus a month is February 29. The GIL stays disabled at startup, after imports, and after the actual eager and lazy queries.",
       "checks": [
         "import os",
-        "assert before is sys._is_gil_enabled() is False",
+        "assert before is after_import is after_query is False",
         "assert os.environ.get('PYTHON_GIL') is None and 'gil' not in sys._xoptions",
-        "assert type(expr) is pl.Expr and type(events) is pl.Series and events.dtype == pl.Datetime('ns')",
-        "assert frame.select(expr)['event'].to_physical().to_list() == [124,None]"
+        "assert type(expr) is pl.Expr and type(events) is pl.Series and events.dtype == pl.Datetime('us')",
+        "assert selected.equals(events) and events.is_null().to_list() == [False, True]"
       ],
       "scenarios": [
         "free-threaded",
@@ -14221,8 +14305,1734 @@
       "reviewed": true,
       "checks": [
         "assert rounded.name == \"event\" and rounded.dtype == pl.Datetime(\"us\")",
-        "assert rounded.is_null().to_list() == [False, False, True]"
+        "assert rounded.is_null().to_list() == [False, False, True]",
+        "assert diagnostic.startswith('Series.pldt.as_unit(): data[1]:')",
+        "assert \"in 'us'\" in diagnostic and 'round_ok=True' in diagnostic"
       ]
+    },
+    {
+      "id": "pldt-semi-month-range",
+      "covers": [
+        "rstimes.Pldt.date_range",
+        "rstimes.Pldt.isoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The month starts on January 1, ends on January 31 and the next first is February 1.",
+      "checks": [
+        "import polars as pl",
+        "assert type(schedule) is Pldt and schedule.dtype == pl.Datetime('us')",
+        "assert schedule.to_physical().to_list() == [1704067200000000, 1706659200000000, 1706745600000000]",
+        "for periods in (0,3):\n    try:\n        Pldt.date_range('2024-01-01',periods=periods,freq='SMS-1',unit='us')\n    except ValueError as problem:\n        assert '27' in str(problem)\n    else:\n        raise AssertionError('An out-of-range SMS anchor must fail')"
+      ],
+      "scenarios": [
+        "calendar-step",
+        "semi-month",
+        "invalid-anchor"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-ranges.md"
+    },
+    {
+      "id": "pldt-wide-tick-error",
+      "covers": [
+        "rstimes.Pldt"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "expectation_basis": "The copied UInt64 column first exceeds signed 64-bit capacity at zero-based row two.",
+      "checks": [
+        "assert ticks.dtype == pl.UInt64 and ticks.to_list() == [0, None, 2**63]",
+        "result = Pldt(ticks.head(2), unit='ns')\nassert result.dtype == pl.Datetime('ns') and result.to_physical().to_list() == [0, None]"
+      ],
+      "scenarios": [
+        "wide-integer",
+        "first-invalid-row",
+        "null"
+      ],
+      "reviewed": true,
+      "page": "guides/pldt-factories.md"
+    },
+    {
+      "id": "pldt-series-fromseconds",
+      "page": "guides/pldt-factories.md",
+      "covers": [
+        "polars.Series.pldt.fromseconds"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The epoch plus or minus one second is plus or minus 1000 milliseconds.",
+      "scenarios": [
+        "native-Series",
+        "epoch-seconds",
+        "physical-ticks",
+        "unit-and-name",
+        "null"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert type(seconds) is pl.Series and type(dates) is Pldt",
+        "assert dates.name == 'seconds' and dates.dtype == pl.Datetime('ms')",
+        "assert dates.to_physical().to_list() == [1000, None, -1000]"
+      ]
+    },
+    {
+      "id": "pldt-expr-fromseconds",
+      "page": "guides/expressions-inputs.md",
+      "covers": [
+        "polars.Expr.pldt.fromseconds"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The epoch plus or minus one second is plus or minus 1000 milliseconds.",
+      "scenarios": [
+        "native-Expr",
+        "select",
+        "collect",
+        "schema",
+        "epoch-seconds",
+        "null"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'seconds': pl.Datetime('ms')}",
+        "for values in (dates, query.collect()['seconds']):\n    assert type(values) is pl.Series and values.name == 'seconds'\n    assert values.dtype == pl.Datetime('ms') and values.to_physical().to_list() == [1000, None, -1000]"
+      ]
+    },
+    {
+      "id": "pldt-series-add",
+      "page": "guides/pldt-calendar.md",
+      "covers": [
+        "polars.Series.pldt.add"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "January 31 becomes February 29 at the same time of day. The missing row stays null.",
+      "scenarios": [
+        "native-receiver",
+        "eager"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Datetime('us') and dates.name == 'event'"
+      ]
+    },
+    {
+      "id": "pldt-series-snap",
+      "page": "guides/pldt-boundaries.md",
+      "covers": [
+        "polars.Series.pldt.snap"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "11:59 is closer to the same day's start. Noon ties and goes to the next day; null remains null.",
+      "scenarios": [
+        "native-receiver",
+        "eager"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Datetime('us') and dates.name == 'event'"
+      ]
+    },
+    {
+      "id": "pldt-series-isocalendar",
+      "page": "guides/pldt-output.md",
+      "covers": [
+        "polars.Series.pldt.isocalendar"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "January 1, 2021 was the fifth day of ISO week 53 of 2020.",
+      "scenarios": [
+        "native-receiver",
+        "eager",
+        "fixed-child-schema",
+        "outer-null"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Struct({'year': pl.Int64, 'week': pl.UInt32, 'day': pl.UInt32}) and dates.name == 'event'",
+        "assert dates.is_null().to_list() == [False, True]"
+      ]
+    },
+    {
+      "id": "pldt-series-toseconds",
+      "page": "guides/pldt-output.md",
+      "covers": [
+        "polars.Series.pldt.toseconds"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "At the epoch, Shanghai clock fields read 08:00, or 28800 seconds from local midnight.",
+      "scenarios": [
+        "native-receiver",
+        "eager"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Float64 and dates.name == 'event'"
+      ]
+    },
+    {
+      "id": "pldt-series-tomicroseconds",
+      "page": "guides/pldt-output.md",
+      "covers": [
+        "polars.Series.pldt.tomicroseconds"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The earlier microsecond tick at -1.5 microseconds is -2.",
+      "scenarios": [
+        "native-receiver",
+        "eager"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Int64 and dates.name == 'event'"
+      ]
+    },
+    {
+      "id": "pldt-series-timestamp",
+      "page": "guides/pldt-output.md",
+      "covers": [
+        "polars.Series.pldt.timestamp"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The input stores instant 0 in UTC coordinates, and its local display zone is Shanghai.",
+      "scenarios": [
+        "native-receiver",
+        "eager"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Float64 and dates.name == 'event'"
+      ]
+    },
+    {
+      "id": "pldt-series-strftime",
+      "page": "guides/pldt-output.md",
+      "covers": [
+        "polars.Series.pldt.strftime"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "A fraction of 123456789 ns renders nine digits; .3 keeps three and .0 emits no characters.",
+      "scenarios": [
+        "native-receiver",
+        "eager"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.String and dates.name == 'event'"
+      ]
+    },
+    {
+      "id": "pldt-series-strptime",
+      "page": "guides/pldt-factories.md",
+      "covers": [
+        "polars.Series.pldt.strptime"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Nine fractional digits represent 123456789 ns after the epoch.",
+      "scenarios": [
+        "native-receiver",
+        "eager"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Datetime('ns') and dates.name == 'event'"
+      ]
+    },
+    {
+      "id": "pldt-series-frommicroseconds",
+      "page": "guides/pldt-factories.md",
+      "covers": [
+        "polars.Series.pldt.frommicroseconds"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Each input microsecond represents 1000 nanosecond ticks.",
+      "scenarios": [
+        "native-receiver",
+        "eager"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Datetime('ns') and dates.name == 'event'"
+      ]
+    },
+    {
+      "id": "pldt-series-fromtimestamp",
+      "page": "guides/pldt-factories.md",
+      "covers": [
+        "polars.Series.pldt.fromtimestamp"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "At UTC epoch instant 0, the Tokyo clock is 09:00 and the UTC offset is +0900.",
+      "scenarios": [
+        "native-receiver",
+        "eager"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Datetime('us', 'Asia/Tokyo') and dates.name == 'event'"
+      ]
+    },
+    {
+      "id": "pldt-series-datetime",
+      "page": "guides/pldt-output.md",
+      "covers": [
+        "polars.Series.pldt.datetime"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "A 1234 ns timestamp exports one microsecond as a Pydt. The missing date becomes None.",
+      "scenarios": [
+        "native-receiver",
+        "eager"
+      ],
+      "checks": [
+        "from rstimes import Pydt",
+        "assert dates.dtype == object and type(dates[0]) is Pydt and dates[1] is None"
+      ]
+    },
+    {
+      "id": "pldt-expr-snap",
+      "page": "guides/expressions-boundaries.md",
+      "covers": [
+        "polars.Expr.pldt.snap"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "11:59 is closer to the same day's start. Noon ties and goes to the next day; null remains null.",
+      "scenarios": [
+        "native-receiver",
+        "select",
+        "collect",
+        "schema"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Datetime('us') and dates.name == 'event'",
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('us')}",
+        "assert query.collect()['event'].equals(dates)"
+      ]
+    },
+    {
+      "id": "pldt-expr-toseconds",
+      "page": "guides/expressions-output.md",
+      "covers": [
+        "polars.Expr.pldt.toseconds"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "At the epoch, Shanghai clock fields read 08:00, or 28800 seconds from local midnight.",
+      "scenarios": [
+        "native-receiver",
+        "select",
+        "collect",
+        "schema"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Float64 and dates.name == 'event'",
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Float64}",
+        "assert query.collect()['event'].equals(dates)"
+      ]
+    },
+    {
+      "id": "pldt-expr-tomicroseconds",
+      "page": "guides/expressions-output.md",
+      "covers": [
+        "polars.Expr.pldt.tomicroseconds"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The earlier microsecond tick at -1.5 microseconds is -2.",
+      "scenarios": [
+        "native-receiver",
+        "select",
+        "collect",
+        "schema"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Int64 and dates.name == 'event'",
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Int64}",
+        "assert query.collect()['event'].equals(dates)"
+      ]
+    },
+    {
+      "id": "pldt-expr-timestamp",
+      "page": "guides/expressions-output.md",
+      "covers": [
+        "polars.Expr.pldt.timestamp"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The input stores instant 0 in UTC coordinates, and its local display zone is Shanghai.",
+      "scenarios": [
+        "native-receiver",
+        "select",
+        "collect",
+        "schema"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Float64 and dates.name == 'event'",
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Float64}",
+        "assert query.collect()['event'].equals(dates)"
+      ]
+    },
+    {
+      "id": "pldt-expr-strftime",
+      "page": "guides/expressions-output.md",
+      "covers": [
+        "polars.Expr.pldt.strftime"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "A fraction of 123456789 ns renders nine digits; .3 keeps three and .0 emits no characters.",
+      "scenarios": [
+        "native-receiver",
+        "select",
+        "collect",
+        "schema"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.String and dates.name == 'event'",
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.String}",
+        "assert query.collect()['event'].equals(dates)"
+      ]
+    },
+    {
+      "id": "pldt-expr-frommicroseconds",
+      "page": "guides/expressions-inputs.md",
+      "covers": [
+        "polars.Expr.pldt.frommicroseconds"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Each input microsecond represents 1000 nanosecond ticks.",
+      "scenarios": [
+        "native-receiver",
+        "select",
+        "collect",
+        "schema"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Datetime('ns') and dates.name == 'event'",
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('ns')}",
+        "assert query.collect()['event'].equals(dates)"
+      ]
+    },
+    {
+      "id": "pldt-expr-fromtimestamp",
+      "page": "guides/expressions-inputs.md",
+      "covers": [
+        "polars.Expr.pldt.fromtimestamp"
+      ],
+      "format": "python",
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "At UTC epoch instant 0, the Tokyo clock is 09:00 and the UTC offset is +0900.",
+      "scenarios": [
+        "native-receiver",
+        "select",
+        "collect",
+        "schema"
+      ],
+      "checks": [
+        "assert dates.dtype == pl.Datetime('us', 'Asia/Tokyo') and dates.name == 'event'",
+        "assert type(expr) is pl.Expr",
+        "query = frame.lazy().select(expr)",
+        "assert query.collect_schema() == {'event': pl.Datetime('us', 'Asia/Tokyo')}",
+        "assert query.collect()['event'].equals(dates)"
+      ]
+    },
+    {
+      "id": "reader-pydt-month-boundaries",
+      "page": "guides/pydt-boundaries.md",
+      "covers": [
+        "rstimes.Pydt.to_first_of",
+        "rstimes.Pydt.to_start_of",
+        "rstimes.Pydt.to_last_of",
+        "rstimes.Pydt.to_end_of",
+        "rstimes.Pydt.is_first_of",
+        "rstimes.Pydt.is_start_of"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "March 2024 has 31 days. The calendar-day variants retain 14:30, and the last microsecond of the month is 23:59:59.999999.",
+      "scenarios": [
+        "month-boundaries",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pddt-month-boundaries",
+      "page": "guides/pddt-boundaries.md",
+      "covers": [
+        "rstimes.Pddt.to_first_of",
+        "rstimes.Pddt.to_start_of",
+        "rstimes.Pddt.to_last_of",
+        "rstimes.Pddt.to_end_of",
+        "rstimes.Pddt.is_first_of",
+        "rstimes.Pddt.is_start_of"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "March 2024 has 31 days. The calendar-day variants retain 14:30, and the last microsecond of the month is 23:59:59.999999.",
+      "scenarios": [
+        "month-boundaries",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pldt-month-boundaries",
+      "page": "guides/pldt-boundaries.md",
+      "covers": [
+        "rstimes.Pldt.to_first_of",
+        "rstimes.Pldt.to_start_of",
+        "rstimes.Pldt.to_last_of",
+        "rstimes.Pldt.to_end_of",
+        "rstimes.Pldt.is_first_of",
+        "rstimes.Pldt.is_start_of"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "March 2024 has 31 days. The calendar-day variants retain 14:30, and the last microsecond of the month is 23:59:59.999999.",
+      "scenarios": [
+        "month-boundaries",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-series-month-boundaries",
+      "page": "guides/pldt-boundaries.md",
+      "covers": [
+        "polars.Series.pldt.to_first_of",
+        "polars.Series.pldt.to_start_of",
+        "polars.Series.pldt.to_last_of",
+        "polars.Series.pldt.to_end_of",
+        "polars.Series.pldt.is_first_of",
+        "polars.Series.pldt.is_start_of"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "March 2024 has 31 days. The calendar-day variants retain 14:30, and the last microsecond of the month is 23:59:59.999999.",
+      "scenarios": [
+        "month-boundaries",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-expr-month-boundaries",
+      "page": "guides/expressions-boundaries.md",
+      "covers": [
+        "polars.Expr.pldt.to_first_of",
+        "polars.Expr.pldt.to_start_of",
+        "polars.Expr.pldt.to_last_of",
+        "polars.Expr.pldt.to_end_of",
+        "polars.Expr.pldt.is_first_of",
+        "polars.Expr.pldt.is_start_of"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "March 2024 has 31 days. The calendar-day variants retain 14:30, and the last microsecond of the month is 23:59:59.999999.",
+      "scenarios": [
+        "month-boundaries",
+        "reader-example",
+        "collect"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pydt-month-and-fields",
+      "page": "guides/pydt-calendar.md",
+      "covers": [
+        "rstimes.Pydt.to_next_month",
+        "rstimes.Pydt.to_datetime",
+        "rstimes.Pydt.parse"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The leap February ends on the 29th. The month move carries 14:30, and setting hour to 9 keeps minute 30.",
+      "scenarios": [
+        "month-and-fields",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pddt-month-and-fields",
+      "page": "guides/pddt-calendar.md",
+      "covers": [
+        "rstimes.Pddt.to_next_month",
+        "rstimes.Pddt.to_datetime",
+        "rstimes.Pddt.parse"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The leap February ends on the 29th. The month move carries 14:30, and setting hour to 9 keeps minute 30.",
+      "scenarios": [
+        "month-and-fields",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pldt-month-and-fields",
+      "page": "guides/pldt-calendar.md",
+      "covers": [
+        "rstimes.Pldt.to_next_month",
+        "rstimes.Pldt.to_datetime",
+        "rstimes.Pldt.parse"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The leap February ends on the 29th. The month move carries 14:30, and setting hour to 9 keeps minute 30.",
+      "scenarios": [
+        "month-and-fields",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-series-month-and-fields",
+      "page": "guides/pldt-calendar.md",
+      "covers": [
+        "polars.Series.pldt.to_next_month",
+        "polars.Series.pldt.to_datetime"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The leap February ends on the 29th. The month move carries 14:30, and setting hour to 9 keeps minute 30.",
+      "scenarios": [
+        "month-and-fields",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-expr-month-and-fields",
+      "page": "guides/expressions-calendar.md",
+      "covers": [
+        "polars.Expr.pldt.to_next_month",
+        "polars.Expr.pldt.to_datetime"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The leap February ends on the 29th. The month move carries 14:30, and setting hour to 9 keeps minute 30.",
+      "scenarios": [
+        "month-and-fields",
+        "reader-example",
+        "collect"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pydt-timezone-choices",
+      "page": "guides/pydt-timezones.md",
+      "covers": [
+        "rstimes.Pydt.tz_localize",
+        "rstimes.Pydt.tz_convert",
+        "rstimes.Pydt.astimezone",
+        "rstimes.Pydt.tz_switch"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Tokyo is nine hours ahead of UTC on January 2, 2024. The clock is 00:00 in Tokyo and 15:00 UTC on the previous day.",
+      "scenarios": [
+        "timezone-choices",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pddt-timezone-choices",
+      "page": "guides/pddt-timezones.md",
+      "covers": [
+        "rstimes.Pddt.tz_localize",
+        "rstimes.Pddt.tz_convert",
+        "rstimes.Pddt.astimezone",
+        "rstimes.Pddt.tz_switch"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Tokyo is nine hours ahead of UTC on January 2, 2024. The clock is 00:00 in Tokyo and 15:00 UTC on the previous day.",
+      "scenarios": [
+        "timezone-choices",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pldt-timezone-choices",
+      "page": "guides/pldt-timezones.md",
+      "covers": [
+        "rstimes.Pldt.tz_localize",
+        "rstimes.Pldt.tz_convert",
+        "rstimes.Pldt.astimezone",
+        "rstimes.Pldt.tz_switch"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Tokyo is nine hours ahead of UTC on January 2, 2024. The clock is 00:00 in Tokyo and 15:00 UTC on the previous day.",
+      "scenarios": [
+        "timezone-choices",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-series-timezone-choices",
+      "page": "guides/pldt-timezones.md",
+      "covers": [
+        "polars.Series.pldt.tz_localize",
+        "polars.Series.pldt.tz_convert",
+        "polars.Series.pldt.astimezone",
+        "polars.Series.pldt.tz_switch"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Tokyo is nine hours ahead of UTC on January 2, 2024. The clock is 00:00 in Tokyo and 15:00 UTC on the previous day.",
+      "scenarios": [
+        "timezone-choices",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-expr-timezone-choices",
+      "page": "guides/expressions-timezones.md",
+      "covers": [
+        "polars.Expr.pldt.tz_localize",
+        "polars.Expr.pldt.tz_convert",
+        "polars.Expr.pldt.astimezone",
+        "polars.Expr.pldt.tz_switch"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Tokyo is nine hours ahead of UTC on January 2, 2024. The clock is 00:00 in Tokyo and 15:00 UTC on the previous day.",
+      "scenarios": [
+        "timezone-choices",
+        "reader-example",
+        "collect"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pydt-three-epoch-inputs",
+      "page": "guides/pydt-interop.md",
+      "covers": [
+        "rstimes.Pydt.fromseconds",
+        "rstimes.Pydt.fromtimestamp",
+        "rstimes.Pydt.frommicroseconds"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Local clock zero is midnight. POSIX zero is midnight UTC, or 09:00 in Tokyo. Integer microsecond 1 adds one microsecond to the local clock.",
+      "scenarios": [
+        "three-epoch-inputs",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pddt-three-epoch-inputs",
+      "page": "guides/pddt-factories.md",
+      "covers": [
+        "rstimes.Pddt.fromseconds",
+        "rstimes.Pddt.fromtimestamp",
+        "rstimes.Pddt.frommicroseconds"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Local clock zero is midnight. POSIX zero is midnight UTC, or 09:00 in Tokyo. Integer microsecond 1 adds one microsecond to the local clock.",
+      "scenarios": [
+        "three-epoch-inputs",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pldt-three-epoch-inputs",
+      "page": "guides/pldt-factories.md",
+      "covers": [
+        "rstimes.Pldt.fromseconds",
+        "rstimes.Pldt.fromtimestamp",
+        "rstimes.Pldt.frommicroseconds"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Local clock zero is midnight. POSIX zero is midnight UTC, or 09:00 in Tokyo. Integer microsecond 1 adds one microsecond to the local clock.",
+      "scenarios": [
+        "three-epoch-inputs",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pydt-datetime-source-zone",
+      "page": "guides/pydt-interop.md",
+      "covers": [
+        "rstimes.Pydt.fromdatetime"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "fromdatetime keeps the source clock. Explicit Tokyo makes 00:00 use +09:00.",
+      "scenarios": [
+        "datetime-source-zone",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pddt-datetime-source-zone",
+      "page": "guides/pddt-factories.md",
+      "covers": [
+        "rstimes.Pddt.fromdatetime"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "fromdatetime keeps the source clock. Explicit Tokyo makes 00:00 use +09:00.",
+      "scenarios": [
+        "datetime-source-zone",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pldt-datetime-source-zone",
+      "page": "guides/pldt-factories.md",
+      "covers": [
+        "rstimes.Pldt.fromdatetime"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "fromdatetime keeps the source clock. Explicit Tokyo makes 00:00 use +09:00.",
+      "scenarios": [
+        "datetime-source-zone",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-series-datetime-source-zone",
+      "page": "guides/pldt-factories.md",
+      "covers": [
+        "polars.Series.pldt.fromdatetime"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "fromdatetime keeps the source clock. Explicit Tokyo makes 00:00 use +09:00.",
+      "scenarios": [
+        "datetime-source-zone",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-expr-datetime-source-zone",
+      "page": "guides/expressions-inputs.md",
+      "covers": [
+        "polars.Expr.pldt.fromdatetime"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "fromdatetime keeps the source clock. Explicit Tokyo makes 00:00 use +09:00.",
+      "scenarios": [
+        "datetime-source-zone",
+        "reader-example",
+        "collect"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pddt-iso-text",
+      "page": "guides/pddt-factories.md",
+      "covers": [
+        "rstimes.Pddt.fromisoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "2024 is a leap year. The ISO clock is 03:04:05. A null at the input position stays null.",
+      "scenarios": [
+        "iso-text",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pldt-iso-text",
+      "page": "guides/pldt-factories.md",
+      "covers": [
+        "rstimes.Pldt.fromisoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "2024 is a leap year. The ISO clock is 03:04:05. A null at the input position stays null.",
+      "scenarios": [
+        "iso-text",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-series-iso-text",
+      "page": "guides/pldt-factories.md",
+      "covers": [
+        "polars.Series.pldt.fromisoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "2024 is a leap year. The ISO clock is 03:04:05. A null at the input position stays null.",
+      "scenarios": [
+        "iso-text",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-expr-iso-text",
+      "page": "guides/expressions-inputs.md",
+      "covers": [
+        "polars.Expr.pldt.fromisoformat"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "2024 is a leap year. The ISO clock is 03:04:05. A null at the input position stays null.",
+      "scenarios": [
+        "iso-text",
+        "reader-example",
+        "collect"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pddt-numpy-date-input",
+      "page": "guides/pddt-factories.md",
+      "covers": [
+        "rstimes.Pddt.fromdatetime64"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The source coordinates are one and two three-millisecond ticks, so the outputs are 3 and 6 ms.",
+      "scenarios": [
+        "numpy-date-input",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pldt-numpy-date-input",
+      "page": "guides/pldt-factories.md",
+      "covers": [
+        "rstimes.Pldt.fromdatetime64"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The source coordinates are one and two three-millisecond ticks, so the outputs are 3 and 6 ms.",
+      "scenarios": [
+        "numpy-date-input",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pddt-combine-clock",
+      "page": "guides/pddt-factories.md",
+      "covers": [
+        "rstimes.Pddt.combine"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Combine takes the date part from each row and uses the supplied clock at 09:30.",
+      "scenarios": [
+        "combine-clock",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-series-combine-clock",
+      "page": "guides/pldt-factories.md",
+      "covers": [
+        "polars.Series.pldt.combine"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Combine takes the date part from each row and uses the supplied clock at 09:30.",
+      "scenarios": [
+        "combine-clock",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-expr-combine-clock",
+      "page": "guides/expressions-inputs.md",
+      "covers": [
+        "polars.Expr.pldt.combine"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "Combine takes the date part from each row and uses the supplied clock at 09:30.",
+      "scenarios": [
+        "combine-clock",
+        "reader-example",
+        "collect"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pydt-second-grid",
+      "page": "guides/pydt-boundaries.md",
+      "covers": [
+        "rstimes.Pydt.round",
+        "rstimes.Pydt.ceil",
+        "rstimes.Pydt.floor",
+        "rstimes.Pydt.fsp"
+      ],
+      "format": "python",
+      "profiles": [
+        "core",
+        "full",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "12:00:01.567891 is closer to 12:00:02. Its lower second is 12:00:01 and truncating after three digits yields .567.",
+      "scenarios": [
+        "second-grid",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pddt-second-grid",
+      "page": "guides/pddt-boundaries.md",
+      "covers": [
+        "rstimes.Pddt.round",
+        "rstimes.Pddt.ceil",
+        "rstimes.Pddt.floor",
+        "rstimes.Pddt.fsp"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "12:00:01.567891 is closer to 12:00:02. Its lower second is 12:00:01 and truncating after three digits yields .567.",
+      "scenarios": [
+        "second-grid",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pldt-second-grid",
+      "page": "guides/pldt-boundaries.md",
+      "covers": [
+        "rstimes.Pldt.fsp"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "12:00:01.567891 is closer to 12:00:02. Its lower second is 12:00:01 and truncating after three digits yields .567.",
+      "scenarios": [
+        "second-grid",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-series-second-grid",
+      "page": "guides/pldt-boundaries.md",
+      "covers": [
+        "polars.Series.pldt.round",
+        "polars.Series.pldt.ceil",
+        "polars.Series.pldt.floor",
+        "polars.Series.pldt.fsp"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "12:00:01.567891 is closer to 12:00:02. Its lower second is 12:00:01 and truncating after three digits yields .567.",
+      "scenarios": [
+        "second-grid",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-expr-second-grid",
+      "page": "guides/expressions-boundaries.md",
+      "covers": [
+        "polars.Expr.pldt.round",
+        "polars.Expr.pldt.ceil",
+        "polars.Expr.pldt.floor",
+        "polars.Expr.pldt.fsp"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "12:00:01.567891 is closer to 12:00:02. Its lower second is 12:00:01 and truncating after three digits yields .567.",
+      "scenarios": [
+        "second-grid",
+        "reader-example",
+        "collect"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pddt-snap-tie",
+      "page": "guides/pddt-boundaries.md",
+      "covers": [
+        "rstimes.Pddt.snap"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "At midday the neighboring day starts have the same distance. Snap takes the later start.",
+      "scenarios": [
+        "snap-tie",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-series-subtract-delta",
+      "page": "guides/pldt-arithmetic.md",
+      "covers": [
+        "polars.Series.pldt.sub_delta"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "One month before January 31, 2024 is December 31, 2023, at the same clock time.",
+      "scenarios": [
+        "subtract-delta",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-expr-subtract-delta",
+      "page": "guides/expressions-calendar.md",
+      "covers": [
+        "polars.Expr.pldt.sub_delta"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "One month before January 31, 2024 is December 31, 2023, at the same clock time.",
+      "scenarios": [
+        "subtract-delta",
+        "reader-example",
+        "collect"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pldt-formatted-text",
+      "page": "guides/pldt-factories.md",
+      "covers": [
+        "rstimes.Pldt.strptime"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "The fraction in the input is 123456789 nanoseconds since the epoch.",
+      "scenarios": [
+        "formatted-text",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "reader-pldt-numpy-temporal-arithmetic",
+      "page": "guides/pldt-interop.md",
+      "covers": [
+        "rstimes.Pldt.__array_ufunc__"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "A three-nanosecond coordinate results from adding two nanoseconds to tick one.",
+      "scenarios": [
+        "numpy-temporal-arithmetic",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": []
+    },
+    {
+      "id": "pddt-weekday-periods",
+      "page": "guides/pddt-calendar.md",
+      "covers": [
+        "rstimes.Pddt.to_curr_weekday",
+        "rstimes.Pddt.to_prev_weekday",
+        "rstimes.Pddt.to_next_weekday",
+        "rstimes.Pddt.to_weekday"
+      ],
+      "format": "python",
+      "profiles": [
+        "full",
+        "pandas2",
+        "windows-full",
+        "nogil314",
+        "nogil315"
+      ],
+      "expectation_basis": "March 15, 2024 is a Friday. The three relative weeks start March 11, March 4, and March 18, and the clock is retained.",
+      "scenarios": [
+        "weekday",
+        "calendar-week",
+        "clock-preserved",
+        "null",
+        "reader-example",
+        "eager"
+      ],
+      "reviewed": true,
+      "checks": [
+        "assert all(type(dates) is Pddt and dates.name == \"event\" and dates.unit == \"us\" for dates in choices)",
+        "assert all(dates.isna().tolist() == [False, True] for dates in choices)",
+        "assert [dates[0].day for dates in choices] == [11, 4, 18, 18]"
+      ]
+    },
+    {
+      "id": "pldt-add-calendar-month",
+      "page": "guides/pldt-calendar.md",
+      "format": "python",
+      "covers": [
+        "rstimes.Pldt.add"
+      ],
+      "reviewed": true,
+      "profiles": [
+        "full",
+        "polars-only",
+        "polars-current",
+        "windows-full"
+      ],
+      "scenarios": [
+        "calendar-month",
+        "end-of-month",
+        "null"
+      ],
+      "expectation_basis": "February 2024 ends on the 29th, and a calendar month preserves the time of day.",
+      "checks": []
     }
   ]
 }

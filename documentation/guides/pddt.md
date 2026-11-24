@@ -37,7 +37,7 @@ contains a time one millisecond after the epoch.
 | --- | --- |
 | Native dates with a supported declared unit | The source's unit. |
 | Python dates or date arrays with units coarser than seconds | Seconds. |
-| Python datetimes and ordinary date strings | Microseconds. Text with nine fractional digits uses nanoseconds. |
+| Python datetimes and valid date strings | Python datetimes use microseconds. Date strings with up to six fractional digits use microseconds. Seven through nine digits use nanoseconds, including trailing zeroes. |
 | Untyped empty or all-missing collections | Seconds. |
 | Bare numeric input, including an empty native numeric array | Nanoseconds. |
 

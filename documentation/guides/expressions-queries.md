@@ -60,9 +60,8 @@ difference from the previous row.
 import polars as pl
 import rstimes.pldt
 
-frame = pl.DataFrame({
-    "event": pl.Series([1709164800000000, None], dtype=pl.Datetime("us")),
-})
+source = pl.Series("event", ["2021-01-01", None]).str.to_datetime(time_unit="us")
+frame = source.to_frame()
 expr = pl.col("event").pldt.isocalendar()
 print(frame.lazy().select(expr).collect()["event"].to_list())
 ```
@@ -70,12 +69,15 @@ print(frame.lazy().select(expr).collect()["event"].to_list())
 **Output**
 
 ```text
-[{'year': 2024, 'week': 9, 'day': 4}, None]
+[{'year': 2020, 'week': 53, 'day': 5}, None]
 ```
 
-Use `struct.field("week")` for just the ISO week.
-Use `isoyear()` when signed years are required. The
-Struct uses UInt32 and a negative ISO year raises at execution.
+Use `struct.field("week")` for just the ISO week. The `year` field uses
+`Int64` and can be negative. The `week` and `day` fields use `UInt32`.
+A missing date gives a null Struct. A date outside the range supported
+for its named time zone raises `polars.exceptions.ComputeError` when
+`select` or `collect` evaluates that row. The message can report its
+position in the input batch.
 
 (expr-clock-reference)=
 ## Compare with a captured clock

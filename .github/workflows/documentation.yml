@@ -200,6 +200,8 @@ jobs:
         run: python -I documentation/_tools/check_source_scope.py --output .local/docs-scope.json
       - name: Build all HTML strictly from the verified public declarations
         run: sphinx-build -d .local/docs-doctrees -b html -E -W --keep-going documentation .local/docs-html
+      - name: Verify readable API signatures and descriptions
+        run: python -I -B documentation/_tools/check_reader_copy.py --html .local/docs-html --output .local/reader-copy.json
       - name: Verify every visible Python example in the built pages
         run: >-
           python -I documentation/_tools/check_rendered_examples.py
@@ -273,6 +275,7 @@ jobs:
             .local/docs-site-check.json
             .local/docs-scope.json
             .local/rendered-examples.json
+            .local/reader-copy.json
             .local/docs-evidence/context.json
             .local/docs-evidence/counts.json
             .local/docs-evidence/receivers.json

@@ -2,7 +2,7 @@
 
 Find the signature, arguments, return type and errors for a public entry
 by its name. The rsTimes classes and functions use the declarations from
-the installed 1.1.0 wheel. The Series and Expr references describe their
+the installed 1.1.1 wheel. The Series and Expr references describe their
 registered namespaces. Follow an example link to see a runnable use.
 
 | Task | Reference |

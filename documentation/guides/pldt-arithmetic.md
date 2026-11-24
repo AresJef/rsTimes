@@ -64,3 +64,23 @@ NumPy temporal operands also support the approved `np.add` and
 `np.subtract` directions. Use a supported date or duration dtype
 so its unit and missing representation are carried through.
 For a date-to-date duration, see [subtract dates](pldt-differences.md).
+
+## Subtract a calendar month through Delta
+
+(reader-series-subtract-delta)=
+```python
+import polars as pl
+import rstimes.pldt
+from rstimes import Delta
+
+source = pl.Series('event', ['2024-01-31 14:30']).str.to_datetime(time_unit='us')
+delta = Delta(months=1)
+moved = source.pldt.sub_delta(delta)
+print(moved.strftime('%Y-%m-%d %H:%M').to_list()[0])
+```
+
+**Output**
+
+```text
+2023-12-31 14:30
+```

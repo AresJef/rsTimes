@@ -149,9 +149,15 @@ class Observer:
                 output, roots = expr.name, ()
             else:
                 return None
-            projected[output if named is None else named] = self.flow(expr).union(
-                *(source.get(root, set()) for root in roots))
+            projected[output if named is None else named] = self.projection_origins(source, expr, roots)
         return projected
+
+    def projection_origins(self, source, expr, roots):
+        return self.flow(expr).union(*(source.get(root, set()) for root in roots))
+
+    def materialized_column(self, frame, column, origin, action):
+        entry, actor, line = origin
+        self.record(entry, actor, action, line)
 
     def query(self, function, receiver, name, args, kwargs):
         incoming = self.columns.get(id(receiver), (None, {}))[1]
@@ -182,8 +188,8 @@ class Observer:
             self.columns[id(result)] = (result, columns)
         if materialized and result.height and name in {"select", "collect"}:
             for column in result.columns:
-                for entry, actor, line in columns.get(column, ()):
-                    self.record(entry, actor, name, line)
+                for origin in columns.get(column, ()):
+                    self.materialized_column(result, column, origin, name)
         return result
 
     def wrapped(self, function, receiver, name, path, actor, line):
